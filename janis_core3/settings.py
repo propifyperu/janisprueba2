@@ -20,12 +20,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'clave_para_desarrollo')
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
+DEBUG = True
 
 ALLOWED_HOSTS = [
     'janis-core2-app.azurewebsites.net',
+    'localhost',
+    '127.0.0.1',
 ]
 # Application definition
 
@@ -37,7 +39,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "prueba",
+    "properties",
+    "users",
 ]
+AUTH_USER_MODEL = 'users.CustomUser'
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -55,7 +60,7 @@ ROOT_URLCONF = "janis_core3.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "prueba" / "templates"],
+        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -74,9 +79,20 @@ WSGI_APPLICATION = "janis_core3.wsgi.application"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'mssql',
+        'NAME': 'propify_db',
+        'USER': 'adminpropify',
+        'PASSWORD': 'Propify12345@',
+        'HOST': 'propify.database.windows.net',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 18 for SQL Server',
+            'extra_params': 'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;',
+            'connection_timeout': 60,
+        },
+        'CONN_MAX_AGE': 0,
+        'TIME_ZONE': 'UTC',
     }
 }
 
@@ -123,3 +139,5 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+FIELD_ENCRYPTION_KEY = 'Qk9vQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2g='
+LOGIN_URL = '/users/login/'
