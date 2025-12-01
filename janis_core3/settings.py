@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "prueba",
     "properties",
     "users",
+    "security",
 ]
 AUTH_USER_MODEL = 'users.CustomUser'
 
@@ -129,6 +130,9 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
+CSRF_TRUSTED_ORIGINS = [
+    'https://janis-core2-app.azurewebsites.net',
+]
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"

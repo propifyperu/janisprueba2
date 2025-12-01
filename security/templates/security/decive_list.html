@@ -1,0 +1,344 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Dispositivos Autorizados{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+	.devices-dashboard {
+		--teal-primary: #047D7D;
+		--teal-secondary: #279896;
+		--teal-muted: rgba(6, 44, 44, 0.6);
+	}
+
+	.devices-dashboard .page-header-card {
+		background: linear-gradient(115deg, rgba(4, 125, 125, 0.14) 0%, rgba(39, 152, 150, 0.2) 100%);
+		border-radius: 1rem;
+		border: 1px solid rgba(4, 125, 125, 0.18);
+		padding: 1.75rem 2.25rem;
+		box-shadow: 0 1.5rem 3rem -2.2rem rgba(4, 125, 125, 0.48);
+	}
+
+	.devices-dashboard .metric-card {
+		background: #fff;
+		border-radius: 0.9rem;
+		border: 1px solid rgba(4, 125, 125, 0.12);
+		padding: 1.25rem 1.5rem;
+		box-shadow: 0 1.25rem 3rem -2rem rgba(4, 125, 125, 0.35);
+	}
+
+	.devices-dashboard .metric-card h3 {
+		margin: 0;
+		font-weight: 700;
+		color: var(--teal-primary);
+	}
+
+	.devices-dashboard .metric-card span {
+		text-transform: uppercase;
+		color: var(--teal-muted);
+		letter-spacing: 0.08em;
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+
+	.devices-dashboard .filters-card {
+		background: #fff;
+		border-radius: 1rem;
+		border: 1px solid rgba(4, 125, 125, 0.12);
+		box-shadow: 0 1rem 2.5rem -2rem rgba(4, 125, 125, 0.3);
+	}
+
+	.devices-dashboard .btn-teal {
+		background-color: var(--teal-primary);
+		border-color: var(--teal-primary);
+		color: #fff;
+		font-weight: 600;
+	}
+
+	.devices-dashboard .btn-teal:hover,
+	.devices-dashboard .btn-teal:focus {
+		background-color: #036c6c;
+		border-color: #036c6c;
+	}
+
+	.devices-dashboard .btn-outline-teal {
+		border-color: rgba(4, 125, 125, 0.42);
+		color: var(--teal-primary);
+		font-weight: 600;
+	}
+
+	.devices-dashboard .btn-outline-teal:hover {
+		background-color: var(--teal-primary);
+		color: #fff;
+	}
+
+	.devices-dashboard .device-card {
+		background: #fff;
+		border-radius: 1rem;
+		border: 1px solid rgba(4, 125, 125, 0.12);
+		box-shadow: 0 1.5rem 3.2rem -2.2rem rgba(4, 125, 125, 0.4);
+		padding: 1.5rem;
+		transition: transform 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.devices-dashboard .device-card:hover {
+		transform: translateY(-3px);
+		box-shadow: 0 1.75rem 3.5rem -2.1rem rgba(4, 125, 125, 0.46);
+	}
+
+	.devices-dashboard .status-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.35rem 0.75rem;
+		border-radius: 999px;
+		font-weight: 600;
+		font-size: 0.8rem;
+	}
+
+	.devices-dashboard .status-chip.pending {
+		background: rgba(252, 186, 3, 0.18);
+		color: #8a5b02;
+	}
+
+	.devices-dashboard .status-chip.approved {
+		background: rgba(4, 125, 125, 0.18);
+		color: var(--teal-primary);
+	}
+
+	.devices-dashboard .status-chip.blocked {
+		background: rgba(220, 53, 69, 0.18);
+		color: #8a1020;
+	}
+
+	.devices-dashboard .device-meta {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+		gap: 1rem;
+		margin-top: 1.25rem;
+	}
+
+	.devices-dashboard .meta-item {
+		background: rgba(4, 125, 125, 0.06);
+		border: 1px solid rgba(4, 125, 125, 0.1);
+		border-radius: 0.85rem;
+		padding: 0.9rem 1.1rem;
+	}
+
+	.devices-dashboard .meta-label {
+		display: block;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		font-size: 0.72rem;
+		color: var(--teal-muted);
+		font-weight: 600;
+		margin-bottom: 0.35rem;
+	}
+
+	.devices-dashboard .meta-value {
+		font-weight: 600;
+		color: #073438;
+	}
+
+	.devices-dashboard .device-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 1.5rem;
+	}
+
+	.devices-dashboard .badge-trusted {
+		background: rgba(39, 152, 150, 0.16);
+		color: var(--teal-primary);
+		border-radius: 999px;
+		padding: 0.2rem 0.7rem;
+		font-weight: 600;
+		font-size: 0.75rem;
+	}
+
+	.devices-dashboard .pagination .page-link {
+		color: var(--teal-primary);
+		border-radius: 999px;
+		margin: 0 0.2rem;
+		font-weight: 600;
+	}
+
+	.devices-dashboard .pagination .page-item.active .page-link {
+		background-color: var(--teal-primary);
+		border-color: var(--teal-primary);
+		color: #fff;
+	}
+
+	@media (max-width: 992px) {
+		.devices-dashboard .device-card {
+			padding: 1.25rem;
+		}
+
+		.devices-dashboard .page-header-card {
+			text-align: center;
+		}
+	}
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4 devices-dashboard">
+	<div class="row justify-content-center">
+		<div class="col-12 col-xl-11 d-flex flex-column gap-4">
+			<div class="page-header-card d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+				<div>
+					<p class="text-muted text-uppercase small mb-2 fw-semibold" style="letter-spacing:0.18em;">Seguridad</p>
+					<h1 class="h4 fw-bold mb-1" style="color: var(--teal-primary);">
+						<i class="fas fa-shield-alt me-2"></i>Dispositivos autorizados
+					</h1>
+					<p class="mb-0 text-muted">Aprueba o bloquea el acceso desde nuevos dispositivos registrados.</p>
+				</div>
+				<div class="text-md-end">
+					<span class="badge-trusted"><i class="fas fa-lock me-2"></i>Solo visible para superadministradores</span>
+				</div>
+			</div>
+
+			<div class="row g-3">
+				<div class="col-sm-4">
+					<div class="metric-card">
+						<h3>{{ pending_count }}</h3>
+						<span>Pendientes</span>
+					</div>
+				</div>
+				<div class="col-sm-4">
+					<div class="metric-card">
+						<h3>{{ approved_count }}</h3>
+						<span>Aprobados</span>
+					</div>
+				</div>
+				<div class="col-sm-4">
+					<div class="metric-card">
+						<h3>{{ blocked_count }}</h3>
+						<span>Bloqueados</span>
+					</div>
+				</div>
+			</div>
+
+			<div class="card filters-card">
+				<div class="card-body">
+					<form method="get" class="row gy-3 align-items-end">
+						<div class="col-md-4">
+							<label class="form-label fw-semibold text-muted text-uppercase small">Buscar</label>
+							<input type="text" class="form-control" name="q" value="{{ request.GET.q }}" placeholder="ID de dispositivo" />
+						</div>
+						<div class="col-md-4">
+							<label class="form-label fw-semibold text-muted text-uppercase small">Estado</label>
+							<select class="form-select" name="status">
+								<option value="">Todos</option>
+								<option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pendientes</option>
+								<option value="approved" {% if current_status == 'approved' %}selected{% endif %}>Aprobados</option>
+								<option value="blocked" {% if current_status == 'blocked' %}selected{% endif %}>Bloqueados</option>
+							</select>
+						</div>
+						<div class="col-md-2 d-grid">
+							<button class="btn btn-teal" type="submit"><i class="fas fa-filter me-2"></i>Filtrar</button>
+						</div>
+						<div class="col-md-2 d-grid">
+							<a href="{% url 'security:device_list' %}" class="btn btn-outline-teal"><i class="fas fa-redo me-2"></i>Reset</a>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<div class="d-flex flex-column gap-3">
+			{% for device in devices %}
+				<div class="device-card">
+					<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+						<div>
+							<h3 class="h5 fw-semibold mb-1">{{ device.name|default:'Dispositivo sin nombre' }}</h3>
+							<p class="mb-0 text-muted">ID: <strong>{{ device.device_id }}</strong></p>
+						</div>
+						<div class="text-md-end">
+							<span class="status-chip {{ device.status }}">
+								<i class="fas fa-circle"></i> {{ device.get_status_display }}
+							</span>
+							{% if device.is_trusted %}
+							<span class="badge-trusted ms-2"><i class="fas fa-shield-check me-1"></i>Confiable</span>
+							{% endif %}
+						</div>
+					</div>
+
+					<div class="device-meta">
+						<div class="meta-item">
+							<span class="meta-label">Usuario asignado</span>
+							<span class="meta-value">{{ device.user.get_full_name|default:device.user.username }}</span>
+						</div>
+						<div class="meta-item">
+							<span class="meta-label">Plataforma</span>
+							<span class="meta-value">{{ device.platform|default:'No registrada' }}</span>
+						</div>
+						<div class="meta-item">
+							<span class="meta-label">Última IP</span>
+							<span class="meta-value">{{ device.ip_address|default:'-'}} </span>
+						</div>
+						<div class="meta-item">
+							<span class="meta-label">Último acceso</span>
+							<span class="meta-value">{{ device.last_seen_at|date:'d/m/Y H:i'|default:'Sin actividad' }}</span>
+						</div>
+						<div class="meta-item">
+							<span class="meta-label">Registrado</span>
+							<span class="meta-value">{{ device.registered_at|date:'d/m/Y H:i' }}</span>
+						</div>
+						<div class="meta-item">
+							<span class="meta-label">User Agent</span>
+							<span class="meta-value">{{ device.user_agent|default:'-' }}</span>
+						</div>
+					</div>
+
+					<div class="device-actions">
+						<form method="post" action="{% url 'security:device_status_update' device.pk %}">
+							{% csrf_token %}
+							<input type="hidden" name="action" value="approve" />
+							<button type="submit" class="btn btn-teal btn-sm" {% if device.status == 'approved' %}disabled{% endif %}>
+								<i class="fas fa-check me-2"></i>Aprobar
+							</button>
+						</form>
+						<form method="post" action="{% url 'security:device_status_update' device.pk %}">
+							{% csrf_token %}
+							<input type="hidden" name="action" value="block" />
+							<button type="submit" class="btn btn-outline-teal btn-sm" {% if device.status == 'blocked' %}disabled{% endif %}>
+								<i class="fas fa-ban me-2"></i>Bloquear
+							</button>
+						</form>
+						<form method="post" action="{% url 'security:device_status_update' device.pk %}">
+							{% csrf_token %}
+							<input type="hidden" name="action" value="pending" />
+							<button type="submit" class="btn btn-outline-teal btn-sm" {% if device.status == 'pending' %}disabled{% endif %}>
+								<i class="fas fa-hourglass-half me-2"></i>Pendiente
+							</button>
+						</form>
+					</div>
+				</div>
+			{% empty %}
+				<div class="device-card text-center py-5">
+					<i class="fas fa-laptop-slash fa-3x text-muted mb-3"></i>
+					<h4 class="text-muted">No hay dispositivos registrados</h4>
+					<p class="text-muted">Los dispositivos aparecerán aquí cuando intenten iniciar sesión por primera vez.</p>
+				</div>
+			{% endfor %}
+			</div>
+
+			{% if is_paginated %}
+			<nav aria-label="Paginación de dispositivos" class="mt-4">
+				<ul class="pagination justify-content-center">
+					{% if page_obj.has_previous %}
+					<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
+					{% endif %}
+					{% for num in page_obj.paginator.page_range %}
+					<li class="page-item {% if page_obj.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+					{% endfor %}
+					{% if page_obj.has_next %}
+					<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a></li>
+					{% endif %}
+				</ul>
+			</nav>
+			{% endif %}
+		</div>
+	</div>
+</div>
+{% endblock %}

@@ -1,0 +1,138 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Dashboard de Seguridad - Janis Platform{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .security-dashboard-header {
+        background: linear-gradient(115deg, rgba(4, 125, 125, 0.14) 0%, rgba(39, 152, 150, 0.2) 100%);
+        border-radius: 1rem;
+        border: 1px solid rgba(4, 125, 125, 0.18);
+        padding: 1.75rem 2.25rem;
+        box-shadow: 0 1.5rem 3rem -2.2rem rgba(4, 125, 125, 0.48);
+        margin-bottom: 2rem;
+    }
+    .security-dashboard-header h1 {
+        color: #047d7d;
+        font-weight: 700;
+    }
+    .security-dashboard-header p {
+        color: #279896;
+        font-size: 1.1rem;
+    }
+    .security-metrics {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+    .security-metric-card {
+        background: #fff;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 1.25rem 3rem -2rem rgba(4, 125, 125, 0.35);
+        flex: 1;
+        text-align: center;
+    }
+    .security-metric-card h3 {
+        margin: 0;
+        font-weight: 700;
+        color: #047d7d;
+        font-size: 2.2rem;
+    }
+    .security-metric-card span {
+        text-transform: uppercase;
+        color: #279896;
+        letter-spacing: 0.08em;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    .security-section {
+        background: #fff;
+        border-radius: 1rem;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        box-shadow: 0 1rem 2.5rem -2rem rgba(4, 125, 125, 0.3);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    .security-section h2 {
+        color: #047d7d;
+        font-weight: 700;
+        margin-bottom: 1.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="security-dashboard-header">
+    <h1><i class="fas fa-shield-alt me-2"></i>Dashboard de Seguridad</h1>
+    <p>Gestiona y aprueba el acceso de dispositivos al sistema.</p>
+</div>
+<div class="security-metrics">
+    <div class="security-metric-card">
+        <h3>{{ pending_count }}</h3>
+        <span>Pendientes</span>
+    </div>
+    <div class="security-metric-card">
+        <h3>{{ approved_count }}</h3>
+        <span>Aprobados</span>
+    </div>
+    <div class="security-metric-card">
+        <h3>{{ blocked_count }}</h3>
+        <span>Bloqueados</span>
+    </div>
+</div>
+<div class="security-section">
+    <h2>Dispositivos para aprobación</h2>
+    {% if devices %}
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Nombre del dispositivo</th>
+                    <th>ID</th>
+                    <th>Plataforma</th>
+                    <th>IP</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for device in devices %}
+                <tr>
+                    <td>{{ device.user.get_full_name|default:device.user.username }}</td>
+                    <td>{{ device.name|default:'-' }}</td>
+                    <td>{{ device.device_id }}</td>
+                    <td>{{ device.platform|default:'-' }}</td>
+                    <td>{{ device.ip_address|default:'-' }}</td>
+                    <td>
+                        <span class="badge bg-warning text-dark" style="font-size:0.95em;">{{ device.get_status_display }}</span>
+                    </td>
+                    <td>
+                        <form method="post" action="{% url 'security:device_status_update' device.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="approve" />
+                            <button type="submit" class="btn btn-success btn-sm" {% if device.status == 'approved' %}disabled{% endif %}>Aprobar</button>
+                        </form>
+                        <form method="post" action="{% url 'security:device_status_update' device.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="block" />
+                            <button type="submit" class="btn btn-danger btn-sm" {% if device.status == 'blocked' %}disabled{% endif %}>Bloquear</button>
+                        </form>
+                        <form method="post" action="{% url 'security:device_status_update' device.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="pending" />
+                            <button type="submit" class="btn btn-warning btn-sm" {% if device.status == 'pending' %}disabled{% endif %}>Pendiente</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-info">No hay dispositivos pendientes de aprobación.</div>
+    {% endif %}
+</div>
+{% endblock %}
+    {% extends 'properties/base_dashboard.html' %}

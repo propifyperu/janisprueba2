@@ -1,0 +1,271 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}{{ property.title }} - Janis{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">{{ property.title }}</h1>
+                    <p class="text-muted mb-0">Código: {{ property.code }}</p>
+                </div>
+                <div class="btn-group">
+                    <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-primary">
+                        <i class="fas fa-edit me-2"></i>Editar
+                    </a>
+                    <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Información Principal -->
+        <div class="col-lg-8">
+            <!-- Imágenes -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-images me-2"></i>Imágenes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if property.images.all %}
+                    <div class="row">
+                        {% for image in property.images.all %}
+                        <div class="col-md-4 mb-3">
+                            <img src="{{ image.image.url }}" alt="{{ image.caption }}" 
+                                 class="img-fluid rounded" style="height: 200px; object-fit: cover; width: 100%;">
+                            <small class="text-muted d-block mt-1">{{ image.caption }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-image fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No hay imágenes disponibles</p>
+                    </div>
+                    {% endif %}
+                    
+                    <p class="text-muted small mb-0">Gestiona las imágenes desde la vista de edición.</p>
+                </div>
+            </div>
+
+            <!-- Videos -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-video me-2"></i>Videos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if property_videos %}
+                    <div class="row">
+                        {% for video in property_videos %}
+                        <div class="col-md-6 mb-4">
+                            <div class="ratio ratio-16x9 mb-2">
+                                <video controls preload="metadata">
+                                    <source src="{{ video.video.url }}">
+                                    Tu navegador no soporta la reproducción de videos.
+                                </video>
+                            </div>
+                            <h6 class="mb-1">{{ video.title }}</h6>
+                            <p class="text-muted small mb-1">{{ video.video_type.name }}</p>
+                            {% if video.description %}
+                            <p class="mb-0">{{ video.description }}</p>
+                            {% endif %}
+                            <small class="text-muted d-block mt-2">Subido el {{ video.uploaded_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-video-slash fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No hay videos disponibles</p>
+                    </div>
+                    {% endif %}
+
+                    <p class="text-muted small mb-0">Gestiona los videos desde la vista de edición.</p>
+                </div>
+            </div>
+
+            <!-- Descripción y Características -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Descripción y Características
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ property.description }}</p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h6>Características Principales</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Dormitorios:</strong> {{ property.bedrooms }}</li>
+                                <li><strong>Baños:</strong> {{ property.bathrooms }}</li>
+                                <li><strong>Medios Baños:</strong> {{ property.half_bathrooms }}</li>
+                                <li><strong>Pisos:</strong> {{ property.floors }}</li>
+                                <li><strong>Estacionamientos:</strong> {{ property.garage_spaces }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Áreas</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Área de Terreno:</strong> {{ property.land_area }} {{ property.land_area_unit.symbol }}</li>
+                                <li><strong>Área Construida:</strong> {{ property.built_area }} {{ property.built_area_unit.symbol }}</li>
+                                {% if property.front_measure %}
+                                <li><strong>Frente:</strong> {{ property.front_measure }} m</li>
+                                {% endif %}
+                                {% if property.depth_measure %}
+                                <li><strong>Profundidad:</strong> {{ property.depth_measure }} m</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Información de Precio -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tag me-2"></i>Precio
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <h3 class="text-primary fw-bold mb-1">{{ property.currency.symbol }} {{ property.price|floatformat:2 }}</h3>
+                    <p class="text-muted mb-0">{{ property.currency.name }}</p>
+                    
+                    {% if property.has_maintenance and property.maintenance_fee %}
+                    <hr>
+                    <p class="mb-1"><strong>Mantenimiento:</strong></p>
+                    <p class="mb-0">{{ property.currency.symbol }} {{ property.maintenance_fee|floatformat:2 }} / mes</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Información del Propietario -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user me-2"></i>Propietario
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6>{{ property.owner.full_name }}</h6>
+                    <p class="mb-1"><strong>Documento:</strong> {{ property.owner.identity_document }}</p>
+                    <p class="mb-1"><strong>Teléfono:</strong> {{ property.owner.phone }}</p>
+                    <p class="mb-1"><strong>Email:</strong> {{ property.owner.email }}</p>
+                    {% if property.owner.secondary_phone %}
+                    <p class="mb-0"><strong>Teléfono Secundario:</strong> {{ property.owner.secondary_phone }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Ubicación -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map-marker-alt me-2"></i>Ubicación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if property.real_address %}
+                    <p class="mb-2"><strong>Dirección (documentos):</strong><br>{{ property.real_address }}</p>
+                    <hr>
+                    {% endif %}
+                    <p class="mb-1"><strong>Dirección:</strong></p>
+                    <p class="mb-2">
+                        {% if property.exact_address %}
+                        {{ property.exact_address }}<br>
+                        {% endif %}
+                        {{ property.urbanization }}<br>
+                        {{ property.district }}, {{ property.province }}<br>
+                        {{ property.department }}
+                    </p>
+                    
+                    {% if property.coordinates %}
+                    <p class="mb-0">
+                        <strong>Coordenadas:</strong><br>
+                        <small class="text-muted">{{ property.coordinates }}</small>
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Documentos -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>Documentos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if property.documents.all %}
+                    <div class="list-group list-group-flush">
+                        {% for document in property.documents.all %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ document.title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ document.document_type.name }}</small>
+                            </div>
+                            <a href="{{ document.file.url }}" class="btn btn-sm btn-outline-primary" download>
+                                <i class="fas fa-download"></i>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-3">No hay documentos</p>
+                    {% endif %}
+                    
+                    <p class="text-muted small mb-0">Gestiona los documentos desde la vista de edición.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-handshake me-2"></i>Información financiera
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if financial_items %}
+                    <div class="row">
+                        {% for item in financial_items %}
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <div class="text-muted text-uppercase small">{{ item.label }}</div>
+                            <div class="fw-semibold">{{ item.value }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if financial_info and financial_info.updated_at %}
+                    <p class="text-muted small mb-0">
+                        Última actualización: {{ financial_info.updated_at|date:"d/m/Y H:i" }}
+                    </p>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-muted mb-0">No se registró información financiera para esta propiedad.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

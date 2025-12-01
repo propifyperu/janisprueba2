@@ -1,0 +1,401 @@
+from django import forms
+import unicodedata
+from .models import (
+    Property,
+    PropertyOwner,
+    PropertyImage,
+    PropertyDocument,
+    PropertyVideo,
+    PropertyRoom,
+    PropertyFinancialInfo,
+)
+
+
+class PropertyOwnerForm(forms.ModelForm):
+    class Meta:
+        model = PropertyOwner
+        fields = [
+            'first_name', 'last_name', 'maternal_last_name', 
+            'document_type', 'identity_document', 'birth_date', 'gender',
+            'photo', 'phone', 'secondary_phone', 'email', 'profession', 
+            'company', 'department', 'province', 'district', 'urbanization',
+            'address_exact', 'address_coordinates', 'observations', 'tags'
+        ]
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombres completos'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido paterno'}),
+            'maternal_last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido materno'}),
+            'document_type': forms.Select(attrs={'class': 'form-select'}),
+            'identity_document': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Número de documento'}),
+            'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'photo': forms.FileInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono principal'}),
+            'secondary_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono secundario'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'correo@ejemplo.com'}),
+            'profession': forms.Select(attrs={'class': 'form-select'}),
+            'company': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre de la empresa'}),
+            'department': forms.Select(attrs={'class': 'form-select', 'id': 'id_department'}),
+            'province': forms.Select(attrs={'class': 'form-select', 'id': 'id_province'}),
+            'district': forms.Select(attrs={'class': 'form-select', 'id': 'id_district'}),
+            'urbanization': forms.Select(attrs={'class': 'form-select', 'id': 'id_urbanization'}),
+            'address_exact': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Dirección exacta...'}),
+            'address_coordinates': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Latitud, Longitud'}),
+            'observations': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Observaciones adicionales...'}),
+        }
+
+
+class PropertyForm(forms.ModelForm):
+    class Meta:
+        model = Property
+        fields = [
+            # Información básica
+            'responsible', 'status', 'property_type', 'property_subtype', 'description',
+            'antiquity_years', 'delivery_date', 'title',
+            # Precios
+            'price', 'currency', 'maintenance_fee', 'has_maintenance',
+            # Características físicas
+            'floors', 'bedrooms', 'bathrooms', 'half_bathrooms',
+            'garage_spaces', 'garage_type',
+            # Áreas
+            'land_area', 'land_area_unit', 'built_area', 'built_area_unit', 
+            'front_measure', 'depth_measure',
+            # ===== MEJORA 3: Dirección Real (de documentos) =====
+            'real_address',
+            # Ubicación
+            'exact_address', 'coordinates', 'department', 'province', 'district', 'urbanization',
+            # ===== MEJORA 2: Servicios públicos =====
+            'water_service', 'energy_service', 'drainage_service', 'gas_service',
+            # Información adicional
+            'amenities', 'zoning', 'tags'
+        ]
+        widgets = {
+            # Información básica
+            'description': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 4, 
+                'placeholder': 'Descripción detallada de la propiedad'
+            }),
+            'responsible': forms.Select(attrs={'class': 'form-select'}),
+            'title': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Título para campañas o publicaciones'
+            }),
+            'property_type': forms.Select(attrs={'class': 'form-select'}),
+            'property_subtype': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'antiquity_years': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'placeholder': 'Ej: 10'
+            }),
+            'delivery_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            
+            # Precios
+            'price': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0'
+            }),
+            'currency': forms.Select(attrs={'class': 'form-select'}),
+            'maintenance_fee': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0'
+            }),
+            'has_maintenance': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            
+            # Características físicas
+            'floors': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'min': '0'
+            }),
+            'bedrooms': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'min': '0'
+            }),
+            'bathrooms': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'min': '0'
+            }),
+            'half_bathrooms': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'min': '0'
+            }),
+            'garage_spaces': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'min': '0'
+            }),
+            'garage_type': forms.Select(attrs={'class': 'form-select'}),
+            
+            # Áreas
+            'land_area': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0'
+            }),
+            'land_area_unit': forms.Select(attrs={'class': 'form-select'}),
+            'built_area': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0'
+            }),
+            'built_area_unit': forms.Select(attrs={'class': 'form-select'}),
+            'front_measure': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0'
+            }),
+            'depth_measure': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0'
+            }),
+            
+            # ===== MEJORA 3: Dirección Real (de documentos) =====
+            'real_address': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 3, 
+                'placeholder': 'Dirección exacta que aparece en documentos legales y escrituras'
+            }),
+            
+            # Ubicación
+            'exact_address': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Dirección para búsqueda en mapa',
+                'autocomplete': 'new-password',
+                'autocorrect': 'off',
+                'autocapitalize': 'none',
+                'spellcheck': 'false',
+                'data-lpignore': 'true',
+            }),
+            'coordinates': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'lat,long (ej: -12.046374, -77.042793)'
+            }),
+            'department': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Departamento'
+            }),
+            'province': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Provincia'
+            }),
+            'district': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Distrito'
+            }),
+            'urbanization': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Urbanización'
+            }),
+            
+            # ===== MEJORA 2: Servicios públicos (ForeignKeys) =====
+            # ===== WIDGETS PARA LOS NUEVOS SERVICIOS =====
+            'water_service': forms.Select(attrs={
+                'class': 'form-select',
+                'data-placeholder': 'Seleccione tipo de agua'
+            }),
+            'energy_service': forms.Select(attrs={
+                'class': 'form-select',
+                'data-placeholder': 'Seleccione tipo de energía'
+            }),
+            'drainage_service': forms.Select(attrs={
+                'class': 'form-select',
+                'data-placeholder': 'Seleccione tipo de drenaje'
+            }),
+            'gas_service': forms.Select(attrs={
+                'class': 'form-select',
+                'data-placeholder': 'Seleccione tipo de gas'
+            }),
+            
+            # Información adicional
+            'amenities': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 3, 
+                'placeholder': 'Piscina, jardín, seguridad, gimnasio, etc.'
+            }),
+            'zoning': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Zonificación'
+            }),
+            'tags': forms.SelectMultiple(attrs={
+                'class': 'form-select', 
+                'size': 4
+            }),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        status = cleaned_data.get('status')
+        antiquity_years = cleaned_data.get('antiquity_years')
+        delivery_date = cleaned_data.get('delivery_date')
+
+        def normalize_value(value):
+            if not value:
+                return ''
+            normalized = unicodedata.normalize('NFKD', value)
+            ascii_value = normalized.encode('ascii', 'ignore').decode('ascii')
+            return ascii_value.lower().replace('-', '_').replace(' ', '_')
+
+        status_keys = set()
+        if status:
+            status_keys.add(normalize_value(getattr(status, 'code', '')))
+            status_keys.add(normalize_value(getattr(status, 'name', '')))
+
+        antiquity_markers = {'antiguedad', 'antiquity'}
+        construction_markers = {'en_construccion', 'en_construction', 'under_construction'}
+
+        status_keys.discard('')
+
+        is_antiquity = bool(antiquity_markers & status_keys)
+        is_under_construction = bool(construction_markers & status_keys)
+
+        if is_antiquity:
+            if antiquity_years in (None, ''):
+                self.add_error('antiquity_years', 'Este campo es obligatorio cuando el estado es Antigüedad.')
+        else:
+            cleaned_data['antiquity_years'] = None
+
+        if is_under_construction:
+            if not delivery_date:
+                self.add_error('delivery_date', 'Este campo es obligatorio cuando el estado es En construcción.')
+        else:
+            cleaned_data['delivery_date'] = None
+
+        return cleaned_data
+
+
+class PropertyFinancialInfoForm(forms.ModelForm):
+    class Meta:
+        model = PropertyFinancialInfo
+        fields = [
+            'initial_commission_percentage',
+            'final_commission_percentage',
+            'final_amount',
+            'negotiation_status',
+        ]
+        widgets = {
+            'initial_commission_percentage': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Ej: 3.50',
+            }),
+            'final_commission_percentage': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Ej: 4.00',
+            }),
+            'final_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Monto final negociado',
+            }),
+            'negotiation_status': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+
+class PropertyImageForm(forms.ModelForm):
+    class Meta:
+        model = PropertyImage
+        fields = ['image', 'image_type', 'caption', 'is_primary', 'order']
+        widgets = {
+            'image': forms.FileInput(attrs={'class': 'form-control'}),
+            'image_type': forms.Select(attrs={'class': 'form-select'}),
+            'caption': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Descripción de la imagen'
+            }),
+            'is_primary': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'order': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'min': '0'
+            }),
+        }
+
+
+class PropertyVideoForm(forms.ModelForm):
+    class Meta:
+        model = PropertyVideo
+        fields = ['video', 'video_type', 'title', 'description']
+        widgets = {
+            'video': forms.FileInput(attrs={'class': 'form-control'}),
+            'video_type': forms.Select(attrs={'class': 'form-select'}),
+            'title': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Título del video'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 3, 
+                'placeholder': 'Descripción del video'
+            }),
+        }
+
+
+class PropertyDocumentForm(forms.ModelForm):
+    class Meta:
+        model = PropertyDocument
+        fields = ['file', 'document_type', 'title', 'description']
+        widgets = {
+            'file': forms.FileInput(attrs={'class': 'form-control'}),
+            'document_type': forms.Select(attrs={'class': 'form-select'}),
+            'title': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Título del documento'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 3, 
+                'placeholder': 'Descripción del documento'
+            }),
+        }
+
+
+class PropertyRoomForm(forms.ModelForm):
+    class Meta:
+        model = PropertyRoom
+        fields = ['level', 'room_type', 'name', 'width', 'length', 'area', 'floor_type', 'description', 'order']
+        widgets = {
+            'level': forms.Select(attrs={'class': 'form-select'}),
+            'room_type': forms.Select(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Nombre del ambiente (opcional)'
+            }),
+            'width': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0', 
+                'placeholder': 'Ancho en metros'
+            }),
+            'length': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0', 
+                'placeholder': 'Largo en metros'
+            }),
+            'area': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0', 
+                'placeholder': 'Área en m²'
+            }),
+            'floor_type': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 2, 
+                'placeholder': 'Descripción del ambiente'
+            }),
+            'order': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'min': '0', 
+                'placeholder': 'Orden de visualización'
+            }),
+        }
