@@ -16,7 +16,7 @@ class PropertyOwnerForm(forms.ModelForm):
         model = PropertyOwner
         fields = [
             'first_name', 'last_name', 'maternal_last_name', 
-            'document_type', 'identity_document', 'birth_date', 'gender',
+            'document_type',
             'photo', 'phone', 'secondary_phone', 'email', 'profession', 
             'company', 'department', 'province', 'district', 'urbanization',
             'address_exact', 'address_coordinates', 'observations', 'tags'
@@ -28,9 +28,6 @@ class PropertyOwnerForm(forms.ModelForm):
             'document_type': forms.Select(attrs={'class': 'form-select'}),
             'identity_document': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Número de documento'}),
             'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'gender': forms.Select(attrs={'class': 'form-select'}),
-            'photo': forms.FileInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono principal'}),
             'secondary_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono secundario'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'correo@ejemplo.com'}),
             'profession': forms.Select(attrs={'class': 'form-select'}),

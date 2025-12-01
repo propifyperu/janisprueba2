@@ -1141,7 +1141,7 @@ function setupSubtypeSelector() {
             return;
         }
 
-        fetch(`/properties/api/property-subtypes/?property_type_id=${propertyTypeId}`)
+        fetch("{% url 'properties:api_property_subtypes' %}?property_type_id=" + encodeURIComponent(propertyTypeId))
             .then(response => response.json())
             .then(data => {
                 propertySubtypeSelect.innerHTML = '<option value="">Seleccione un subtipo</option>';

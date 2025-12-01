@@ -638,44 +638,44 @@
                     <div class="property-card-body">
                         <div class="property-card-top">
                             <div class="d-flex align-items-center flex-wrap gap-2">
-                                <span class="badge-status">{{ property.property_type.name }}</span>
-                                <span class="status-label">{{ property.status.name }}</span>
+                                <span class="badge-status">{{ property.property_type.name|default:"Sin tipo" }}</span>
+                                <span class="status-label">{{ property.status.name|default:"Sin estado" }}</span>
                             </div>
                             <div class="text-end">
-                                <div class="price">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
+                                <div class="price">{{ property.currency.symbol|default:"S/" }} {{ property.price|floatformat:0 }}</div>
                                 <small class="text-muted">Código: {{ property.code }}</small>
                             </div>
                         </div>
-                        <h3 class="property-title mb-0">{{ property.title|default:property.code }}</h3>
-                        <p class="property-location mb-0"><i class="fas fa-map-marker-alt me-2 text-primary"></i>{{ property.exact_address|default:property.district }}</p>
+                        <h3 class="property-title mb-0">{{ property.title|default:property.code|default:"Sin título" }}</h3>
+                        <p class="property-location mb-0"><i class="fas fa-map-marker-alt me-2 text-primary"></i>{{ property.exact_address|default:property.district|default:"Sin dirección" }}</p>
                         {% if property.real_address %}
                         <p class="property-address-doc mb-2"><i class="fas fa-file-alt me-2"></i>{{ property.real_address }}</p>
                         {% endif %}
                         <div class="property-meta">
-                            <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
-                            <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
+                            <span><i class="fas fa-bed"></i>{{ property.bedrooms|default:"-" }} dorm.</span>
+                            <span><i class="fas fa-bath"></i>{{ property.bathrooms|default:"-" }} baños</span>
                             {% if property.land_area and property.land_area_unit %}
-                            <span><i class="fas fa-ruler-combined"></i>{{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
+                            <span><i class="fas fa-ruler-combined"></i>{{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol|default:"m²" }}</span>
                             {% endif %}
                             {% if property.built_area and property.built_area_unit %}
-                            <span><i class="fas fa-drafting-compass"></i>{{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
+                            <span><i class="fas fa-drafting-compass"></i>{{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol|default:"m²" }}</span>
                             {% endif %}
                             {% if property.garage_spaces %}
                             <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} estacionamiento{% if property.garage_spaces != 1 %}s{% endif %}</span>
                             {% endif %}
                             {% if property.has_maintenance and property.maintenance_fee %}
-                            <span><i class="fas fa-tools"></i>Mant. {{ property.currency.symbol }} {{ property.maintenance_fee|floatformat:0 }}</span>
+                            <span><i class="fas fa-tools"></i>Mant. {{ property.currency.symbol|default:"S/" }} {{ property.maintenance_fee|floatformat:0 }}</span>
                             {% endif %}
                         </div>
                         <div class="property-contacts">
-                            <span><i class="fas fa-user-tie"></i>Propietario: {{ property.owner.full_name }}</span>
+                            <span><i class="fas fa-user-tie"></i>Propietario: {{ property.owner.full_name|default:"Sin propietario" }}</span>
                             <span><i class="fas fa-user-check"></i>Responsable:
                                 {% if property.responsible %}
                                     {% with full_name=property.responsible.get_full_name %}
                                         {% if full_name %}
                                             {{ full_name }}
                                         {% else %}
-                                            {{ property.responsible.username }}
+                                            {{ property.responsible.username|default:"Sin responsable" }}
                                         {% endif %}
                                     {% endwith %}
                                 {% else %}

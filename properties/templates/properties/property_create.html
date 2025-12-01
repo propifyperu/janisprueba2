@@ -156,6 +156,9 @@
                                     <label class="form-label required-field">Contacto Existente</label>
                                     <select class="form-select" name="existing_owner" id="existingOwner">
                                         <option value="">-- Seleccionar contacto --</option>
+                                        {% for contacto in contactos_existentes %}
+                                            <option value="{{ contacto.id }}">{{ contacto.full_name|default:contacto.first_name }} {% if contacto.identity_document %}({{ contacto.identity_document }}){% endif %}</option>
+                                        {% endfor %}
                                     </select>
                                 </div>
                             </div>
@@ -955,7 +958,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadPropertySubtypes(propertyTypeId) {
         if (propertyTypeId) {
-            fetch(`/properties/api/property-subtypes/?property_type_id=${propertyTypeId}`)
+            fetch("{% url 'properties:api_property_subtypes' %}?property_type_id=" + encodeURIComponent(propertyTypeId))
                 .then(response => response.json())
                 .then(data => {
                     propertySubtypeSelect.innerHTML = '<option value="">Seleccione un subtipo</option>';
@@ -1172,7 +1175,7 @@ document.addEventListener('DOMContentLoaded', function() {
             provinceSelect.innerHTML = '<option value="">Cargando provincias...</option>';
             provinceSelect.disabled = true;
 
-            fetch(`/properties/api/provinces/?department_id=${departmentId}`)
+            fetch("{% url 'properties:api_provinces' %}?department_id=" + encodeURIComponent(departmentId))
                 .then(response => {
                     if (!response.ok) throw new Error('Error en la respuesta');
                     return response.json();
@@ -1209,7 +1212,7 @@ document.addEventListener('DOMContentLoaded', function() {
             districtSelect.innerHTML = '<option value="">Cargando distritos...</option>';
             districtSelect.disabled = true;
 
-            fetch(`/properties/api/districts/?province_id=${provinceId}`)
+            fetch("{% url 'properties:api_districts' %}?province_id=" + encodeURIComponent(provinceId))
                 .then(response => {
                     if (!response.ok) throw new Error('Error en la respuesta');
                     return response.json();
@@ -1243,7 +1246,7 @@ document.addEventListener('DOMContentLoaded', function() {
             urbanizationSelect.innerHTML = '<option value="">Cargando urbanizaciones...</option>';
             urbanizationSelect.disabled = true;
 
-            fetch(`/properties/api/urbanizations/?district_id=${districtId}`)
+            fetch("{% url 'properties:api_urbanizations' %}?district_id=" + encodeURIComponent(districtId))
                 .then(response => {
                     if (!response.ok) throw new Error('Error en la respuesta');
                     return response.json();
@@ -1572,16 +1575,24 @@ function gm_error() {
 
 document.addEventListener('DOMContentLoaded', function() {
     const ownerSelect = document.getElementById('existingOwner');
+    if (!ownerSelect) return;
+    // Si el servidor ya llenó el select con contactos, no hacemos fetch.
+    if (ownerSelect.options && ownerSelect.options.length > 1) {
+        return;
+    }
     fetch('/properties/api/user-contacts/')
         .then(response => response.json())
         .then(data => {
             ownerSelect.innerHTML = '<option value="">-- Seleccionar contacto --</option>';
             (data.contacts || []).forEach(contact => {
-                ownerSelect.innerHTML += `<option value="${contact.id}">${contact.full_name} (${contact.identity_document})</option>`;
+                ownerSelect.innerHTML += `<option value="${contact.id}">${contact.full_name} (${contact.identity_document || ''})</option>`;
             });
         })
         .catch(() => {
-            ownerSelect.innerHTML = '<option value="">Error al cargar contactos</option>';
+            // Solo mostrar error si no hay opciones provenientes del servidor
+            if (!ownerSelect.options || ownerSelect.options.length <= 1) {
+                ownerSelect.innerHTML = '<option value="">Error al cargar contactos</option>';
+            }
         });
 });
 
