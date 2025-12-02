@@ -382,14 +382,8 @@ class PropertyOwner(TitleCaseMixin, models.Model):
     last_name = EncryptedCharField(max_length=256, blank=True)
     maternal_last_name = EncryptedCharField(max_length=256, blank=True)
     
-    # Documento de identidad (SIN ENCRIPTAR)
-    document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT)
-    birth_date = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, verbose_name="Género")
-    phone = EncryptedCharField(max_length=256)
-    maternal_last_name = EncryptedCharField(max_length=256, blank=True)
+    # Documento de identidad
     document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT, null=True, blank=True)
-    photo = models.ImageField(upload_to='owners/photos/', null=True, blank=True)
     document_number = models.CharField(max_length=50, verbose_name="Número de documento", blank=True)
     birth_date = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, verbose_name="Género", blank=True)
@@ -397,9 +391,11 @@ class PropertyOwner(TitleCaseMixin, models.Model):
     secondary_phone = EncryptedCharField(max_length=256, blank=True)
     email = EncryptedEmailField(max_length=255, blank=True)
     profession = models.ForeignKey('Profession', on_delete=models.SET_NULL, null=True, blank=True)
+    photo = models.ImageField(upload_to='owners/photos/', null=True, blank=True)
     company = models.CharField(max_length=200, blank=True)
     observations = models.TextField(blank=True)
-       # Dirección del contacto (usando los nuevos modelos)
+    
+    # Dirección del contacto
     department = models.ForeignKey('Department', on_delete=models.PROTECT, verbose_name="Departamento")
     province = models.ForeignKey('Province', on_delete=models.PROTECT, verbose_name="Provincia")
     district = models.ForeignKey('District', on_delete=models.PROTECT, verbose_name="Distrito")

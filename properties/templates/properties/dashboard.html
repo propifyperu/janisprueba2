@@ -523,6 +523,7 @@
                 <article class="property-card" data-property-id="{{ property.id }}" data-code="{{ property.code }}">
                     <div class="property-card-media">
                         {% with images=property.images.all %}
+                            <!-- DEBUG: Total imágenes: {{ images|length }} -->
                             {% if images %}
                                 {% with first=images|first %}
                                     {% if first.image %}
