@@ -385,6 +385,10 @@ class PropertyOwner(TitleCaseMixin, models.Model):
     # Documento de identidad (SIN ENCRIPTAR)
     document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT)
     photo = models.ImageField(upload_to='owners/photos/', null=True, blank=True)
+    # Nuevos campos solicitados
+    document_number = models.CharField(max_length=50, verbose_name="Número de documento")
+    birth_date = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, verbose_name="Género")
     phone = EncryptedCharField(max_length=256)
     secondary_phone = EncryptedCharField(max_length=256, blank=True)
     email = EncryptedEmailField(max_length=255)

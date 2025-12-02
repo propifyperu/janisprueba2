@@ -15,9 +15,9 @@ class PropertyOwnerForm(forms.ModelForm):
     class Meta:
         model = PropertyOwner
         fields = [
-            'first_name', 'last_name', 'maternal_last_name', 
-            'document_type',
-            'photo', 'phone', 'secondary_phone', 'email', 'profession', 
+            'first_name', 'last_name', 'maternal_last_name',
+            'document_type', 'document_number', 'birth_date', 'gender',
+            'photo', 'phone', 'secondary_phone', 'email', 'profession',
             'company', 'department', 'province', 'district', 'urbanization',
             'address_exact', 'address_coordinates', 'observations', 'tags'
         ]
@@ -26,8 +26,11 @@ class PropertyOwnerForm(forms.ModelForm):
             'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido paterno'}),
             'maternal_last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido materno'}),
             'document_type': forms.Select(attrs={'class': 'form-select'}),
-            'identity_document': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Número de documento'}),
+            'document_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Número de documento'}),
             'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'photo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono principal'}),
             'secondary_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono secundario'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'correo@ejemplo.com'}),
             'profession': forms.Select(attrs={'class': 'form-select'}),
@@ -39,6 +42,7 @@ class PropertyOwnerForm(forms.ModelForm):
             'address_exact': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Dirección exacta...'}),
             'address_coordinates': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Latitud, Longitud'}),
             'observations': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Observaciones adicionales...'}),
+            'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 4}),
         }
 
 
