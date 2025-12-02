@@ -1,4 +1,3 @@
-
 from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView, ListView, CreateView
@@ -258,3 +257,29 @@ def api_urbanizations(request):
 
     urbanizations = Urbanization.objects.filter(district_id=district_id, is_active=True).values('id', 'name')
     return JsonResponse(list(urbanizations), safe=False)
+
+
+from django.http import JsonResponse
+from .models import DocumentType
+
+@login_required
+def api_document_types(request):
+    """API que devuelve los tipos de documento en formato JSON."""
+    tipos = DocumentType.objects.filter().values('id', 'name')
+    return JsonResponse(list(tipos), safe=False)
+
+
+from django.http import JsonResponse
+from .models import ImageType
+
+@login_required
+def api_image_types(request):
+    tipos = ImageType.objects.filter(is_active=True).values('id', 'name')
+    return JsonResponse(list(tipos), safe=False)
+
+from .models import RoomType
+
+@login_required
+def api_roomtypes(request):
+    ambientes = RoomType.objects.filter(is_active=True).values('id', 'name')
+    return JsonResponse(list(ambientes), safe=False)

@@ -1597,7 +1597,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function populateImageTypeSelect(select) {
-    fetch('/properties/api/image-types/')
+    fetch('/dashboard/api/image-types/')
         .then(response => response.json())
         .then(data => {
             select.innerHTML = '<option value="">Seleccionar tipo</option>';
@@ -1611,7 +1611,7 @@ function populateImageTypeSelect(select) {
 }
 
 function populateImageAmbienteSelect(select) {
-    fetch('/properties/api/roomtypes/')
+    fetch('/dashboard/api/roomtypes/')
         .then(response => response.json())
         .then(data => {
             select.innerHTML = '<option value="">Seleccionar ambiente</option>';
@@ -1639,7 +1639,7 @@ function populateVideoTypeSelect(select) {
 }
 
 function populateDocumentTypeSelect(select) {
-    fetch('/properties/api/document-types/')
+    fetch('/dashboard/api/document-types/')
         .then(response => response.json())
         .then(data => {
             select.innerHTML = '<option value="">Seleccionar tipo</option>';

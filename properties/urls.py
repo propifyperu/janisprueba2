@@ -1,9 +1,9 @@
-
 from django.urls import path
 from .views import (
     PropertyDashboardView, create_property_view, PropertyDetailView,
     ContactListView, ContactCreateView, ContactDetailView, ContactEditView,
     api_property_subtypes, api_provinces, api_districts, api_urbanizations,
+    api_document_types, api_image_types, api_roomtypes
 )
 
 urlpatterns = [
@@ -18,5 +18,8 @@ urlpatterns = [
     path('api/provinces/', api_provinces, name='api_provinces'),
     path('api/districts/', api_districts, name='api_districts'),
     path('api/urbanizations/', api_urbanizations, name='api_urbanizations'),
+    path('api/document-types/', api_document_types, name='api_document_types'),
+    path('api/image-types/', api_image_types, name='api_image_types'),
+    path('api/roomtypes/', api_roomtypes, name='api_roomtypes'),
     path('', PropertyDashboardView.as_view(), name='dashboard_root'),
 ]
