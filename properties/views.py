@@ -291,9 +291,12 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
 def create_property_view(request):
     from .models import (
         PropertyType, PropertyStatus, PropertyOwner,
-        Department, LevelType, RoomType, FloorType
+        Department, LevelType, RoomType, FloorType,
+        PropertyImage, PropertyVideo, PropertyDocument, PropertyRoom,
+        ImageType, VideoType, DocumentType
     )
     from .forms import PropertyForm, PropertyOwnerForm, PropertyFinancialInfoForm
+    
     # Listas para selects
     departments = Department.objects.filter(is_active=True).order_by('name')
     level_types = LevelType.objects.filter(is_active=True).order_by('name')
@@ -327,12 +330,163 @@ def create_property_view(request):
                 financial_info.property = property_obj
                 financial_info.save()
 
+            # ===================== PROCESAR IMÁGENES =====================
+            images_files = request.FILES.getlist('images')
+            image_types = request.POST.getlist('image_types')
+            image_captions = request.POST.getlist('image_captions')
+            image_orders = request.POST.getlist('image_orders')
+            
+            primary_image_set = False
+            for idx, image_file in enumerate(images_files):
+                if image_file:
+                    try:
+                        image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
+                        image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
+                    except (ImageType.DoesNotExist, ValueError):
+                        image_type = None
+                    
+                    try:
+                        order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
+                    except ValueError:
+                        order = idx + 1
+                    
+                    caption = image_captions[idx] if idx < len(image_captions) else ''
+                    is_primary = not primary_image_set
+                    
+                    PropertyImage.objects.create(
+                        property=property_obj,
+                        image=image_file,
+                        image_type=image_type,
+                        caption=caption,
+                        order=order,
+                        is_primary=is_primary,
+                        uploaded_by=request.user
+                    )
+                    primary_image_set = True
+
+            # ===================== PROCESAR VIDEOS =====================
+            videos_files = request.FILES.getlist('videos')
+            video_types = request.POST.getlist('video_types')
+            video_titles = request.POST.getlist('video_titles')
+            video_descriptions = request.POST.getlist('video_descriptions')
+            
+            for idx, video_file in enumerate(videos_files):
+                if video_file:
+                    try:
+                        video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
+                        video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
+                    except (VideoType.DoesNotExist, ValueError):
+                        video_type = None
+                    
+                    title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
+                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
+                    
+                    PropertyVideo.objects.create(
+                        property=property_obj,
+                        video=video_file,
+                        video_type=video_type,
+                        title=title,
+                        description=description,
+                        uploaded_by=request.user
+                    )
+
+            # ===================== PROCESAR DOCUMENTOS =====================
+            documents_files = request.FILES.getlist('documents')
+            document_types = request.POST.getlist('document_types')
+            document_titles = request.POST.getlist('document_titles')
+            document_descriptions = request.POST.getlist('document_descriptions')
+            
+            for idx, document_file in enumerate(documents_files):
+                if document_file:
+                    try:
+                        doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
+                        doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
+                    except (DocumentType.DoesNotExist, ValueError):
+                        doc_type = None
+                    
+                    title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
+                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
+                    
+                    PropertyDocument.objects.create(
+                        property=property_obj,
+                        file=document_file,
+                        document_type=doc_type,
+                        title=title,
+                        description=description,
+                        uploaded_by=request.user
+                    )
+
+            # ===================== PROCESAR HABITACIONES =====================
+            room_levels = request.POST.getlist('room_levels')
+            room_types_list = request.POST.getlist('room_types')
+            room_names = request.POST.getlist('room_names')
+            room_widths = request.POST.getlist('room_widths')
+            room_lengths = request.POST.getlist('room_lengths')
+            room_areas = request.POST.getlist('room_areas')
+            room_floor_types = request.POST.getlist('room_floor_types')
+            room_descriptions = request.POST.getlist('room_descriptions')
+            room_orders = request.POST.getlist('room_orders')
+            
+            for idx in range(len(room_types_list)):
+                room_type_id = room_types_list[idx] if idx < len(room_types_list) and room_types_list[idx] else None
+                if room_type_id:
+                    try:
+                        room_type = RoomType.objects.get(pk=room_type_id)
+                    except RoomType.DoesNotExist:
+                        continue
+                    
+                    try:
+                        level_id = room_levels[idx] if idx < len(room_levels) and room_levels[idx] else None
+                        level = LevelType.objects.get(pk=level_id) if level_id else None
+                    except (LevelType.DoesNotExist, ValueError):
+                        level = None
+                    
+                    try:
+                        floor_type_id = room_floor_types[idx] if idx < len(room_floor_types) and room_floor_types[idx] else None
+                        floor_type = FloorType.objects.get(pk=floor_type_id) if floor_type_id else None
+                    except (FloorType.DoesNotExist, ValueError):
+                        floor_type = None
+                    
+                    try:
+                        width = float(room_widths[idx]) if idx < len(room_widths) and room_widths[idx] else 0
+                    except ValueError:
+                        width = 0
+                    
+                    try:
+                        length = float(room_lengths[idx]) if idx < len(room_lengths) and room_lengths[idx] else 0
+                    except ValueError:
+                        length = 0
+                    
+                    try:
+                        area = float(room_areas[idx]) if idx < len(room_areas) and room_areas[idx] else 0
+                    except ValueError:
+                        area = 0
+                    
+                    try:
+                        order = int(room_orders[idx]) if idx < len(room_orders) and room_orders[idx] else idx
+                    except ValueError:
+                        order = idx
+                    
+                    name = room_names[idx] if idx < len(room_names) else ''
+                    description = room_descriptions[idx] if idx < len(room_descriptions) else ''
+                    
+                    PropertyRoom.objects.create(
+                        property=property_obj,
+                        level=level,
+                        room_type=room_type,
+                        name=name,
+                        width=width,
+                        length=length,
+                        area=area,
+                        floor_type=floor_type,
+                        description=description,
+                        order=order
+                    )
+
             from django.contrib import messages
-            messages.success(request, 'Propiedad creada exitosamente.')
+            messages.success(request, 'Propiedad creada exitosamente con imágenes, videos, documentos y ambientes.')
             from django.urls import reverse
             return redirect(reverse('properties:list'))
-
-    # (Las listas ya fueron cargadas arriba)
 
     contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
     return render(request, 'properties/property_create.html', {

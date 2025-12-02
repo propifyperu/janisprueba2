@@ -168,9 +168,10 @@ class ProfessionAdmin(admin.ModelAdmin):
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
-    list_display = ('name', 'created_at')
+    list_display = ('name', 'color', 'is_active')
+    list_filter = ('is_active',)
     search_fields = ('name',)
-    ordering = ('-created_at',)
+    ordering = ('name',)
 
 
 @admin.register(ImageType)
@@ -316,15 +317,16 @@ class PropertyDocumentAdmin(admin.ModelAdmin):
 
 @admin.register(PropertyFinancialInfo)
 class PropertyFinancialInfoAdmin(admin.ModelAdmin):
-    list_display = ('property', 'expense_type', 'amount', 'updated_at')
-    list_filter = ('expense_type', 'updated_at')
+    list_display = ('property', 'negotiation_status', 'final_commission_percentage', 'updated_at')
+    list_filter = ('negotiation_status', 'updated_at')
     search_fields = ('property__code',)
+    readonly_fields = ('created_at', 'updated_at')
     ordering = ('-updated_at',)
 
 
 @admin.register(PropertyRoom)
 class PropertyRoomAdmin(admin.ModelAdmin):
-    list_display = ('property', 'room_type', 'quantity', 'description')
-    list_filter = ('room_type',)
-    search_fields = ('property__code', 'description')
-    ordering = ('property', 'room_type')
+    list_display = ('property', 'room_type', 'level', 'name', 'area')
+    list_filter = ('room_type', 'level', 'floor_type')
+    search_fields = ('property__code', 'name', 'description')
+    ordering = ('property', 'level', 'order')
