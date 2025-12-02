@@ -488,10 +488,10 @@ class Property(TitleCaseMixin, models.Model):
     garage_type = models.ForeignKey('GarageType', on_delete=models.SET_NULL, null=True, blank=True)
     
     # Áreas
-    land_area = models.DecimalField(max_digits=10, decimal_places=2)
-    land_area_unit = models.ForeignKey('MeasurementUnit', on_delete=models.PROTECT, related_name='land_properties')
-    built_area = models.DecimalField(max_digits=10, decimal_places=2)
-    built_area_unit = models.ForeignKey('MeasurementUnit', on_delete=models.PROTECT, related_name='built_properties')
+    land_area = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    land_area_unit = models.ForeignKey('MeasurementUnit', on_delete=models.PROTECT, related_name='land_properties', null=True, blank=True)
+    built_area = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    built_area_unit = models.ForeignKey('MeasurementUnit', on_delete=models.PROTECT, related_name='built_properties', null=True, blank=True)
     front_measure = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     depth_measure = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     
