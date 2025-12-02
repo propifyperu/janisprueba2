@@ -449,15 +449,18 @@ window.gm_authFailure = function() {
         const districtSelect = document.getElementById('id_district');
         const urbanizationSelect = document.getElementById('id_urbanization');
 
-        // Función para cargar provincias
+        // --- Lógica robusta de property_create.html ---
         function loadProvinces(departmentId) {
             if (departmentId) {
                 provinceSelect.classList.add('loading');
                 provinceSelect.innerHTML = '<option value="">Cargando provincias...</option>';
                 provinceSelect.disabled = true;
-                
-                fetch(`/properties/api/provinces/?department_id=${departmentId}`)
-                    .then(response => response.json())
+
+                fetch(`/dashboard/api/provinces/?department_id=${encodeURIComponent(departmentId)}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en la respuesta');
+                        return response.json();
+                    })
                     .then(data => {
                         provinceSelect.innerHTML = '<option value="">Seleccione una provincia</option>';
                         data.forEach(province => {
@@ -465,36 +468,36 @@ window.gm_authFailure = function() {
                         });
                         provinceSelect.disabled = false;
                         provinceSelect.classList.remove('loading');
-                        
-                        // Limpiar selects dependientes
+
                         districtSelect.innerHTML = '<option value="">Seleccione un distrito</option>';
                         urbanizationSelect.innerHTML = '<option value="">Seleccione una urbanización</option>';
                         districtSelect.disabled = true;
                         urbanizationSelect.disabled = true;
                     })
-                    .catch(error => {
-                        console.error('Error loading provinces:', error);
-                        provinceSelect.innerHTML = '<option value="">Error al cargar</option>';
+                    .catch(() => {
+                        provinceSelect.innerHTML = '<option value="">Error al cargar provincias</option>';
                         provinceSelect.disabled = false;
                         provinceSelect.classList.remove('loading');
                     });
             } else {
-                provinceSelect.innerHTML = '<option value="">Seleccione una provincia</option>';
+                provinceSelect.innerHTML = '<option value="">Seleccione un departamento primero</option>';
                 provinceSelect.disabled = true;
                 districtSelect.disabled = true;
                 urbanizationSelect.disabled = true;
             }
         }
 
-        // Función para cargar distritos
         function loadDistricts(provinceId) {
             if (provinceId) {
                 districtSelect.classList.add('loading');
                 districtSelect.innerHTML = '<option value="">Cargando distritos...</option>';
                 districtSelect.disabled = true;
-                
-                fetch(`/properties/api/districts/?province_id=${provinceId}`)
-                    .then(response => response.json())
+
+                fetch(`/dashboard/api/districts/?province_id=${encodeURIComponent(provinceId)}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en la respuesta');
+                        return response.json();
+                    })
                     .then(data => {
                         districtSelect.innerHTML = '<option value="">Seleccione un distrito</option>';
                         data.forEach(district => {
@@ -502,33 +505,33 @@ window.gm_authFailure = function() {
                         });
                         districtSelect.disabled = false;
                         districtSelect.classList.remove('loading');
-                        
-                        // Limpiar urbanización
+
                         urbanizationSelect.innerHTML = '<option value="">Seleccione una urbanización</option>';
                         urbanizationSelect.disabled = true;
                     })
-                    .catch(error => {
-                        console.error('Error loading districts:', error);
-                        districtSelect.innerHTML = '<option value="">Error al cargar</option>';
+                    .catch(() => {
+                        districtSelect.innerHTML = '<option value="">Error al cargar distritos</option>';
                         districtSelect.disabled = false;
                         districtSelect.classList.remove('loading');
                     });
             } else {
-                districtSelect.innerHTML = '<option value="">Seleccione un distrito</option>';
+                districtSelect.innerHTML = '<option value="">Seleccione una provincia primero</option>';
                 districtSelect.disabled = true;
                 urbanizationSelect.disabled = true;
             }
         }
 
-        // Función para cargar urbanizaciones
         function loadUrbanizations(districtId) {
             if (districtId) {
                 urbanizationSelect.classList.add('loading');
                 urbanizationSelect.innerHTML = '<option value="">Cargando urbanizaciones...</option>';
                 urbanizationSelect.disabled = true;
-                
-                fetch(`/properties/api/urbanizations/?district_id=${districtId}`)
-                    .then(response => response.json())
+
+                fetch(`/dashboard/api/urbanizations/?district_id=${encodeURIComponent(districtId)}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en la respuesta');
+                        return response.json();
+                    })
                     .then(data => {
                         urbanizationSelect.innerHTML = '<option value="">Seleccione una urbanización</option>';
                         data.forEach(urbanization => {
@@ -537,14 +540,13 @@ window.gm_authFailure = function() {
                         urbanizationSelect.disabled = false;
                         urbanizationSelect.classList.remove('loading');
                     })
-                    .catch(error => {
-                        console.error('Error loading urbanizations:', error);
-                        urbanizationSelect.innerHTML = '<option value="">Error al cargar</option>';
+                    .catch(() => {
+                        urbanizationSelect.innerHTML = '<option value="">Error al cargar urbanizaciones</option>';
                         urbanizationSelect.disabled = false;
                         urbanizationSelect.classList.remove('loading');
                     });
             } else {
-                urbanizationSelect.innerHTML = '<option value="">Seleccione una urbanización</option>';
+                urbanizationSelect.innerHTML = '<option value="">Seleccione un distrito primero</option>';
                 urbanizationSelect.disabled = true;
             }
         }
@@ -731,7 +733,7 @@ function initMap() {
 
     function fetchBoundary(level, id) {
         if (!level || !id) { clearBoundaryPolygon(); return; }
-        const url = `/properties/api/boundary/?level=${encodeURIComponent(level)}&id=${encodeURIComponent(id)}`;
+        const url = `/dashboard/api/boundary/?level=${encodeURIComponent(level)}&id=${encodeURIComponent(id)}`;
         fetch(url)
             .then(res => { if (!res.ok) throw new Error('Error cargando límites'); return res.json(); })
             .then(geojson => drawBoundaryFromGeoJSON(geojson))
