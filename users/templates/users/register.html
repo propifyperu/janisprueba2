@@ -40,7 +40,7 @@
         .register-side-left {
             background: linear-gradient(135deg, #047d7d 0%, #279896 100%);
             color: #f3fdfd;
-            padding: 4rem 3rem;
+            padding: 3rem 2rem;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -49,36 +49,36 @@
         }
 
         .logo-area {
-            width: 120px;
-            height: 120px;
+            width: 100px;
+            height: 100px;
             background: rgba(255, 255, 255, 0.15);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
 
         .logo-area i {
-            font-size: 3rem;
+            font-size: 2.5rem;
             color: #f3fdfd;
         }
 
         .register-side-left h1 {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 700;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
             letter-spacing: -0.5px;
         }
 
         .register-side-left p {
-            font-size: 1rem;
+            font-size: 0.85rem;
             opacity: 0.9;
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
         .register-side-right {
-            padding: 3rem 2.5rem;
+            padding: 2rem 2rem;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -86,26 +86,26 @@
 
         .register-side-right h2 {
             color: #0f3e45;
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
         }
 
         .register-side-right > p {
             color: #718ba8;
-            font-size: 0.9rem;
-            margin-bottom: 2rem;
+            font-size: 0.8rem;
+            margin-bottom: 1.2rem;
         }
 
         .form-group {
-            margin-bottom: 1.25rem;
+            margin-bottom: 0.9rem;
         }
 
         .form-label {
             color: #0f3e45;
             font-weight: 600;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -113,18 +113,46 @@
 
         .form-label i {
             color: #047d7d;
-            font-size: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 0.75rem;
+            background: none;
+            border: none;
+            color: #047d7d;
+            cursor: pointer;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.85rem;
+            transition: color 0.2s ease;
+            z-index: 10;
+        }
+
+        .password-toggle:hover {
+            color: #046969;
         }
 
         .form-control {
             border-radius: 6px;
             border: 2px solid #e0e0e0;
-            padding: 0.75rem 0.9rem;
-            font-size: 0.9rem;
+            padding: 0.5rem 0.75rem;
+            padding-right: 2.5rem;
+            font-size: 0.85rem;
             transition: all 0.3s ease;
             background-color: #fafbfc;
             color: #0f3e45;
             width: 100%;
+        }
+
+        .password-input-wrapper .form-control {
+            padding-right: 2.5rem;
         }
 
         .form-control:focus {
@@ -152,9 +180,9 @@
             box-shadow: 0 2px 8px rgba(4, 125, 125, 0.1);
             background-color: #e8f8f8;
             color: #0f3e45;
-            margin-bottom: 1.5rem;
-            padding: 0.75rem 1rem;
-            font-size: 0.85rem;
+            margin-bottom: 0.8rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
         }
 
         .alert-danger {
@@ -167,16 +195,16 @@
             background: linear-gradient(135deg, #047d7d 0%, #279896 100%);
             border: none;
             color: #f3fdfd;
-            padding: 0.9rem 1.5rem;
+            padding: 0.65rem 1.25rem;
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             letter-spacing: 0.5px;
             width: 100%;
             border-radius: 6px;
             transition: all 0.3s ease;
             box-shadow: 0 4px 12px rgba(4, 125, 125, 0.2);
             cursor: pointer;
-            margin-top: 0.5rem;
+            margin-top: 0.3rem;
         }
 
         .btn-register:hover:not(:disabled) {
@@ -197,8 +225,8 @@
 
         .register-footer-link {
             text-align: center;
-            margin-top: 1.5rem;
-            font-size: 0.85rem;
+            margin-top: 0.8rem;
+            font-size: 0.75rem;
         }
 
         .register-footer-link a {
@@ -214,9 +242,49 @@
 
         .copyright {
             text-align: center;
-            margin-top: 2rem;
-            font-size: 0.75rem;
+            margin-top: 1rem;
+            font-size: 0.65rem;
             color: #b8c5ce;
+        }
+
+        .password-match-message {
+            display: none;
+            font-size: 0.7rem;
+            margin-top: 0.2rem;
+            font-weight: 500;
+        }
+
+        .password-match-message.mismatch {
+            display: block;
+            color: #e74c3c;
+        }
+
+        .password-match-message.match {
+            display: block;
+            color: #27ae60;
+        }
+
+        .form-group.is-invalid .form-control {
+            border-color: #e74c3c;
+            background-color: #fdf0f0;
+        }
+
+        .sending-message {
+            display: none;
+            background: rgba(4, 125, 125, 0.1);
+            border: 1px solid rgba(4, 125, 125, 0.3);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            color: #047d7d;
+            font-size: 0.8rem;
+            text-align: center;
+            animation: pulse-message 1.5s infinite;
+        }
+
+        @keyframes pulse-message {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
 
         @media (max-width: 768px) {
@@ -271,6 +339,11 @@
                 <form method="post" action="{% url 'users:register' %}" novalidate>
                     {% csrf_token %}
 
+                    <div class="sending-message" id="sendingMessage">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Enviando credenciales para aprobación...
+                    </div>
+
                     <!-- Usuario -->
                     <div class="form-group">
                         <label for="{{ form.username.id_for_label }}" class="form-label">
@@ -309,17 +382,60 @@
                         {% endif %}
                     </div>
 
+                    <!-- Nombre -->
+                    <div class="form-group">
+                        <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                            <i class="fas fa-user"></i> Nombre
+                        </label>
+                        <input type="text" 
+                               name="first_name" 
+                               id="{{ form.first_name.id_for_label }}" 
+                               class="form-control{% if form.first_name.errors %} is-invalid{% endif %}" 
+                               placeholder="Juan"
+                               value="{{ form.first_name.value|default:'' }}"
+                               required>
+                        {% if form.first_name.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.first_name.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Apellido -->
+                    <div class="form-group">
+                        <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                            <i class="fas fa-user"></i> Apellido
+                        </label>
+                        <input type="text" 
+                               name="last_name" 
+                               id="{{ form.last_name.id_for_label }}" 
+                               class="form-control{% if form.last_name.errors %} is-invalid{% endif %}" 
+                               placeholder="Pérez"
+                               value="{{ form.last_name.value|default:'' }}"
+                               required>
+                        {% if form.last_name.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.last_name.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
                     <!-- Contraseña -->
                     <div class="form-group">
                         <label for="{{ form.password.id_for_label }}" class="form-label">
                             <i class="fas fa-lock"></i> Contraseña
                         </label>
-                        <input type="password" 
-                               name="password" 
-                               id="{{ form.password.id_for_label }}" 
-                               class="form-control{% if form.password.errors %} is-invalid{% endif %}" 
-                               placeholder="••••••••"
-                               required>
+                        <div class="password-input-wrapper">
+                            <input type="password" 
+                                   name="password" 
+                                   id="{{ form.password.id_for_label }}" 
+                                   class="form-control{% if form.password.errors %} is-invalid{% endif %}" 
+                                   placeholder="••••••••"
+                                   required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('{{ form.password.id_for_label }}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                         {% if form.password.errors %}
                         <div class="invalid-feedback">
                             {% for error in form.password.errors %}{{ error }}{% endfor %}
@@ -332,12 +448,19 @@
                         <label for="{{ form.password_confirm.id_for_label }}" class="form-label">
                             <i class="fas fa-lock"></i> Repetir Contraseña
                         </label>
-                        <input type="password" 
-                               name="password_confirm" 
-                               id="{{ form.password_confirm.id_for_label }}" 
-                               class="form-control{% if form.password_confirm.errors %} is-invalid{% endif %}" 
-                               placeholder="••••••••"
-                               required>
+                        <div class="password-input-wrapper">
+                            <input type="password" 
+                                   name="password_confirm" 
+                                   id="{{ form.password_confirm.id_for_label }}" 
+                                   class="form-control{% if form.password_confirm.errors %} is-invalid{% endif %}" 
+                                   placeholder="••••••••"
+                                   required
+                                   onkeyup="checkPasswordMatch()">
+                            <button type="button" class="password-toggle" onclick="togglePassword('{{ form.password_confirm.id_for_label }}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="password-match-message" id="passwordMatchMessage"></div>
                         {% if form.password_confirm.errors %}
                         <div class="invalid-feedback">
                             {% for error in form.password_confirm.errors %}{{ error }}{% endfor %}
@@ -364,6 +487,47 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            const icon = event.target.closest('button').querySelector('i');
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                field.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function checkPasswordMatch() {
+            const password = document.querySelector('input[name="password"]').value;
+            const passwordConfirm = document.querySelector('input[name="password_confirm"]').value;
+            const message = document.getElementById('passwordMatchMessage');
+            const confirmField = document.querySelector('input[name="password_confirm"]');
+            
+            if (passwordConfirm.length === 0) {
+                message.classList.remove('match', 'mismatch');
+                message.textContent = '';
+                confirmField.classList.remove('is-invalid');
+                return;
+            }
+            
+            if (password === passwordConfirm) {
+                message.classList.remove('mismatch');
+                message.classList.add('match');
+                message.textContent = '✓ Las contraseñas coinciden';
+                confirmField.classList.remove('is-invalid');
+            } else {
+                message.classList.remove('match');
+                message.classList.add('mismatch');
+                message.textContent = '✗ Las contraseñas no coinciden';
+                confirmField.classList.add('is-invalid');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const usernameField = document.querySelector('input[name="username"]');
             if (usernameField) {
@@ -372,6 +536,7 @@
 
             const registerForm = document.querySelector("form[action=\"{% url 'users:register' %}\"]");
             const registerButton = registerForm.querySelector('button[type="submit"]');
+            const sendingMessage = document.getElementById('sendingMessage');
 
             registerForm.addEventListener('submit', function(event) {
                 if (!registerForm.checkValidity()) {
@@ -379,10 +544,18 @@
                     event.stopPropagation();
                     registerForm.classList.add('was-validated');
                 } else {
+                    // Mostrar mensaje de envío
+                    sendingMessage.style.display = 'block';
                     registerButton.disabled = true;
-                    registerButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Registrando...';
+                    registerButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Enviando...';
                 }
             });
+
+            // Agregar listener al campo password_confirm para validación en tiempo real
+            const passwordConfirmField = document.querySelector('input[name="password_confirm"]');
+            if (passwordConfirmField) {
+                passwordConfirmField.addEventListener('blur', checkPasswordMatch);
+            }
         });
     </script>
 </body>

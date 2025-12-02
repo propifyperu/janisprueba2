@@ -1,15 +1,11 @@
-def profile_edit_view(request):
-    return render(request, 'users/profile_edit.html')
-from django.shortcuts import render
-
-def profile_view(request):
-    return render(request, 'users/profile.html')
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django import forms
 from .models import CustomUser
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from security.models import AuthorizedDevice, DeviceStatus
+import uuid
 
 class LoginForm(forms.Form):
     username = forms.CharField(label='Usuario', max_length=150)
@@ -58,7 +54,8 @@ def login_view(request):
     next_url = request.GET.get('next')
     if not next_url:
         next_url = '/dashboard/'
-    if request.user.is_authenticated:
+    # Verificar que el usuario esté autenticado Y activo
+    if request.user.is_authenticated and request.user.is_active:
         return redirect(next_url)
 
     form = LoginForm(request.POST or None)
@@ -69,44 +66,26 @@ def login_view(request):
             password=form.cleaned_data['password']
         )
         if user is not None:
-            from security.models import AuthorizedDevice
-            device_id = request.META.get('HTTP_USER_AGENT', '')[:128]
-            ip_address = request.META.get('REMOTE_ADDR')
-            platform = request.META.get('HTTP_SEC_CH_UA_PLATFORM', '')
-            user_agent = request.META.get('HTTP_USER_AGENT', '')
-            device_obj = AuthorizedDevice.objects.filter(user=user, device_id=device_id).first()
-            if not device_obj:
-                device_obj = AuthorizedDevice.objects.create(
-                    user=user,
-                    device_id=device_id,
-                    name=platform,
-                    platform=platform,
-                    user_agent=user_agent,
-                    ip_address=ip_address,
-                    status='pending',
-                )
-            if device_obj.status == 'pending':
-                return render(request, 'users/login.html', {
-                    'form': form,
-                    'next': next_url,
-                    'device_pending': True
-                })
             login(request, user)
             return redirect(next_url)
         else:
             form.add_error(None, 'Usuario o contraseña incorrectos.')
+    
     return render(request, 'users/login.html', {'form': form, 'next': next_url})
+
 
 def logout_view(request):
     logout(request)
     return redirect('users:login')
 
+
 def register_view(request):
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and request.user.is_active:
         return redirect('/dashboard/')
     
     form = RegisterForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
+        # Crear usuario inactivo
         user = CustomUser.objects.create_user(
             username=form.cleaned_data['username'],
             email=form.cleaned_data['email'],
@@ -118,9 +97,51 @@ def register_view(request):
         user.set_password(form.cleaned_data['password'])
         user.save()
         
-        return redirect('users:register_success')
+        # Crear dispositivo inicial
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        device_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, user_agent))
+        ip_address = request.META.get('REMOTE_ADDR', '')
+        
+        device = AuthorizedDevice.objects.create(
+            user=user,
+            device_id=device_id,
+            user_agent=user_agent,
+            ip_address=ip_address,
+            platform=request.META.get('HTTP_SEC_CH_UA_PLATFORM', 'Desconocida'),
+            status=DeviceStatus.PENDING,
+            name=f"Dispositivo de registro"
+        )
+        
+        # Limpiar la sesión anterior (si existe) y guardar solo los IDs de dispositivo
+        for key in list(request.session.keys()):
+            if key not in ['_session_expiry']:
+                del request.session[key]
+        
+        request.session['registration_device_id'] = device.id
+        request.session['registration_user_id'] = user.id
+        request.session.modified = True
+        
+        return redirect('security:verify_device_id', device_id=device.id)
     
     return render(request, 'users/register.html', {'form': form})
 
+
 def register_success_view(request):
-    return render(request, 'users/register_success.html')
+    device_id = request.session.get('registration_device_id')
+    device = None
+    if device_id:
+        try:
+            device = AuthorizedDevice.objects.get(id=device_id)
+        except AuthorizedDevice.DoesNotExist:
+            pass
+    
+    context = {'device': device}
+    return render(request, 'users/register_success.html', context)
+
+
+def profile_view(request):
+    return render(request, 'users/profile.html')
+
+
+def profile_edit_view(request):
+    return render(request, 'users/profile_edit.html')

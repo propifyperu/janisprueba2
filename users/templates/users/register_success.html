@@ -110,68 +110,83 @@
 
                     <!-- Contenido -->
                     <div class="success-body">
-                        <div class="alert alert-info alert-dismissible fade show" role="alert">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Tu cuenta está pendiente de aprobación</strong>
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <i class="fas fa-lock"></i>
+                            <strong>Verificación de dispositivo pendiente</strong>
                             <p class="mb-0 mt-2">
-                                Nuestro equipo revisará tu información y te notificaremos por correo electrónico cuando esté lista.
+                                Para activar tu cuenta, debes verificar este dispositivo. Un administrador revisará tu solicitud.
                             </p>
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
 
+                        <!-- Información del Dispositivo -->
+                        {% if device %}
+                        <div class="info-box p-4 mb-4" style="background: #e8f4f7; border-left: 4px solid #047d7d;">
+                            <h5 class="mb-3">
+                                <i class="fas fa-mobile-alt"></i> Dispositivo Registrado
+                            </h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <small class="text-muted d-block"><strong>Plataforma:</strong></small>
+                                    <span>{{ device.platform|default:"No detectada" }}</span>
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <small class="text-muted d-block"><strong>IP Address:</strong></small>
+                                    <span>{{ device.ip_address|default:"-" }}</span>
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <small class="text-muted d-block"><strong>ID del Dispositivo:</strong></small>
+                                    <code style="background: rgba(4,125,125,0.1); padding: 0.3rem 0.6rem; border-radius: 4px;">{{ device.device_id }}</code>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <div class="info-box p-4 mb-4">
                             <h5 class="mb-3">
-                                <i class="fas fa-clock"></i> ¿Qué sucede ahora?
+                                <i class="fas fa-clipboard-list"></i> ¿Qué sucede ahora?
                             </h5>
                             <ol class="mb-0">
                                 <li class="mb-2">
-                                    <strong>Verifica tu correo electrónico</strong>
+                                    <strong>Tu cuenta está pendiente de aprobación</strong>
                                     <p class="text-muted mb-0" style="font-size: 0.9rem;">
-                                        Hemos enviado un correo de confirmación a tu dirección de email
+                                        Un administrador verificará tu dispositivo y tus datos
                                     </p>
                                 </li>
                                 <li class="mb-2">
-                                    <strong>Revisión de tu perfil</strong>
+                                    <strong>Recibirás una notificación por correo</strong>
                                     <p class="text-muted mb-0" style="font-size: 0.9rem;">
-                                        Nuestro equipo verificará tus datos (generalmente en 24-48 horas)
+                                        Te notificaremos cuando tu cuenta y dispositivo sean aprobados
                                     </p>
                                 </li>
                                 <li class="mb-2">
-                                    <strong>Aprobación y acceso</strong>
+                                    <strong>Accede a tu cuenta</strong>
                                     <p class="text-muted mb-0" style="font-size: 0.9rem;">
-                                        Una vez aprobado, podrás acceder a todas las funciones de Propify
+                                        Una vez aprobado, podrás iniciar sesión normalmente
                                     </p>
                                 </li>
                             </ol>
                         </div>
 
-                        <!-- Mensaje de confirmación -->
-                        <div class="confirmation-box p-4 mb-4">
-                            <p class="mb-0">
-                                <i class="fas fa-envelope-open-text"></i>
-                                <strong>Revisa tu bandeja de entrada</strong> (y spam si es necesario) 
-                                para el correo de confirmación
-                            </p>
-                        </div>
-
                         <!-- Botones -->
                         <div class="d-grid gap-2 mb-3">
-                            <a href="{% url 'users:login' %}" class="btn btn-success-action btn-lg">
-                                <i class="fas fa-sign-in-alt"></i> Ir al Login
+                            <a href="{% url 'security:verify_device' %}" class="btn btn-success-action btn-lg">
+                                <i class="fas fa-check-square"></i> Ver Estado del Dispositivo
                             </a>
-                            <a href="/" class="btn btn-outline-secondary btn-lg">
-                                <i class="fas fa-home"></i> Volver al Inicio
+                            <a href="{% url 'users:login' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-sign-in-alt"></i> Ir al Login
                             </a>
                         </div>
 
-                        <!-- Soporte -->
+                        <!-- Seguridad -->
                         <div class="mt-4 pt-4 border-top">
                             <p class="text-muted text-center mb-2">
-                                <i class="fas fa-question-circle"></i> ¿Tienes preguntas?
+                                <i class="fas fa-shield-alt"></i> <strong>Información de Seguridad</strong>
                             </p>
-                            <p class="mb-0 text-center">
-                                <a href="#" class="fw-bold" style="color: #047d7d;">Contacta con nuestro equipo de soporte</a>
-                            </p>
+                            <small class="text-muted d-block text-center">
+                                Nunca compartiremos tu información con terceros. 
+                                Propify solo usa tus datos para verificar tu identidad y autorizar tus dispositivos.
+                            </small>
                         </div>
                     </div>
 

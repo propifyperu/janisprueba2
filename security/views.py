@@ -4,6 +4,39 @@ from django.core.paginator import Paginator
 from django.urls import reverse
 from .models import AuthorizedDevice
 
+def verify_device(request, device_id=None):
+	"""Vista para que usuarios verifiquen su dispositivo durante el registro"""
+	# Primero intentar obtener desde URL, luego desde sesión
+	device = None
+	
+	if device_id:
+		try:
+			device = AuthorizedDevice.objects.get(id=device_id)
+		except AuthorizedDevice.DoesNotExist:
+			return redirect('users:login')
+	
+	if not device:
+		# Intentar desde sesión (para usuarios autenticados)
+		device_id_session = request.session.get('pending_device_id') or request.session.get('registration_device_id')
+		if device_id_session:
+			try:
+				device = AuthorizedDevice.objects.get(id=device_id_session)
+			except AuthorizedDevice.DoesNotExist:
+				pass
+	
+	if not device:
+		return redirect('users:login')
+	
+	context = {
+		'device': device,
+		'device_id': device.device_id,
+		'device_name': device.name or device.platform,
+		'ip_address': device.ip_address,
+		'platform': device.platform,
+	}
+	
+	return render(request, 'security/verify_device.html', context)
+
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def device_list(request):
