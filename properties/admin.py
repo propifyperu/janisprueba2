@@ -277,7 +277,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('real_address', 'exact_address', 'coordinates', 'department', 'province', 'district', 'urbanization')
         }),
         ('Servicios', {
-            'fields': ('water_service_type', 'energy_service_type', 'drainage_service_type', 'gas_service_type')
+            'fields': ('water_service', 'energy_service', 'drainage_service', 'gas_service')
         }),
         ('Estado de Construcción', {
             'fields': ('antiquity_years', 'delivery_date'),

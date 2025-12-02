@@ -23,16 +23,17 @@
         .login-header {
             background: linear-gradient(135deg, rgba(4, 125, 125, 0.95) 0%, rgba(39, 152, 150, 0.95) 100%);
             color: #f3fdfd;
-            padding: 2.25rem 2rem;
+            padding: 1.5rem 2rem;
             text-align: center;
         }
         .login-form {
-            padding: 2.25rem 2.25rem 2rem;
+            padding: 1.5rem 2rem;
         }
         .login-form label {
             color: #0f3e45;
             font-weight: 600;
             letter-spacing: 0.02em;
+            font-size: 0.9rem;
         }
         .btn-login {
             background: linear-gradient(135deg, #047d7d 0%, #279896 100%);
@@ -71,8 +72,8 @@
                 <div class="login-container">
                     <!-- Header -->
                     <div class="login-header">
-                        <h2 class="mb-0">Janis Platform</h2>
-                        <p class="mb-0 mt-2 opacity-75">Sistema de Gestión de Propiedades</p>
+                        <h2 class="mb-0" style="font-size: 1.3rem;">Janis Platform</h2>
+                        <p class="mb-0 mt-1" style="font-size: 0.75rem; opacity: 0.9;">Sistema de Gestión de Propiedades</p>
                     </div>
                     
                     <!-- Formulario -->
@@ -107,18 +108,18 @@
                         <form method="post" action="{% url 'users:login' %}">
                             {% csrf_token %}
                             
-                            <div class="mb-3">
+                            <div class="mb-2">
                                 <label for="id_username" class="form-label">Usuario</label>
                                 <input type="text" 
                                        name="username" 
                                        id="id_username" 
-                                       class="form-control form-control-lg{% if form.username.errors %} is-invalid{% endif %}" 
+                                       class="form-control{% if form.username.errors %} is-invalid{% endif %}" 
                                        placeholder="Ingresa tu usuario"
                                        value="{{ form.username.value|default:'' }}"
                                        required
                                        autofocus>
                                 {% if form.username.errors %}
-                                <div class="invalid-feedback d-block">
+                                <div class="invalid-feedback d-block" style="font-size: 0.8rem;">
                                     {% for error in form.username.errors %}
                                         <span>{{ error }}</span>
                                     {% endfor %}
@@ -126,16 +127,16 @@
                                 {% endif %}
                             </div>
                             
-                            <div class="mb-4">
+                            <div class="mb-3">
                                 <label for="id_password" class="form-label">Contraseña</label>
                                 <input type="password" 
                                        name="password" 
                                        id="id_password" 
-                                       class="form-control form-control-lg{% if form.password.errors %} is-invalid{% endif %}" 
+                                       class="form-control{% if form.password.errors %} is-invalid{% endif %}" 
                                        placeholder="Ingresa tu contraseña"
                                        required>
                                 {% if form.password.errors %}
-                                <div class="invalid-feedback d-block">
+                                <div class="invalid-feedback d-block" style="font-size: 0.8rem;">
                                     {% for error in form.password.errors %}
                                         <span>{{ error }}</span>
                                     {% endfor %}
@@ -143,8 +144,8 @@
                                 {% endif %}
                             </div>
                             
-                            <div class="d-grid mb-3">
-                                <button type="submit" class="btn btn-login btn-lg">
+                            <div class="d-grid mb-2">
+                                <button type="submit" class="btn btn-login" style="padding: 0.6rem;">
                                     Iniciar Sesión
                                 </button>
                             </div>
@@ -155,19 +156,19 @@
                         </form>
                         
                         <div class="text-center">
-                            <small class="text-muted">
+                            <small class="text-muted" style="font-size: 0.7rem;">
                                 &copy; 2024 Janis Platform. Todos los derechos reservados.
                             </small>
                         </div>
                     </div>
 
                     <!-- Footer con enlace a registro -->
-                    <div class="card-footer bg-light text-center py-3" style="border-top: 1px solid rgba(4, 125, 125, 0.2);">
+                    <div class="card-footer bg-light text-center py-2" style="border-top: 1px solid rgba(4, 125, 125, 0.2);">
                         <p class="mb-0">
-                            <small class="text-muted">
+                            <small class="text-muted" style="font-size: 0.75rem;">
                                 ¿No tienes cuenta?
                             </small>
-                            <a href="{% url 'users:register' %}" class="fw-bold" style="color: #047d7d;">
+                            <a href="{% url 'users:register' %}" class="fw-bold" style="color: #047d7d; font-size: 0.75rem;">
                                 Regístrate aquí
                             </a>
                         </p>
