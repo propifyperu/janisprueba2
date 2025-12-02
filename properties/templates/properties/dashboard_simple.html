@@ -1,0 +1,37 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Propiedades{% endblock %}
+
+{% block dashboard_content %}
+<div class="container py-4">
+    <h1>Dashboard de Propiedades</h1>
+    
+    <div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3>Total de propiedades: <strong>{{ property_count }}</strong></h3>
+    </div>
+    
+    {% if property_count > 0 %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+            {% for property in properties %}
+                <div style="background: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h4>{{ property.code }}</h4>
+                    <p><strong>Título:</strong> {{ property.title|default:"Sin título" }}</p>
+                    <p><strong>Precio:</strong> {{ property.price|default:"Sin precio" }}</p>
+                    <p><strong>Área terreno:</strong> {{ property.land_area|default:"-" }} m²</p>
+                    <p><strong>Área construida:</strong> {{ property.built_area|default:"-" }} m²</p>
+                    <p><strong>Dormitorios:</strong> {{ property.bedrooms|default:"-" }}</p>
+                    <p><strong>Baños:</strong> {{ property.bathrooms|default:"-" }}</p>
+                    <p><strong>Estado:</strong> {% if property.is_active %}<span style="color: green;">✓ Activa</span>{% else %}<span style="color: red;">✗ Inactiva</span>{% endif %}</p>
+                    <a href="{% url 'properties:detail' property.pk %}" style="display: inline-block; padding: 10px 15px; background: #047d7d; color: white; text-decoration: none; border-radius: 4px; margin-top: 10px;">Ver Detalle</a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 20px; border-radius: 8px; text-align: center;">
+            <h3>No hay propiedades</h3>
+            <p>Aún no hay propiedades en la base de datos.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

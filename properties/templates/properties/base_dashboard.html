@@ -351,16 +351,14 @@
                 </div>
             </div>
             {% endif %}
+            <a href="{% url 'users:logout' %}" class="nav-link"><i class="fas fa-sign-out-alt me-2"></i>Cerrar sesión</a>
             </nav>
             {% if property_count|default_if_none:'' != '' %}
-            <div class="mt-auto pt-4">
-                <p class="text-white-50 small mb-1">Propiedades activas</p>
-                <div class="display-5 fw-bold">{{ property_count }}</div>
+            <div class="mt-4 pt-3 border-top" style="border-top-color: rgba(255,255,255,0.1) !important;">
+                <p class="text-white-50 small mb-2">Propiedades activas</p>
+                <div class="h4 fw-bold text-white mb-0">{{ property_count }}</div>
             </div>
             {% endif %}
-            <a href="{% url 'users:logout' %}" class="nav-link" style="margin-top: 2rem;">
-                <i class="fas fa-sign-out-alt me-2"></i>Cerrar sesión
-            </a>
         </div>
     </aside>
 

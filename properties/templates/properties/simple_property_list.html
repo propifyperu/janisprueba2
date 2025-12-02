@@ -1,0 +1,27 @@
+{% extends 'properties/base_dashboard.html' %}
+{% block title %}Propiedades (Vista Simple){% endblock %}
+{% block dashboard_content %}
+<div class="container py-4">
+    <h2 class="mb-4">Propiedades activas (vista simple)</h2>
+    <div class="row">
+        {% for property in properties %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ property.title|default:property.code|default:"Sin título" }}</h5>
+                    <p class="card-text">Código: {{ property.code|default:"Sin código" }}</p>
+                    <p class="card-text">Precio: {{ property.price|default:"Sin precio" }}</p>
+                    <p class="card-text">Dirección: {{ property.exact_address|default:"Sin dirección" }}</p>
+                    <p class="card-text">Propietario: {% if property.owner %}{{ property.owner.full_name|default:"Sin propietario" }}{% else %}Sin propietario{% endif %}</p>
+                    <a href="{% url 'properties:detail' property.pk %}" class="btn btn-primary">Ver detalle</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-warning">No hay propiedades activas en la base de datos.</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

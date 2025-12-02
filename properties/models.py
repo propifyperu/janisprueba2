@@ -378,31 +378,34 @@ class PropertyOwner(TitleCaseMixin, models.Model):
     ]
     
     # Información personal
-    first_name = EncryptedCharField(max_length=256)
-    last_name = EncryptedCharField(max_length=256)
+    first_name = EncryptedCharField(max_length=256, blank=True)
+    last_name = EncryptedCharField(max_length=256, blank=True)
     maternal_last_name = EncryptedCharField(max_length=256, blank=True)
     
     # Documento de identidad (SIN ENCRIPTAR)
     document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT)
-    photo = models.ImageField(upload_to='owners/photos/', null=True, blank=True)
-    # Nuevos campos solicitados
-    document_number = models.CharField(max_length=50, verbose_name="Número de documento")
     birth_date = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, verbose_name="Género")
     phone = EncryptedCharField(max_length=256)
+    maternal_last_name = EncryptedCharField(max_length=256, blank=True)
+    document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT, null=True, blank=True)
+    photo = models.ImageField(upload_to='owners/photos/', null=True, blank=True)
+    document_number = models.CharField(max_length=50, verbose_name="Número de documento", blank=True)
+    birth_date = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, verbose_name="Género", blank=True)
+    phone = EncryptedCharField(max_length=256, blank=True)
     secondary_phone = EncryptedCharField(max_length=256, blank=True)
-    email = EncryptedEmailField(max_length=255)
+    email = EncryptedEmailField(max_length=255, blank=True)
     profession = models.ForeignKey('Profession', on_delete=models.SET_NULL, null=True, blank=True)
     company = models.CharField(max_length=200, blank=True)
     observations = models.TextField(blank=True)
-    
        # Dirección del contacto (usando los nuevos modelos)
     department = models.ForeignKey('Department', on_delete=models.PROTECT, verbose_name="Departamento")
     province = models.ForeignKey('Province', on_delete=models.PROTECT, verbose_name="Provincia")
     district = models.ForeignKey('District', on_delete=models.PROTECT, verbose_name="Distrito")
     urbanization = models.ForeignKey('Urbanization', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Urbanización")
-    address_exact = EncryptedTextField(blank=True, verbose_name="Dirección Exacta")
-    address_coordinates = EncryptedCharField(max_length=512, blank=True, verbose_name="Coordenadas")
+    address_exact = models.TextField(blank=True, verbose_name="Dirección Exacta")
+    address_coordinates = models.CharField(max_length=512, blank=True, verbose_name="Coordenadas")
     
     # Etiquetas para búsqueda rápida
     tags = models.ManyToManyField('Tag', blank=True)
@@ -499,18 +502,18 @@ class Property(TitleCaseMixin, models.Model):
     # Ubicación (SIN ENCRIPTAR)
         
     # ===== MEJORA 3: Nuevo campo para dirección real (de documentos) =====
-    real_address = EncryptedTextField(
+    real_address = models.TextField(
         blank=True, 
         verbose_name="Dirección Real (de documentos)",
         help_text="Dirección exacta que aparece en documentos legales"
     )
 
-    exact_address = EncryptedCharField(
+    exact_address = models.CharField(
         max_length=512, 
         blank=True, 
         verbose_name="Dirección Exacta (para mapa)"
     )
-    coordinates = EncryptedCharField(max_length=512, blank=True)
+    coordinates = models.CharField(max_length=512, blank=True)
     department = models.CharField(max_length=100)
     province = models.CharField(max_length=100)
     district = models.CharField(max_length=100)

@@ -1,3 +1,65 @@
+from .models import Property
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import ListView
+from django.shortcuts import render
+from django.http import HttpResponse
+
+# Vista ULTRA SIMPLE sin templates - SOLO HTML PURO
+def simple_properties_view(request):
+    """Vista que devuelve HTML puro con las propiedades."""
+    try:
+        properties = Property.objects.all().order_by('-created_at')
+        count = properties.count()
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Propiedades</title>
+            <style>
+                body {{ font-family: Arial; margin: 20px; }}
+                table {{ border-collapse: collapse; width: 100%; }}
+                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                th {{ background-color: #047d7d; color: white; }}
+            </style>
+        </head>
+        <body>
+            <h1>Propiedades en BD: {count}</h1>
+            <table>
+                <tr><th>ID</th><th>Código</th><th>Título</th><th>Precio</th><th>Activa</th></tr>
+        """
+        
+        for p in properties:
+            html += f"""
+                <tr>
+                    <td>{p.id}</td>
+                    <td>{p.code}</td>
+                    <td>{p.title or 'Sin título'}</td>
+                    <td>{p.price if p.price else 'Sin precio'}</td>
+                    <td>{'✓' if p.is_active else '✗'}</td>
+                </tr>
+            """
+        
+        html += """
+            </table>
+        </body>
+        </html>
+        """
+        
+        return HttpResponse(html)
+    except Exception as e:
+        return HttpResponse(f"<h1>Error:</h1><p>{str(e)}</p>", status=500)
+
+# Vista simple para mostrar todas las propiedades activas en tarjetas básicas
+class SimplePropertyListView(LoginRequiredMixin, ListView):
+    model = Property
+    template_name = 'properties/simple_property_list.html'
+    context_object_name = 'properties'
+    paginate_by = None
+
+    def get_queryset(self):
+        # Mostrar todas las propiedades, aunque tengan datos incompletos
+        return Property.objects.all().order_by('-created_at')
 from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView, ListView, CreateView
@@ -100,18 +162,58 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
     paginate_by = None
 
     def get_queryset(self):
-        queryset = Property.objects.filter(is_active=True)
+        queryset = (
+            Property.objects.filter(is_active=True)
+            .select_related('property_type', 'status', 'owner', 'created_by', 'currency')
+            .prefetch_related('images')
+        )
 
-        # Mostrar todas las propiedades activas, sin filtrar por usuario o agente
+        # Si el usuario es agente, mostrar solo sus propiedades y asignadas
+        if self.request.user.role and self.request.user.role.code_name == 'agent':
+            queryset = queryset.filter(
+                Q(created_by=self.request.user) | Q(assigned_agent=self.request.user)
+            )
 
+        search = self.request.GET.get('search', '').strip()
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search)
+                | Q(code__icontains=search)
+                | Q(owner__first_name__icontains=search)
+                | Q(owner__last_name__icontains=search)
+            )
 
+        property_type = self.request.GET.get('property_type', '').strip()
+        if property_type:
+            queryset = queryset.filter(property_type_id=property_type)
+
+        status = self.request.GET.get('status', '').strip()
+        if status:
+            queryset = queryset.filter(status_id=status)
+
+        department = self.request.GET.get('department', '').strip()
+        if department:
+            queryset = queryset.filter(department__iexact=department)
+
+        price_min = self.request.GET.get('price_min', '').strip()
+        if price_min:
+            try:
+                queryset = queryset.filter(price__gte=Decimal(price_min))
+            except (InvalidOperation, ValueError):
+                pass
+
+        price_max = self.request.GET.get('price_max', '').strip()
+        if price_max:
+            try:
+                queryset = queryset.filter(price__lte=Decimal(price_max))
+            except (InvalidOperation, ValueError):
+                pass
 
         return queryset.order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        properties = context.get('properties', [])
-        context['property_count'] = len(properties) if hasattr(properties, '__len__') else properties.count()
+        properties = context['properties']
 
         context['user_role'] = self.request.user.role.name if self.request.user.role else 'Sin rol'
         context['property_types'] = PropertyType.objects.filter(is_active=True).order_by('name')
@@ -144,8 +246,45 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                         lng = float(parts[1])
                     except ValueError:
                         lat = lng = None
-        # ...existing code...
 
+            first_image_url = ''
+            images_qs = list(property_obj.images.all())
+            if images_qs:
+                first_image = images_qs[0]
+                if first_image and first_image.image:
+                    first_image_url = first_image.image.url
+
+            markers.append({
+                'id': property_obj.id,
+                'title': property_obj.title,
+                'code': property_obj.code,
+                'property_type': property_obj.property_type.name if property_obj.property_type else '',
+                'status': property_obj.status.name if property_obj.status else '',
+                'price': f"{property_obj.currency.symbol if property_obj.currency else ''} {format(property_obj.price, ',.2f')}",
+                'address': property_obj.exact_address or property_obj.district or 'Ubicación no disponible',
+                'real_address': property_obj.real_address or '',
+                'lat': lat,
+                'lng': lng,
+                'url': reverse('properties:detail', kwargs={'pk': property_obj.pk}),
+                'owner': property_obj.owner.full_name() if hasattr(property_obj.owner, 'full_name') else str(property_obj.owner),
+                'created': property_obj.created_at.strftime('%d/%m/%Y'),
+                'thumbnail': first_image_url,
+            })
+
+        context['property_markers'] = markers
+
+        marker_icon_url = getattr(settings, 'PROPERTY_MARKER_ICON_URL', '').strip()
+        if not marker_icon_url:
+            marker_icon_static_path = getattr(settings, 'PROPERTY_MARKER_ICON_STATIC_PATH', '').strip()
+            if marker_icon_static_path:
+                marker_icon_url = static(marker_icon_static_path)
+
+        context['property_marker_icon_url'] = marker_icon_url
+        context['property_count'] = len(properties)
+
+        return context
+
+    
 
 # ===================== VISTA FUNCIONAL PARA CREAR PROPIEDAD =====================
 @login_required
@@ -166,7 +305,7 @@ def create_property_view(request):
     form = PropertyForm(request.POST or None, request.FILES or None)
 
     if request.method == 'POST':
-        if form.is_valid() and owner_form.is_valid() and financial_form.is_valid():
+        if form.is_valid() and owner_form.is_valid():
             existing_owner_id = request.POST.get('existing_owner')
             if existing_owner_id:
                 owner = PropertyOwner.objects.get(pk=existing_owner_id)
@@ -182,9 +321,11 @@ def create_property_view(request):
             property_obj.save()
             form.save_m2m()
 
-            financial_info = financial_form.save(commit=False)
-            financial_info.property = property_obj
-            financial_info.save()
+            # Solo guardar información financiera si el formulario es válido y tiene datos
+            if financial_form.is_valid() and any(financial_form.cleaned_data.values()):
+                financial_info = financial_form.save(commit=False)
+                financial_info.property = property_obj
+                financial_info.save()
 
             from django.contrib import messages
             messages.success(request, 'Propiedad creada exitosamente.')
@@ -283,3 +424,10 @@ from .models import RoomType
 def api_roomtypes(request):
     ambientes = RoomType.objects.filter(is_active=True).values('id', 'name')
     return JsonResponse(list(ambientes), safe=False)
+
+from .models import VideoType
+
+@login_required
+def api_video_types(request):
+    tipos = VideoType.objects.filter(is_active=True).values('id', 'name')
+    return JsonResponse(list(tipos), safe=False)

@@ -3,10 +3,13 @@ from .views import (
     PropertyDashboardView, create_property_view, PropertyDetailView,
     ContactListView, ContactCreateView, ContactDetailView, ContactEditView,
     api_property_subtypes, api_provinces, api_districts, api_urbanizations,
-    api_document_types, api_image_types, api_roomtypes
+    api_document_types, api_image_types, api_roomtypes, api_video_types,
+    SimplePropertyListView, simple_properties_view
 )
 
 urlpatterns = [
+    path('ultra-simple/', simple_properties_view, name='ultra_simple_list'),
+    path('simple-list/', SimplePropertyListView.as_view(), name='simple_property_list'),
     path('dashboard/', PropertyDashboardView.as_view(), name='list'),
     path('crear/', create_property_view, name='create'),
     path('<int:pk>/', PropertyDetailView.as_view(), name='detail'),
@@ -21,5 +24,6 @@ urlpatterns = [
     path('api/document-types/', api_document_types, name='api_document_types'),
     path('api/image-types/', api_image_types, name='api_image_types'),
     path('api/roomtypes/', api_roomtypes, name='api_roomtypes'),
+    path('api/video-types/', api_video_types, name='api_video_types'),
     path('', PropertyDashboardView.as_view(), name='dashboard_root'),
 ]
