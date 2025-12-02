@@ -210,7 +210,7 @@ class PropertyDocumentInline(admin.TabularInline):
 class PropertyRoomInline(admin.TabularInline):
     model = PropertyRoom
     extra = 1
-    fields = ('room_type', 'quantity', 'description')
+    fields = ('room_type', 'level', 'name', 'width', 'length', 'area', 'floor_type', 'description', 'order')
 
 
 @admin.register(PropertyOwner)
