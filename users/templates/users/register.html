@@ -14,84 +14,87 @@
         }
 
         body {
-            background: radial-gradient(circle at top left, rgba(4, 125, 125, 0.35), transparent 55%),
-                        linear-gradient(135deg, #047d7d 0%, #279896 100%);
+            background: linear-gradient(135deg, #047d7d 0%, #279896 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
+            justify-content: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .register-wrapper {
             width: 100%;
-            padding: 2rem 1rem;
+            max-width: 1000px;
+            padding: 1rem;
         }
 
         .register-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             background: #fdfefe;
             border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(4, 125, 125, 0.25);
+            box-shadow: 0 25px 60px rgba(4, 125, 125, 0.3);
             overflow: hidden;
-            backdrop-filter: blur(10px);
         }
 
-        .register-header {
+        .register-side-left {
             background: linear-gradient(135deg, #047d7d 0%, #279896 100%);
             color: #f3fdfd;
-            padding: 3rem 2rem;
+            padding: 4rem 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             text-align: center;
-            position: relative;
-            overflow: hidden;
         }
 
-        .register-header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        .logo-area {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.15);
             border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
         }
 
-        .register-header h2 {
-            font-weight: 700;
+        .logo-area i {
+            font-size: 3rem;
+            color: #f3fdfd;
+        }
+
+        .register-side-left h1 {
             font-size: 2rem;
-            margin-bottom: 0.5rem;
-            position: relative;
-            z-index: 1;
+            font-weight: 700;
+            margin-bottom: 1rem;
             letter-spacing: -0.5px;
         }
 
-        .register-header p {
-            font-size: 0.95rem;
+        .register-side-left p {
+            font-size: 1rem;
             opacity: 0.9;
-            position: relative;
-            z-index: 1;
+            line-height: 1.6;
         }
 
-        .register-form {
-            padding: 2.5rem;
-            max-height: 72vh;
-            overflow-y: auto;
+        .register-side-right {
+            padding: 3rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
-        .register-form::-webkit-scrollbar {
-            width: 6px;
+        .register-side-right h2 {
+            color: #0f3e45;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
         }
 
-        .register-form::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .register-form::-webkit-scrollbar-thumb {
-            background: rgba(4, 125, 125, 0.3);
-            border-radius: 3px;
-        }
-
-        .register-form::-webkit-scrollbar-thumb:hover {
-            background: rgba(4, 125, 125, 0.5);
+        .register-side-right > p {
+            color: #718ba8;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
         }
 
         .form-group {
@@ -101,7 +104,7 @@
         .form-label {
             color: #0f3e45;
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             margin-bottom: 0.5rem;
             display: flex;
             align-items: center;
@@ -110,20 +113,21 @@
 
         .form-label i {
             color: #047d7d;
-            font-size: 1.05rem;
+            font-size: 1rem;
         }
 
-        .form-control, .form-select {
-            border-radius: 8px;
+        .form-control {
+            border-radius: 6px;
             border: 2px solid #e0e0e0;
-            padding: 0.85rem 1rem;
-            font-size: 0.95rem;
+            padding: 0.75rem 0.9rem;
+            font-size: 0.9rem;
             transition: all 0.3s ease;
             background-color: #fafbfc;
             color: #0f3e45;
+            width: 100%;
         }
 
-        .form-control:focus, .form-select:focus {
+        .form-control:focus {
             border-color: #047d7d;
             background-color: #fff;
             box-shadow: 0 0 0 3px rgba(4, 125, 125, 0.1);
@@ -134,64 +138,56 @@
             color: #b8c5ce;
         }
 
-        .form-text {
-            font-size: 0.8rem;
-            color: #718ba8;
-            margin-top: 0.4rem;
-            display: block;
-        }
-
         .invalid-feedback {
             display: block;
             color: #e74c3c;
-            font-size: 0.8rem;
-            margin-top: 0.35rem;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
             font-weight: 500;
         }
 
         .alert {
-            border-radius: 8px;
+            border-radius: 6px;
             border: 1px solid rgba(4, 125, 125, 0.2);
-            box-shadow: 0 4px 12px rgba(4, 125, 125, 0.1);
+            box-shadow: 0 2px 8px rgba(4, 125, 125, 0.1);
             background-color: #e8f8f8;
             color: #0f3e45;
             margin-bottom: 1.5rem;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
         }
 
         .alert-danger {
             background-color: #fdf0f0;
             border-color: rgba(220, 53, 69, 0.2);
-        }
-
-        .alert strong {
-            color: #047d7d;
+            color: #c0392b;
         }
 
         .btn-register {
             background: linear-gradient(135deg, #047d7d 0%, #279896 100%);
             border: none;
             color: #f3fdfd;
-            padding: 1rem 2rem;
+            padding: 0.9rem 1.5rem;
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 0.95rem;
             letter-spacing: 0.5px;
             width: 100%;
-            border-radius: 8px;
+            border-radius: 6px;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(4, 125, 125, 0.2);
+            box-shadow: 0 4px 12px rgba(4, 125, 125, 0.2);
             cursor: pointer;
+            margin-top: 0.5rem;
         }
 
         .btn-register:hover:not(:disabled) {
             background: linear-gradient(135deg, #046969 0%, #248a88 100%);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(4, 125, 125, 0.3);
+            box-shadow: 0 6px 16px rgba(4, 125, 125, 0.3);
             color: #f3fdfd;
         }
 
         .btn-register:active:not(:disabled) {
             transform: translateY(0);
-            box-shadow: 0 2px 10px rgba(4, 125, 125, 0.2);
         }
 
         .btn-register:disabled {
@@ -199,257 +195,167 @@
             cursor: not-allowed;
         }
 
-        .text-center-small {
+        .register-footer-link {
             text-align: center;
             margin-top: 1.5rem;
-        }
-
-        .text-center-small small {
-            color: #718ba8;
             font-size: 0.85rem;
         }
 
-        .register-footer {
-            background-color: #f5f7fa;
-            border-top: 1px solid #e0e0e0;
-            padding: 1.25rem 2rem;
-            text-align: center;
-        }
-
-        .register-footer p {
-            margin-bottom: 0;
-        }
-
-        .register-footer small {
-            color: #718ba8;
-            font-size: 0.85rem;
-        }
-
-        .register-footer a {
+        .register-footer-link a {
             color: #047d7d;
             font-weight: 600;
             text-decoration: none;
             transition: color 0.3s ease;
         }
 
-        .register-footer a:hover {
+        .register-footer-link a:hover {
             color: #046969;
-            text-decoration: underline;
         }
 
-        .row-two-cols {
-            gap: 0.75rem;
+        .copyright {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            color: #b8c5ce;
         }
 
         @media (max-width: 768px) {
-            .register-header {
+            .register-container {
+                grid-template-columns: 1fr;
+            }
+
+            .register-side-left {
+                padding: 2rem;
+                display: none;
+            }
+
+            .register-side-right {
                 padding: 2rem;
             }
 
-            .register-header h2 {
-                font-size: 1.5rem;
-            }
-
-            .register-form {
-                padding: 2rem;
-            }
-
-            .register-footer {
-                padding: 1rem 2rem;
+            .register-side-right h2 {
+                font-size: 1.3rem;
             }
         }
     </style>
 </head>
 <body>
     <div class="register-wrapper">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-md-6 col-lg-5">
-                    <div class="register-container">
-                        <!-- Header -->
-                        <div class="register-header">
-                            <h2><i class="fas fa-user-plus"></i> Crear Cuenta</h2>
-                            <p>Únete a Propify hoy mismo</p>
+        <div class="register-container">
+            <!-- Left Side - Logo -->
+            <div class="register-side-left">
+                <div class="logo-area">
+                    <i class="fas fa-building"></i>
+                </div>
+                <h1>Propify</h1>
+                <p>
+                    Plataforma integral de gestión de propiedades.<br>
+                    Crea tu cuenta y empieza a administrar tus inmuebles hoy.
+                </p>
+            </div>
+
+            <!-- Right Side - Form -->
+            <div class="register-side-right">
+                <h2>Crear Cuenta</h2>
+                <p>Completa tu registro con los datos básicos</p>
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {% for error in form.non_field_errors %}
+                    <strong><i class="fas fa-exclamation-circle"></i></strong> {{ error }}
+                    {% endfor %}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'users:register' %}" novalidate>
+                    {% csrf_token %}
+
+                    <!-- Usuario -->
+                    <div class="form-group">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">
+                            <i class="fas fa-user-circle"></i> Usuario
+                        </label>
+                        <input type="text" 
+                               name="username" 
+                               id="{{ form.username.id_for_label }}" 
+                               class="form-control{% if form.username.errors %} is-invalid{% endif %}" 
+                               placeholder="juanperez123"
+                               value="{{ form.username.value|default:'' }}"
+                               required>
+                        {% if form.username.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.username.errors %}{{ error }}{% endfor %}
                         </div>
-                        
-                        <!-- Formulario -->
-                        <div class="register-form">
-                            {% if form.non_field_errors %}
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <strong><i class="fas fa-exclamation-circle"></i> Error</strong>
-                                {% for error in form.non_field_errors %}
-                                <div>{{ error }}</div>
-                                {% endfor %}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                            {% endif %}
-
-                            <form method="post" action="{% url 'users:register' %}">
-                                {% csrf_token %}
-                                
-                                <!-- Nombre y Apellido -->
-                                <div class="row row-two-cols">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="{{ form.first_name.id_for_label }}" class="form-label">
-                                                <i class="fas fa-user"></i> {{ form.first_name.label }}
-                                            </label>
-                                            <input type="text" 
-                                                   name="first_name" 
-                                                   id="{{ form.first_name.id_for_label }}" 
-                                                   class="form-control{% if form.first_name.errors %} is-invalid{% endif %}" 
-                                                   placeholder="Juan"
-                                                   value="{{ form.first_name.value|default:'' }}"
-                                                   required>
-                                            {% if form.first_name.errors %}
-                                            <div class="invalid-feedback">
-                                                {% for error in form.first_name.errors %}{{ error }}{% endfor %}
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="{{ form.last_name.id_for_label }}" class="form-label">
-                                                <i class="fas fa-user"></i> {{ form.last_name.label }}
-                                            </label>
-                                            <input type="text" 
-                                                   name="last_name" 
-                                                   id="{{ form.last_name.id_for_label }}" 
-                                                   class="form-control{% if form.last_name.errors %} is-invalid{% endif %}" 
-                                                   placeholder="Pérez"
-                                                   value="{{ form.last_name.value|default:'' }}"
-                                                   required>
-                                            {% if form.last_name.errors %}
-                                            <div class="invalid-feedback">
-                                                {% for error in form.last_name.errors %}{{ error }}{% endfor %}
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Email -->
-                                <div class="form-group">
-                                    <label for="{{ form.email.id_for_label }}" class="form-label">
-                                        <i class="fas fa-envelope"></i> {{ form.email.label }}
-                                    </label>
-                                    <input type="email" 
-                                           name="email" 
-                                           id="{{ form.email.id_for_label }}" 
-                                           class="form-control{% if form.email.errors %} is-invalid{% endif %}" 
-                                           placeholder="correo@ejemplo.com"
-                                           value="{{ form.email.value|default:'' }}"
-                                           required>
-                                    {% if form.email.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.email.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Teléfono -->
-                                <div class="form-group">
-                                    <label for="{{ form.phone.id_for_label }}" class="form-label">
-                                        <i class="fas fa-phone"></i> {{ form.phone.label }}
-                                    </label>
-                                    <input type="text" 
-                                           name="phone" 
-                                           id="{{ form.phone.id_for_label }}" 
-                                           class="form-control{% if form.phone.errors %} is-invalid{% endif %}" 
-                                           placeholder="999999999"
-                                           value="{{ form.phone.value|default:'' }}">
-                                    <span class="form-text">Opcional - Ej: 999999999</span>
-                                    {% if form.phone.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.phone.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Usuario -->
-                                <div class="form-group">
-                                    <label for="{{ form.username.id_for_label }}" class="form-label">
-                                        <i class="fas fa-user-circle"></i> {{ form.username.label }}
-                                    </label>
-                                    <input type="text" 
-                                           name="username" 
-                                           id="{{ form.username.id_for_label }}" 
-                                           class="form-control{% if form.username.errors %} is-invalid{% endif %}" 
-                                           placeholder="juanperez123"
-                                           value="{{ form.username.value|default:'' }}"
-                                           required>
-                                    <span class="form-text">Letras, números y @/./+/-/_</span>
-                                    {% if form.username.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.username.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Contraseña -->
-                                <div class="form-group">
-                                    <label for="{{ form.password.id_for_label }}" class="form-label">
-                                        <i class="fas fa-lock"></i> {{ form.password.label }}
-                                    </label>
-                                    <input type="password" 
-                                           name="password" 
-                                           id="{{ form.password.id_for_label }}" 
-                                           class="form-control{% if form.password.errors %} is-invalid{% endif %}" 
-                                           placeholder="••••••••"
-                                           required>
-                                    <span class="form-text">Min. 8 caracteres, mayúsculas, minúsculas y números</span>
-                                    {% if form.password.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.password.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Confirmar Contraseña -->
-                                <div class="form-group mb-3">
-                                    <label for="{{ form.password_confirm.id_for_label }}" class="form-label">
-                                        <i class="fas fa-lock"></i> {{ form.password_confirm.label }}
-                                    </label>
-                                    <input type="password" 
-                                           name="password_confirm" 
-                                           id="{{ form.password_confirm.id_for_label }}" 
-                                           class="form-control{% if form.password_confirm.errors %} is-invalid{% endif %}" 
-                                           placeholder="••••••••"
-                                           required>
-                                    {% if form.password_confirm.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.password_confirm.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                
-                                <button type="submit" class="btn btn-register">
-                                    <i class="fas fa-check-circle"></i> Crear Cuenta
-                                </button>
-                            </form>
-                            
-                            <div class="text-center-small">
-                                <small>
-                                    &copy; 2024 Propify. Todos los derechos reservados.
-                                </small>
-                            </div>
-                        </div>
-
-                        <!-- Footer -->
-                        <div class="register-footer">
-                            <p>
-                                <small>
-                                    ¿Ya tienes cuenta?
-                                </small>
-                                <br>
-                                <a href="{% url 'users:login' %}">
-                                    Inicia sesión aquí
-                                </a>
-                            </p>
-                        </div>
+                        {% endif %}
                     </div>
+
+                    <!-- Email (requerido para registro) -->
+                    <div class="form-group">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">
+                            <i class="fas fa-envelope"></i> Email
+                        </label>
+                        <input type="email" 
+                               name="email" 
+                               id="{{ form.email.id_for_label }}" 
+                               class="form-control{% if form.email.errors %} is-invalid{% endif %}" 
+                               placeholder="tu@correo.com"
+                               value="{{ form.email.value|default:'' }}"
+                               required>
+                        {% if form.email.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.email.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Contraseña -->
+                    <div class="form-group">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">
+                            <i class="fas fa-lock"></i> Contraseña
+                        </label>
+                        <input type="password" 
+                               name="password" 
+                               id="{{ form.password.id_for_label }}" 
+                               class="form-control{% if form.password.errors %} is-invalid{% endif %}" 
+                               placeholder="••••••••"
+                               required>
+                        {% if form.password.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.password.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Confirmar Contraseña -->
+                    <div class="form-group">
+                        <label for="{{ form.password_confirm.id_for_label }}" class="form-label">
+                            <i class="fas fa-lock"></i> Repetir Contraseña
+                        </label>
+                        <input type="password" 
+                               name="password_confirm" 
+                               id="{{ form.password_confirm.id_for_label }}" 
+                               class="form-control{% if form.password_confirm.errors %} is-invalid{% endif %}" 
+                               placeholder="••••••••"
+                               required>
+                        {% if form.password_confirm.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.password_confirm.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-register">
+                        <i class="fas fa-check-circle"></i> Registrarse
+                    </button>
+                </form>
+
+                <div class="register-footer-link">
+                    ¿Ya tienes cuenta? <a href="{% url 'users:login' %}">Inicia sesión</a>
+                </div>
+
+                <div class="copyright">
+                    &copy; 2024 Propify. Todos los derechos reservados.
                 </div>
             </div>
         </div>
@@ -459,9 +365,9 @@
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const firstNameField = document.querySelector('input[name="first_name"]');
-            if (firstNameField) {
-                firstNameField.focus();
+            const usernameField = document.querySelector('input[name="username"]');
+            if (usernameField) {
+                usernameField.focus();
             }
 
             const registerForm = document.querySelector("form[action=\"{% url 'users:register' %}\"]");
@@ -471,11 +377,10 @@
                 if (!registerForm.checkValidity()) {
                     event.preventDefault();
                     event.stopPropagation();
-                }
-
-                if (registerForm.checkValidity()) {
+                    registerForm.classList.add('was-validated');
+                } else {
                     registerButton.disabled = true;
-                    registerButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creando cuenta...';
+                    registerButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Registrando...';
                 }
             });
         });
