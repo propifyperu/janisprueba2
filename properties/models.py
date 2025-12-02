@@ -567,7 +567,7 @@ class Property(TitleCaseMixin, models.Model):
 class PropertyImage(TitleCaseMixin, models.Model):
     title_case_fields = ('caption',)
     property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='images')
-    image_type = models.ForeignKey('ImageType', on_delete=models.PROTECT)
+    image_type = models.ForeignKey('ImageType', on_delete=models.PROTECT, null=True, blank=True)
     image_ambiente = models.ForeignKey('RoomType', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Ambiente de la imagen")
     image = models.ImageField(upload_to='properties/images/')
     caption = models.CharField(max_length=255, blank=True)
@@ -590,7 +590,7 @@ class PropertyImage(TitleCaseMixin, models.Model):
 class PropertyVideo(TitleCaseMixin, models.Model):
     title_case_fields = ('title',)
     property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='videos')
-    video_type = models.ForeignKey('VideoType', on_delete=models.PROTECT)
+    video_type = models.ForeignKey('VideoType', on_delete=models.PROTECT, null=True, blank=True)
     video = models.FileField(upload_to='properties/videos/')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -610,7 +610,7 @@ class PropertyVideo(TitleCaseMixin, models.Model):
 class PropertyDocument(TitleCaseMixin, models.Model):
     title_case_fields = ('title',)
     property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='documents')
-    document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT)
+    document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT, null=True, blank=True)
     file = models.FileField(upload_to='properties/documents/')
     title = EncryptedCharField(max_length=255)
     description = EncryptedTextField(blank=True)
