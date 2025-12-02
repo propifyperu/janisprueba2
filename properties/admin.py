@@ -251,7 +251,7 @@ class PropertyAdmin(admin.ModelAdmin):
     list_display = ('code', 'title', 'property_type', 'status', 'price', 'owner', 'is_active', 'created_at')
     list_filter = ('is_active', 'status', 'property_type', 'created_at', 'department')
     search_fields = ('code', 'title', 'owner__first_name', 'owner__last_name', 'description')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at', 'code', 'codigo_unico_propiedad')
     inlines = [PropertyImageInline, PropertyVideoInline, PropertyDocumentInline, PropertyRoomInline]
     
     fieldsets = (
@@ -262,7 +262,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('property_type', 'property_subtype', 'status')
         }),
         ('Propietario y Responsable', {
-            'fields': ('owner', 'responsible')
+            'fields': ('owner', 'responsible', 'created_by')
         }),
         ('Precio y Moneda', {
             'fields': ('price', 'currency', 'maintenance_fee', 'has_maintenance')
@@ -283,12 +283,19 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('antiquity_years', 'delivery_date'),
             'classes': ('collapse',)
         }),
-        ('Auditoría', {
-            'fields': ('created_by', 'created_at', 'updated_at', 'is_active'),
+        ('Estado y Auditoría', {
+            'fields': ('is_active', 'is_ready_for_sale', 'assigned_agent', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
     ordering = ('-created_at',)
+    
+    def get_readonly_fields(self, request, obj=None):
+        """Make created_by readonly"""
+        readonly = list(self.readonly_fields)
+        if obj:  # Editing existing object
+            readonly.append('created_by')
+        return readonly
 
 
 @admin.register(PropertyImage)
