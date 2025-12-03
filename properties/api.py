@@ -14,7 +14,7 @@ class PropertyViewSet(viewsets.ReadOnlyModelViewSet):
         'currency', 'property_type', 'status', 'responsible', 'assigned_agent'
     ).prefetch_related('images', 'videos', 'documents', 'rooms')
     serializer_class = PropertySerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['province', 'district', 'property_type', 'status', 'currency']
     search_fields = ['title', 'description', 'address']
