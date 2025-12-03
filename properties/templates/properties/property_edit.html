@@ -1,9 +1,6 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load static %}
 
-{% extends 'properties/base_dashboard.html' %}
-{% load static %}
-
 {% block title %}Editar Propiedad - Janis{% endblock %}
 
 {% block dashboard_extra_css %}
@@ -63,45 +60,6 @@
         justify-content: center;
     }
 
-    .media-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .media-card {
-        border: 1px solid rgba(4, 125, 125, 0.2);
-        border-radius: 0.75rem;
-        background: #fff;
-        box-shadow: 0 0.35rem 1.2rem rgba(4, 125, 125, 0.08);
-        overflow: hidden;
-    }
-
-    .media-card img,
-    .media-card video {
-        width: 100%;
-        height: 140px;
-        object-fit: cover;
-        display: block;
-    }
-
-    .media-card-body {
-        padding: 0.75rem 1rem;
-    }
-
-    .media-card-body h6 {
-        margin-bottom: 0.25rem;
-    }
-
-    .media-empty-state {
-        text-align: center;
-        padding: 2rem 1rem;
-        border: 1px dashed rgba(4, 125, 125, 0.3);
-        border-radius: 0.75rem;
-        color: rgba(4, 125, 125, 0.7);
-        background: rgba(4, 125, 125, 0.05);
-    }
-
     .room-table th {
         background: rgba(4, 125, 125, 0.08);
     }
@@ -111,17 +69,13 @@
         vertical-align: middle;
     }
 </style>
-{% block dashboard_extra_css %}
-<style>
-    /* Restaurar estilos antiguos aquí */
-</style>
 {% endblock %}
 
 {% block dashboard_content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <a href="{% url 'properties:detail' object.pk %}" class="btn btn-outline-secondary btn-sm me-2">
+            <a href="{% url 'properties:detail' form.instance.pk %}" class="btn btn-outline-secondary btn-sm me-2">
                 <i class="fas fa-arrow-left me-1"></i>Volver al detalle
             </a>
             <a href="{% url 'properties:list' %}" class="btn btn-outline-primary btn-sm">
@@ -129,9 +83,9 @@
             </a>
         </div>
         <div class="text-end">
-            <p class="text-muted mb-1">Código interno: <strong>{{ object.code }}</strong></p>
-            {% if object.codigo_unico_propiedad %}
-            <p class="text-muted mb-0">Código único propiedad: <strong>{{ object.codigo_unico_propiedad }}</strong></p>
+            <p class="text-muted mb-1">Código interno: <strong>{{ form.instance.code }}</strong></p>
+            {% if form.instance.codigo_unico_propiedad %}
+            <p class="text-muted mb-0">Código único propiedad: <strong>{{ form.instance.codigo_unico_propiedad }}</strong></p>
             {% endif %}
         </div>
     </div>
@@ -143,29 +97,29 @@
                     <h5 class="mb-0"><i class="fas fa-user me-2"></i>Propietario</h5>
                 </div>
                 <div class="card-body">
-                    <h6 class="fw-semibold mb-1">{{ owner.full_name }}</h6>
-                    <p class="text-muted small mb-3">Documento: {{ owner.identity_document }}</p>
+                    <h6 class="fw-semibold mb-1">{{ form.instance.owner.first_name }} {{ form.instance.owner.last_name }}</h6>
+                    <p class="text-muted small mb-3">Documento: {{ form.instance.owner.document_number|default:'N/A' }}</p>
 
                     <div class="mb-2">
                         <span class="text-muted d-block small">Teléfono</span>
-                        <span class="fw-semibold">{{ owner.phone }}</span>
+                        <span class="fw-semibold">{{ form.instance.owner.phone|default:'N/A' }}</span>
                     </div>
-                    {% if owner.secondary_phone %}
+                    {% if form.instance.owner.secondary_phone %}
                     <div class="mb-2">
                         <span class="text-muted d-block small">Teléfono secundario</span>
-                        <span class="fw-semibold">{{ owner.secondary_phone }}</span>
+                        <span class="fw-semibold">{{ form.instance.owner.secondary_phone }}</span>
                     </div>
                     {% endif %}
                     <div class="mb-2">
                         <span class="text-muted d-block small">Correo</span>
-                        <a href="mailto:{{ owner.email }}" class="fw-semibold">{{ owner.email }}</a>
+                        <a href="mailto:{{ form.instance.owner.email }}" class="fw-semibold">{{ form.instance.owner.email|default:'N/A' }}</a>
                     </div>
                     <hr>
                     <div class="d-grid gap-2">
-                        <a href="{% url 'properties:contact_detail' owner.pk %}" class="btn btn-outline-primary btn-sm">
+                        <a href="{% url 'properties:contact_detail' form.instance.owner.pk %}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-eye me-1"></i>Ver contacto
                         </a>
-                        <a href="{% url 'properties:contact_edit' owner.pk %}" class="btn btn-outline-secondary btn-sm">
+                        <a href="{% url 'properties:contact_edit' form.instance.owner.pk %}" class="btn btn-outline-secondary btn-sm">
                             <i class="fas fa-user-edit me-1"></i>Editar contacto
                         </a>
                     </div>
@@ -180,7 +134,7 @@
                         <i class="fas fa-edit me-2"></i>
                         Editar Propiedad
                     </h4>
-                    <p class="mb-0 mt-1 small opacity-75">Actualiza la información comercial y multimedia de la propiedad.</p>
+                    <p class="mb-0 mt-1 small opacity-75">Actualiza la información comercial de la propiedad.</p>
                 </div>
                 <div class="card-body">
                     {% if form.non_field_errors %}
@@ -529,6 +483,189 @@
                             </div>
                         </div>
 
+                        <!-- Multimedia -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-photo-video me-2"></i>Multimedia
+                            </h5>
+
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="text-primary mb-0">Imágenes</h6>
+                                    <small class="text-muted">La primera imagen válida se marcará como principal automáticamente.</small>
+                                </div>
+                                <div id="image-forms">
+                                    <div class="dynamic-form-item">
+                                        <div class="row g-3">
+                                            <div class="col-xl-5 col-lg-6">
+                                                <label class="form-label">Archivo</label>
+                                                <input type="file" name="images" class="form-control" accept="image/*">
+                                            </div>
+                                            <div class="col-md-3 col-lg-2">
+                                                <label class="form-label">Tipo</label>
+                                                <select name="image_types" class="form-select"></select>
+                                            </div>
+                                            <div class="col-md-3 col-lg-2">
+                                                <label class="form-label">Ambiente</label>
+                                                <select name="image_ambientes" class="form-select"></select>
+                                            </div>
+                                            <div class="col-md-2 col-lg-2">
+                                                <label class="form-label">Orden</label>
+                                                <input type="number" name="image_orders" class="form-control" min="1" value="1">
+                                            </div>
+                                            <div class="col-lg-8 col-md-12">
+                                                <label class="form-label">Descripción</label>
+                                                <input type="text" name="image_captions" class="form-control" placeholder="Descripción de la imagen">
+                                            </div>
+                                            <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
+                                                <div class="image-preview w-100"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addImageForm()">
+                                    <i class="fas fa-plus me-1"></i>Agregar otra imagen
+                                </button>
+                            </div>
+
+                            <div>
+                                <h6 class="text-primary">Videos</h6>
+                                <div id="video-forms">
+                                    <div class="dynamic-form-item">
+                                        <div class="row g-3">
+                                            <div class="col-xl-5 col-lg-6">
+                                                <label class="form-label">Archivo</label>
+                                                <input type="file" name="videos" class="form-control" accept="video/mp4,video/webm,video/ogg">
+                                            </div>
+                                            <div class="col-md-3 col-lg-2">
+                                                <label class="form-label">Tipo</label>
+                                                <select name="video_types" class="form-select"></select>
+                                            </div>
+                                            <div class="col-md-4 col-lg-4">
+                                                <label class="form-label">Título</label>
+                                                <input type="text" name="video_titles" class="form-control" placeholder="Título del video">
+                                            </div>
+                                            <div class="col-lg-8 col-md-12">
+                                                <label class="form-label">Descripción</label>
+                                                <textarea name="video_descriptions" class="form-control" rows="2" placeholder="Descripción opcional"></textarea>
+                                            </div>
+                                            <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
+                                                <div class="video-preview w-100 text-center"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addVideoForm()">
+                                    <i class="fas fa-plus me-1"></i>Agregar video
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Documentos y Ambientes -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-file-alt me-2"></i>Documentos y Ambientes
+                            </h5>
+
+                            <div class="mb-4">
+                                <h6 class="text-primary">Documentos Legales</h6>
+                                <div id="document-forms">
+                                    <div class="dynamic-form-item">
+                                        <div class="row g-3 align-items-end">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Archivo</label>
+                                                <input type="file" name="documents" class="form-control" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Tipo de Documento</label>
+                                                <select name="document_types" class="form-select"></select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Título</label>
+                                                <input type="text" name="document_titles" class="form-control" placeholder="Título del documento">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Descripción</label>
+                                                <textarea name="document_descriptions" class="form-control" rows="2" placeholder="Notas u observaciones"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addDocumentForm()">
+                                    <i class="fas fa-plus me-1"></i>Agregar documento
+                                </button>
+                            </div>
+
+                            <div>
+                                <h6 class="text-primary">Ambientes</h6>
+                                <div id="room-forms">
+                                    <div class="dynamic-form-item">
+                                        <div class="row g-3">
+                                            <div class="col-md-3">
+                                                <label class="form-label">Nivel</label>
+                                                <select name="room_levels" class="form-select">
+                                                    <option value="">Seleccionar nivel</option>
+                                                    {% for level in level_types %}
+                                                    <option value="{{ level.id }}">{{ level.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Ambiente</label>
+                                                <select name="room_types" class="form-select">
+                                                    <option value="">Seleccionar ambiente</option>
+                                                    {% for room in room_types %}
+                                                    <option value="{{ room.id }}">{{ room.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Tipo de Piso</label>
+                                                <select name="room_floor_types" class="form-select">
+                                                    <option value="">Seleccionar tipo de piso</option>
+                                                    {% for floor in floor_types %}
+                                                    <option value="{{ floor.id }}">{{ floor.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Nombre</label>
+                                                <input type="text" name="room_names" class="form-control" placeholder="Nombre del ambiente">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Ancho (m)</label>
+                                                <input type="number" step="0.01" name="room_widths" class="form-control" min="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Largo (m)</label>
+                                                <input type="number" step="0.01" name="room_lengths" class="form-control" min="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Área (m²)</label>
+                                                <input type="number" step="0.01" name="room_areas" class="form-control" min="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Orden</label>
+                                                <input type="number" name="room_orders" class="form-control" min="1" value="1">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Descripción</label>
+                                                <textarea name="room_descriptions" class="form-control" rows="2" placeholder="Detalles adicionales del ambiente"></textarea>
+                                            </div>
+                                            <div class="col-12 d-flex justify-content-end">
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRoomForm(this)">
+                                                    <i class="fas fa-trash me-1"></i>Eliminar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addRoomForm()">
+                                    <i class="fas fa-plus me-1"></i>Agregar ambiente
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="d-flex justify-content-end">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save me-2"></i>Guardar cambios
@@ -540,227 +677,8 @@
         </div>
     </div>
 
-    <!-- Gestión de medios -->
-    <div class="row mt-4">
-        <div class="col-xl-4 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-images me-2"></i>Imágenes</h5>
-                    <span class="badge bg-primary">{{ existing_images|length }}</span>
-                </div>
-                <div class="card-body">
-                    {% if existing_images %}
-                    <div class="media-grid mb-4">
-                        {% for image in existing_images %}
-                        <div class="media-card">
-                            {% if image.image %}
-                            <img src="{{ image.image.url }}" alt="{{ image.caption }}">
-                            {% endif %}
-                            <div class="media-card-body">
-                                <h6 class="mb-0">{{ image.image_type.name }}</h6>
-                                {% if image.image_ambiente %}
-                                <p class="text-muted small mb-1">Ambiente: {{ image.image_ambiente.name }}</p>
-                                {% endif %}
-                                {% if image.caption %}
-                                <p class="small mb-0">{{ image.caption }}</p>
-                                {% endif %}
-                                <small class="text-muted d-block mt-1">Orden: {{ image.order }}</small>
-                                {% if image.is_primary %}
-                                <span class="badge bg-success mt-2">Principal</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="media-empty-state mb-4">
-                        <i class="fas fa-image fa-2x mb-2"></i>
-                        <p class="mb-0">Aún no se han cargado imágenes.</p>
-                    </div>
-                    {% endif %}
-
-                    <h6 class="fw-semibold">Agregar nueva imagen</h6>
-                    <form method="POST" enctype="multipart/form-data" action="{% url 'properties:add_image' object.pk %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ redirect_path }}">
-                        <div class="mb-3">
-                            <label class="form-label">Archivo</label>
-                            {{ image_form.image }}
-                            {{ image_form.image.errors }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Tipo</label>
-                            {{ image_form.image_type }}
-                            {{ image_form.image_type.errors }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Ambiente</label>
-                            <select class="form-select" name="image_ambientes">
-                                <option value="">Seleccionar ambiente</option>
-                                {% for room_type in room_types %}
-                                <option value="{{ room_type.id }}">{{ room_type.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Descripción</label>
-                            {{ image_form.caption }}
-                            {{ image_form.caption.errors }}
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-6">
-                                <label class="form-label">Orden</label>
-                                {{ image_form.order }}
-                                {{ image_form.order.errors }}
-                            </div>
-                            <div class="col-6 d-flex align-items-center">
-                                <div class="form-check mt-3">
-                                    {{ image_form.is_primary }}
-                                    <label class="form-check-label">Principal</label>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-outline-primary w-100">
-                            <i class="fas fa-upload me-1"></i>Guardar imagen
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-4 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-video me-2"></i>Videos</h5>
-                    <span class="badge bg-primary">{{ existing_videos|length }}</span>
-                </div>
-                <div class="card-body">
-                    {% if existing_videos %}
-                    <div class="media-grid mb-4">
-                        {% for video in existing_videos %}
-                        <div class="media-card">
-                            <video controls preload="metadata">
-                                <source src="{{ video.video.url }}">
-                                Tu navegador no soporta video.
-                            </video>
-                            <div class="media-card-body">
-                                <h6 class="mb-0">{{ video.title }}</h6>
-                                <p class="text-muted small mb-1">{{ video.video_type.name }}</p>
-                                {% if video.description %}
-                                <p class="small mb-0">{{ video.description }}</p>
-                                {% endif %}
-                                <small class="text-muted d-block mt-1">{{ video.uploaded_at|date:"d/m/Y H:i" }}</small>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="media-empty-state mb-4">
-                        <i class="fas fa-video-slash fa-2x mb-2"></i>
-                        <p class="mb-0">Aún no se han cargado videos.</p>
-                    </div>
-                    {% endif %}
-
-                    <h6 class="fw-semibold">Agregar nuevo video</h6>
-                    <form method="POST" enctype="multipart/form-data" action="{% url 'properties:add_video' object.pk %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ redirect_path }}">
-                        <div class="mb-3">
-                            <label class="form-label">Archivo</label>
-                            {{ video_form.video }}
-                            {{ video_form.video.errors }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Tipo</label>
-                            {{ video_form.video_type }}
-                            {{ video_form.video_type.errors }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Título</label>
-                            {{ video_form.title }}
-                            {{ video_form.title.errors }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Descripción</label>
-                            {{ video_form.description }}
-                            {{ video_form.description.errors }}
-                        </div>
-                        <button type="submit" class="btn btn-outline-primary w-100">
-                            <i class="fas fa-upload me-1"></i>Guardar video
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-4 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Documentos</h5>
-                    <span class="badge bg-primary">{{ existing_documents|length }}</span>
-                </div>
-                <div class="card-body">
-                    {% if existing_documents %}
-                    <div class="list-group list-group-flush mb-4">
-                        {% for document in existing_documents %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">{{ document.title }}</h6>
-                                    <p class="text-muted small mb-1">{{ document.document_type.name }}</p>
-                                    {% if document.description %}
-                                    <p class="small mb-0">{{ document.description }}</p>
-                                    {% endif %}
-                                </div>
-                                <a class="btn btn-outline-primary btn-sm" href="{{ document.file.url }}" download>
-                                    <i class="fas fa-download"></i>
-                                </a>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="media-empty-state mb-4">
-                        <i class="fas fa-file fa-2x mb-2"></i>
-                        <p class="mb-0">No hay documentos registrados.</p>
-                    </div>
-                    {% endif %}
-
-                    <h6 class="fw-semibold">Agregar nuevo documento</h6>
-                    <form method="POST" enctype="multipart/form-data" action="{% url 'properties:add_document' object.pk %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ redirect_path }}">
-                        <div class="mb-3">
-                            <label class="form-label">Archivo</label>
-                            {{ document_form.file }}
-                            {{ document_form.file.errors }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Tipo</label>
-                            {{ document_form.document_type }}
-                            {{ document_form.document_type.errors }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Título</label>
-                            {{ document_form.title }}
-                            {{ document_form.title.errors }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Descripción</label>
-                            {{ document_form.description }}
-                            {{ document_form.description.errors }}
-                        </div>
-                        <button type="submit" class="btn btn-outline-primary w-100">
-                            <i class="fas fa-upload me-1"></i>Guardar documento
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Ambientes -->
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mt-4">
         <div class="card-header">
             <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Ambientes registrados</h5>
         </div>
@@ -820,10 +738,8 @@
         <p class="fw-semibold text-primary mb-0">Guardando cambios, espera un momento...</p>
     </div>
 </div>
-{% block dashboard_content %}
-<div class="container-fluid py-4">
-    <!-- ...restaurar el contenido y estilos antiguos... -->
 </div>
+
 {% endblock %}
 
 {% block dashboard_extra_js %}
@@ -874,6 +790,13 @@ function initMap() {
         types: ['address'],
         componentRestrictions: { country: 'pe' },
         fields: ['address_components', 'geometry', 'formatted_address']
+    });
+
+    // Prevenir que Enter en el campo de dirección envíe el formulario
+    addressInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+        }
     });
 
     autocomplete.addListener('place_changed', function() {
@@ -1223,7 +1146,7 @@ function setupLocationSelectors() {
         }
 
         provinceSelect.classList.add('loading');
-        fetch(`/properties/api/provinces/?department_id=${departmentId}`)
+        fetch("{% url 'properties:api_provinces' %}?department_id=" + encodeURIComponent(departmentId))
             .then(response => response.json())
             .then(data => {
                 populateSelect(provinceSelect, data, '-- Seleccionar provincia --', selectedId, selectedName);
@@ -1250,7 +1173,7 @@ function setupLocationSelectors() {
         }
 
         districtSelect.classList.add('loading');
-        fetch(`/properties/api/districts/?province_id=${provinceId}`)
+        fetch("{% url 'properties:api_districts' %}?province_id=" + encodeURIComponent(provinceId))
             .then(response => response.json())
             .then(data => {
                 populateSelect(districtSelect, data, '-- Seleccionar distrito --', selectedId, selectedName);
@@ -1275,7 +1198,7 @@ function setupLocationSelectors() {
         }
 
         urbanizationSelect.classList.add('loading');
-        fetch(`/properties/api/urbanizations/?district_id=${districtId}`)
+        fetch("{% url 'properties:api_urbanizations' %}?district_id=" + encodeURIComponent(districtId))
             .then(response => response.json())
             .then(data => {
                 populateSelect(urbanizationSelect, data, '-- Seleccionar urbanización --', selectedId, selectedName);
@@ -1352,6 +1275,278 @@ window.gm_authFailure = function() {
 function gm_error() {
     alert('Error al cargar Google Maps API. Verifica tu conexión y la API key.');
 }
+
+function addImageForm() {
+    const container = document.getElementById('image-forms');
+    const template = container.firstElementChild;
+    if (!template) {
+        return;
+    }
+
+    const newForm = template.cloneNode(true);
+    newForm.querySelectorAll('input, select, textarea').forEach(input => {
+        if (input.type === 'file') {
+            input.value = '';
+        } else if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0;
+        } else if (input.type === 'number' || input.type === 'text') {
+            input.value = '';
+        }
+    });
+
+    const orderInput = newForm.querySelector('input[name="image_orders"]');
+    if (orderInput) {
+        orderInput.value = container.children.length + 1;
+    }
+
+    const previewDiv = newForm.querySelector('.image-preview');
+    if (previewDiv) {
+        previewDiv.innerHTML = '';
+    }
+    container.appendChild(newForm);
+    populateImageTypeSelect(newForm.querySelector('select[name="image_types"]'));
+    populateImageAmbienteSelect(newForm.querySelector('select[name="image_ambientes"]'));
+}
+
+function addVideoForm() {
+    const container = document.getElementById('video-forms');
+    if (!container || !container.firstElementChild) {
+        return;
+    }
+
+    const newForm = container.firstElementChild.cloneNode(true);
+    const inputs = newForm.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0;
+        } else if (input.type === 'file') {
+            input.value = '';
+        } else if (input.tagName === 'TEXTAREA' || input.type === 'text') {
+            input.value = '';
+        }
+    });
+
+    const previewDiv = newForm.querySelector('.video-preview');
+    if (previewDiv) {
+        previewDiv.innerHTML = '';
+    }
+
+    container.appendChild(newForm);
+
+    const videoTypeSelect = newForm.querySelector('select[name="video_types"]');
+    if (videoTypeSelect) {
+        populateVideoTypeSelect(videoTypeSelect);
+    }
+}
+
+function addDocumentForm() {
+    const container = document.getElementById('document-forms');
+    const originalForm = container.firstElementChild;
+    if (!originalForm) {
+        return;
+    }
+
+    const newForm = originalForm.cloneNode(true);
+    const inputs = newForm.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (input.type === 'file') {
+            input.value = '';
+        } else if (input.type === 'text' || input.type === 'number') {
+            input.value = '';
+        } else if (input.tagName === 'TEXTAREA') {
+            input.value = '';
+        } else if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0;
+        }
+    });
+
+    container.appendChild(newForm);
+
+    const documentTypeSelect = newForm.querySelector('select[name="document_types"]');
+    if (documentTypeSelect) {
+        populateDocumentTypeSelect(documentTypeSelect);
+    }
+}
+
+function addRoomForm() {
+    const container = document.getElementById('room-forms');
+    const template = container.firstElementChild;
+    if (!template) {
+        return;
+    }
+
+    const newForm = template.cloneNode(true);
+    newForm.querySelectorAll('input, textarea, select').forEach(input => {
+        if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0;
+        } else if (input.type === 'number' || input.type === 'text') {
+            input.value = '';
+        } else if (input.tagName === 'TEXTAREA') {
+            input.value = '';
+        }
+    });
+
+    const orderInput = newForm.querySelector('input[name="room_orders"]');
+    if (orderInput) {
+        orderInput.value = container.children.length;
+    }
+
+    container.appendChild(newForm);
+}
+
+function removeRoomForm(button) {
+    const container = document.getElementById('room-forms');
+    if (container.children.length > 1) {
+        button.closest('.dynamic-form-item').remove();
+    } else {
+        alert('Debes mantener al menos un ambiente.');
+    }
+}
+
+function populateImageTypeSelect(select) {
+    fetch("{% url 'properties:api_image_types' %}")
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Seleccionar tipo</option>';
+            data.forEach(type => {
+                select.innerHTML += `<option value="${type.id}">${type.name}</option>`;
+            });
+        })
+        .catch(() => {
+            select.innerHTML = '<option value="">Error al cargar tipos</option>';
+        });
+}
+
+function populateImageAmbienteSelect(select) {
+    fetch("{% url 'properties:api_roomtypes' %}")
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Seleccionar ambiente</option>';
+            data.forEach(room => {
+                select.innerHTML += `<option value="${room.id}">${room.name}</option>`;
+            });
+        })
+        .catch(() => {
+            select.innerHTML = '<option value="">Error al cargar ambientes</option>';
+        });
+}
+
+function populateVideoTypeSelect(select) {
+    fetch("{% url 'properties:api_video_types' %}")
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Seleccionar tipo</option>';
+            data.forEach(videoType => {
+                select.innerHTML += `<option value="${videoType.id}">${videoType.name}</option>`;
+            });
+        })
+        .catch(() => {
+            select.innerHTML = '<option value="">Error al cargar tipos</option>';
+        });
+}
+
+function populateDocumentTypeSelect(select) {
+    fetch("{% url 'properties:api_document_types' %}")
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Seleccionar tipo</option>';
+            data.forEach(docType => {
+                select.innerHTML += `<option value="${docType.id}">${docType.name}</option>`;
+            });
+        })
+        .catch(error => {
+            select.innerHTML = '<option value="">Error al cargar tipos</option>';
+            console.error('Error loading document types:', error);
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('select[name="image_types"]').forEach(populateImageTypeSelect);
+    document.querySelectorAll('select[name="image_ambientes"]').forEach(populateImageAmbienteSelect);
+    document.querySelectorAll('select[name="video_types"]').forEach(populateVideoTypeSelect);
+    document.querySelectorAll('select[name="document_types"]').forEach(populateDocumentTypeSelect);
+});
+
+document.addEventListener('change', function(e) {
+    if (e.target.matches('input[name="images"]') && e.target.files && e.target.files[0]) {
+        const fileInput = e.target;
+        const previewDiv = fileInput.closest('.dynamic-form-item').querySelector('.image-preview');
+        const file = e.target.files[0];
+
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                if (previewDiv) {
+                    previewDiv.innerHTML = `<img src="${ev.target.result}" alt="Previsualización">`;
+                }
+            };
+            reader.readAsDataURL(file);
+        } else if (previewDiv) {
+            previewDiv.innerHTML = '';
+        }
+    } else if (e.target.matches('input[name="videos"]') && e.target.files && e.target.files[0]) {
+        const fileInput = e.target;
+        const previewDiv = fileInput.closest('.dynamic-form-item').querySelector('.video-preview');
+        const file = e.target.files[0];
+
+        if (previewDiv) {
+            previewDiv.innerHTML = '';
+        }
+
+        if (file && file.type.startsWith('video/') && previewDiv) {
+            const videoElement = document.createElement('video');
+            videoElement.controls = true;
+            videoElement.preload = 'metadata';
+            const objectUrl = URL.createObjectURL(file);
+            videoElement.src = objectUrl;
+            videoElement.addEventListener('loadeddata', () => {
+                URL.revokeObjectURL(objectUrl);
+            }, { once: true });
+            previewDiv.appendChild(videoElement);
+        } else if (previewDiv) {
+            previewDiv.textContent = '';
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const propertyForm = document.getElementById('propertyForm');
+    if (!propertyForm) {
+        return;
+    }
+
+    propertyForm.addEventListener('submit', function() {
+        document.querySelectorAll('#image-forms .dynamic-form-item').forEach(item => {
+            const fileInput = item.querySelector('input[name="images"]');
+            const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+            if (!hasFile) {
+                item.querySelectorAll('[name="image_types"], [name="image_ambientes"], [name="image_orders"], [name="image_captions"]').forEach(field => {
+                    field.disabled = true;
+                });
+            }
+        });
+
+        document.querySelectorAll('#video-forms .dynamic-form-item').forEach(item => {
+            const fileInput = item.querySelector('input[name="videos"]');
+            const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+            if (!hasFile) {
+                item.querySelectorAll('[name="video_types"], [name="video_titles"], [name="video_descriptions"]').forEach(field => {
+                    field.disabled = true;
+                });
+            }
+        });
+
+        document.querySelectorAll('#document-forms .dynamic-form-item').forEach(item => {
+            const fileInput = item.querySelector('input[name="documents"]');
+            const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+            if (!hasFile) {
+                item.querySelectorAll('[name="document_types"], [name="document_titles"], [name="document_descriptions"]').forEach(field => {
+                    field.disabled = true;
+                });
+            }
+        });
+    });
+});
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBrL1QF7vTl9zF8FmCUumfRpFJcaYokO7Q&libraries=places&callback=initMap" async defer></script>
 {% endblock %}

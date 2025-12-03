@@ -758,6 +758,13 @@ function initMap() {
         fields: ['address_components', 'geometry', 'formatted_address']
     });
 
+    // Prevenir que Enter en el campo de dirección envíe el formulario
+    addressInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+        }
+    });
+
     autocomplete.addListener('place_changed', function() {
         const place = autocomplete.getPlace();
         if (!place.geometry) {

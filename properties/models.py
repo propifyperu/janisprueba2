@@ -378,30 +378,30 @@ class PropertyOwner(TitleCaseMixin, models.Model):
     ]
     
     # Información personal
-    first_name = EncryptedCharField(max_length=256, blank=True)
-    last_name = EncryptedCharField(max_length=256, blank=True)
-    maternal_last_name = EncryptedCharField(max_length=256, blank=True)
+    first_name = EncryptedCharField(max_length=256, blank=True, null=True)
+    last_name = EncryptedCharField(max_length=256, blank=True, null=True)
+    maternal_last_name = EncryptedCharField(max_length=256, blank=True, null=True)
     
     # Documento de identidad
     document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT, null=True, blank=True)
-    document_number = models.CharField(max_length=50, verbose_name="Número de documento", blank=True)
+    document_number = models.CharField(max_length=50, verbose_name="Número de documento", blank=True, null=True)
     birth_date = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, verbose_name="Género", blank=True)
-    phone = EncryptedCharField(max_length=256, blank=True)
-    secondary_phone = EncryptedCharField(max_length=256, blank=True)
-    email = EncryptedEmailField(max_length=255, blank=True)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, verbose_name="Género", blank=True, null=True)
+    phone = EncryptedCharField(max_length=256, blank=True, null=True)
+    secondary_phone = EncryptedCharField(max_length=256, blank=True, null=True)
+    email = EncryptedEmailField(max_length=255, blank=True, null=True)
     profession = models.ForeignKey('Profession', on_delete=models.SET_NULL, null=True, blank=True)
     photo = models.ImageField(upload_to='owners/photos/', null=True, blank=True)
-    company = models.CharField(max_length=200, blank=True)
-    observations = models.TextField(blank=True)
+    company = models.CharField(max_length=200, blank=True, null=True)
+    observations = models.TextField(blank=True, null=True)
     
     # Dirección del contacto
-    department = models.ForeignKey('Department', on_delete=models.PROTECT, verbose_name="Departamento")
-    province = models.ForeignKey('Province', on_delete=models.PROTECT, verbose_name="Provincia")
-    district = models.ForeignKey('District', on_delete=models.PROTECT, verbose_name="Distrito")
+    department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Departamento")
+    province = models.ForeignKey('Province', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Provincia")
+    district = models.ForeignKey('District', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Distrito")
     urbanization = models.ForeignKey('Urbanization', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Urbanización")
-    address_exact = models.TextField(blank=True, verbose_name="Dirección Exacta")
-    address_coordinates = models.CharField(max_length=512, blank=True, verbose_name="Coordenadas")
+    address_exact = models.TextField(blank=True, null=True, verbose_name="Dirección Exacta")
+    address_coordinates = models.CharField(max_length=512, blank=True, null=True, verbose_name="Coordenadas")
     
     # Etiquetas para búsqueda rápida
     tags = models.ManyToManyField('Tag', blank=True)

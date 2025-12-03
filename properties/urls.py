@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     PropertyDashboardView, create_property_view, PropertyDetailView,
+    edit_property_view,
     ContactListView, ContactCreateView, ContactDetailView, ContactEditView,
     api_property_subtypes, api_provinces, api_districts, api_urbanizations,
     api_document_types, api_image_types, api_roomtypes, api_video_types,
@@ -13,6 +14,7 @@ urlpatterns = [
     path('dashboard/', PropertyDashboardView.as_view(), name='list'),
     path('crear/', create_property_view, name='create'),
     path('<int:pk>/', PropertyDetailView.as_view(), name='detail'),
+    path('<int:pk>/editar/', edit_property_view, name='edit'),
     path('contactos/', ContactListView.as_view(), name='contact_list'),
     path('contactos/crear/', ContactCreateView.as_view(), name='contact_create'),
     path('contactos/<int:pk>/', ContactDetailView.as_view(), name='contact_detail'),

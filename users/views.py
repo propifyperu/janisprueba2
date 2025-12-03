@@ -60,12 +60,23 @@ def login_view(request):
 
     form = LoginForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        user = authenticate(
-            request,
-            username=form.cleaned_data['username'],
-            password=form.cleaned_data['password']
-        )
-        if user is not None:
+        username = form.cleaned_data['username']
+        password = form.cleaned_data['password']
+        
+        # Intentar obtener el usuario para verificar su estado
+        try:
+            user = CustomUser.objects.get(username=username)
+            # Si el usuario existe pero no está activo, mostrar mensaje de espera
+            if not user.is_active:
+                form.add_error(None, 'Tu cuenta está en proceso de verificación. Por favor espera la aprobación del administrador.')
+                return render(request, 'users/login.html', {'form': form, 'next': next_url})
+        except CustomUser.DoesNotExist:
+            pass
+        
+        # Intentar autenticar (solo funciona si el usuario está activo)
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None and user.is_active:
             login(request, user)
             return redirect(next_url)
         else:
@@ -92,10 +103,9 @@ def register_view(request):
             first_name=form.cleaned_data['first_name'],
             last_name=form.cleaned_data['last_name'],
             phone=form.cleaned_data.get('phone', ''),
+            password=form.cleaned_data['password'],  # create_user() ya hashea la contraseña
             is_active=False,  # Usuario inactivo hasta ser aprobado
         )
-        user.set_password(form.cleaned_data['password'])
-        user.save()
         
         # Crear dispositivo inicial
         user_agent = request.META.get('HTTP_USER_AGENT', '')

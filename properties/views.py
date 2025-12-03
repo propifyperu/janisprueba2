@@ -1,7 +1,7 @@
 from .models import Property
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
 
 # Vista ULTRA SIMPLE sin templates - SOLO HTML PURO
@@ -166,6 +166,9 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             Property.objects.filter(is_active=True)
             .select_related('property_type', 'status', 'owner', 'created_by', 'currency')
             .prefetch_related('images')
+            .only('id', 'code', 'title', 'price', 'coordinates', 'exact_address', 'district', 
+                  'real_address', 'is_active', 'created_at', 'property_type_id', 'status_id', 
+                  'owner_id', 'created_by_id', 'currency_id')
         )
 
         # Si el usuario es agente, mostrar solo sus propiedades y asignadas
@@ -216,15 +219,13 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         properties = context['properties']
 
         context['user_role'] = self.request.user.role.name if self.request.user.role else 'Sin rol'
+        # Cachear las listas para evitar queries adicionales
         context['property_types'] = PropertyType.objects.filter(is_active=True).order_by('name')
         context['statuses'] = PropertyStatus.objects.filter(is_active=True).order_by('order')
-        context['departments_list'] = (
-            Property.objects.filter(is_active=True)
-            .exclude(department='')
-            .values_list('department', flat=True)
-            .distinct()
-            .order_by('department')
-        )
+        # Obtener departamentos de las propiedades ya cargadas en memoria
+        context['departments_list'] = sorted(set(
+            p.department for p in properties if p.department
+        ))
 
         context['filters'] = {
             'search': self.request.GET.get('search', '').strip(),
@@ -236,7 +237,7 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         }
 
         markers = []
-        for property_obj in properties:
+        for property_obj in properties[:50]:  # Limitar a 50 propiedades por página
             lat = lng = None
             if property_obj.coordinates:
                 parts = [p.strip() for p in property_obj.coordinates.split(',') if p.strip()]
@@ -499,6 +500,93 @@ def create_property_view(request):
         'floor_types': floor_types,
         'contactos_existentes': contactos_existentes,
     })
+
+
+@login_required
+def edit_property_view(request, pk):
+    """Vista para editar una propiedad existente con toda la estructura del create."""
+    from .models import (
+        PropertyType, PropertyStatus, PropertyOwner,
+        Department, LevelType, RoomType, FloorType,
+        PropertyImage, PropertyVideo, PropertyDocument, PropertyRoom,
+        ImageType, VideoType, DocumentType, PropertyFinancialInfo
+    )
+    from .forms import PropertyForm, PropertyOwnerForm, PropertyFinancialInfoForm
+    
+    # Obtener la propiedad a editar
+    property_obj = get_object_or_404(Property, pk=pk)
+    
+    # Listas para selects
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    level_types = LevelType.objects.filter(is_active=True).order_by('name')
+    room_types = RoomType.objects.filter(is_active=True).order_by('name')
+    floor_types = FloorType.objects.filter(is_active=True).order_by('name')
+    rooms = PropertyRoom.objects.filter(property=property_obj).order_by('order')
+    existing_images = PropertyImage.objects.filter(property=property_obj).order_by('order')
+    existing_videos = PropertyVideo.objects.filter(property=property_obj)
+    existing_documents = PropertyDocument.objects.filter(property=property_obj)
+    
+    # Obtener información financiera si existe
+    try:
+        financial_info = PropertyFinancialInfo.objects.get(property=property_obj)
+    except PropertyFinancialInfo.DoesNotExist:
+        financial_info = None
+    
+    owner_form = PropertyOwnerForm(request.POST or None, instance=property_obj.owner if request.method == 'GET' else None)
+    financial_form = PropertyFinancialInfoForm(request.POST or None, instance=financial_info)
+    form = PropertyForm(request.POST or None, request.FILES or None, instance=property_obj)
+    
+    if request.method == 'POST':
+        if form.is_valid() and owner_form.is_valid():
+            # Actualizar propietario (siempre el mismo, pero permitir cambios)
+            owner = owner_form.save(commit=False)
+            owner.created_by = request.user
+            owner.save()
+            owner_form.save_m2m()
+            
+            # Actualizar propiedad
+            property_obj = form.save(commit=False)
+            property_obj.owner = owner
+            property_obj.save()
+            form.save_m2m()
+            
+            # Actualizar información financiera si es válida
+            if financial_form.is_valid() and any(financial_form.cleaned_data.values()):
+                financial_info_obj = financial_form.save(commit=False)
+                financial_info_obj.property = property_obj
+                financial_info_obj.save()
+            
+            from django.contrib import messages
+            messages.success(request, 'Propiedad actualizada exitosamente.')
+            from django.urls import reverse
+            return redirect(reverse('properties:detail', kwargs={'pk': property_obj.pk}))
+    
+    # Preparar datos de ubicación preseleccionados
+    context = {
+        'form': form,
+        'owner_form': owner_form,
+        'financial_form': financial_form,
+        'departments': departments,
+        'level_types': level_types,
+        'room_types': room_types,
+        'floor_types': floor_types,
+        'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('-created_at'),
+        'is_editing': True,
+        'rooms': rooms,
+        'existing_images': existing_images,
+        'existing_videos': existing_videos,
+        'existing_documents': existing_documents,
+        'selected_department_id': property_obj.department or '',
+        'selected_department_name': '',
+        'selected_province_id': '',
+        'selected_province_name': '',
+        'selected_district_id': '',
+        'selected_district_name': '',
+        'selected_urbanization_id': '',
+        'selected_urbanization_name': '',
+    }
+    
+    return render(request, 'properties/property_edit.html', context)
 
 
 def api_property_subtypes(request):

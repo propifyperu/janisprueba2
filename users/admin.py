@@ -12,7 +12,7 @@ class CustomUserAdmin(admin.ModelAdmin):
             'fields': ('username', 'email', 'password')
         }),
         ('Información Personal', {
-            'fields': ('first_name', 'last_name', 'phone', 'date_of_birth')
+            'fields': ('first_name', 'last_name', 'phone')
         }),
         ('Organización', {
             'fields': ('department', 'role', 'commission_rate')
