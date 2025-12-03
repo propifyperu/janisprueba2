@@ -6,3 +6,6 @@ cryptography
 django-encrypted-model-fields
 django-encrypted-files
 Pillow
+
+djangorestframework
+django-cors-headers

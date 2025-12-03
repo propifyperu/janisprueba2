@@ -38,6 +38,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Third-party apps
+    "rest_framework",
+    "corsheaders",
     "prueba",
     "properties",
     "users",
@@ -47,6 +50,8 @@ AUTH_USER_MODEL = 'users.CustomUser'
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # CORS middleware should be placed as high as possible
+    "corsheaders.middleware.CorsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -149,3 +154,28 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 FIELD_ENCRYPTION_KEY = 'Qk9vQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2g='
 LOGIN_URL = '/users/login/'
+
+# Django REST Framework basic add (customize as needed)
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+# CORS settings - allow the production web origin and localhost for development.
+# For mobile native apps using Retrofit this is not strictly necessary, but
+# android emulators or embedded webviews may require correct origins.
+CORS_ALLOWED_ORIGINS = [
+    'https://janis-core2-app.azurewebsites.net',
+    'http://localhost:8000',
+]
+
+# If you prefer to allow all origins during development, set the following to True
+# CORS_ALLOW_ALL_ORIGINS = True
+
+# Allow cookies/credentials if your API uses session authentication
+CORS_ALLOW_CREDENTIALS = True
