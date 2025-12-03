@@ -522,14 +522,14 @@
             {% else %}
             <div class="property-cards" id="propertyCards">
                 {% for property in properties %}
-                <article class="property-card" data-property-id="{{ property.id }}" data-code="{{ property.code }}">
+                <article class="property-card" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
                     <div class="property-card-media">
                         {% with images=property.images.all %}
                             <!-- DEBUG: Total imágenes: {{ images|length }} -->
                             {% if images %}
                                 {% with first=images|first %}
                                     {% if first.image %}
-                                        <img src="{{ first.image.url }}" alt="{{ property.title|default:property.code }}" loading="lazy">
+                                        <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
                                     {% else %}
                                         <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
                                     {% endif %}
@@ -547,10 +547,10 @@
                             </div>
                             <div class="text-end">
                                 <div class="price">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
-                                <small class="text-muted">Código: {{ property.code }}</small>
+                                    <small class="text-muted">Dirección: {{ property.exact_address }}</small>
                             </div>
                         </div>
-                        <h3 class="property-title mb-0">{{ property.title|default:property.code }}</h3>
+                        <h3 class="property-title mb-0">{{ property.title|default:property.exact_address }}</h3>
                         <p class="property-location mb-0"><i class="fas fa-map-marker-alt me-2 text-primary"></i>{{ property.exact_address|default:property.district }}</p>
                         {% if property.real_address %}
                         <p class="property-address-doc mb-2"><i class="fas fa-file-alt me-2"></i>{{ property.real_address }}</p>
