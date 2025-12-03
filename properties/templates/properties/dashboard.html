@@ -1019,6 +1019,9 @@ function toggleLayer(event) {
 function registerLayerControls() {
     const toggles = document.querySelectorAll('.layer-toggle-input');
     toggles.forEach(toggle => {
+        // Evitar que el click en el checkbox burbujee y afecte al mapa
+        toggle.addEventListener('click', (e) => { e.stopPropagation(); });
+        toggle.addEventListener('keydown', (e) => { e.stopPropagation(); });
         toggle.addEventListener('change', toggleLayer);
     });
 }
