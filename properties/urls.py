@@ -1,4 +1,5 @@
 from django.urls import path
+from django.urls import path, include
 from .views import (
     PropertyDashboardView, create_property_view, PropertyDetailView,
     edit_property_view,
@@ -7,6 +8,11 @@ from .views import (
     api_document_types, api_image_types, api_roomtypes, api_video_types,
     SimplePropertyListView, simple_properties_view
 )
+from .api import PropertyViewSet
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'properties', PropertyViewSet, basename='properties')
 
 urlpatterns = [
     path('ultra-simple/', simple_properties_view, name='ultra_simple_list'),
@@ -27,5 +33,6 @@ urlpatterns = [
     path('api/image-types/', api_image_types, name='api_image_types'),
     path('api/roomtypes/', api_roomtypes, name='api_roomtypes'),
     path('api/video-types/', api_video_types, name='api_video_types'),
+    path('api/', include(router.urls)),
     path('', PropertyDashboardView.as_view(), name='dashboard_root'),
 ]

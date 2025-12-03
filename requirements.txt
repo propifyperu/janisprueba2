@@ -9,3 +9,5 @@ Pillow
 
 djangorestframework
 django-cors-headers
+django-filter
+djangorestframework-simplejwt

@@ -16,6 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
@@ -26,6 +30,9 @@ urlpatterns = [
     path('dashboard/', include(('properties.urls', 'properties'), namespace='properties')),
     path('', RedirectView.as_view(url='/users/login/', permanent=False)),
     path('security/', include(('security.urls', 'security'), namespace='security')),
+    # JWT token endpoints for mobile clients
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 
 # Servir archivos de media en desarrollo
