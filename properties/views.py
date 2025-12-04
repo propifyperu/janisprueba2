@@ -532,30 +532,53 @@ def edit_property_view(request, pk):
     except PropertyFinancialInfo.DoesNotExist:
         financial_info = None
     
-    owner_form = PropertyOwnerForm(request.POST or None, instance=property_obj.owner if request.method == 'GET' else None)
+    # Always bind the owner form to the existing property owner instance
+    owner_form = PropertyOwnerForm(request.POST or None, instance=property_obj.owner)
     financial_form = PropertyFinancialInfoForm(request.POST or None, instance=financial_info)
     form = PropertyForm(request.POST or None, request.FILES or None, instance=property_obj)
     
     if request.method == 'POST':
-        if form.is_valid() and owner_form.is_valid():
-            # Actualizar propietario (siempre el mismo, pero permitir cambios)
-            owner = owner_form.save(commit=False)
-            owner.created_by = request.user
-            owner.save()
-            owner_form.save_m2m()
-            
+        # Si el formulario viene indicando un propietario existente (hidden field),
+        # preferimos usar ese propietario y no requerir la validación del owner_form.
+        existing_owner_id = request.POST.get('existing_owner')
+        owner_obj = None
+        if existing_owner_id:
+            try:
+                owner_obj = PropertyOwner.objects.get(pk=existing_owner_id)
+            except (PropertyOwner.DoesNotExist, ValueError):
+                owner_obj = None
+
+        # Validación condicional: si no hay owner_obj (p. ej. se enviaron campos de propietario),
+        # entonces requerimos que owner_form sea válido. Si sí hay owner_obj, omitimos la validación
+        # del owner_form y usamos el owner existente.
+        owner_form_valid = True
+        if owner_obj is None:
+            owner_form_valid = owner_form.is_valid()
+
+        if form.is_valid() and owner_form_valid:
+            # Actualizar o usar propietario según corresponda
+            if owner_obj is None:
+                owner = owner_form.save(commit=False)
+                # conservar created_by si existe, asignar sólo si es nuevo
+                if not owner.pk:
+                    owner.created_by = request.user
+                owner.save()
+                owner_form.save_m2m()
+            else:
+                owner = owner_obj
+
             # Actualizar propiedad
             property_obj = form.save(commit=False)
             property_obj.owner = owner
             property_obj.save()
             form.save_m2m()
-            
+
             # Actualizar información financiera si es válida
             if financial_form.is_valid() and any(financial_form.cleaned_data.values()):
                 financial_info_obj = financial_form.save(commit=False)
                 financial_info_obj.property = property_obj
                 financial_info_obj.save()
-            
+
             from django.contrib import messages
             messages.success(request, 'Propiedad actualizada exitosamente.')
             from django.urls import reverse
@@ -576,14 +599,18 @@ def edit_property_view(request, pk):
         'existing_images': existing_images,
         'existing_videos': existing_videos,
         'existing_documents': existing_documents,
-        'selected_department_id': property_obj.department or '',
-        'selected_department_name': '',
-        'selected_province_id': '',
-        'selected_province_name': '',
-        'selected_district_id': '',
-        'selected_district_name': '',
-        'selected_urbanization_id': '',
-        'selected_urbanization_name': '',
+        # Note: Property stores department/province/district/urbanization as text fields.
+        # Provide both id and name placeholders to the template. Prefer passing the saved
+        # names so the client-side selects show the stored location when IDs are not available.
+        # If the stored value is numeric (an id), pass it as _id; otherwise pass it as _name
+        'selected_department_id': property_obj.department if (property_obj.department and str(property_obj.department).isdigit()) else '',
+        'selected_department_name': '' if (property_obj.department and str(property_obj.department).isdigit()) else (property_obj.department or ''),
+        'selected_province_id': property_obj.province if (property_obj.province and str(property_obj.province).isdigit()) else '',
+        'selected_province_name': '' if (property_obj.province and str(property_obj.province).isdigit()) else (property_obj.province or ''),
+        'selected_district_id': property_obj.district if (property_obj.district and str(property_obj.district).isdigit()) else '',
+        'selected_district_name': '' if (property_obj.district and str(property_obj.district).isdigit()) else (property_obj.district or ''),
+        'selected_urbanization_id': property_obj.urbanization if (property_obj.urbanization and str(property_obj.urbanization).isdigit()) else '',
+        'selected_urbanization_name': '' if (property_obj.urbanization and str(property_obj.urbanization).isdigit()) else (property_obj.urbanization or ''),
     }
     
     return render(request, 'properties/property_edit.html', context)

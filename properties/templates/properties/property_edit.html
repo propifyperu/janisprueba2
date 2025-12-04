@@ -145,6 +145,8 @@
 
                     <form method="POST" enctype="multipart/form-data" id="propertyForm">
                         {% csrf_token %}
+                        <!-- Indica al servidor que use el propietario existente si no se editan campos del propietario -->
+                        <input type="hidden" name="existing_owner" value="{{ form.instance.owner.pk }}" />
 
                         <!-- Información básica -->
                         <div class="form-section">
@@ -1254,7 +1256,28 @@ document.addEventListener('DOMContentLoaded', function() {
         propertyForm.addEventListener('submit', function(event) {
             if (typeof propertyForm.checkValidity === 'function' && !propertyForm.checkValidity()) {
                 event.preventDefault();
+                // Mostrar mensajes nativos y además enfocar/scroll al primer campo inválido
                 propertyForm.reportValidity();
+                try {
+                    const firstInvalid = propertyForm.querySelector(':invalid');
+                    if (firstInvalid) {
+                        firstInvalid.focus({preventScroll: false});
+                        firstInvalid.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        // Añadir una alerta temporal visible para mayor claridad
+                        let alertBox = document.getElementById('formValidationAlert');
+                        if (!alertBox) {
+                            alertBox = document.createElement('div');
+                            alertBox.id = 'formValidationAlert';
+                            alertBox.className = 'alert alert-danger mt-2';
+                            alertBox.style.position = 'sticky';
+                            alertBox.style.top = '10px';
+                            alertBox.innerText = 'Hay campos obligatorios o inválidos. Revisa los campos resaltados.';
+                            propertyForm.parentNode.insertBefore(alertBox, propertyForm);
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Error intentando enfocar campo inválido', err);
+                }
                 return;
             }
 
