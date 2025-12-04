@@ -61,6 +61,8 @@ function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         zoom: 12,
         center: lima,
+        // permitir zoom con rueda sin Ctrl y evitar el hint molesto
+        gestureHandling: 'greedy',
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,
@@ -78,11 +80,12 @@ function initMap() {
         title: 'Arrastra para ajustar la ubicación',
     });
     const addressInput = document.getElementById('id_exact_address');
-    autocomplete = new google.maps.places.Autocomplete(addressInput, {
-        types: ['address'],
-        componentRestrictions: { country: 'pe' },
-        fields: ['address_components', 'geometry', 'formatted_address']
-    });
+        autocomplete = new google.maps.places.Autocomplete(addressInput, {
+            types: ['(regions)'],
+            componentRestrictions: { country: 'pe' },
+            fields: ['address_components', 'geometry', 'formatted_address', 'name']
+        });
+        try { autocomplete.bindTo('bounds', map); } catch(e) { }
     autocomplete.addListener('place_changed', function() {
         const place = autocomplete.getPlace();
         if (!place.geometry) {

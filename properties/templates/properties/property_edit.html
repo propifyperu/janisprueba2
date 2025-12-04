@@ -667,7 +667,7 @@
                         </div>
 
                         <div class="d-flex justify-content-end">
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary" style="background-color: #047d7d; border-color: #047d7d; color: #fff;">
                                 <i class="fas fa-save me-2"></i>Guardar cambios
                             </button>
                         </div>
@@ -757,6 +757,8 @@ function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         zoom: 12,
         center: defaultCenter,
+        // permitir zoom con rueda sin necesidad de Ctrl y evitar el hint molesto
+        gestureHandling: 'greedy',
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,
@@ -787,10 +789,11 @@ function initMap() {
 
     const addressInput = document.getElementById('id_exact_address');
     autocomplete = new google.maps.places.Autocomplete(addressInput, {
-        types: ['address'],
+        types: ['(regions)'],
         componentRestrictions: { country: 'pe' },
-        fields: ['address_components', 'geometry', 'formatted_address']
+        fields: ['address_components', 'geometry', 'formatted_address', 'name']
     });
+    try { autocomplete.bindTo('bounds', map); } catch(e) { }
 
     // Prevenir que Enter en el campo de dirección envíe el formulario
     addressInput.addEventListener('keydown', function(event) {

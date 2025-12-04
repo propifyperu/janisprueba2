@@ -723,6 +723,8 @@ function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         zoom: 12,
         center: lima,
+        // permitir zoom con rueda sin Ctrl y evitar el hint molesto
+        gestureHandling: 'greedy',
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,
@@ -753,10 +755,13 @@ function initMap() {
 
     const addressInput = document.getElementById('id_exact_address');
     autocomplete = new google.maps.places.Autocomplete(addressInput, {
-        types: ['address'],
+        // Allow region-level results so urbanizaciones/sublocalities are suggested
+        types: ['(regions)'],
         componentRestrictions: { country: 'pe' },
-        fields: ['address_components', 'geometry', 'formatted_address']
+        fields: ['address_components', 'geometry', 'formatted_address', 'name']
     });
+    // Bias suggestions to the visible map area to favor local urbanizaciones
+    try { autocomplete.bindTo('bounds', map); } catch(e) { /* ignore if map not ready */ }
 
     // Prevenir que Enter en el campo de dirección envíe el formulario
     addressInput.addEventListener('keydown', function(event) {

@@ -108,6 +108,80 @@
         box-shadow: 0 0 0 0.2rem rgba(4,125,125,0.18);
     }
 
+    /* Mostrar un checkbox personalizado y observable (usa la etiqueta como contenedor) */
+    .layer-toggle-options .form-check {
+        position: relative;
+        padding-left: 28px;
+    }
+
+    .layer-toggle-options .form-check-input {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        opacity: 0; /* mantener accesible pero oculto */
+        cursor: pointer;
+    }
+
+    .layer-toggle-options .form-check-input + .form-check-label {
+        position: relative;
+        cursor: pointer;
+        padding-left: 4px; /* espacio ya reservado por .form-check */
+    }
+
+    .layer-toggle-options .form-check-input + .form-check-label::before {
+        content: '';
+        position: absolute;
+        left: -28px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(4,125,125,0.5);
+        border-radius: 4px;
+        background: #fff;
+        box-sizing: border-box;
+    }
+
+    .layer-toggle-options .form-check-input:checked + .form-check-label::before {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .layer-toggle-options .form-check-input:checked + .form-check-label::after {
+        content: '\2713';
+        position: absolute;
+        left: -23px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #fff;
+        font-weight: 700;
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    .layer-toggle-options .form-check-input:focus + .form-check-label::before {
+        box-shadow: 0 0 0 0.18rem rgba(4,125,125,0.16);
+    }
+
+    /* Colorizar las etiquetas de cada capa según su color de marcador */
+    .layer-toggle-options input.layer-toggle-input[data-layer="schools"] + .form-check-label {
+        color: #1e88e5;
+        font-weight: 700;
+    }
+
+    .layer-toggle-options input.layer-toggle-input[data-layer="hospitals"] + .form-check-label {
+        color: #d81b60;
+        font-weight: 700;
+    }
+
+    .layer-toggle-options input.layer-toggle-input[data-layer="malls"] + .form-check-label {
+        color: #8e24aa;
+        font-weight: 700;
+    }
+
     .layer-toggle-options .form-check-label {
         cursor: pointer;
         font-weight: 600;
@@ -632,14 +706,38 @@ const layerDefinitions = {
     malls: { type: 'shopping_mall', color: '#8e24aa' }
 };
 
+// Cache for generated SVG icons per layer
+const poiIconCache = {};
+
+function buildPoiSvgIcon(label, color) {
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="28" fill="${color}" />
+      <text x="32" y="38" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#ffffff" text-anchor="middle" font-weight="700">${label}</text>
+    </svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function getPoiIconUrl(layerKey) {
+    if (poiIconCache[layerKey]) return poiIconCache[layerKey];
+    const cfg = layerDefinitions[layerKey];
+    if (!cfg) return null;
+    const labelMap = { schools: 'E', hospitals: 'H', malls: 'C' };
+    const label = cfg.iconLabel || labelMap[layerKey] || '';
+    const url = buildPoiSvgIcon(label, cfg.color);
+    poiIconCache[layerKey] = url;
+    return url;
+}
+
+
 let propertyMap;
 let placesService;
 let sharedInfoWindow;
 
 const layerState = {
-    schools: { markers: [], isLoading: false },
-    hospitals: { markers: [], isLoading: false },
-    malls: { markers: [], isLoading: false }
+    schools: { markers: [], isLoading: false, requestId: 0 },
+    hospitals: { markers: [], isLoading: false, requestId: 0 },
+    malls: { markers: [], isLoading: false, requestId: 0 }
 };
 
 const propertyMarkersData = JSON.parse(document.getElementById('property-markers-json')?.textContent || '[]');
@@ -910,8 +1008,11 @@ function clearPoiLayer(layerKey) {
     if (!state) {
         return;
     }
+    // cancel any in-flight requests for this layer to avoid late callbacks
+    state.requestId = (state.requestId || 0) + 1;
     state.markers.forEach(marker => marker.setMap(null));
     state.markers = [];
+    state.isLoading = false;
 }
 
 function openPoiInfo(marker, place) {
@@ -949,18 +1050,24 @@ function createPoiMarker(place, layerKey) {
         return null;
     }
 
+    // Use a colored circular symbol for POI markers, larger and with white stroke
+    // Use a small circular symbol for POI markers so they don't obscure properties
+    const markerIcon = {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 5,
+        fillColor: config.color,
+        fillOpacity: 0.9,
+        strokeColor: '#ffffff',
+        strokeWeight: 1
+    };
+
     const marker = new google.maps.Marker({
         map: propertyMap,
         position: place.geometry.location,
         title: place.name || '',
-        icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 6,
-            fillColor: config.color,
-            fillOpacity: 0.85,
-            strokeColor: '#ffffff',
-            strokeWeight: 2
-        }
+        icon: markerIcon,
+        zIndex: 160, // below property markers (which use ~180)
+        optimized: true
     });
 
     marker.addListener('click', () => openPoiInfo(marker, place));
@@ -977,6 +1084,10 @@ function loadPoiLayer(layerKey) {
     clearPoiLayer(layerKey);
     state.isLoading = true;
 
+    // increment requestId to identify this specific load operation
+    state.requestId = (state.requestId || 0) + 1;
+    const thisRequestId = state.requestId;
+
     const request = {
         location: propertyMap.getCenter(),
         radius: mapConfig.poiRadius,
@@ -984,6 +1095,11 @@ function loadPoiLayer(layerKey) {
     };
 
     const handleResults = (results, status, pagination) => {
+        // ignore results if a newer request was started or the layer was cleared
+        if (state.requestId !== thisRequestId) {
+            return;
+        }
+
         if (status === google.maps.places.PlacesServiceStatus.OK && Array.isArray(results)) {
             results.forEach(result => {
                 const marker = createPoiMarker(result, layerKey);
@@ -996,7 +1112,10 @@ function loadPoiLayer(layerKey) {
                 return;
             }
         }
-        state.isLoading = false;
+        // only clear loading flag if still the active request
+        if (state.requestId === thisRequestId) {
+            state.isLoading = false;
+        }
     };
 
     placesService.nearbySearch(request, handleResults);
