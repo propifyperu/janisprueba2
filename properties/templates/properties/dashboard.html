@@ -333,8 +333,28 @@
     }
 
     .property-location {
-        font-size: 0.9rem;
+        /* Aumentado ligeramente para mayor legibilidad junto al icono */
+        font-size: 1.02rem;
         color: var(--color-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Línea de ubicación principal (distrito, provincia) mostrada junto al icono */
+    .property-location-main {
+        font-size: 1.02rem;
+        color: #3b5454;
+        font-weight: 400;
+        margin: 0;
+    }
+
+    /* Línea secundaria puede mantenerse para mostrar exact_address si es necesario */
+    .property-location-sub {
+        font-size: 0.95rem;
+        color: #5a6b6b;
+        font-weight: 400;
+        margin-top: 0.15rem;
     }
 
     .property-address-doc {
@@ -639,14 +659,22 @@
                             </div>
                             <div class="text-end">
                                 <div class="price">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
-                                    <small class="text-muted">Dirección: {{ property.exact_address }}</small>
+                                    <small class="text-muted">Dirección: {{ property.real_address }}</small>
                             </div>
                         </div>
-                        <h3 class="property-title mb-0">{{ property.title|default:property.exact_address }}</h3>
-                        <p class="property-location mb-0"><i class="fas fa-map-marker-alt me-2 text-primary"></i>{{ property.exact_address|default:property.district }}</p>
-                        {% if property.real_address %}
-                        <p class="property-address-doc mb-2"><i class="fas fa-file-alt me-2"></i>{{ property.real_address }}</p>
-                        {% endif %}
+                        <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
+                        <p class="property-location mb-0">
+                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                            <span class="property-location-main">
+                                {% if property.display_district or property.display_province %}
+                                    {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
+                                {% else %}
+                                    {{ property.real_address|default:'Ubicación no disponible' }}
+                                {% endif %}
+                            </span>
+                        </p>
+                        {# exact_address removed as secondary line to avoid duplication; only show district, province here #}
+                       
                         <div class="property-meta">
                             <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
                             <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
@@ -681,6 +709,8 @@
                         </div>
                         <div class="property-actions">
                             <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-external-link-alt me-1"></i>Ver detalle</a>
+                            <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary btn-sm ms-2"><i class="fas fa-edit me-1"></i>Editar</a>
+                            <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info btn-sm ms-2" title="Ver historial de cambios"><i class="fas fa-history me-1"></i>Historial</a>
                             <span class="last-update">Actualizado el {{ property.updated_at|date:"d/m/Y" }}</span>
                         </div>
                     </div>
