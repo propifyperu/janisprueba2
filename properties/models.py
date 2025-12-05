@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.contrib.auth import get_user_model
 import random
@@ -440,16 +439,16 @@ class Property(TitleCaseMixin, models.Model):
         'urbanization',
     )
     # Información básica
-    code = models.CharField(max_length=20, unique=True)
+    code = models.CharField(max_length=20, unique=True, blank=True, default='')
     codigo_unico_propiedad = models.CharField(max_length=11, unique=True, blank=True, null=True, verbose_name="Código Único Propiedad")
-    title = models.CharField(max_length=255, blank=True)
-    description = models.TextField(blank=True)
+    title = models.CharField(max_length=255, blank=True, default='')
+    description = models.TextField(blank=True, default='')
     
     # Relaciones principales
-    owner = models.ForeignKey('PropertyOwner', on_delete=models.CASCADE, related_name='properties')
-    property_type = models.ForeignKey('PropertyType', on_delete=models.PROTECT)
-    property_subtype = models.ForeignKey('PropertySubtype', on_delete=models.PROTECT)
-    status = models.ForeignKey('PropertyStatus', on_delete=models.PROTECT)
+    owner = models.ForeignKey('PropertyOwner', on_delete=models.CASCADE, related_name='properties', blank=True, null=True)
+    property_type = models.ForeignKey('PropertyType', on_delete=models.PROTECT, blank=True, null=True)
+    property_subtype = models.ForeignKey('PropertySubtype', on_delete=models.PROTECT, blank=True, null=True)
+    status = models.ForeignKey('PropertyStatus', on_delete=models.PROTECT, blank=True, null=True)
     responsible = models.ForeignKey(
         get_user_model(),
         on_delete=models.SET_NULL,
@@ -458,6 +457,7 @@ class Property(TitleCaseMixin, models.Model):
         related_name='responsible_properties',
         verbose_name="Responsable"
     )
+    
     antiquity_years = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -472,19 +472,19 @@ class Property(TitleCaseMixin, models.Model):
     )
     
     # Precio y moneda
-    price = models.DecimalField(max_digits=15, decimal_places=2)
-    currency = models.ForeignKey('Currency', on_delete=models.PROTECT)
+    price = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, default=0)
+    currency = models.ForeignKey('Currency', on_delete=models.PROTECT, blank=True, null=True)
     maintenance_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     has_maintenance = models.BooleanField(default=False)
     
     # Características físicas
-    floors = models.PositiveIntegerField(default=1)
-    bedrooms = models.PositiveIntegerField(default=0)
-    bathrooms = models.PositiveIntegerField(default=0)
-    half_bathrooms = models.PositiveIntegerField(default=0)
+    floors = models.PositiveIntegerField(default=1, blank=True, null=True)
+    bedrooms = models.PositiveIntegerField(default=0, blank=True, null=True)
+    bathrooms = models.PositiveIntegerField(default=0, blank=True, null=True)
+    half_bathrooms = models.PositiveIntegerField(default=0, blank=True, null=True)
     
     # Garaje
-    garage_spaces = models.PositiveIntegerField(default=0)
+    garage_spaces = models.PositiveIntegerField(default=0, blank=True, null=True)
     garage_type = models.ForeignKey('GarageType', on_delete=models.SET_NULL, null=True, blank=True)
     
     # Áreas
@@ -495,39 +495,38 @@ class Property(TitleCaseMixin, models.Model):
     front_measure = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     depth_measure = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     
-    # Ubicación (SIN ENCRIPTAR)
-        
-    # ===== MEJORA 3: Nuevo campo para dirección real (de documentos) =====
+    # Ubicación
     real_address = models.TextField(
-        blank=True, 
+        blank=True,
+        null=True,
         verbose_name="Dirección Real (de documentos)",
         help_text="Dirección exacta que aparece en documentos legales"
     )
-
     exact_address = models.CharField(
-        max_length=512, 
-        blank=True, 
+        max_length=512,
+        blank=True,
+        null=True,
         verbose_name="Dirección Exacta (para mapa)"
     )
-    coordinates = models.CharField(max_length=512, blank=True)
-    department = models.CharField(max_length=100)
-    province = models.CharField(max_length=100)
-    district = models.CharField(max_length=100)
-    urbanization = models.CharField(max_length=100, blank=True)
+    coordinates = models.CharField(max_length=512, blank=True, null=True)
+    department = models.CharField(max_length=100, blank=True, null=True)
+    province = models.CharField(max_length=100, blank=True, null=True)
+    district = models.CharField(max_length=100, blank=True, null=True)
+    urbanization = models.CharField(max_length=100, blank=True, null=True)
     
-    # POR ESTO:
-# Servicios (con modelos independientes)
+    # Servicios
     water_service = models.ForeignKey('WaterServiceType', on_delete=models.SET_NULL, null=True, blank=True, related_name='water_properties', verbose_name="Servicio de Agua")
     energy_service = models.ForeignKey('EnergyServiceType', on_delete=models.SET_NULL, null=True, blank=True, related_name='energy_properties', verbose_name="Servicio de Energía")
     drainage_service = models.ForeignKey('DrainageServiceType', on_delete=models.SET_NULL, null=True, blank=True, related_name='drainage_properties', verbose_name="Servicio de Drenaje")
     gas_service = models.ForeignKey('GasServiceType', on_delete=models.SET_NULL, null=True, blank=True, related_name='gas_properties', verbose_name="Servicio de Gas")
+    
     # Información adicional
-    amenities = models.TextField(blank=True)
-    zoning = models.CharField(max_length=100, blank=True)
+    amenities = models.TextField(blank=True, null=True)
+    zoning = models.CharField(max_length=100, blank=True, null=True)
     tags = models.ManyToManyField('Tag', blank=True)
     
     # Auditoría y workflow
-    created_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT)
+    created_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT, blank=True, null=True)
     assigned_agent = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_properties')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -541,10 +540,9 @@ class Property(TitleCaseMixin, models.Model):
     def __str__(self):
         return f"{self.code} - {self.title}"
 
-    import random
-    import string
     def save(self, *args, **kwargs):
         self._apply_title_case()
+        # Generar código único si no existe
         if not self.code:
             last_property = Property.objects.order_by('-id').first()
             last_id = last_property.id if last_property else 0
@@ -560,6 +558,7 @@ class Property(TitleCaseMixin, models.Model):
                     break
         super().save(*args, **kwargs)
 
+
 # =============================================================================
 # MODELOS PARA MEDIOS Y DOCUMENTOS
 # =============================================================================
@@ -567,9 +566,9 @@ class Property(TitleCaseMixin, models.Model):
 class PropertyImage(TitleCaseMixin, models.Model):
     title_case_fields = ('caption',)
     property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='properties/images/')
     image_type = models.ForeignKey('ImageType', on_delete=models.PROTECT, null=True, blank=True)
     image_ambiente = models.ForeignKey('RoomType', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Ambiente de la imagen")
-    image = models.ImageField(upload_to='properties/images/')
     caption = models.CharField(max_length=255, blank=True)
     order = models.PositiveIntegerField(default=0)
     is_primary = models.BooleanField(default=False)
@@ -592,7 +591,7 @@ class PropertyVideo(TitleCaseMixin, models.Model):
     property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='videos')
     video_type = models.ForeignKey('VideoType', on_delete=models.PROTECT, null=True, blank=True)
     video = models.FileField(upload_to='properties/videos/')
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
     uploaded_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -666,6 +665,7 @@ class PropertyRoom(TitleCaseMixin, models.Model):
     floor_type = models.ForeignKey('FloorType', on_delete=models.SET_NULL, null=True, blank=True)
     description = models.TextField(blank=True)
     order = models.PositiveIntegerField(default=0)
+    order = models.PositiveIntegerField(default=0)
     
     class Meta:
         db_table = 'property_rooms'
@@ -679,5 +679,25 @@ class PropertyRoom(TitleCaseMixin, models.Model):
         if self.width and self.length and not self.area:
             self.area = self.width * self.length
         super().save(*args, **kwargs)
+
+# =============================================================================
+# MODELO DE AUDITORÍA DE CAMBIOS EN PROPIEDADES
+# =============================================================================
+
+class PropertyChange(models.Model):
+    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='changes')
+    field_name = models.CharField(max_length=120)
+    old_value = models.TextField(null=True, blank=True)
+    new_value = models.TextField(null=True, blank=True)
+    changed_by = models.ForeignKey(get_user_model(), null=True, blank=True, on_delete=models.SET_NULL)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'property_changes'
+        ordering = ['-changed_at']
+
+    def __str__(self):
+        actor = self.changed_by.get_full_name() if self.changed_by else 'Sistema'
+        return f"{self.property.code} | {self.field_name} @ {self.changed_at.strftime('%Y-%m-%d %H:%M')} by {actor}"
 
 

@@ -309,6 +309,7 @@
             <nav class="nav flex-column position-relative">
             {% url 'properties:list' as properties_list_url %}
             {% url 'properties:create' as properties_create_url %}
+            {% url 'properties:drafts' as properties_drafts_url %}
             {% url 'properties:contact_list' as contacts_list_url %}
             {% url 'properties:contact_create' as contacts_create_url %}
             {% url 'users:profile' as profile_url %}
@@ -324,6 +325,7 @@
                 <div class="nav-submenu{% if request.path == properties_list_url or request.path == properties_create_url %} show{% endif %}" id="propertiesSubmenu">
                     <a class="nav-link {% if request.path == properties_list_url %}active{% endif %}" href="{{ properties_list_url }}"><i class="fas fa-list me-2"></i>Listar propiedades</a>
                     <a class="nav-link {% if request.path == properties_create_url %}active{% endif %}" href="{{ properties_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear propiedad</a>
+                    <a class="nav-link {% if request.path == properties_drafts_url %}active{% endif %}" href="{{ properties_drafts_url }}"><i class="fas fa-file-alt me-2"></i>Mis borradores</a>
                 </div>
             </div>
             <div class="nav-group">

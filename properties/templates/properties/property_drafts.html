@@ -1,0 +1,35 @@
+{% extends 'properties/base_dashboard.html' %}
+
+{% block title %}Mis borradores{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h3 class="mb-3">Mis borradores</h3>
+            {% if drafts %}
+            <div class="list-group">
+                {% for draft in drafts %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ draft.title|default:'(Sin título)' }}</strong>
+                        <div class="text-muted small">Código: {{ draft.code }} — Creado: {{ draft.created_at|date:'d/m/Y H:i' }}</div>
+                    </div>
+                    <div class="btn-group">
+                        <a href="{% url 'properties:edit' draft.pk %}" class="btn btn-sm btn-primary">Continuar</a>
+                        <a href="{% url 'properties:detail' draft.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a>
+                        <form method="post" action="{% url 'properties:delete_draft' draft.pk %}" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este borrador?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">Borrar</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">No tienes borradores.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

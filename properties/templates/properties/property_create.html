@@ -171,6 +171,59 @@
                                                 </div>
                                                 {% endif %}
                         {% csrf_token %}
+                        {% if draft_id %}
+                            <input type="hidden" name="draft_id" value="{{ draft_id }}" />
+                        {% endif %}
+
+                        {% if existing_images %}
+                        <div class="form-section">
+                            <h6 class="section-title">Imágenes ya subidas</h6>
+                            <div class="row">
+                                {% for img in existing_images %}
+                                <div class="col-md-3 mb-3 image-preview">
+                                    <img src="{{ img.image.url }}" alt="{{ img.caption }}" class="img-fluid" />
+                                    <div class="small text-muted">{{ img.caption }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if existing_videos %}
+                        <div class="form-section">
+                            <h6 class="section-title">Videos ya subidos</h6>
+                            <div class="row">
+                                {% for vid in existing_videos %}
+                                <div class="col-md-4 mb-3 video-preview">
+                                    <video controls preload="metadata">
+                                        <source src="{{ vid.video.url }}" type="video/mp4">
+                                        Tu navegador no soporta la reproducción de video.
+                                    </video>
+                                    <div class="small text-muted">{{ vid.title }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if existing_documents %}
+                        <div class="form-section">
+                            <h6 class="section-title">Documentos ya subidos</h6>
+                            <div class="list-group">
+                                {% for doc in existing_documents %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ doc.title }}</strong>
+                                        <div class="small text-muted">{% if doc.document_type %}{{ doc.document_type.name }}{% endif %}</div>
+                                    </div>
+                                    <a href="{{ doc.file.url }}" class="btn btn-sm btn-outline-primary" download>
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
 
                         <!-- STEP 1: SELECCIÓN DE CONTACTO -->
                         <div class="form-section">
@@ -686,6 +739,9 @@
                         </div>
 
                         <div class="d-flex justify-content-end">
+                            <button type="submit" name="action" value="save_draft" class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-file-alt me-2"></i>Guardar Borrador
+                            </button>
                             <button type="submit" class="btn btn-primary" style="background-color: #047d7d; border-color: #047d7d; color: #fff;">
                                 <i class="fas fa-save me-2"></i>Guardar Propiedad
                             </button>

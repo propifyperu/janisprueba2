@@ -17,6 +17,9 @@
                     <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-primary">
                         <i class="fas fa-edit me-2"></i>Editar propiedad
                     </a>
+                    <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info">
+                        <i class="fas fa-history me-2"></i>Historial
+                    </a>
                     <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Volver
                     </a>

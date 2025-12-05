@@ -2,13 +2,31 @@ from .models import Property
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView
 from django.shortcuts import render, get_object_or_404, redirect
+from django.http import Http404, HttpResponseRedirect
+from django.contrib.auth.decorators import login_required
+from django.urls import reverse
+# Vista para borrar borrador
+from django.views.decorators.http import require_POST
+@login_required
+@require_POST
+def delete_draft_view(request, pk):
+    from .models import Property
+    try:
+        draft = Property.objects.get(pk=pk, created_by=request.user, is_active=False)
+        draft.delete()
+        from django.contrib import messages
+        messages.success(request, 'Borrador eliminado correctamente.')
+    except Property.DoesNotExist:
+        from django.contrib import messages
+        messages.error(request, 'No se encontró el borrador o no tienes permiso para borrarlo.')
+    return HttpResponseRedirect(reverse('properties:drafts'))
 from django.http import HttpResponse
 
 # Vista ULTRA SIMPLE sin templates - SOLO HTML PURO
 def simple_properties_view(request):
     """Vista que devuelve HTML puro con las propiedades."""
     try:
-        properties = Property.objects.all().order_by('-created_at')
+        properties = Property.objects.filter(is_active=True).order_by('-created_at')
         count = properties.count()
         
         html = f"""
@@ -58,8 +76,8 @@ class SimplePropertyListView(LoginRequiredMixin, ListView):
     paginate_by = None
 
     def get_queryset(self):
-        # Mostrar todas las propiedades, aunque tengan datos incompletos
-        return Property.objects.all().order_by('-created_at')
+        # Mostrar solo propiedades activas (no borradores)
+        return Property.objects.filter(is_active=True).order_by('-created_at')
 from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView, ListView, CreateView
@@ -151,8 +169,63 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Puedes agregar más datos al contexto si lo necesitas
+        # Añadir videos, documentos y datos financieros al contexto para la plantilla
+        property_obj = self.get_object()
+        # Si el objeto es un borrador, sólo el creador o superuser pueden verlo
+        if property_obj.is_active is False and property_obj.created_by and property_obj.created_by != self.request.user and not self.request.user.is_superuser:
+            raise Http404()
+        # videos relacionados
+        try:
+            context['property_videos'] = list(property_obj.videos.all())
+        except Exception:
+            context['property_videos'] = []
+
+        # documentos relacionados
+        try:
+            context['property_documents'] = list(property_obj.documents.all())
+        except Exception:
+            context['property_documents'] = []
+
+        # información financiera (si existe) y items simplificados para la plantilla
+        try:
+            financial_info = getattr(property_obj, 'financial_info', None)
+            context['financial_info'] = financial_info
+            # preparar una lista simple de pares etiqueta/valor para la plantilla
+            financial_items = []
+            if financial_info:
+                if financial_info.initial_commission_percentage is not None:
+                    financial_items.append({'label': 'Comisión inicial', 'value': f"{financial_info.initial_commission_percentage}%"})
+                if financial_info.final_commission_percentage is not None:
+                    financial_items.append({'label': 'Comisión final', 'value': f"{financial_info.final_commission_percentage}%"})
+                if financial_info.final_amount is not None:
+                    financial_items.append({'label': 'Monto final', 'value': f"{financial_info.final_amount:,}"})
+            context['financial_items'] = financial_items
+        except Exception:
+            context['financial_info'] = None
+            context['financial_items'] = []
+
         return context
+
+
+@login_required
+def property_timeline_view(request, pk):
+    """Muestra la línea de tiempo de cambios de una propiedad."""
+    property_obj = get_object_or_404(Property, pk=pk)
+    # Obtener cambios relacionados
+    changes = property_obj.changes.select_related('changed_by').all().order_by('-changed_at')
+    return render(request, 'properties/property_timeline.html', {
+        'property': property_obj,
+        'changes': changes,
+    })
+
+
+@login_required
+def drafts_list_view(request):
+    """Listar borradores (propiedades creadas por el usuario con is_active=False)."""
+    drafts = Property.objects.filter(created_by=request.user, is_active=False).order_by('-created_at')
+    return render(request, 'properties/property_drafts.html', {
+        'drafts': drafts,
+    })
 
 
 class PropertyDashboardView(LoginRequiredMixin, ListView):
@@ -261,8 +334,8 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 'code': property_obj.code,
                 'property_type': property_obj.property_type.name if property_obj.property_type else '',
                 'status': property_obj.status.name if property_obj.status else '',
-                'price': f"{property_obj.currency.symbol if property_obj.currency else ''} {format(property_obj.price, ',.2f')}",
-                'address': property_obj.exact_address or property_obj.district or 'Ubicación no disponible',
+                'price': f"{property_obj.currency.symbol if property_obj.currency else ''} {format(round(property_obj.price), ',.0f')}",
+                'address': property_obj.real_address or property_obj.exact_address or property_obj.district or 'Ubicación no disponible',
                 'real_address': property_obj.real_address or '',
                 'lat': lat,
                 'lng': lng,
@@ -271,6 +344,34 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 'created': property_obj.created_at.strftime('%d/%m/%Y'),
                 'thumbnail': first_image_url,
             })
+
+            # Resolve textual names for location fields in case the Property stores numeric IDs
+            def resolve_location_name(value, model_cls):
+                if not value:
+                    return ''
+                try:
+                    # if value looks like an integer id, try to resolve
+                    if str(value).isdigit():
+                        obj = model_cls.objects.filter(pk=int(value)).first()
+                        if obj:
+                            return getattr(obj, 'name', str(value))
+                    # otherwise assume value already a name
+                    return str(value)
+                except Exception:
+                    return str(value)
+
+            # attach resolved display attributes to the property object for template use
+            try:
+                from .models import Province, District, Urbanization, Department
+                property_obj.display_department = resolve_location_name(property_obj.department, Department)
+                property_obj.display_province = resolve_location_name(property_obj.province, Province)
+                property_obj.display_district = resolve_location_name(property_obj.district, District)
+                property_obj.display_urbanization = resolve_location_name(property_obj.urbanization, Urbanization)
+            except Exception:
+                property_obj.display_department = property_obj.department or ''
+                property_obj.display_province = property_obj.province or ''
+                property_obj.display_district = property_obj.district or ''
+                property_obj.display_urbanization = property_obj.urbanization or ''
 
         context['property_markers'] = markers
 
@@ -294,7 +395,7 @@ def create_property_view(request):
         PropertyType, PropertyStatus, PropertyOwner,
         Department, LevelType, RoomType, FloorType,
         PropertyImage, PropertyVideo, PropertyDocument, PropertyRoom,
-        ImageType, VideoType, DocumentType
+        ImageType, VideoType, DocumentType, PropertyChange, PropertySubtype, Currency
     )
     from .forms import PropertyForm, PropertyOwnerForm, PropertyFinancialInfoForm
     
@@ -309,6 +410,193 @@ def create_property_view(request):
     form = PropertyForm(request.POST or None, request.FILES or None)
 
     if request.method == 'POST':
+        action = request.POST.get('action')
+        # Si se solicita explícitamente guardar como borrador, NO validar los formularios
+        if action == 'save_draft':
+            draft = None
+            draft_id = request.POST.get('draft_id')
+            if draft_id:
+                try:
+                    draft = Property.objects.get(pk=int(draft_id), created_by=request.user, is_active=False)
+                except Exception:
+                    draft = None
+
+            if draft is None:
+                # obtener o crear objetos placeholder necesarios para campos obligatorios
+                try:
+                    prop_type = PropertyType.objects.filter(is_active=True).first()
+                    if not prop_type:
+                        prop_type = PropertyType.objects.create(name='(Borrador)')
+                except Exception:
+                    prop_type = None
+
+                try:
+                    prop_subtype = PropertySubtype.objects.filter(property_type=prop_type).first() if prop_type else None
+                    if not prop_subtype and prop_type:
+                        prop_subtype = PropertySubtype.objects.create(property_type=prop_type, name='(Borrador)')
+                except Exception:
+                    prop_subtype = None
+
+                status = PropertyStatus.objects.filter(code='DRAFT').first()
+                if not status:
+                    try:
+                        status = PropertyStatus.objects.create(name='Borrador', code='DRAFT')
+                    except Exception:
+                        status = PropertyStatus.objects.first()
+
+                currency = Currency.objects.first()
+                if not currency:
+                    try:
+                        currency = Currency.objects.create(code='PEN', name='Soles', symbol='S/')
+                    except Exception:
+                        currency = None
+
+                # owner: prefer existing_owner if provided, else create placeholder (NO validación)
+                owner = None
+                existing_owner_id = request.POST.get('existing_owner')
+                if existing_owner_id:
+                    try:
+                        owner = PropertyOwner.objects.get(pk=existing_owner_id)
+                    except Exception:
+                        owner = None
+                if owner is None:
+                    try:
+                        owner = PropertyOwner.objects.create(created_by=request.user)
+                    except Exception:
+                        owner = None
+
+                # generar código único temporal para el borrador
+                import time
+                code = f"DRAFT{request.user.id}{int(time.time())}"
+                # crear borrador con valores mínimos
+                draft_kwargs = {
+                    'code': code,
+                    'property_type': prop_type,
+                    'property_subtype': prop_subtype,
+                    'status': status,
+                    'price': 0,
+                    'currency': currency,
+                    'owner': owner,
+                    'created_by': request.user,
+                    'is_active': False,
+                }
+                # intentar setear algunos campos opcionales desde POST
+                for fld in ['title', 'description', 'exact_address', 'real_address', 'coordinates', 'department', 'province', 'district', 'urbanization']:
+                    val = request.POST.get(fld)
+                    if val:
+                        draft_kwargs[fld] = val
+
+                try:
+                    draft = Property.objects.create(**draft_kwargs)
+                except Exception:
+                    draft = None
+
+            # Si tenemos un borrador (nuevo o existente), guardar archivos subidos en él
+            if draft is not None:
+                # imágenes
+                images_files = request.FILES.getlist('images')
+                image_types = request.POST.getlist('image_types')
+                image_captions = request.POST.getlist('image_captions')
+                image_orders = request.POST.getlist('image_orders')
+                for idx, image_file in enumerate(images_files):
+                    if image_file:
+                        try:
+                            image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
+                            image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
+                        except Exception:
+                            image_type = None
+                        try:
+                            order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
+                        except Exception:
+                            order = idx + 1
+                        caption = image_captions[idx] if idx < len(image_captions) else ''
+                        try:
+                            PropertyImage.objects.create(
+                                property=draft,
+                                image=image_file,
+                                image_type=image_type,
+                                caption=caption,
+                                order=order,
+                                uploaded_by=request.user
+                            )
+                        except Exception:
+                            pass
+
+                # videos
+                videos_files = request.FILES.getlist('videos')
+                video_types = request.POST.getlist('video_types')
+                video_titles = request.POST.getlist('video_titles')
+                video_descriptions = request.POST.getlist('video_descriptions')
+                for idx, video_file in enumerate(videos_files):
+                    if video_file:
+                        try:
+                            video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
+                            video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
+                        except Exception:
+                            video_type = None
+                        title = video_titles[idx] if idx < len(video_titles) else ''
+                        description = video_descriptions[idx] if idx < len(video_descriptions) else ''
+                        try:
+                            PropertyVideo.objects.create(
+                                property=draft,
+                                video=video_file,
+                                video_type=video_type,
+                                title=title,
+                                description=description,
+                                uploaded_by=request.user
+                            )
+                        except Exception:
+                            pass
+
+                # documentos
+                documents_files = request.FILES.getlist('documents')
+                document_types = request.POST.getlist('document_types')
+                document_titles = request.POST.getlist('document_titles')
+                document_descriptions = request.POST.getlist('document_descriptions')
+                for idx, document_file in enumerate(documents_files):
+                    if document_file:
+                        try:
+                            doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
+                            doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
+                        except Exception:
+                            doc_type = None
+                        title = document_titles[idx] if idx < len(document_titles) else ''
+                        description = document_descriptions[idx] if idx < len(document_descriptions) else ''
+                        try:
+                            PropertyDocument.objects.create(
+                                property=draft,
+                                file=document_file,
+                                document_type=doc_type,
+                                title=title,
+                                description=description,
+                                uploaded_by=request.user
+                            )
+                        except Exception:
+                            pass
+
+            # preparar contexto para re-renderizar el formulario con los recursos ya subidos
+            contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
+            existing_images = list(PropertyImage.objects.filter(property=draft).order_by('order')) if draft else []
+            existing_videos = list(PropertyVideo.objects.filter(property=draft)) if draft else []
+            existing_documents = list(PropertyDocument.objects.filter(property=draft)) if draft else []
+            draft_id_to_pass = draft.pk if draft else ''
+            from django.contrib import messages
+            messages.warning(request, 'Borrador guardado. Puedes continuar editando más tarde.')
+            # Mostrar formulario vacío tras guardar borrador para evitar errores de validación
+            return render(request, 'properties/property_create.html', {
+                'form': PropertyForm(),
+                'owner_form': PropertyOwnerForm(),
+                'financial_form': PropertyFinancialInfoForm(),
+                'departments': departments,
+                'level_types': level_types,
+                'room_types': room_types,
+                'floor_types': floor_types,
+                'contactos_existentes': contactos_existentes,
+                'draft_id': draft_id_to_pass,
+                'existing_images': existing_images,
+                'existing_videos': existing_videos,
+                'existing_documents': existing_documents,
+            })
         if form.is_valid() and owner_form.is_valid():
             existing_owner_id = request.POST.get('existing_owner')
             if existing_owner_id:
@@ -324,6 +612,22 @@ def create_property_view(request):
             property_obj.created_by = request.user
             property_obj.save()
             form.save_m2m()
+
+            # Registrar cambios iniciales al crear la propiedad (campos con valor)
+            try:
+                tracked_fields = ['title', 'price', 'coordinates', 'department', 'province', 'district', 'urbanization', 'exact_address', 'real_address']
+                for field in tracked_fields:
+                    val = getattr(property_obj, field, None)
+                    if val not in (None, '', []):
+                        PropertyChange.objects.create(
+                            property=property_obj,
+                            field=field,
+                            old_value=None,
+                            new_value=str(val),
+                            changed_by=request.user
+                        )
+            except Exception:
+                pass
 
             # Solo guardar información financiera si el formulario es válido y tiene datos
             if financial_form.is_valid() and any(financial_form.cleaned_data.values()):
@@ -354,7 +658,7 @@ def create_property_view(request):
                     caption = image_captions[idx] if idx < len(image_captions) else ''
                     is_primary = not primary_image_set
                     
-                    PropertyImage.objects.create(
+                    img = PropertyImage.objects.create(
                         property=property_obj,
                         image=image_file,
                         image_type=image_type,
@@ -363,6 +667,17 @@ def create_property_view(request):
                         is_primary=is_primary,
                         uploaded_by=request.user
                     )
+                    # Registrar evento de imagen subida
+                    try:
+                        PropertyChange.objects.create(
+                            property=property_obj,
+                            field='image',
+                            old_value=None,
+                            new_value=f"Imagen subida: {img.caption or img.image.name}",
+                            changed_by=request.user
+                        )
+                    except Exception:
+                        pass
                     primary_image_set = True
 
             # ===================== PROCESAR VIDEOS =====================
@@ -382,7 +697,7 @@ def create_property_view(request):
                     title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
                     description = video_descriptions[idx] if idx < len(video_descriptions) else ''
                     
-                    PropertyVideo.objects.create(
+                    vid = PropertyVideo.objects.create(
                         property=property_obj,
                         video=video_file,
                         video_type=video_type,
@@ -390,6 +705,16 @@ def create_property_view(request):
                         description=description,
                         uploaded_by=request.user
                     )
+                    try:
+                        PropertyChange.objects.create(
+                            property=property_obj,
+                            field='video',
+                            old_value=None,
+                            new_value=f"Video subido: {vid.title}",
+                            changed_by=request.user
+                        )
+                    except Exception:
+                        pass
 
             # ===================== PROCESAR DOCUMENTOS =====================
             documents_files = request.FILES.getlist('documents')
@@ -408,7 +733,7 @@ def create_property_view(request):
                     title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
                     description = document_descriptions[idx] if idx < len(document_descriptions) else ''
                     
-                    PropertyDocument.objects.create(
+                    doc = PropertyDocument.objects.create(
                         property=property_obj,
                         file=document_file,
                         document_type=doc_type,
@@ -416,6 +741,16 @@ def create_property_view(request):
                         description=description,
                         uploaded_by=request.user
                     )
+                    try:
+                        PropertyChange.objects.create(
+                            property=property_obj,
+                            field='document',
+                            old_value=None,
+                            new_value=f"Documento subido: {doc.title}",
+                            changed_by=request.user
+                        )
+                    except Exception:
+                        pass
 
             # ===================== PROCESAR HABITACIONES =====================
             room_levels = request.POST.getlist('room_levels')
@@ -488,6 +823,19 @@ def create_property_view(request):
             messages.success(request, 'Propiedad creada exitosamente con imágenes, videos, documentos y ambientes.')
             from django.urls import reverse
             return redirect(reverse('properties:list'))
+        else:
+            # Si la validación falla, simplemente re-renderizar el formulario con los errores, sin intentar crear borrador
+            contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
+            return render(request, 'properties/property_create.html', {
+                'form': form,
+                'owner_form': owner_form,
+                'financial_form': financial_form,
+                'departments': departments,
+                'level_types': level_types,
+                'room_types': room_types,
+                'floor_types': floor_types,
+                'contactos_existentes': contactos_existentes,
+            })
 
     contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
     return render(request, 'properties/property_create.html', {
@@ -509,12 +857,15 @@ def edit_property_view(request, pk):
         PropertyType, PropertyStatus, PropertyOwner,
         Department, LevelType, RoomType, FloorType,
         PropertyImage, PropertyVideo, PropertyDocument, PropertyRoom,
-        ImageType, VideoType, DocumentType, PropertyFinancialInfo
+        ImageType, VideoType, DocumentType, PropertyFinancialInfo, PropertyChange
     )
     from .forms import PropertyForm, PropertyOwnerForm, PropertyFinancialInfoForm
     
     # Obtener la propiedad a editar
     property_obj = get_object_or_404(Property, pk=pk)
+    # Si es un borrador, sólo el creador (o superuser) puede acceder
+    if property_obj.is_active is False and property_obj.created_by and property_obj.created_by != request.user and not request.user.is_superuser:
+        raise Http404()
     
     # Listas para selects
     departments = Department.objects.filter(is_active=True).order_by('name')
@@ -568,10 +919,143 @@ def edit_property_view(request, pk):
                 owner = owner_obj
 
             # Actualizar propiedad
+            # capturar estado previo para comparar
+            try:
+                previous = Property.objects.get(pk=property_obj.pk)
+            except Exception:
+                previous = None
+
             property_obj = form.save(commit=False)
             property_obj.owner = owner
             property_obj.save()
             form.save_m2m()
+
+            # Comparar campos rastreados y crear registros de cambio
+            try:
+                tracked_fields = ['title', 'price', 'coordinates', 'department', 'province', 'district', 'urbanization', 'exact_address', 'real_address']
+                if previous:
+                    for field in tracked_fields:
+                        old_val = getattr(previous, field, None)
+                        new_val = getattr(property_obj, field, None)
+                        if (old_val is None and new_val) or (old_val and str(old_val) != str(new_val)):
+                            try:
+                                PropertyChange.objects.create(
+                                    property=property_obj,
+                                    field=field,
+                                    old_value=str(old_val) if old_val is not None else None,
+                                    new_value=str(new_val) if new_val is not None else None,
+                                    changed_by=request.user
+                                )
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+            # Procesar posibles archivos subidos desde el formulario de edición (imágenes/videos/documentos)
+            images_files = request.FILES.getlist('images')
+            image_types = request.POST.getlist('image_types')
+            image_captions = request.POST.getlist('image_captions')
+            image_orders = request.POST.getlist('image_orders')
+            primary_image_set = False
+            for idx, image_file in enumerate(images_files):
+                if image_file:
+                    try:
+                        image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
+                        image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
+                    except (ImageType.DoesNotExist, ValueError):
+                        image_type = None
+                    try:
+                        order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
+                    except ValueError:
+                        order = idx + 1
+                    caption = image_captions[idx] if idx < len(image_captions) else ''
+                    is_primary = not primary_image_set
+                    img = PropertyImage.objects.create(
+                        property=property_obj,
+                        image=image_file,
+                        image_type=image_type,
+                        caption=caption,
+                        order=order,
+                        is_primary=is_primary,
+                        uploaded_by=request.user
+                    )
+                    primary_image_set = True
+                    try:
+                        PropertyChange.objects.create(
+                            property=property_obj,
+                            field='image',
+                            old_value=None,
+                            new_value=f"Imagen subida: {img.caption or img.image.name}",
+                            changed_by=request.user
+                        )
+                    except Exception:
+                        pass
+
+            # Videos
+            videos_files = request.FILES.getlist('videos')
+            video_types = request.POST.getlist('video_types')
+            video_titles = request.POST.getlist('video_titles')
+            video_descriptions = request.POST.getlist('video_descriptions')
+            for idx, video_file in enumerate(videos_files):
+                if video_file:
+                    try:
+                        video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
+                        video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
+                    except (VideoType.DoesNotExist, ValueError):
+                        video_type = None
+                    title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
+                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
+                    vid = PropertyVideo.objects.create(
+                        property=property_obj,
+                        video=video_file,
+                        video_type=video_type,
+                        title=title,
+                        description=description,
+                        uploaded_by=request.user
+                    )
+                    try:
+                        PropertyChange.objects.create(
+                            property=property_obj,
+                            field='video',
+                            old_value=None,
+                            new_value=f"Video subido: {vid.title}",
+                            changed_by=request.user
+                        )
+                    except Exception:
+                        pass
+
+            # Documentos
+            documents_files = request.FILES.getlist('documents')
+            document_types = request.POST.getlist('document_types')
+            document_titles = request.POST.getlist('document_titles')
+            document_descriptions = request.POST.getlist('document_descriptions')
+            for idx, document_file in enumerate(documents_files):
+                if document_file:
+                    try:
+                        doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
+                        doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
+                    except (DocumentType.DoesNotExist, ValueError):
+                        doc_type = None
+                    title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
+                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
+                    doc = PropertyDocument.objects.create(
+                        property=property_obj,
+                        file=document_file,
+                        document_type=doc_type,
+                        title=title,
+                        description=description,
+                        uploaded_by=request.user
+                    )
+                    try:
+                        PropertyChange.objects.create(
+                            property=property_obj,
+                            field='document',
+                            old_value=None,
+                            new_value=f"Documento subido: {doc.title}",
+                            changed_by=request.user
+                        )
+                    except Exception:
+                        pass
 
             # Actualizar información financiera si es válida
             if financial_form.is_valid() and any(financial_form.cleaned_data.values()):

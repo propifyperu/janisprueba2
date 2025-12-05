@@ -837,62 +837,68 @@ function openPropertyInfo(property, marker) {
     }
 
     const container = document.createElement('div');
-    container.style.maxWidth = '280px';
-    container.style.padding = '0.5rem 0.35rem';
+    container.style.width = '300px';
+    container.style.maxHeight = '400px';
+    container.style.padding = '0.2rem 0.2rem';
+    container.style.overflow = 'hidden';
+    container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    container.style.margin = '0';
+    container.style.cursor = 'pointer';
+    
+    // Hacer clickeable todo el contenedor
+    container.addEventListener('click', () => {
+        if (property.url) {
+            window.location.href = property.url;
+        }
+    });
 
     if (property.thumbnail) {
         const image = document.createElement('img');
         image.src = property.thumbnail;
         image.alt = property.title || property.code || 'Propiedad';
         image.style.width = '100%';
-        image.style.maxHeight = '120px';
+        image.style.height = '100px';
         image.style.objectFit = 'cover';
-        image.style.borderRadius = '0.75rem';
-        image.style.marginBottom = '0.6rem';
+        image.style.borderRadius = '0.5rem';
+        image.style.marginBottom = '0.3rem';
+        image.style.display = 'block';
+        image.style.margin = '0 0 0.3rem 0';
+        image.style.pointerEvents = 'none';
         container.appendChild(image);
     }
 
     const title = document.createElement('h3');
-    title.style.fontSize = '1.05rem';
+    title.style.fontSize = '0.95rem';
     title.style.fontWeight = '700';
-    title.style.margin = '0 0 0.35rem';
+    title.style.margin = '0 0 0.2rem 0';
     title.style.color = '#16343b';
-    title.textContent = property.title || property.code || 'Propiedad sin título';
+    title.style.wordWrap = 'break-word';
+    title.style.lineHeight = '1.2';
+    title.style.pointerEvents = 'none';
+    title.textContent = property.real_address || property.code || 'Propiedad sin dirección';
     container.appendChild(title);
 
     if (property.price) {
         const price = document.createElement('div');
         price.style.color = '#047d7d';
         price.style.fontWeight = '700';
-        price.style.marginBottom = '0.35rem';
+        price.style.marginBottom = '0.2rem';
+        price.style.margin = '0 0 0.2rem 0';
+        price.style.fontSize = '0.9rem';
+        price.style.pointerEvents = 'none';
         price.textContent = property.price;
         container.appendChild(price);
     }
 
-    if (property.address) {
-        const address = document.createElement('p');
-        address.style.margin = '0 0 0.35rem';
-        address.style.color = '#3c5466';
-        address.style.fontSize = '0.85rem';
-        address.textContent = property.address;
-        container.appendChild(address);
-    }
-
-    if (property.real_address) {
-        const realAddress = document.createElement('p');
-        realAddress.style.margin = '0 0 0.35rem';
-        realAddress.style.color = '#2d414b';
-        realAddress.style.fontSize = '0.8rem';
-        realAddress.textContent = `Dirección (documentos): ${property.real_address}`;
-        container.appendChild(realAddress);
-    }
-
     if (property.owner) {
         const owner = document.createElement('p');
-        owner.style.margin = '0 0 0.4rem';
+        owner.style.margin = '0 0 0.15rem 0';
         owner.style.color = '#3c5466';
-        owner.style.fontSize = '0.8rem';
-        owner.textContent = `Propietario: ${property.owner}`;
+        owner.style.fontSize = '0.7rem';
+        owner.style.wordWrap = 'break-word';
+        owner.style.lineHeight = '1.3';
+        owner.style.pointerEvents = 'none';
+        owner.textContent = `Prop: ${property.owner}`;
         container.appendChild(owner);
     }
 
@@ -901,9 +907,14 @@ function openPropertyInfo(property, marker) {
         link.href = property.url;
         link.textContent = 'Ver detalle';
         link.className = 'btn btn-primary btn-sm';
-        link.style.borderRadius = '999px';
-        link.style.padding = '0.35rem 1.1rem';
+        link.style.borderRadius = '4px';
+        link.style.padding = '0.25rem 0.8rem';
         link.style.fontWeight = '600';
+        link.style.fontSize = '0.75rem';
+        link.style.display = 'block';
+        link.style.textAlign = 'center';
+        link.style.marginTop = '0.15rem';
+        link.style.margin = '0.15rem 0 0 0';
         link.target = '_blank';
         container.appendChild(link);
     }

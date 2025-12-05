@@ -1,0 +1,36 @@
+{% extends 'properties/base_dashboard.html' %}
+
+{% block title %}Historial - {{ property.code }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="container mt-3">
+  <h3>Historial de cambios — {{ property.code }} {{ property.title }}</h3>
+  <div class="timeline mt-3">
+    {% if changes %}
+      <ul class="list-group">
+        {% for change in changes %}
+          <li class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">{{ change.field|capfirst }}</h6>
+              <small class="text-muted">{{ change.changed_at|date:"d/m/Y H:i" }}</small>
+            </div>
+            <p class="mb-1">
+              {% if change.old_value %}
+                <strong>De:</strong> {{ change.old_value }}
+              {% endif %}
+              {% if change.new_value %}
+                {% if change.old_value %}<br/>{% endif %}
+                <strong>A:</strong> {{ change.new_value }}
+              {% endif %}
+            </p>
+            <small class="text-muted">por {{ change.changed_by.get_full_name|default:change.changed_by }}</small>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="alert alert-secondary">No hay registros de cambios para esta propiedad.</div>
+    {% endif %}
+  </div>
+  <p class="mt-3"><a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-secondary">Volver al detalle</a></p>
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@ from django.urls import path, include
 from .views import (
     PropertyDashboardView, create_property_view, PropertyDetailView,
     edit_property_view,
+    property_timeline_view, drafts_list_view, delete_draft_view,
     ContactListView, ContactCreateView, ContactDetailView, ContactEditView,
     api_property_subtypes, api_provinces, api_districts, api_urbanizations,
     api_document_types, api_image_types, api_roomtypes, api_video_types,
@@ -20,6 +21,9 @@ urlpatterns = [
     path('dashboard/', PropertyDashboardView.as_view(), name='list'),
     path('crear/', create_property_view, name='create'),
     path('<int:pk>/', PropertyDetailView.as_view(), name='detail'),
+    path('borradores/', drafts_list_view, name='drafts'),
+    path('borradores/<int:pk>/borrar/', delete_draft_view, name='delete_draft'),
+    path('<int:pk>/timeline/', property_timeline_view, name='timeline'),
     path('<int:pk>/editar/', edit_property_view, name='edit'),
     path('contactos/', ContactListView.as_view(), name='contact_list'),
     path('contactos/crear/', ContactCreateView.as_view(), name='contact_create'),
