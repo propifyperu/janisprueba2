@@ -51,6 +51,9 @@ class RegisterForm(forms.Form):
 
 
 def login_view(request):
+    from security.models import AuthorizedDevice, DeviceStatus
+    import hashlib
+    
     next_url = request.GET.get('next')
     if not next_url:
         next_url = '/dashboard/'
@@ -77,6 +80,36 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         
         if user is not None and user.is_active:
+            # Generar identificador del dispositivo basado en user-agent + IP
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            client_ip = request.META.get('REMOTE_ADDR', '')
+            device_id = hashlib.sha256(f"{user_agent}{client_ip}".encode()).hexdigest()[:32]
+            
+            # Buscar si el dispositivo existe y está autorizado
+            try:
+                device = AuthorizedDevice.objects.get(user=user, device_id=device_id)
+                
+                # Si el dispositivo existe pero NO está aprobado, redirigir a verificación
+                if device.status != DeviceStatus.APPROVED:
+                    request.session['pending_device_id'] = device.id
+                    request.session.modified = True
+                    return redirect('security:verify_device_id', device_id=device.id)
+                
+            except AuthorizedDevice.DoesNotExist:
+                # Crear nuevo dispositivo pendiente de autorización
+                device = AuthorizedDevice.objects.create(
+                    user=user,
+                    device_id=device_id,
+                    platform=request.META.get('HTTP_USER_AGENT', '')[:150],
+                    user_agent=user_agent[:255],
+                    ip_address=client_ip,
+                    status=DeviceStatus.PENDING,
+                )
+                request.session['pending_device_id'] = device.id
+                request.session.modified = True
+                return redirect('security:verify_device_id', device_id=device.id)
+            
+            # Si el dispositivo está aprobado, proceder con el login
             login(request, user)
             return redirect(next_url)
         else:
