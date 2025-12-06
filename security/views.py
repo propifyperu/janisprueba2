@@ -107,26 +107,34 @@ def device_status_update(request, pk):
 	import logging
 	logger = logging.getLogger(__name__)
 	
-	logger.info(f"device_status_update called with pk={pk}, method={request.method}")
-	logger.info(f"POST data: {request.POST}")
+	logger.info(f"[DEVICE_UPDATE] Iniciado: pk={pk}, method={request.method}")
 	
 	device = get_object_or_404(AuthorizedDevice, pk=pk)
+	logger.info(f"[DEVICE_UPDATE] Device encontrado: id={device.id}, user={device.user.username}, status_actual='{device.status}'")
+	
 	if request.method == 'POST':
 		action = request.POST.get('action')
-		logger.info(f"Action received: {action}")
+		logger.info(f"[DEVICE_UPDATE] Action recibido: '{action}'")
 		
-		# Mapear acciones a estados correctos
+		# Mapear acciones a estados correctos (siempre usar strings)
 		status_map = {
-			'approve': 'approved',  # La acción 'approve' debe guardarse como 'approved'
-			'block': 'blocked',      # La acción 'block' debe guardarse como 'blocked'
-			'pending': 'pending'     # La acción 'pending' se guarda igual
+			'approve': 'approved',
+			'block': 'blocked',
+			'pending': 'pending'
 		}
+		
 		if action in status_map:
 			old_status = device.status
-			device.status = status_map[action]
-			device.save()
-			logger.info(f"Device {pk} status updated from {old_status} to {device.status}")
+			new_status = status_map[action]
+			device.status = new_status
+			device.save(update_fields=['status'])  # Guardar solo el campo status
+			device.refresh_from_db()
+			logger.info(f"[DEVICE_UPDATE] ✓ Guardado: {old_status} → {new_status}")
+			logger.info(f"[DEVICE_UPDATE] ✓ Verificación en DB: status='{device.status}'")
 		else:
-			logger.warning(f"Invalid action: {action}")
+			logger.warning(f"[DEVICE_UPDATE] ✗ Action inválida: '{action}'")
+	else:
+		logger.info(f"[DEVICE_UPDATE] No es POST, ignorando")
 	
+	logger.info(f"[DEVICE_UPDATE] Redirigiendo a device_list")
 	return redirect(reverse('security:device_list'))

@@ -71,7 +71,7 @@ def login_view(request):
             user = CustomUser.objects.get(username=username)
             # Si el usuario existe pero no está activo, mostrar mensaje de espera
             if not user.is_active:
-                form.add_error(None, 'Tu cuenta está en proceso de verificación. Por favor espera la aprobación del administrador.')
+                form.add_error(None, 'Tu cuenta no ha sido activada. Por favor contacta al administrador.')
                 return render(request, 'users/login.html', {'form': form, 'next': next_url})
         except CustomUser.DoesNotExist:
             pass
@@ -80,38 +80,71 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         
         if user is not None and user.is_active:
+            import logging
+            logger = logging.getLogger(__name__)
+            
             # Generar identificador del dispositivo basado en user-agent + IP
             user_agent = request.META.get('HTTP_USER_AGENT', '')
             client_ip = request.META.get('REMOTE_ADDR', '')
             device_id = hashlib.sha256(f"{user_agent}{client_ip}".encode()).hexdigest()[:32]
             
-            # Buscar si el dispositivo existe y está autorizado
-            try:
-                device = AuthorizedDevice.objects.get(user=user, device_id=device_id)
-                
-                # Si el dispositivo existe pero NO está aprobado, redirigir a verificación
-                if device.status != DeviceStatus.APPROVED:
-                    request.session['pending_device_id'] = device.id
-                    request.session.modified = True
-                    return redirect('security:verify_device_id', device_id=device.id)
-                
-            except AuthorizedDevice.DoesNotExist:
-                # Crear nuevo dispositivo pendiente de autorización
+            logger.info(f"[LOGIN] user={user.username}, device_id={device_id[:16]}...")
+            
+            # PASO 1: Verificar si el usuario TIENE ALGÚN dispositivo aprobado
+            approved_device = AuthorizedDevice.objects.filter(
+                user=user,
+                status='approved'
+            ).first()
+            
+            if approved_device:
+                logger.info(f"[LOGIN] ✓ Usuario tiene dispositivo aprobado (ID={approved_device.id})")
+                # El usuario ya tiene un dispositivo aprobado
+                # Actualizar la IP y user-agent del dispositivo aprobado
+                approved_device.ip_address = client_ip
+                approved_device.user_agent = user_agent[:255]
+                approved_device.platform = request.META.get('HTTP_USER_AGENT', '')[:150]
+                approved_device.save(update_fields=['ip_address', 'user_agent', 'platform'])
+                logger.info(f"[LOGIN] ✓ Actualizando IP/user-agent del dispositivo aprobado")
+                login(request, user)
+                return redirect(next_url)
+            
+            logger.info(f"[LOGIN] ✗ Usuario NO tiene dispositivo aprobado aún")
+            
+            # PASO 2: Para usuarios nuevos, reutilizar el último dispositivo pendiente si existe
+            # Esto evita crear múltiples duplicados si el device_id cambia entre peticiones
+            pending_device = AuthorizedDevice.objects.filter(
+                user=user,
+                status='pending'
+            ).order_by('-id').first()
+            
+            if pending_device:
+                logger.info(f"[LOGIN] Reutilizando dispositivo pendiente ID={pending_device.id}")
+                # Actualizar el device_id y datos del dispositivo existente
+                pending_device.device_id = device_id
+                pending_device.ip_address = client_ip
+                pending_device.user_agent = user_agent[:255]
+                pending_device.platform = request.META.get('HTTP_USER_AGENT', '')[:150]
+                pending_device.save()
+                device = pending_device
+            else:
+                logger.info(f"[LOGIN] Creando nuevo dispositivo pendiente")
+                # Crear nuevo dispositivo
                 device = AuthorizedDevice.objects.create(
                     user=user,
                     device_id=device_id,
                     platform=request.META.get('HTTP_USER_AGENT', '')[:150],
                     user_agent=user_agent[:255],
                     ip_address=client_ip,
-                    status=DeviceStatus.PENDING,
+                    status='pending',
                 )
-                request.session['pending_device_id'] = device.id
-                request.session.modified = True
-                return redirect('security:verify_device_id', device_id=device.id)
             
-            # Si el dispositivo está aprobado, proceder con el login
-            login(request, user)
-            return redirect(next_url)
+            logger.info(f"[LOGIN] Device: ID={device.id}, status='{device.status}'")
+            
+            # Redirigir a verificación
+            logger.info(f"[LOGIN] Redirigiendo a verificación")
+            request.session['pending_device_id'] = device.id
+            request.session.modified = True
+            return redirect('security:verify_device_id', device_id=device.id)
         else:
             form.add_error(None, 'Usuario o contraseña incorrectos.')
     

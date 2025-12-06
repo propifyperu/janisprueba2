@@ -1,21 +1,30 @@
 #!/usr/bin/env python
-"""
-Script para verificar que los modelos están registrados en el admin
-"""
 import os
 import django
-
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'janis_core3.settings')
 django.setup()
 
-from django.contrib.admin.sites import site
+from security.models import AuthorizedDevice
+from django.contrib.auth import get_user_model
 
-print("Admin Models Registrados:")
-print("="*50)
-for model, admin_class in site._registry.items():
-    app_label = model._meta.app_label
-    model_name = model.__name__
-    print(f"✓ {app_label.upper():15} - {model_name}")
+CustomUser = get_user_model()
 
-print("\n" + "="*50)
-print(f"Total: {len(site._registry)} modelos registrados")
+print("\n=== USUARIOS CON DISPOSITIVOS ===\n")
+
+users_with_devices = CustomUser.objects.filter(authorized_devices__isnull=False).distinct()
+
+for user in users_with_devices:
+    print(f"\nUSUARIO: {user.username}")
+    print("=" * 70)
+    
+    devices = AuthorizedDevice.objects.filter(user=user).order_by('-id')
+    
+    for device in devices:
+        status_icon = "✓" if device.status == 'approved' else "✗"
+        print(f"  {status_icon} ID {device.id}: status='{device.status}'")
+        print(f"      device_id: {device.device_id}")
+        print(f"      IP: {device.ip_address}")
+        print(f"      registered: {device.registered_at}")
+        print()
+    
+    print(f"  TOTAL: {devices.count()} dispositivo(s)")
