@@ -153,7 +153,7 @@
 			<div class="contact-header mb-4">
 				<div class="d-flex align-items-center">
 					<div class="contact-avatar me-4">
-						{{ contact.first_name|first }}{{ contact.last_name|first }}
+						{% if contact.first_name and contact.last_name %}{{ contact.first_name|first }}{{ contact.last_name|first }}{% else %}<i class="fas fa-user"></i>{% endif %}
 					</div>
 					<div>
 						<h2 class="fw-semibold mb-1">{{ contact.full_name }}</h2>

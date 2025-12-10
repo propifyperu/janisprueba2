@@ -597,8 +597,18 @@ def create_property_view(request):
                 'existing_videos': existing_videos,
                 'existing_documents': existing_documents,
             })
-        if form.is_valid() and owner_form.is_valid():
-            existing_owner_id = request.POST.get('existing_owner')
+        # Validar form y owner_form según el caso
+        existing_owner_id = request.POST.get('existing_owner')
+        owner_form_valid = True
+        
+        if existing_owner_id:
+            # Si hay propietario existente, no necesitamos validar owner_form
+            owner_form_valid = True
+        else:
+            # Si se crea nuevo propietario, validar owner_form
+            owner_form_valid = owner_form.is_valid()
+        
+        if form.is_valid() and owner_form_valid:
             if existing_owner_id:
                 owner = PropertyOwner.objects.get(pk=existing_owner_id)
             else:
@@ -927,6 +937,9 @@ def edit_property_view(request, pk):
                 previous = None
 
             property_obj = form.save(commit=False)
+            # Preservar is_active del valor anterior para evitar que se setee a False
+            if previous:
+                property_obj.is_active = previous.is_active
             property_obj.owner = owner
             property_obj.save()
             form.save_m2m()
