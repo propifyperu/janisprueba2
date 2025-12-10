@@ -610,6 +610,7 @@ def create_property_view(request):
             property_obj = form.save(commit=False)
             property_obj.owner = owner
             property_obj.created_by = request.user
+            property_obj.is_active = True  # Guardar como propiedad ACTIVA, no como borrador
             property_obj.save()
             form.save_m2m()
 

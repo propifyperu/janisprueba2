@@ -738,12 +738,12 @@
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-end">
-                            <button type="submit" name="action" value="save_draft" class="btn btn-outline-secondary me-2">
-                                <i class="fas fa-file-alt me-2"></i>Guardar Borrador
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="submit" name="action" value="save_draft" class="btn btn-outline-secondary">
+                                <i class="fas fa-file-alt me-2"></i>Guardar Como Borrador
                             </button>
-                            <button type="submit" class="btn btn-primary" style="background-color: #047d7d; border-color: #047d7d; color: #fff;">
-                                <i class="fas fa-save me-2"></i>Guardar Propiedad
+                            <button type="submit" name="action" value="save_property" class="btn btn-primary" id="submitBtn" style="background-color: #047d7d; border-color: #047d7d; color: #fff;">
+                                <i class="fas fa-save me-2"></i>Guardar Propiedad Activa
                             </button>
                         </div>
                     </form>
@@ -1035,11 +1035,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (propertyForm && savingOverlay) {
         propertyForm.addEventListener('submit', function(event) {
-            if (typeof propertyForm.checkValidity === 'function' && !propertyForm.checkValidity()) {
-                event.preventDefault();
-                propertyForm.reportValidity();
-                return;
-            }
+            // NO validar - permitir guardar con campos opcionales
             if (!savingOverlay.classList.contains('d-none')) {
                 return;
             }

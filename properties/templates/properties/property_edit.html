@@ -496,6 +496,29 @@
                                     <h6 class="text-primary mb-0">Imágenes</h6>
                                     <small class="text-muted">La primera imagen válida se marcará como principal automáticamente.</small>
                                 </div>
+
+                                <!-- Imágenes Existentes -->
+                                {% if form.instance.images.all %}
+                                <div class="mb-3">
+                                    <p class="fw-semibold text-muted small">Imágenes existentes:</p>
+                                    <div class="row g-3">
+                                        {% for image in form.instance.images.all %}
+                                        <div class="col-lg-6 col-xl-4">
+                                            <div class="card h-100 border-info">
+                                                <img src="{{ image.image.url }}" alt="{{ image.caption }}" class="card-img-top" style="height: 180px; object-fit: cover;">
+                                                <div class="card-body">
+                                                    <p class="small text-muted mb-2">{{ image.caption }}</p>
+                                                    <a href="{{ image.image.url }}" target="_blank" class="btn btn-sm btn-outline-primary">Ver</a>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('¿Seguro?')) { location.href='#'; }">Eliminar</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <hr class="my-3">
+                                </div>
+                                {% endif %}
+
                                 <div id="image-forms">
                                     <div class="dynamic-form-item">
                                         <div class="row g-3">
@@ -532,6 +555,34 @@
 
                             <div>
                                 <h6 class="text-primary">Videos</h6>
+
+                                <!-- Videos Existentes -->
+                                {% if form.instance.videos.all %}
+                                <div class="mb-3">
+                                    <p class="fw-semibold text-muted small">Videos existentes:</p>
+                                    <div class="row g-3">
+                                        {% for video in form.instance.videos.all %}
+                                        <div class="col-lg-6 col-xl-4">
+                                            <div class="card h-100 border-info">
+                                                <div class="ratio ratio-16x9">
+                                                    <video controls preload="metadata" style="object-fit: cover;">
+                                                        <source src="{{ video.video.url }}" type="video/mp4">
+                                                    </video>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p class="small text-muted mb-2"><strong>{{ video.title }}</strong></p>
+                                                    <p class="small text-muted mb-2">{{ video.description }}</p>
+                                                    <a href="{{ video.video.url }}" target="_blank" class="btn btn-sm btn-outline-primary">Ver</a>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('¿Seguro?')) { location.href='#'; }">Eliminar</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <hr class="my-3">
+                                </div>
+                                {% endif %}
+
                                 <div id="video-forms">
                                     <div class="dynamic-form-item">
                                         <div class="row g-3">
@@ -571,6 +622,37 @@
 
                             <div class="mb-4">
                                 <h6 class="text-primary">Documentos Legales</h6>
+
+                                <!-- Documentos Existentes -->
+                                {% if form.instance.documents.all %}
+                                <div class="mb-3">
+                                    <p class="fw-semibold text-muted small">Documentos existentes:</p>
+                                    <div class="row g-3">
+                                        {% for doc in form.instance.documents.all %}
+                                        <div class="col-lg-6 col-xl-4">
+                                            <div class="card h-100 border-info">
+                                                <div class="card-header bg-light">
+                                                    <a href="{{ doc.file.url }}" target="_blank" rel="noopener" class="text-decoration-none">
+                                                        <i class="fas fa-file"></i> {{ doc.title }}
+                                                    </a>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p class="small text-muted mb-2">{{ doc.description }}</p>
+                                                    <small class="text-muted">Tipo: {% if doc.document_type %}{{ doc.document_type.name }}{% else %}Sin especificar{% endif %}</small>
+                                                    <br>
+                                                    <small class="text-muted">Tamaño: {{ doc.file.size|filesizeformat }}</small>
+                                                    <br>
+                                                    <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">Descargar</a>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('¿Seguro?')) { location.href='#'; }">Eliminar</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <hr class="my-3">
+                                </div>
+                                {% endif %}
+
                                 <div id="document-forms">
                                     <div class="dynamic-form-item">
                                         <div class="row g-3 align-items-end">
