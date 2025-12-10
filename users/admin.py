@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CustomUser, Department, Role, UserProfile
+from .models import CustomUser, Department, Role, UserProfile, RoleFieldPermission
 
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
@@ -48,3 +48,25 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_filter = ('email_notifications', 'whatsapp_notifications', 'push_notifications', 'created_at')
     search_fields = ('user__username', 'user__email')
     readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(RoleFieldPermission)
+class RoleFieldPermissionAdmin(admin.ModelAdmin):
+    list_display = ('role', 'field_name', 'can_view', 'can_edit', 'updated_at')
+    list_filter = ('role', 'can_view', 'can_edit', 'created_at')
+    search_fields = ('role__name', 'field_name')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Información General', {
+            'fields': ('role', 'field_name')
+        }),
+        ('Permisos', {
+            'fields': ('can_view', 'can_edit'),
+            'description': 'Controla si el rol puede ver o editar este campo'
+        }),
+        ('Fechas', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    ordering = ('role', 'field_name')

@@ -179,6 +179,7 @@
         <!-- Sidebar -->
         <div class="col-lg-4">
             <!-- Información de Precio -->
+            {% if field_permissions.price.can_view or not field_permissions.price %}
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
@@ -196,8 +197,10 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
 
             <!-- Información del Propietario -->
+            {% if field_permissions.owner_contact.can_view or not field_permissions.owner_contact %}
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -214,6 +217,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
 
             <!-- Ubicación -->
             <div class="card mb-4">

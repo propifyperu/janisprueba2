@@ -7,6 +7,33 @@ from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 # Vista para borrar borrador
 from django.views.decorators.http import require_POST
+
+
+def get_visible_fields_for_user(user):
+    """
+    Obtiene los campos visibles para un usuario basado en su rol y los permisos configurados.
+    Retorna un diccionario con {field_name: {'can_view': bool, 'can_edit': bool}}
+    """
+    from users.models import RoleFieldPermission
+    
+    visible_fields = {}
+    
+    if user.role:
+        # Obtener permisos configurados para este rol
+        permissions = RoleFieldPermission.objects.filter(role=user.role).values(
+            'field_name', 'can_view', 'can_edit'
+        )
+        
+        for perm in permissions:
+            visible_fields[perm['field_name']] = {
+                'can_view': perm['can_view'],
+                'can_edit': perm['can_edit']
+            }
+    
+    # Si no hay permisos específicos, todos los campos son visibles por defecto
+    return visible_fields
+
+
 @login_required
 @require_POST
 def delete_draft_view(request, pk):
@@ -117,6 +144,13 @@ class ContactDetailView(LoginRequiredMixin, DetailView):
     model = PropertyOwner
     template_name = 'properties/contact_detail.html'
     context_object_name = 'contact'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        contact = self.get_object()
+        context['created_by_user'] = contact.created_by
+        context['created_at'] = contact.created_at
+        return context
 
 class ContactListView(LoginRequiredMixin, ListView):
     model = PropertyOwner
@@ -203,6 +237,9 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
         except Exception:
             context['financial_info'] = None
             context['financial_items'] = []
+
+        # Agregar permisos de campos basados en el rol del usuario
+        context['field_permissions'] = get_visible_fields_for_user(self.request.user)
 
         return context
 
@@ -946,7 +983,8 @@ def edit_property_view(request, pk):
 
             # Comparar campos rastreados y crear registros de cambio
             try:
-                tracked_fields = ['title', 'price', 'coordinates', 'department', 'province', 'district', 'urbanization', 'exact_address', 'real_address']
+                tracked_fields = ['title', 'price', 'coordinates', 'department', 'province', 'district', 'urbanization', 'exact_address', 'real_address', 
+                                'bedrooms', 'bathrooms', 'built_area', 'land_area', 'property_type', 'status', 'description']
                 if previous:
                     for field in tracked_fields:
                         old_val = getattr(previous, field, None)
