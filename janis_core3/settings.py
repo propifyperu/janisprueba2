@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -47,6 +51,7 @@ INSTALLED_APPS = [
     "properties",
     "users",
     "security",
+    "whatsapp",
 ]
 AUTH_USER_MODEL = 'users.CustomUser'
 
@@ -208,6 +213,17 @@ CORS_ALLOWED_ORIGINS = [
 
 # If you prefer to allow all origins during development, set the following to True
 # CORS_ALLOW_ALL_ORIGINS = True
+
+
+# ============================================================================
+# CONFIGURACIÓN WHATSAPP BUSINESS API
+# ============================================================================
+WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID')
+WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID')
+WHATSAPP_ACCESS_TOKEN = os.environ.get('WHATSAPP_ACCESS_TOKEN')
+WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN')
+WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v18.0')
+WHATSAPP_API_BASE_URL = f'https://graph.instagram.com/{WHATSAPP_API_VERSION}'
 
 # Allow cookies/credentials if your API uses session authentication
 CORS_ALLOW_CREDENTIALS = True

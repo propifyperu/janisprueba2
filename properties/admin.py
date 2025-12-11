@@ -10,7 +10,9 @@ from .models import (
     Profession, Tag,
     # Propiedades
     Property, PropertyOwner, PropertyImage, PropertyVideo, PropertyDocument,
-    PropertyFinancialInfo, PropertyRoom, ImageType, VideoType
+    PropertyFinancialInfo, PropertyRoom, ImageType, VideoType,
+    # WhatsApp
+    PropertyWhatsAppLink, LeadStatus, Lead, WhatsAppConversation, SocialNetwork, WhatsAppNumber
 )
 
 
@@ -337,3 +339,112 @@ class PropertyRoomAdmin(admin.ModelAdmin):
     list_filter = ('room_type', 'level', 'floor_type')
     search_fields = ('property__code', 'name', 'description')
     ordering = ('property', 'level', 'order')
+
+
+# ===================== ADMIN PARA WHATSAPP =====================
+@admin.register(PropertyWhatsAppLink)
+class PropertyWhatsAppLinkAdmin(admin.ModelAdmin):
+    list_display = ('property', 'link_name', 'social_network', 'unique_identifier', 'is_active', 'created_at')
+    list_filter = ('social_network', 'is_active', 'created_at')
+    search_fields = ('property__code', 'link_name', 'unique_identifier')
+    readonly_fields = ('unique_identifier', 'created_at', 'updated_at')
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('property', 'link_name', 'social_network', 'whatsapp_phone_id', 'is_active')
+        }),
+        ('Tracking UTM', {
+            'fields': ('utm_source', 'utm_medium', 'utm_campaign', 'utm_content'),
+            'classes': ('collapse',)
+        }),
+        ('Identificador', {
+            'fields': ('unique_identifier',),
+        }),
+        ('Auditoría', {
+            'fields': ('created_by', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    ordering = ('-created_at',)
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(LeadStatus)
+class LeadStatusAdmin(admin.ModelAdmin):
+    list_display = ('name', 'property', 'color', 'order', 'is_active', 'created_at')
+    list_filter = ('is_active', 'property', 'created_at')
+    search_fields = ('name', 'property__code')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Información', {
+            'fields': ('property', 'name', 'color', 'order', 'is_active')
+        }),
+        ('Auditoría', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    ordering = ('property', 'order')
+
+
+@admin.register(Lead)
+class LeadAdmin(admin.ModelAdmin):
+    list_display = ('phone_number', 'property', 'social_network', 'status', 'assigned_to', 'first_message_at')
+    list_filter = ('status', 'social_network', 'first_message_at', 'property')
+    search_fields = ('phone_number', 'name', 'email', 'property__code')
+    readonly_fields = ('first_message_at', 'created_at', 'updated_at')
+    fieldsets = (
+        ('Información del Lead', {
+            'fields': ('phone_number', 'name', 'email', 'property', 'whatsapp_link', 'social_network')
+        }),
+        ('Estado', {
+            'fields': ('status', 'assigned_to', 'notes')
+        }),
+        ('Fechas', {
+            'fields': ('first_message_at', 'last_message_at', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    ordering = ('-created_at',)
+
+
+@admin.register(WhatsAppConversation)
+class WhatsAppConversationAdmin(admin.ModelAdmin):
+    list_display = ('lead', 'message_type', 'created_at', 'sent_by_user')
+    list_filter = ('message_type', 'created_at', 'media_type')
+    search_fields = ('lead__phone_number', 'message_body', 'property__code')
+    readonly_fields = ('message_id', 'created_at')
+    fieldsets = (
+        ('Información del Mensaje', {
+            'fields': ('lead', 'property', 'message_type', 'sender_name', 'sent_by_user')
+        }),
+        ('Contenido', {
+            'fields': ('message_body', 'media_url', 'media_type')
+        }),
+        ('Auditoría', {
+            'fields': ('message_id', 'created_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    ordering = ('-created_at',)
+
+
+@admin.register(SocialNetwork)
+class SocialNetworkAdmin(admin.ModelAdmin):
+    list_display = ('name', 'icon', 'is_active', 'created_at')
+    search_fields = ('name',)
+    list_filter = ('is_active',)
+    ordering = ('name',)
+
+
+
+# Nuevo admin para WhatsAppNumber
+@admin.register(WhatsAppNumber)
+class WhatsAppNumberAdmin(admin.ModelAdmin):
+    list_display = ("display_name", "number", "is_active", "created_at")
+    search_fields = ("display_name", "number")
+    list_filter = ("is_active",)
+    ordering = ("display_name",)

@@ -719,7 +719,7 @@ def create_property_view(request):
                     try:
                         PropertyChange.objects.create(
                             property=property_obj,
-                            field='image',
+                            field_name='image',
                             old_value=None,
                             new_value=f"Imagen subida: {img.caption or img.image.name}",
                             changed_by=request.user
@@ -768,7 +768,7 @@ def create_property_view(request):
             documents_files = request.FILES.getlist('documents')
             document_types = request.POST.getlist('document_types')
             document_titles = request.POST.getlist('document_titles')
-            document_descriptions = request.POST.getlist('document_descriptions')
+            document_descriptions = request.POST.getlist('document_descripciones')
             
             for idx, document_file in enumerate(documents_files):
                 if document_file:
@@ -779,7 +779,7 @@ def create_property_view(request):
                         doc_type = None
                     
                     title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
-                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
+                    description = document_descriptions[idx] if idx < len(document_descripciones) else ''
                     
                     doc = PropertyDocument.objects.create(
                         property=property_obj,
@@ -852,7 +852,7 @@ def create_property_view(request):
                         order = idx
                     
                     name = room_names[idx] if idx < len(room_names) else ''
-                    description = room_descriptions[idx] if idx < len(room_descriptions) else ''
+                    description = room_descriptions[idx] if idx < len(room_descripciones) else ''
                     
                     PropertyRoom.objects.create(
                         property=property_obj,
@@ -1035,7 +1035,7 @@ def edit_property_view(request, pk):
                     try:
                         PropertyChange.objects.create(
                             property=property_obj,
-                            field='image',
+                            field_name='image',
                             old_value=None,
                             new_value=f"Imagen subida: {img.caption or img.image.name}",
                             changed_by=request.user
@@ -1047,7 +1047,7 @@ def edit_property_view(request, pk):
             videos_files = request.FILES.getlist('videos')
             video_types = request.POST.getlist('video_types')
             video_titles = request.POST.getlist('video_titles')
-            video_descriptions = request.POST.getlist('video_descriptions')
+            video_descriptions = request.POST.getlist('video_descripciones')
             for idx, video_file in enumerate(videos_files):
                 if video_file:
                     try:
@@ -1055,8 +1055,9 @@ def edit_property_view(request, pk):
                         video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
                     except (VideoType.DoesNotExist, ValueError):
                         video_type = None
+                    
                     title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
-                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
+                    description = video_descriptions[idx] if idx < len(video_descripciones) else ''
                     vid = PropertyVideo.objects.create(
                         property=property_obj,
                         video=video_file,
@@ -1080,7 +1081,7 @@ def edit_property_view(request, pk):
             documents_files = request.FILES.getlist('documents')
             document_types = request.POST.getlist('document_types')
             document_titles = request.POST.getlist('document_titles')
-            document_descriptions = request.POST.getlist('document_descriptions')
+            document_descriptions = request.POST.getlist('document_descripciones')
             for idx, document_file in enumerate(documents_files):
                 if document_file:
                     try:
@@ -1088,8 +1089,9 @@ def edit_property_view(request, pk):
                         doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
                     except (DocumentType.DoesNotExist, ValueError):
                         doc_type = None
+                    
                     title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
-                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
+                    description = document_descriptions[idx] if idx < len(document_descripciones) else ''
                     doc = PropertyDocument.objects.create(
                         property=property_obj,
                         file=document_file,
@@ -1236,3 +1238,290 @@ from .models import VideoType
 def api_video_types(request):
     tipos = VideoType.objects.filter(is_active=True).values('id', 'name')
     return JsonResponse(list(tipos), safe=False)
+
+
+# ============================================================================
+# VISTAS PARA INTEGRACIÓN CON WHATSAPP
+# ============================================================================
+
+@login_required
+def marketing_properties_list(request):
+    """Lista propiedades para gestión de Marketing/UTMs"""
+    properties = Property.objects.filter(is_active=True).select_related(
+        'currency'
+    ).prefetch_related('whatsapp_links').order_by('-created_at')
+    
+    return render(request, 'properties/marketing_properties_list.html', {
+        'properties': properties
+    })
+
+
+@login_required
+def whatsapp_links_list(request, property_id):
+    """Lista los enlaces de WhatsApp para una propiedad"""
+    from django.views.generic.detail import SingleObjectMixin
+    
+    property_obj = get_object_or_404(Property, id=property_id)
+    links = property_obj.whatsapp_links.all()
+    
+    return render(request, 'properties/whatsapp_links_list.html', {
+        'property': property_obj,
+        'links': links,
+    })
+
+
+@login_required
+def whatsapp_link_create(request, property_id):
+    """Crea un nuevo enlace de WhatsApp para una propiedad"""
+    import secrets
+    import string
+    
+    property_obj = get_object_or_404(Property, id=property_id)
+    
+    if request.method == 'POST':
+        from .models import PropertyWhatsAppLink
+        
+        # Generar identificador único si no existe
+        from .models import SocialNetwork
+        social_network_id = request.POST.get('social_network')
+        social_network = SocialNetwork.objects.get(pk=social_network_id)
+        link_name = request.POST.get('link_name')
+        whatsapp_number_value = request.POST.get('whatsapp_phone_id')
+        from .models import WhatsAppNumber
+        # Buscar o crear el número de WhatsApp
+        whatsapp_number, _ = WhatsAppNumber.objects.get_or_create(number=whatsapp_number_value, defaults={
+            'display_name': whatsapp_number_value,
+            'is_active': True
+        })
+
+        # Generar ID único
+        while True:
+            unique_id = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+            if not PropertyWhatsAppLink.objects.filter(unique_identifier=unique_id).exists():
+                break
+
+        link = PropertyWhatsAppLink.objects.create(
+            property=property_obj,
+            social_network=social_network,
+            link_name=link_name,
+            whatsapp_number=whatsapp_number,
+            unique_identifier=unique_id,
+            utm_source=social_network.name if hasattr(social_network, 'name') else '',
+            utm_campaign=link_name,
+            created_by=request.user
+        )
+        
+        return redirect('properties:whatsapp_links', property_id=property_id)
+    
+    from .models import SocialNetwork
+    social_networks = SocialNetwork.objects.filter(is_active=True)
+    
+    return render(request, 'properties/whatsapp_link_form.html', {
+        'property': property_obj,
+        'social_networks': social_networks,
+    })
+
+
+@login_required
+def whatsapp_link_delete(request, link_id):
+    """Elimina un enlace de WhatsApp"""
+    from .models import PropertyWhatsAppLink
+    
+    link = get_object_or_404(PropertyWhatsAppLink, id=link_id)
+    property_id = link.property.id
+    
+    if request.method == 'POST':
+        link.delete()
+        return redirect('properties:whatsapp_links', property_id=property_id)
+    
+    return render(request, 'properties/whatsapp_link_confirm_delete.html', {
+        'link': link,
+    })
+
+
+@login_required
+def leads_list(request, property_id=None):
+    """Lista los leads de WhatsApp"""
+    from .models import Lead, LeadStatus
+    
+    leads = Lead.objects.select_related('property', 'whatsapp_link', 'assigned_to', 'status')
+    
+    if property_id:
+        leads = leads.filter(property_id=property_id)
+    
+    # Filtros
+    status = request.GET.get('status')
+    if status:
+        leads = leads.filter(status_id=status)
+    
+    social_network = request.GET.get('social_network')
+    if social_network:
+        leads = leads.filter(social_network=social_network)
+    
+    # Obtener estados para el filtro (de todas las propiedades o de la propiedad específica)
+    if property_id:
+        status_choices = LeadStatus.objects.filter(property_id=property_id, is_active=True).order_by('order')
+    else:
+        status_choices = LeadStatus.objects.filter(is_active=True).order_by('property', 'order').distinct('property')
+    
+    return render(request, 'properties/leads_list.html', {
+        'leads': leads,
+        'status_choices': status_choices,
+    })
+
+
+@login_required
+def lead_detail(request, lead_id):
+    """Detalle de un lead con conversaciones"""
+    from .models import Lead, WhatsAppConversation
+    
+    lead = get_object_or_404(Lead, id=lead_id)
+    conversations = WhatsAppConversation.objects.filter(lead=lead).order_by('created_at')
+    
+    if request.method == 'POST':
+        # Actualizar estado o asignar
+        from .models import LeadStatus
+        status_id = request.POST.get('status')
+        assigned_to = request.POST.get('assigned_to')
+        
+        if status_id:
+            try:
+                lead.status = LeadStatus.objects.get(id=status_id, property=lead.property)
+            except LeadStatus.DoesNotExist:
+                pass
+        
+        if assigned_to:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            lead.assigned_to = User.objects.get(id=assigned_to) if assigned_to else None
+        
+        lead.save()
+        return redirect('properties:lead_detail', lead_id=lead_id)
+    
+    # Obtener los estados personalizados de la propiedad
+    status_choices = lead.property.lead_statuses.filter(is_active=True).order_by('order')
+    
+    return render(request, 'properties/lead_detail.html', {
+        'lead': lead,
+        'conversations': conversations,
+        'status_choices': status_choices,
+    })
+
+
+@login_required
+def crm_dashboard(request):
+    """Dashboard CRM con estadísticas de leads y propiedades"""
+    from .models import Lead, Property, PropertyWhatsAppLink
+    from django.db.models import Count, Q
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    # Estadísticas generales
+    total_properties = Property.objects.filter(is_active=True).count()
+    total_links = PropertyWhatsAppLink.objects.filter(is_active=True).count()
+    total_leads = Lead.objects.count()
+    
+    # Leads recientes (últimas 24 horas)
+    last_24h = timezone.now() - timedelta(hours=24)
+    recent_leads = Lead.objects.filter(first_message_at__gte=last_24h).count()
+    
+    # Leads por estado
+    leads_by_status = Lead.objects.values('status').annotate(count=Count('id'))
+    
+    # Leads por red social
+    leads_by_social = Lead.objects.values('social_network').annotate(count=Count('id'))
+    
+    # Leads sin asignar
+    unassigned_leads = Lead.objects.filter(assigned_to__isnull=True)
+    
+    # Propiedades más activas (con más leads)
+    top_properties = Property.objects.filter(whatsapp_leads__isnull=False).annotate(
+        lead_count=Count('whatsapp_leads')
+    ).order_by('-lead_count')[:5]
+    
+    # Últimos leads
+    latest_leads = Lead.objects.select_related('property', 'assigned_to').order_by('-created_at')[:10]
+    
+    context = {
+        'total_properties': total_properties,
+        'total_links': total_links,
+        'total_leads': total_leads,
+        'recent_leads': recent_leads,
+        'leads_by_status': leads_by_status,
+        'leads_by_social': leads_by_social,
+        'unassigned_leads': unassigned_leads,
+        'unassigned_count': unassigned_leads.count(),
+        'top_properties': top_properties,
+        'latest_leads': latest_leads,
+    }
+    
+    return render(request, 'properties/crm_dashboard.html', context)
+
+
+@login_required
+def crm_dashboard(request):
+    """Dashboard principal del CRM"""
+    from .models import Lead
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    # Stats generales
+    total_leads = Lead.objects.count()
+    
+    # Leads nuevos hoy
+    today = timezone.now().date()
+    new_today = Lead.objects.filter(created_at__date=today).count()
+    
+    # Leads en negociación
+    negotiating_count = Lead.objects.filter(status='negotiating').count()
+    
+    # Leads sin asignar
+    unassigned_count = Lead.objects.filter(assigned_to__isnull=True).count()
+    
+    # Leads recientes (últimos 10)
+    recent_leads = Lead.objects.select_related(
+        'property', 'assigned_to'
+    ).order_by('-first_message_at')[:10]
+    
+    # Datos para gráficos
+    from collections import Counter
+    
+    # Por red social
+    social_networks = Lead.objects.values_list('social_network', flat=True)
+    social_counter = Counter(social_networks)
+    social_network_labels = [
+        dict(Lead.SOCIAL_NETWORKS).get(key, key) 
+        for key in social_counter.keys()
+    ]
+    social_network_data = list(social_counter.values())
+    
+    # Por estado
+    statuses = Lead.objects.values_list('status', flat=True)
+    status_counter = Counter(statuses)
+    status_labels = [
+        dict(Lead.STATUS_CHOICES).get(key, key) 
+        for key in status_counter.keys()
+    ]
+    status_data = list(status_counter.values())
+    
+    import json
+    context = {
+        'total_leads': total_leads,
+        'new_today': new_today,
+        'negotiating_count': negotiating_count,
+        'unassigned_count': unassigned_count,
+        'recent_leads': recent_leads,
+        'social_network_labels': json.dumps(social_network_labels),
+        'social_network_data': json.dumps(social_network_data),
+        'status_labels': json.dumps(status_labels),
+        'status_data': json.dumps(status_data),
+    }
+    
+    return render(request, 'properties/crm_dashboard.html', context)
+
+@login_required
+def marketing_whatsapp_links_list(request):
+    """Vista global para gestionar todos los enlaces UTM (PropertyWhatsAppLink)"""
+    from .models import PropertyWhatsAppLink
+    links = PropertyWhatsAppLink.objects.select_related('property').order_by('-created_at', 'property__code', 'social_network')
+    return render(request, 'properties/marketing_whatsapp_links_list.html', {'links': links})

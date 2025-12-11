@@ -31,6 +31,7 @@ urlpatterns = [
     path('dashboard/', include(('properties.urls', 'properties'), namespace='properties')),
     path('', RedirectView.as_view(url='/users/login/', permanent=False)),
     path('security/', include(('security.urls', 'security'), namespace='security')),
+    path('whatsapp/', include(('whatsapp.urls', 'whatsapp'), namespace='whatsapp')),
     # JWT token endpoints for mobile clients
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

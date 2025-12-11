@@ -1,0 +1,72 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Gestión de Enlaces UTM{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">Gestión de Enlaces UTM</h1>
+            <p class="text-muted">Crea, edita y elimina enlaces UTM por propiedad y red social. Consulta estadísticas y análisis de cada enlace.</p>
+        </div>
+        <div>
+            <a href="{% url 'properties:whatsapp_link_create_global' %}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Nuevo Enlace UTM
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Enlaces UTM</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Propiedad</th>
+                            <th>Red Social</th>
+                            <th>Nombre del Enlace</th>
+                            <th>ID Tracking</th>
+                            <th>UTM Source</th>
+                            <th>UTM Campaign</th>
+                            <th>Activo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for link in links %}
+                        <tr>
+                            <td>{{ link.property.code }} - {{ link.property.title }}</td>
+                            <td>{{ link.get_social_network_display }}</td>
+                            <td>{{ link.link_name }}</td>
+                            <td><span class="badge bg-secondary">{{ link.unique_identifier }}</span></td>
+                            <td>{{ link.utm_source }}</td>
+                            <td>{{ link.utm_campaign }}</td>
+                            <td>
+                                {% if link.is_active %}
+                                    <span class="badge bg-success">Sí</span>
+                                {% else %}
+                                    <span class="badge bg-danger">No</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'properties:whatsapp_link_edit' link.id %}" class="btn btn-sm btn-primary"><i class="fas fa-edit"></i></a>
+                                <a href="{% url 'properties:whatsapp_link_delete' link.id %}" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></a>
+                                <a href="{% url 'properties:whatsapp_link_stats' link.id %}" class="btn btn-sm btn-info"><i class="fas fa-chart-bar"></i> Estadísticas</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4">No hay enlaces UTM creados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

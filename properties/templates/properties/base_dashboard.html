@@ -312,9 +312,11 @@
             {% url 'properties:drafts' as properties_drafts_url %}
             {% url 'properties:contact_list' as contacts_list_url %}
             {% url 'properties:contact_create' as contacts_create_url %}
+            {% url 'properties:leads_list' as leads_list_url %}
             {% url 'users:profile' as profile_url %}
             {% if request.user.is_superuser %}
             {% url 'security:device_list' as security_device_list_url %}
+            {% url 'security:role_field_permissions' as role_permissions_url %}
             {% endif %}
             <div class="nav-group">
                 <button class="nav-group-toggle{% if request.path == properties_list_url or request.path == properties_create_url %} expanded{% endif %}" type="button" data-target="propertiesSubmenu" aria-controls="propertiesSubmenu" aria-expanded="{% if request.path == properties_list_url or request.path == properties_create_url %}true{% else %}false{% endif %}">
@@ -340,16 +342,40 @@
                 </div>
             </div>
 
+            <div class="nav-group">
+                <button class="nav-group-toggle{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} expanded{% endif %}" type="button" data-target="crmSubmenu" aria-controls="crmSubmenu" aria-expanded="{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-whatsapp"></i>
+                    <span>CRM WhatsApp</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} show{% endif %}" id="crmSubmenu">
+                    <a class="nav-link {% if 'crm' in request.path %}active{% endif %}" href="{% url 'properties:crm_dashboard' %}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
+                    <a class="nav-link {% if 'leads' in request.path and 'whatsapp' not in request.path %}active{% endif %}" href="{{ leads_list_url }}"><i class="fas fa-user-tie me-2"></i>Mis Leads</a>
+                </div>
+            </div>
+
+            <div class="nav-group">
+                <button class="nav-group-toggle{% if 'marketing' in request.path %} expanded{% endif %}" type="button" data-target="marketingSubmenu" aria-controls="marketingSubmenu" aria-expanded="{% if 'marketing' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-bullhorn"></i>
+                    <span>Marketing</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'marketing' in request.path %} show{% endif %}" id="marketingSubmenu">
+                    <a class="nav-link {% if 'marketing' in request.path %}active{% endif %}" href="{% url 'properties:marketing_properties_list' %}"><i class="fas fa-link me-2"></i>Gestión de UTMs</a>
+                </div>
+            </div>
+
             <a class="nav-link {% if request.path == profile_url %}active{% endif %}" href="{{ profile_url }}"><i class="fas fa-user-circle me-2"></i>Mi Perfil</a>
             {% if request.user.is_superuser %}
             <div class="nav-group">
-                <button class="nav-group-toggle{% if request.path == security_device_list_url %} expanded{% endif %}" type="button" data-target="configSubmenu" aria-controls="configSubmenu" aria-expanded="{% if request.path == security_device_list_url %}true{% else %}false{% endif %}">
+                <button class="nav-group-toggle{% if request.path == security_device_list_url or request.path == role_permissions_url %} expanded{% endif %}" type="button" data-target="configSubmenu" aria-controls="configSubmenu" aria-expanded="{% if request.path == security_device_list_url or request.path == role_permissions_url %}true{% else %}false{% endif %}">
                     <i class="fas fa-cog"></i>
                     <span>Configuración</span>
                     <i class="fas fa-chevron-up toggle-icon"></i>
                 </button>
-                <div class="nav-submenu{% if request.path == security_device_list_url %} show{% endif %}" id="configSubmenu">
+                <div class="nav-submenu{% if request.path == security_device_list_url or request.path == role_permissions_url %} show{% endif %}" id="configSubmenu">
                     <a class="nav-link {% if request.path == security_device_list_url %}active{% endif %}" href="{{ security_device_list_url }}"><i class="fas fa-shield-alt me-2"></i>Aprobar dispositivos</a>
+                    <a class="nav-link {% if request.path == role_permissions_url %}active{% endif %}" href="{{ role_permissions_url }}"><i class="fas fa-lock me-2"></i>Permisos de campos</a>
                 </div>
             </div>
             {% endif %}

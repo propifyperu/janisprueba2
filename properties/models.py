@@ -701,3 +701,174 @@ class PropertyChange(models.Model):
         return f"{self.property.code} | {self.field_name} @ {self.changed_at.strftime('%Y-%m-%d %H:%M')} by {actor}"
 
 
+# =============================================================================
+# MODELOS PARA INTEGRACIÓN CON WHATSAPP BUSINESS
+# =============================================================================
+
+
+# Nuevo modelo para números de WhatsApp
+class WhatsAppNumber(models.Model):
+    """Catálogo de números de WhatsApp para enlaces UTM (nuevo, seguro)"""
+    number = models.CharField(max_length=50, unique=True, help_text="Número de WhatsApp (solo dígitos)")
+    display_name = models.CharField(max_length=100, help_text="Nombre o alias para mostrar")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'whatsapp_numbers'
+        verbose_name = "Número WhatsApp"
+        verbose_name_plural = "Números WhatsApp"
+        ordering = ['display_name']
+
+    def __str__(self):
+        return f"{self.display_name} ({self.number})"
+
+
+class SocialNetwork(models.Model):
+    """Catálogo de redes sociales para enlaces UTM/WhatsApp"""
+    name = models.CharField(max_length=50, unique=True)
+    icon = models.CharField(max_length=50, blank=True, help_text="Clase de ícono FontAwesome opcional")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'social_networks'
+        verbose_name = "Red Social"
+        verbose_name_plural = "Redes Sociales"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+
+class PropertyWhatsAppLink(models.Model):
+    """Enlace único de WhatsApp por propiedad y red social (usando WhatsAppNumber)"""
+    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='whatsapp_links')
+    social_network = models.ForeignKey('SocialNetwork', on_delete=models.PROTECT, related_name='whatsapp_links')
+    whatsapp_number = models.ForeignKey('WhatsAppNumber', on_delete=models.PROTECT, related_name='whatsapp_links')
+    link_name = models.CharField(max_length=100, help_text="Nombre del enlace (ej: 'Facebook Ads - Villa Marina')")
+    unique_identifier = models.CharField(max_length=50, unique=True, db_index=True, help_text="Identificador único para tracking")
+    utm_source = models.CharField(max_length=100, blank=True, null=True)
+    utm_medium = models.CharField(max_length=100, default='whatsapp')
+    utm_campaign = models.CharField(max_length=100, blank=True, null=True)
+    utm_content = models.CharField(max_length=100, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(get_user_model(), null=True, blank=True, on_delete=models.SET_NULL, related_name='whatsapp_links_created')
+
+    class Meta:
+        db_table = 'property_whatsapp_links'
+        ordering = ['-created_at']
+        unique_together = [['property', 'social_network', 'whatsapp_number']]
+        verbose_name = "Enlace WhatsApp de Propiedad"
+        verbose_name_plural = "Enlaces WhatsApp de Propiedades"
+
+    def __str__(self):
+        return f"{self.property.code} - {self.link_name} ({self.social_network})"
+
+    def get_whatsapp_url(self):
+        """Genera URL de WhatsApp con parámetros UTM"""
+        params = []
+        if self.utm_source:
+            params.append(f"utm_source={self.utm_source}")
+        params.append(f"utm_medium={self.utm_medium}")
+        if self.utm_campaign:
+            params.append(f"utm_campaign={self.utm_campaign}")
+        if self.utm_content:
+            params.append(f"utm_content={self.utm_content}")
+        params.append(f"tracking_id={self.unique_identifier}")
+        query_string = "&".join(params) if params else ""
+        return f"https://wa.me/{self.whatsapp_number.number}/?text={query_string}"
+
+
+class LeadStatus(models.Model):
+    """Estados personalizados para leads de WhatsApp"""
+    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='lead_statuses')
+    name = models.CharField(max_length=100, help_text="Nombre del estado (ej: En Espera, Interesado, etc.)")
+    color = models.CharField(max_length=7, default='#007bff', help_text="Color en formato hex (ej: #007bff para azul)")
+    order = models.PositiveIntegerField(default=0, help_text="Orden de aparición en los filtros")
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'lead_statuses'
+        ordering = ['order', 'name']
+        unique_together = [['property', 'name']]
+        verbose_name = "Estado de Lead"
+        verbose_name_plural = "Estados de Lead"
+    
+    def __str__(self):
+        return f"{self.property.code} - {self.name}"
+
+
+class Lead(models.Model):
+    """Lead generado desde WhatsApp"""
+    
+    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='whatsapp_leads')
+    whatsapp_link = models.ForeignKey(PropertyWhatsAppLink, on_delete=models.SET_NULL, null=True, blank=True, related_name='leads')
+    
+    phone_number = models.CharField(max_length=20, db_index=True)
+    name = models.CharField(max_length=255, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    social_network = models.ForeignKey('SocialNetwork', on_delete=models.PROTECT, related_name='leads')
+    
+    status = models.ForeignKey(LeadStatus, on_delete=models.SET_NULL, null=True, blank=True, related_name='leads')
+    notes = models.TextField(blank=True, null=True)
+    
+    first_message_at = models.DateTimeField(auto_now_add=True)
+    last_message_at = models.DateTimeField(null=True, blank=True)
+    assigned_to = models.ForeignKey(get_user_model(), null=True, blank=True, on_delete=models.SET_NULL, related_name='assigned_leads')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'whatsapp_leads'
+        ordering = ['-created_at']
+        unique_together = [['property', 'phone_number']]
+        verbose_name = "Lead de WhatsApp"
+        verbose_name_plural = "Leads de WhatsApp"
+    
+    def __str__(self):
+        return f"{self.phone_number} - {self.property.code} ({self.social_network})"
+
+
+class WhatsAppConversation(models.Model):
+    """Conversación de WhatsApp entre usuario y telefonista"""
+    MESSAGE_TYPE_CHOICES = (
+        ('incoming', 'Entrante'),
+        ('outgoing', 'Saliente'),
+    )
+    
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='messages')
+    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='whatsapp_conversations')
+    
+    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES)
+    sender_name = models.CharField(max_length=255, blank=True, null=True)
+    message_body = models.TextField()
+    message_id = models.CharField(max_length=100, unique=True, db_index=True, null=True, blank=True)
+    
+    sent_by_user = models.ForeignKey(get_user_model(), null=True, blank=True, on_delete=models.SET_NULL, related_name='sent_messages')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Para mensajes con multimedia
+    media_url = models.URLField(blank=True, null=True)
+    media_type = models.CharField(max_length=20, blank=True, null=True, help_text="image, video, document, audio")
+    
+    class Meta:
+        db_table = 'whatsapp_conversations'
+        ordering = ['created_at']
+        verbose_name = "Conversación de WhatsApp"
+        verbose_name_plural = "Conversaciones de WhatsApp"
+    
+    def __str__(self):
+        return f"{self.lead.phone_number} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+

@@ -1,0 +1,458 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Permisos de Campos por Rol - Janis Platform{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .permissions-page {
+        --primary-color: #047D7D;
+        --secondary-color: #279896;
+    }
+
+    .permissions-container {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 2rem;
+        min-height: 600px;
+    }
+
+    .permissions-header {
+        background: linear-gradient(135deg, rgba(4, 125, 125, 0.1) 0%, rgba(39, 152, 150, 0.15) 100%);
+        border-radius: 0.75rem;
+        border: 1px solid rgba(4, 125, 125, 0.2);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        grid-column: 1 / -1;
+    }
+
+    .permissions-header h1 {
+        color: var(--primary-color);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .permissions-header p {
+        color: #666;
+        margin: 0;
+    }
+
+    /* SIDEBAR DE ROLES */
+    .roles-list {
+        background: #fff;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        height: fit-content;
+    }
+
+    .roles-list-header {
+        background: var(--primary-color);
+        color: white;
+        padding: 1rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .roles-list-items {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .role-list-item {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(4, 125, 125, 0.1);
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .role-list-item:hover {
+        background: rgba(4, 125, 125, 0.05);
+    }
+
+    .role-list-item.active {
+        background: linear-gradient(90deg, rgba(4, 125, 125, 0.2) 0%, transparent 100%);
+        border-left: 4px solid var(--secondary-color);
+        padding-left: calc(1rem - 4px);
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .role-list-item:last-child {
+        border-bottom: none;
+    }
+
+    .role-icon {
+        font-size: 1.2rem;
+    }
+
+    /* PANEL DE CAMPOS */
+    .fields-panel {
+        background: #fff;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .fields-panel-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        padding: 1.5rem;
+        border-bottom: 3px solid rgba(4, 125, 125, 0.3);
+    }
+
+    .fields-panel-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .fields-panel-body {
+        padding: 1.5rem;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .fields-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .fields-table thead {
+        background: rgba(4, 125, 125, 0.05);
+        border-bottom: 2px solid rgba(4, 125, 125, 0.15);
+    }
+
+    .fields-table th {
+        padding: 0.75rem;
+        text-align: center;
+        font-weight: 600;
+        color: var(--primary-color);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .fields-table th:first-child {
+        text-align: left;
+        width: 50%;
+    }
+
+    .fields-table th:nth-child(2),
+    .fields-table th:nth-child(3) {
+        width: 25%;
+    }
+
+    .fields-table tbody tr {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        transition: background-color 0.2s;
+    }
+
+    .fields-table tbody tr:hover {
+        background-color: rgba(4, 125, 125, 0.02);
+    }
+
+    .fields-table tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    .fields-table td {
+        padding: 0.75rem;
+        vertical-align: middle;
+    }
+
+    .field-name {
+        font-weight: 500;
+        color: #333;
+        min-width: 200px;
+    }
+
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
+    /* Estilo para checkboxes customizados */
+    .custom-checkbox {
+        display: inline-flex;
+        position: relative;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .custom-checkbox input {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .checkmark {
+        display: inline-block;
+        position: relative;
+        height: 1.25rem;
+        width: 1.25rem;
+        background-color: #ffffff;
+        border: 2px solid #999999;
+        border-radius: 0.25rem;
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+    }
+
+    .custom-checkbox input:checked ~ .checkmark {
+        background-color: #047D7D;
+        border-color: #047D7D;
+        box-shadow: 0 0 8px rgba(4, 125, 125, 0.3);
+    }
+
+    .checkmark:after {
+        content: "";
+        position: absolute;
+        display: none;
+        left: 0.33rem;
+        top: 0.1rem;
+        width: 0.3rem;
+        height: 0.6rem;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+
+    .custom-checkbox input:checked ~ .checkmark:after {
+        display: block;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #999;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-state p {
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    /* RESPONSIVO */
+    @media (max-width: 1024px) {
+        .permissions-container {
+            grid-template-columns: 1fr;
+        }
+
+        .roles-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            height: auto;
+        }
+
+        .roles-list-items {
+            max-height: none;
+        }
+
+        .role-list-item {
+            border-bottom: none;
+            border-right: 1px solid rgba(4, 125, 125, 0.1);
+            flex-direction: column;
+            text-align: center;
+            gap: 0.5rem;
+        }
+
+        .role-list-item.active {
+            border-left: none;
+            border-bottom: 4px solid var(--secondary-color);
+            padding-left: 1rem;
+        }
+
+        .fields-panel-body {
+            max-height: none;
+        }
+    }
+
+    .saving-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        color: green;
+        font-size: 0.9rem;
+    }
+
+    .saving-indicator.show {
+        opacity: 1;
+    }
+
+    .role-item-wrapper {
+        position: relative;
+    }
+</style>
+
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="permissions-header">
+        <h1>
+            <i class="fas fa-lock me-2"></i>Permisos de Campos por Rol
+        </h1>
+        <p>Controla qué campos pueden ver y editar los usuarios según su rol</p>
+    </div>
+
+    <div class="permissions-container">
+        <!-- SIDEBAR: Lista de Roles -->
+        <div class="roles-list">
+            <div class="roles-list-header">
+                <i class="fas fa-users me-2"></i>Roles
+            </div>
+            <div class="roles-list-items" id="rolesList">
+                {% for role_data in roles_data %}
+                    <div class="role-list-item" data-role-id="{{ role_data.role.id }}" onclick="selectRole(this, {{ role_data.role.id }}, '{{ role_data.role.name }}')">
+                        <span class="role-icon">
+                            {% if role_data.role.code_name == 'admin' %}
+                                <i class="fas fa-shield-alt"></i>
+                            {% elif role_data.role.code_name == 'agent' %}
+                                <i class="fas fa-briefcase"></i>
+                            {% else %}
+                                <i class="fas fa-user"></i>
+                            {% endif %}
+                        </span>
+                        <span>{{ role_data.role.name }}</span>
+                    </div>
+                {% empty %}
+                    <div style="padding: 2rem; text-align: center; color: #999;">
+                        No hay roles disponibles
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- PANEL: Detalles de Campos -->
+        <div class="fields-panel">
+            <div class="fields-panel-header">
+                <h2 id="fieldsPanelTitle">
+                    <i class="fas fa-cog me-2"></i>Selecciona un rol para ver sus permisos
+                </h2>
+            </div>
+            <div class="fields-panel-body" id="fieldsPanelBody">
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-arrow-left"></i>
+                    </div>
+                    <p>Haz clic en un rol para administrar sus permisos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function selectRole(element, roleId, roleName) {
+        // Marcar como activo
+        document.querySelectorAll('.role-list-item').forEach(el => {
+            el.classList.remove('active');
+        });
+        element.classList.add('active');
+
+        // Cargar campos para este rol
+        loadRoleFields(roleId, roleName);
+    }
+
+    function loadRoleFields(roleId, roleName) {
+        const panelHeader = document.getElementById('fieldsPanelTitle');
+        const panelBody = document.getElementById('fieldsPanelBody');
+
+        // Actualizar título
+        panelHeader.innerHTML = `<i class="fas fa-cog me-2"></i>${roleName}`;
+
+        // Renderizar tabla de campos
+        const rolesData = {{ roles_data_json|safe }};
+        const roleData = rolesData.find(r => r.role.id === roleId);
+
+        if (!roleData) {
+            panelBody.innerHTML = '<div class="empty-state"><p>Rol no encontrado</p></div>';
+            return;
+        }
+
+        let html = `
+            <table class="fields-table">
+                <thead>
+                    <tr>
+                        <th>Campo</th>
+                        <th style="text-align: center;">Ver</th>
+                        <th style="text-align: center;">Editar</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        roleData.fields.forEach(field => {
+            html += `
+                <tr>
+                    <td class="field-name">${field.display_name}</td>
+                    <td class="checkbox-wrapper"><label class="custom-checkbox"><input type="checkbox" class="can-view-field" data-role-id="${roleId}" data-field-name="${field.field_name}" ${field.can_view ? 'checked' : ''} onchange="savePermission(${roleId}, '${field.field_name}', 'can_view', this.checked)" /><span class="checkmark"></span></label></td>
+                    <td class="checkbox-wrapper"><label class="custom-checkbox"><input type="checkbox" class="can-edit-field" data-role-id="${roleId}" data-field-name="${field.field_name}" ${field.can_edit ? 'checked' : ''} onchange="savePermission(${roleId}, '${field.field_name}', 'can_edit', this.checked)" /><span class="checkmark"></span></label></td>
+                </tr>
+            `;
+        });
+
+        html += `
+                </tbody>
+            </table>
+        `;
+
+        panelBody.innerHTML = html;
+    }
+
+    async function savePermission(roleId, fieldName, permission, value) {
+        try {
+            const response = await fetch('/security/api/save-permission/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    role_id: roleId,
+                    field_name: fieldName,
+                    permission: permission,
+                    value: value
+                })
+            });
+
+            const data = await response.json();
+            if (!data.success) {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error al guardar el permiso');
+        }
+    }
+
+    // Seleccionar el primer rol automáticamente
+    document.addEventListener('DOMContentLoaded', function() {
+        const firstRole = document.querySelector('.role-list-item');
+        if (firstRole) {
+            firstRole.click();
+        }
+    });
+</script>
+{% endblock %}

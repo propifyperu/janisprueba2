@@ -7,7 +7,11 @@ from .views import (
     ContactListView, ContactCreateView, ContactDetailView, ContactEditView,
     api_property_subtypes, api_provinces, api_districts, api_urbanizations,
     api_document_types, api_image_types, api_roomtypes, api_video_types,
-    SimplePropertyListView, simple_properties_view
+    SimplePropertyListView, simple_properties_view,
+    # WhatsApp
+    whatsapp_links_list, whatsapp_link_create, whatsapp_link_delete,
+    leads_list, lead_detail, crm_dashboard,
+    marketing_properties_list
 )
 from .api import PropertyViewSet
 from rest_framework.routers import DefaultRouter
@@ -37,6 +41,15 @@ urlpatterns = [
     path('api/image-types/', api_image_types, name='api_image_types'),
     path('api/roomtypes/', api_roomtypes, name='api_roomtypes'),
     path('api/video-types/', api_video_types, name='api_video_types'),
+    # WhatsApp
+    path('whatsapp/enlaces/<int:property_id>/', whatsapp_links_list, name='whatsapp_links'),
+    path('whatsapp/enlaces/<int:property_id>/crear/', whatsapp_link_create, name='whatsapp_link_create'),
+    path('whatsapp/enlaces/<int:link_id>/borrar/', whatsapp_link_delete, name='whatsapp_link_delete'),
+    path('whatsapp/leads/', leads_list, name='leads_list'),
+    path('whatsapp/leads/<int:property_id>/', leads_list, name='leads_list_by_property'),
+    path('whatsapp/leads/detalle/<int:lead_id>/', lead_detail, name='lead_detail'),
+    path('crm/', crm_dashboard, name='crm_dashboard'),
+    path('marketing/propiedades/', marketing_properties_list, name='marketing_properties_list'),
     path('api/', include(router.urls)),
     path('', PropertyDashboardView.as_view(), name='dashboard_root'),
 ]

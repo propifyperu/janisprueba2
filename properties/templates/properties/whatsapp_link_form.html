@@ -1,0 +1,159 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Crear Enlace WhatsApp - {{ property.code }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="mb-2">
+                <i class="fas fa-whatsapp" style="color: #25D366;"></i>
+                Nuevo Enlace WhatsApp
+            </h1>
+            <p class="text-muted">{{ property.code }} - {{ property.title }}</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <label for="link_name" class="form-label">
+                                <strong>Nombre del Enlace</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="link_name" name="link_name" 
+                                   placeholder="Ej: Facebook Ads - Villa Marina" required>
+                            <small class="form-text text-muted">Nombre identificable para ti (no es visible en el enlace)</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="social_network" class="form-label">
+                                <strong>Red Social</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="social_network" name="social_network" required onchange="updateUTMSource()">
+                                <option value="">-- Selecciona una red --</option>
+                                {% for sn in social_networks %}
+                                    <option value="{{ sn.id }}">{{ sn.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">De dónde vendrá el tráfico</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="whatsapp_phone_id" class="form-label">
+                                <strong>Número de WhatsApp Business</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="whatsapp_phone_id" name="whatsapp_phone_id" 
+                                   placeholder="Ej: +51987654321 o 51987654321" required>
+                            <small class="form-text text-muted">El número telefónico donde llegarán los mensajes</small>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <h5 class="mb-3">
+                            <i class="fas fa-chart-bar"></i> Parámetros de Rastreo (Opcional)
+                        </h5>
+
+                        <div class="mb-4">
+                            <label for="utm_campaign" class="form-label">
+                                <strong>Campaña (utm_campaign)</strong>
+                            </label>
+                            <input type="text" class="form-control" id="utm_campaign" name="utm_campaign" 
+                                   placeholder="Ej: Campaña de Verano 2024">
+                            <small class="form-text text-muted">Nombre de la campaña específica</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="utm_content" class="form-label">
+                                <strong>Contenido (utm_content)</strong>
+                            </label>
+                            <input type="text" class="form-control" id="utm_content" name="utm_content" 
+                                   placeholder="Ej: Banner principal, Post, Story">
+                            <small class="form-text text-muted">Tipo de contenido donde está el enlace</small>
+                        </div>
+
+                        <div class="alert alert-info mb-4">
+                            <strong><i class="fas fa-info-circle"></i> Cómo funciona:</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>Se creará un <strong>ID único</strong> para rastrear este enlace</li>
+                                <li>Cuando alguien haga click, se guardará como un <strong>Lead</strong></li>
+                                <li>Verás de qué <strong>red social</strong> vino</li>
+                                <li>Podrás ver sus <strong>mensajes y asignarlo</strong></li>
+                            </ol>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> Crear Enlace
+                            </button>
+                            <a href="{% url 'properties:whatsapp_links' property.id %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-lightbulb"></i> Consejos
+                    </h5>
+                    <hr>
+                    <div class="mb-3">
+                        <strong class="small">📱 Número de Teléfono:</strong>
+                        <p class="small text-muted mb-0">Debe ser un número registrado en WhatsApp Business</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong class="small">🎯 Nombre del Enlace:</strong>
+                        <p class="small text-muted mb-0">Usa nombres descriptivos para identificar fácilmente de dónde vienen los leads</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong class="small">🔗 Parámetros UTM:</strong>
+                        <p class="small text-muted mb-0">Se envían automáticamente al crear el enlace. Sirven para rastrear en Google Analytics</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong class="small">📊 Rastreo:</strong>
+                        <p class="small text-muted mb-0">Cada enlace tiene un ID único que te permite saber exactamente de dónde vino cada lead</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateUTMSource() {
+    const socialNetwork = document.getElementById('social_network').value;
+    // El utm_source se llena automáticamente con la red social seleccionada
+    console.log('Red social seleccionada:', socialNetwork);
+}
+
+// Validación de formulario
+(function () {
+    'use strict';
+    window.addEventListener('load', function () {
+        var forms = document.querySelectorAll('.needs-validation');
+        Array.prototype.slice.call(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+</script>
+{% endblock %}

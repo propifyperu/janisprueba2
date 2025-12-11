@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import user_passes_test, login_required
 from django.core.paginator import Paginator
 from django.urls import reverse
+from django.http import JsonResponse
 from .models import AuthorizedDevice
 
 def verify_device(request, device_id=None):
@@ -138,3 +139,104 @@ def device_status_update(request, pk):
 	
 	logger.info(f"[DEVICE_UPDATE] Redirigiendo a device_list")
 	return redirect(reverse('security:device_list'))
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def role_field_permissions_view(request):
+	"""Vista para gestionar permisos de campos por rol (solo superuser)"""
+	from users.models import Role, RoleFieldPermission
+	from django.db.models import Q
+	import json
+	
+	roles = Role.objects.filter(is_active=True).order_by('name')
+	
+	# Obtener todos los campos disponibles
+	available_fields = dict(RoleFieldPermission.VISIBLE_FIELDS)
+	
+	# Preparar datos para el template
+	roles_data = []
+	for role in roles:
+		permissions = RoleFieldPermission.objects.filter(role=role).values(
+			'field_name', 'can_view', 'can_edit'
+		)
+		permissions_dict = {p['field_name']: p for p in permissions}
+		
+		fields_with_perms = []
+		for field_name, field_display in RoleFieldPermission.VISIBLE_FIELDS:
+			if field_name in permissions_dict:
+				perm = permissions_dict[field_name]
+			else:
+				# Si no existe permiso, crear valores por defecto
+				perm = {
+					'field_name': field_name,
+					'can_view': True,
+					'can_edit': False
+				}
+			perm['display_name'] = field_display
+			fields_with_perms.append(perm)
+		
+		roles_data.append({
+			'role': {
+				'id': role.id,
+				'name': role.name,
+				'code_name': role.code_name
+			},
+			'fields': fields_with_perms
+		})
+	
+	# Convertir roles_data a JSON para que sea fácil de usar en JavaScript
+	roles_data_json = json.dumps(roles_data)
+	
+	context = {
+		'roles_data': roles_data,
+		'roles_data_json': roles_data_json,
+		'available_fields': available_fields,
+	}
+	
+	return render(request, 'security/role_field_permissions.html', context)
+
+
+@login_required
+def save_role_field_permission(request):
+	"""API para guardar permisos de campos por rol"""
+	if not request.user.is_superuser:
+		return JsonResponse({'success': False, 'error': 'No tienes permiso'}, status=403)
+	
+	if request.method != 'POST':
+		return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=400)
+	
+	import json
+	from users.models import Role, RoleFieldPermission
+	
+	try:
+		data = json.loads(request.body)
+		role_id = data.get('role_id')
+		field_name = data.get('field_name')
+		permission_type = data.get('permission')  # 'can_view' o 'can_edit'
+		value = data.get('value', False)
+		
+		role = Role.objects.get(id=role_id)
+		
+		# Obtener o crear el permiso
+		perm, created = RoleFieldPermission.objects.get_or_create(
+			role=role,
+			field_name=field_name
+		)
+		
+		# Actualizar el permiso
+		if permission_type == 'can_view':
+			perm.can_view = value
+		elif permission_type == 'can_edit':
+			perm.can_edit = value
+		
+		perm.save()
+		
+		return JsonResponse({'success': True, 'message': 'Permiso actualizado'})
+	
+	except Role.DoesNotExist:
+		return JsonResponse({'success': False, 'error': 'Rol no encontrado'}, status=404)
+	except json.JSONDecodeError:
+		return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+	except Exception as e:
+		return JsonResponse({'success': False, 'error': str(e)}, status=500)
