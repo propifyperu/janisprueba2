@@ -771,7 +771,8 @@ class PropertyWhatsAppLink(models.Model):
         return f"{self.property.code} - {self.link_name} ({self.social_network})"
 
     def get_whatsapp_url(self):
-        """Genera URL de WhatsApp con parámetros UTM"""
+        """Genera URL de WhatsApp con mensaje inicial y parámetros UTM codificados"""
+        import urllib.parse
         params = []
         if self.utm_source:
             params.append(f"utm_source={self.utm_source}")
@@ -781,8 +782,9 @@ class PropertyWhatsAppLink(models.Model):
         if self.utm_content:
             params.append(f"utm_content={self.utm_content}")
         params.append(f"tracking_id={self.unique_identifier}")
-        query_string = "&".join(params) if params else ""
-        return f"https://wa.me/{self.whatsapp_number.number}/?text={query_string}"
+        text = "Hola, estoy interesado.%0A" + "%0A".join(params)
+        text_encoded = urllib.parse.quote(text)
+        return f"https://wa.me/{self.whatsapp_number.number}?text={text_encoded}"
 
 
 class LeadStatus(models.Model):

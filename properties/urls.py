@@ -11,7 +11,7 @@ from .views import (
     # WhatsApp
     whatsapp_links_list, whatsapp_link_create, whatsapp_link_delete,
     leads_list, lead_detail, crm_dashboard,
-    marketing_properties_list
+    marketing_properties_list, marketing_utm_dashboard
 )
 from .api import PropertyViewSet
 from rest_framework.routers import DefaultRouter
@@ -50,6 +50,7 @@ urlpatterns = [
     path('whatsapp/leads/detalle/<int:lead_id>/', lead_detail, name='lead_detail'),
     path('crm/', crm_dashboard, name='crm_dashboard'),
     path('marketing/propiedades/', marketing_properties_list, name='marketing_properties_list'),
+    path('marketing/dashboard/', marketing_utm_dashboard, name='marketing_utm_dashboard'),
     path('api/', include(router.urls)),
     path('', PropertyDashboardView.as_view(), name='dashboard_root'),
 ]

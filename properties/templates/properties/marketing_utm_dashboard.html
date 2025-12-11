@@ -1,0 +1,122 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Dashboard UTM - Marketing{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Dashboard Estadísticas UTM</h1>
+    <form method="get" class="mb-4">
+        <div class="row g-2">
+            <div class="col-md-3">
+                <label>Desde</label>
+                <input type="date" name="start" class="form-control" value="{{ start|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label>Hasta</label>
+                <input type="date" name="end" class="form-control" value="{{ end|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label>Red Social</label>
+                <select name="social_network" class="form-select">
+                    <option value="">Todas</option>
+                    {% for sn in social_networks %}
+                        <option value="{{ sn.id }}" {% if sn.id|stringformat:'s' == social_network_id %}selected{% endif %}>{{ sn.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Filtrar</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Leads por Día</h5>
+                    <canvas id="leadsByDayChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Leads por Hora</h5>
+                    <canvas id="leadsByHourChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Leads por Semana</h5>
+                    <canvas id="leadsByWeekChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Datos desde la vista
+    const leadsByDayLabels = {{ leads_by_day_labels|safe }};
+    const leadsByDayData = {{ leads_by_day_data|safe }};
+    const leadsByHourLabels = {{ leads_by_hour_labels|safe }};
+    const leadsByHourData = {{ leads_by_hour_data|safe }};
+    const leadsByWeekLabels = {{ leads_by_week_labels|safe }};
+    const leadsByWeekData = {{ leads_by_week_data|safe }};
+
+    // Gráfica de barras por día
+    new Chart(document.getElementById('leadsByDayChart'), {
+        type: 'bar',
+        data: {
+            labels: leadsByDayLabels,
+            datasets: [{
+                label: 'Leads por Día',
+                data: leadsByDayData,
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+    });
+
+    // Gráfica lineal por hora
+    new Chart(document.getElementById('leadsByHourChart'), {
+        type: 'line',
+        data: {
+            labels: leadsByHourLabels,
+            datasets: [{
+                label: 'Leads por Hora',
+                data: leadsByHourData,
+                fill: false,
+                borderColor: 'rgba(255, 99, 132, 1)',
+                tension: 0.1
+            }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+    });
+
+    // Gráfica de barras por semana
+    new Chart(document.getElementById('leadsByWeekChart'), {
+        type: 'bar',
+        data: {
+            labels: leadsByWeekLabels,
+            datasets: [{
+                label: 'Leads por Semana',
+                data: leadsByWeekData,
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+    });
+</script>
+{% endblock %}

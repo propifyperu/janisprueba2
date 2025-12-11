@@ -743,7 +743,7 @@ def create_property_view(request):
                         video_type = None
                     
                     title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
-                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
+                    description = video_descriptions[idx] if idx < len(video_descripciones) else ''
                     
                     vid = PropertyVideo.objects.create(
                         property=property_obj,
@@ -1362,7 +1362,7 @@ def leads_list(request, property_id=None):
     if property_id:
         status_choices = LeadStatus.objects.filter(property_id=property_id, is_active=True).order_by('order')
     else:
-        status_choices = LeadStatus.objects.filter(is_active=True).order_by('property', 'order').distinct('property')
+        status_choices = LeadStatus.objects.filter(is_active=True).order_by('property', 'order')
     
     return render(request, 'properties/leads_list.html', {
         'leads': leads,
@@ -1473,7 +1473,7 @@ def crm_dashboard(request):
     new_today = Lead.objects.filter(created_at__date=today).count()
     
     # Leads en negociación
-    negotiating_count = Lead.objects.filter(status='negotiating').count()
+    negotiating_count = Lead.objects.filter(status__name='negotiating').count()
     
     # Leads sin asignar
     unassigned_count = Lead.objects.filter(assigned_to__isnull=True).count()
@@ -1525,3 +1525,59 @@ def marketing_whatsapp_links_list(request):
     from .models import PropertyWhatsAppLink
     links = PropertyWhatsAppLink.objects.select_related('property').order_by('-created_at', 'property__code', 'social_network')
     return render(request, 'properties/marketing_whatsapp_links_list.html', {'links': links})
+
+from django.db.models import Count
+from .models import PropertyWhatsAppLink, Lead, SocialNetwork
+from datetime import datetime, timedelta
+import json
+
+@login_required
+def marketing_utm_dashboard(request):
+    # Filtros
+    start = request.GET.get('start')
+    end = request.GET.get('end')
+    social_network_id = request.GET.get('social_network')
+    today = datetime.now().date()
+    if not start:
+        start = today - timedelta(days=30)
+    else:
+        start = datetime.strptime(start, '%Y-%m-%d').date()
+    if not end:
+        end = today
+    else:
+        end = datetime.strptime(end, '%Y-%m-%d').date()
+
+    leads = Lead.objects.filter(created_at__date__gte=start, created_at__date__lte=end)
+    if social_network_id:
+        leads = leads.filter(social_network_id=social_network_id)
+
+    # Estadísticas por día
+    leads_by_day = leads.extra({'day': "DATE(created_at)"}).values('day').annotate(count=Count('id')).order_by('day')
+    leads_by_day_labels = [str(row['day']) for row in leads_by_day]
+    leads_by_day_data = [row['count'] for row in leads_by_day]
+
+    # Estadísticas por hora
+    leads_by_hour = leads.extra({'hour': "DATEPART(hour, created_at)"}).values('hour').annotate(count=Count('id')).order_by('hour')
+    leads_by_hour_labels = [str(row['hour']) for row in leads_by_hour]
+    leads_by_hour_data = [row['count'] for row in leads_by_hour]
+
+    # Estadísticas por semana
+    leads_by_week = leads.extra({'week': "DATEPART(week, created_at)"}).values('week').annotate(count=Count('id')).order_by('week')
+    leads_by_week_labels = [str(row['week']) for row in leads_by_week]
+    leads_by_week_data = [row['count'] for row in leads_by_week]
+
+    social_networks = SocialNetwork.objects.filter(is_active=True)
+
+    context = {
+        'start': start,
+        'end': end,
+        'social_networks': social_networks,
+        'social_network_id': social_network_id or '',
+        'leads_by_day_labels': json.dumps(leads_by_day_labels),
+        'leads_by_day_data': json.dumps(leads_by_day_data),
+        'leads_by_hour_labels': json.dumps(leads_by_hour_labels),
+        'leads_by_hour_data': json.dumps(leads_by_hour_data),
+        'leads_by_week_labels': json.dumps(leads_by_week_labels),
+        'leads_by_week_data': json.dumps(leads_by_week_data),
+    }
+    return render(request, 'properties/marketing_utm_dashboard.html', context)
