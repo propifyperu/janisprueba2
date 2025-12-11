@@ -12,7 +12,7 @@ from .models import (
     Property, PropertyOwner, PropertyImage, PropertyVideo, PropertyDocument,
     PropertyFinancialInfo, PropertyRoom, ImageType, VideoType,
     # WhatsApp
-    PropertyWhatsAppLink, LeadStatus, Lead, WhatsAppConversation, SocialNetwork, WhatsAppNumber
+    PropertyWhatsAppLink, LeadStatus, Lead, WhatsAppConversation, SocialNetwork, WhatsAppNumber, UTMClick
 )
 
 
@@ -448,3 +448,15 @@ class WhatsAppNumberAdmin(admin.ModelAdmin):
     search_fields = ("display_name", "number")
     list_filter = ("is_active",)
     ordering = ("display_name",)
+
+
+# Admin para UTMClick
+@admin.register(UTMClick)
+class UTMClickAdmin(admin.ModelAdmin):
+    list_display = (
+        'tracking_id', 'whatsapp_link', 'utm_source', 'utm_medium',
+        'utm_campaign', 'ip_address', 'created_at'
+    )
+    list_filter = ('utm_source', 'utm_medium', 'utm_campaign', 'created_at')
+    search_fields = ('tracking_id', 'whatsapp_link__link_name', 'ip_address')
+    date_hierarchy = 'created_at'

@@ -53,6 +53,9 @@ INSTALLED_APPS = [
     "security",
     "whatsapp",
 ]
+# Facebook Pixel ID (opcional, para campañas)
+import os
+FACEBOOK_PIXEL_ID = os.environ.get('FACEBOOK_PIXEL_ID', '')
 AUTH_USER_MODEL = 'users.CustomUser'
 
 MIDDLEWARE = [

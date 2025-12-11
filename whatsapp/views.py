@@ -68,59 +68,76 @@ def handle_webhook_message(request):
 
 def process_messages(messages_data):
     """
-    Procesa los mensajes del webhook
+    Procesa los mensajes del webhook con una lógica de tracking robusta.
     """
     from properties.models import Lead, WhatsAppConversation, PropertyWhatsAppLink, LeadStatus
+    import re
+
+    # 1. Obtener todos los identificadores únicos activos para una búsqueda eficiente.
+    # Esto es mucho más robusto que depender de un regex.
+    active_identifiers = set(PropertyWhatsAppLink.objects.filter(is_active=True).values_list('unique_identifier', flat=True))
     
-    messages = messages_data.get('messages', [])
+    if not active_identifiers:
+        logger.warning("[TRACKING] No hay identificadores únicos activos en la base de datos. El tracking no funcionará.")
+        # No es necesario salir, podría haber leads existentes sin tracking.
     
     for message in messages:
+        message_id = message.get('id')
         try:
             phone_number = message.get('from')
-            message_id = message.get('id')
-            timestamp = message.get('timestamp')
+            message_body = ""
+            whatsapp_link = None
             
-            # Obtener el tipo y contenido del mensaje
-            message_type = message.get('type', 'text')  # text, image, video, document, audio
-            
+            # 2. Extraer contenido y buscar el tracking_id de forma fiable
+            message_type = message.get('type', 'text')
             if message_type == 'text':
                 message_body = message.get('text', {}).get('body', '')
+                # Extraer todas las "palabras" del mensaje
+                words_in_message = set(re.findall(r'\b[\w\-]+\b', message_body))
+                # Encontrar la intersección entre las palabras del mensaje y nuestros códigos
+                found_identifiers = words_in_message.intersection(active_identifiers)
+                
+                if found_identifiers:
+                    found_id = found_identifiers.pop()
+                    logger.info(f"[TRACKING] ¡ÉXITO! Identificador '{found_id}' encontrado en el mensaje de {phone_number}.")
+                    whatsapp_link = PropertyWhatsAppLink.objects.get(unique_identifier=found_id)
+                else:
+                    logger.warning(f"[TRACKING] No se encontró un identificador de tracking válido en el mensaje de {phone_number}: '{message_body}'")
             else:
-                message_body = f'[Mensaje de {message_type.upper()}]'
-            
-            # Buscar el tracking ID en los parámetros del contexto
-            context = message.get('context', {})
-            referred_product = context.get('referred_product')
-            
-            # Intentar obtener el link de WhatsApp mediante el ID de referencia
-            whatsapp_link = None
-            if referred_product:
-                whatsapp_link = PropertyWhatsAppLink.objects.filter(
-                    unique_identifier=referred_product
-                ).first()
-            
-            # Obtener o crear el Lead
+                message_body = f'[{message_type.upper()}]'
+
+            # 3. Lógica de guardado explícita y segura
+            lead = None
             if whatsapp_link:
+                # Si encontramos un link, buscamos o creamos el Lead asociado a ESA propiedad.
                 lead, created = Lead.objects.get_or_create(
                     phone_number=phone_number,
                     property=whatsapp_link.property,
                     defaults={
                         'whatsapp_link': whatsapp_link,
                         'social_network': whatsapp_link.social_network,
-                        'status': LeadStatus.objects.filter(
-                            property=whatsapp_link.property,
-                            is_active=True
-                        ).order_by('order').first()
+                        'status': LeadStatus.objects.filter(property=whatsapp_link.property, is_active=True).order_by('order').first()
                     }
                 )
+                
+                if created:
+                    logger.info(f"[DB] Lead CREADO (ID: {lead.id}) para {phone_number} con whatsapp_link_id: {whatsapp_link.id}")
+                else:
+                    logger.info(f"[DB] Lead ENCONTRADO (ID: {lead.id}) para {phone_number}.")
+                    # Si el lead ya existía, nos aseguramos de que tenga el link correcto.
+                    if lead.whatsapp_link != whatsapp_link:
+                        lead.whatsapp_link = whatsapp_link
+                        lead.save(update_fields=['whatsapp_link', 'updated_at'])
+                        logger.info(f"[DB] Lead (ID: {lead.id}) ACTUALIZADO con el whatsapp_link_id: {whatsapp_link.id}")
+
             else:
-                # Sin link de rastreo, intentar encontrar por teléfono
-                lead = Lead.objects.filter(phone_number=phone_number).first()
+                # Si NO hay tracking, buscamos el lead más reciente para ese número.
+                lead = Lead.objects.filter(phone_number=phone_number).order_by('-created_at').first()
                 if not lead:
-                    logger.warning(f"Lead not found for phone {phone_number}")
-                    return
-            
-            # Guardar el mensaje en la conversación
+                    logger.error(f"CRÍTICO: No se pudo trackear y no existe lead previo para {phone_number}. Se ignora el mensaje.")
+                    continue # No podemos hacer nada con este mensaje, pasamos al siguiente.
+
+            # 4. Guardar la conversación y actualizar el timestamp del lead
             WhatsAppConversation.objects.create(
                 lead=lead,
                 property=lead.property,
@@ -130,13 +147,12 @@ def process_messages(messages_data):
                 message_id=message_id,
             )
             
-            # Actualizar last_message_at del lead
             from django.utils import timezone
             lead.last_message_at = timezone.now()
-            lead.save()
-            
-            logger.info(f"Message processed for lead {phone_number}")
-        
+            lead.save(update_fields=['last_message_at', 'updated_at'])
+
+            logger.info(f"PROCESO COMPLETO: Mensaje de {phone_number} guardado para Lead ID: {lead.id}")
+
         except Exception as e:
-            logger.error(f"Error processing message {message.get('id')}: {str(e)}")
+            logger.error(f"Error fatal procesando mensaje (ID: {message_id}): {str(e)}", exc_info=True)
             continue

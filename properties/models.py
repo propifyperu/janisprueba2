@@ -771,20 +771,29 @@ class PropertyWhatsAppLink(models.Model):
         return f"{self.property.code} - {self.link_name} ({self.social_network})"
 
     def get_whatsapp_url(self):
-        """Genera URL de WhatsApp con mensaje inicial y parámetros UTM codificados"""
+        """Genera URL de WhatsApp con mensaje inicial y validación."""
         import urllib.parse
-        params = []
-        if self.utm_source:
-            params.append(f"utm_source={self.utm_source}")
-        params.append(f"utm_medium={self.utm_medium}")
-        if self.utm_campaign:
-            params.append(f"utm_campaign={self.utm_campaign}")
-        if self.utm_content:
-            params.append(f"utm_content={self.utm_content}")
-        params.append(f"tracking_id={self.unique_identifier}")
-        text = "Hola, estoy interesado.%0A" + "%0A".join(params)
-        text_encoded = urllib.parse.quote(text)
-        return f"https://wa.me/{self.whatsapp_number.number}?text={text_encoded}"
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        if not self.whatsapp_number or not self.whatsapp_number.number:
+            logger.error(f"ERROR: PropertyWhatsAppLink (ID: {self.id}) no tiene un número de WhatsApp válido asignado. No se puede generar URL.")
+            return "#error-no-numero"
+
+        try:
+            # Asegurarse de que el número solo contenga dígitos y quizás un '+' al inicio
+            phone_number = ''.join(filter(str.isdigit, str(self.whatsapp_number.number)))
+            
+            text = f"Hola {self.unique_identifier}"
+            text_encoded = urllib.parse.quote(text)
+            
+            url = f"https://wa.me/{phone_number}?text={text_encoded}"
+            logger.info(f"URL de WhatsApp generada para Link ID {self.id}: {url}")
+            return url
+        except Exception as e:
+            logger.error(f"Error generando URL de WhatsApp para Link ID {self.id}: {e}", exc_info=True)
+            return "#error-generacion-url"
 
 
 class LeadStatus(models.Model):
@@ -872,5 +881,32 @@ class WhatsAppConversation(models.Model):
     
     def __str__(self):
         return f"{self.lead.phone_number} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+class UTMClick(models.Model):
+    """Registro de clics UTM en enlaces de WhatsApp para tracking independiente."""
+    whatsapp_link = models.ForeignKey('PropertyWhatsAppLink', on_delete=models.CASCADE, related_name='utm_clicks', db_constraint=False)
+    tracking_id = models.CharField(max_length=50, db_index=True)
+    utm_source = models.CharField(max_length=100, blank=True, null=True)
+    utm_medium = models.CharField(max_length=100, blank=True, null=True)
+    utm_campaign = models.CharField(max_length=100, blank=True, null=True)
+    utm_content = models.CharField(max_length=100, blank=True, null=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    user_agent = models.TextField(blank=True, null=True)
+    referer = models.TextField(blank=True, null=True)
+    ip_address = models.CharField(max_length=45, blank=True, null=True, help_text="IPv4/IPv6")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'utm_clicks'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['tracking_id']),
+            models.Index(fields=['created_at']),
+        ]
+        verbose_name = 'UTM Click'
+        verbose_name_plural = 'UTM Clicks'
+
+    def __str__(self):
+        return f"{self.tracking_id} @ {self.created_at.strftime('%Y-%m-%d %H:%M')}"
 
 

@@ -96,6 +96,9 @@
                                 <button class="btn btn-sm btn-outline-primary" type="button" onclick="copyLink('{{ link.get_whatsapp_url }}')">
                                     <i class="fas fa-link"></i> Copiar Enlace
                                 </button>
+                                <a class="btn btn-sm btn-success" href="{% url 'properties:track_whatsapp_click' link.id %}" target="_blank" rel="noopener">
+                                    <i class="fab fa-whatsapp"></i> Abrir WhatsApp
+                                </a>
                                 <a href="{% url 'properties:whatsapp_link_delete' link.id %}" class="btn btn-sm btn-outline-danger">
                                     <i class="fas fa-trash"></i> Eliminar
                                 </a>

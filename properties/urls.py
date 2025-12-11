@@ -1,5 +1,6 @@
 from django.urls import path
 from django.urls import path, include
+from . import views
 from .views import (
     PropertyDashboardView, create_property_view, PropertyDetailView,
     edit_property_view,
@@ -23,6 +24,7 @@ urlpatterns = [
     path('ultra-simple/', simple_properties_view, name='ultra_simple_list'),
     path('simple-list/', SimplePropertyListView.as_view(), name='simple_property_list'),
     path('dashboard/', PropertyDashboardView.as_view(), name='list'),
+    path('marketing/whatsapp/track/<int:link_id>/', views.track_whatsapp_click, name='track_whatsapp_click'),
     path('crear/', create_property_view, name='create'),
     path('<int:pk>/', PropertyDetailView.as_view(), name='detail'),
     path('borradores/', drafts_list_view, name='drafts'),

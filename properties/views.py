@@ -134,6 +134,40 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView
 
 from .models import Property, PropertyType, PropertyStatus, PropertyOwner
+
+# ...existing code...
+
+def track_whatsapp_click(request, link_id):
+    """Registra un clic UTM y redirige al chat de WhatsApp."""
+    from .models import PropertyWhatsAppLink, UTMClick
+    link = get_object_or_404(PropertyWhatsAppLink, id=link_id, is_active=True)
+
+    # Extraer posibles UTM desde el link
+    utm_source = link.utm_source or ''
+    utm_medium = link.utm_medium or ''
+    utm_campaign = link.utm_campaign or ''
+    utm_content = link.utm_content or ''
+
+    # Datos de request
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    referer = request.META.get('HTTP_REFERER', '')
+    ip_address = request.META.get('REMOTE_ADDR', '')
+
+    # phone_number no se conoce aún en clic, se llena en webhook; se deja vacío
+    UTMClick.objects.create(
+        whatsapp_link=link,
+        tracking_id=link.unique_identifier,
+        utm_source=utm_source,
+        utm_medium=utm_medium,
+        utm_campaign=utm_campaign,
+        utm_content=utm_content,
+        user_agent=user_agent,
+        referer=referer,
+        ip_address=ip_address,
+    )
+
+    # Redirigir a WhatsApp
+    return redirect(link.get_whatsapp_url())
 from .forms import PropertyOwnerForm
 from .models import PropertyOwner
 from django.views.generic import ListView, CreateView, DetailView
@@ -1537,6 +1571,9 @@ def marketing_utm_dashboard(request):
     start = request.GET.get('start')
     end = request.GET.get('end')
     social_network_id = request.GET.get('social_network')
+    property_id = request.GET.get('property')
+    utm_source = request.GET.get('utm_source')
+    utm_campaign = request.GET.get('utm_campaign')
     today = datetime.now().date()
     if not start:
         start = today - timedelta(days=30)
@@ -1547,37 +1584,160 @@ def marketing_utm_dashboard(request):
     else:
         end = datetime.strptime(end, '%Y-%m-%d').date()
 
-    leads = Lead.objects.filter(created_at__date__gte=start, created_at__date__lte=end)
-    if social_network_id:
-        leads = leads.filter(social_network_id=social_network_id)
+    # Usar UTMClick para estadísticas de clics UTM (tracking de campañas)
+    from .models import UTMClick, Property
+    # Limpiar cualquier ordenación por defecto del modelo para evitar errores en GROUP BY
+    clicks = UTMClick.objects.filter(created_at__date__gte=start, created_at__date__lte=end).order_by()
 
-    # Estadísticas por día
-    leads_by_day = leads.extra({'day': "DATE(created_at)"}).values('day').annotate(count=Count('id')).order_by('day')
-    leads_by_day_labels = [str(row['day']) for row in leads_by_day]
-    leads_by_day_data = [row['count'] for row in leads_by_day]
+    # Si se desea filtrar por red social, derivar por el whatsapp_link.social_network
+    if social_network_id:
+        clicks = clicks.filter(whatsapp_link__social_network_id=social_network_id)
+    if property_id:
+        clicks = clicks.filter(whatsapp_link__property_id=property_id)
+
+    # Filtros por UTM
+    if utm_source:
+        clicks = clicks.filter(utm_source=utm_source)
+    if utm_campaign:
+        clicks = clicks.filter(utm_campaign=utm_campaign)
+
+    # Estadísticas por día (SQL Server compatible)
+    # Ajuste de zona horaria (America/Lima UTC-5) para agrupar por día local
+    # Convertir de UTC a hora local de Lima usando AT TIME ZONE (SQL Server)
+    # 'SA Pacific Standard Time' corresponde a America/Lima sin DST
+    table_name = UTMClick._meta.db_table
+    clicks_by_day = clicks.extra({'day': f"CAST(({table_name}.[created_at] AT TIME ZONE 'UTC' AT TIME ZONE 'SA Pacific Standard Time') AS DATE)"}).values('day').annotate(count=Count('id')).order_by('day')
+    leads_by_day_labels = [str(row['day']) for row in clicks_by_day]
+    leads_by_day_data = [row['count'] for row in clicks_by_day]
 
     # Estadísticas por hora
-    leads_by_hour = leads.extra({'hour': "DATEPART(hour, created_at)"}).values('hour').annotate(count=Count('id')).order_by('hour')
-    leads_by_hour_labels = [str(row['hour']) for row in leads_by_hour]
-    leads_by_hour_data = [row['count'] for row in leads_by_hour]
+    # Ajuste de zona horaria para hora local
+    clicks_by_hour = clicks.extra({'hour': f"DATEPART(hour, ({table_name}.[created_at] AT TIME ZONE 'UTC' AT TIME ZONE 'SA Pacific Standard Time'))"}).values('hour').annotate(count=Count('id')).order_by('hour')
+    leads_by_hour_labels = [str(row['hour']) for row in clicks_by_hour]
+    leads_by_hour_data = [row['count'] for row in clicks_by_hour]
+
+    # Horas punta (top 5 horas con más clics)
+    peak_hours = sorted([
+        {'hour': int(row['hour']), 'count': int(row['count'])}
+        for row in clicks_by_hour
+    ], key=lambda x: x['count'], reverse=True)[:5]
 
     # Estadísticas por semana
-    leads_by_week = leads.extra({'week': "DATEPART(week, created_at)"}).values('week').annotate(count=Count('id')).order_by('week')
-    leads_by_week_labels = [str(row['week']) for row in leads_by_week]
-    leads_by_week_data = [row['count'] for row in leads_by_week]
+    # Ajuste de zona horaria para semana local
+    clicks_by_week = clicks.extra({'week': f"DATEPART(week, ({table_name}.[created_at] AT TIME ZONE 'UTC' AT TIME ZONE 'SA Pacific Standard Time'))"}).values('week').annotate(count=Count('id')).order_by('week')
+    leads_by_week_labels = [str(row['week']) for row in clicks_by_week]
+    leads_by_week_data = [row['count'] for row in clicks_by_week]
+
+    # Heatmap Día/Hora (local): matriz de 7x24 con conteos
+    clicks_day_hour = clicks.extra({
+        'dow': f"DATEPART(weekday, ({table_name}.[created_at] AT TIME ZONE 'UTC' AT TIME ZONE 'SA Pacific Standard Time'))",
+        'hour': f"DATEPART(hour, ({table_name}.[created_at] AT TIME ZONE 'UTC' AT TIME ZONE 'SA Pacific Standard Time'))",
+    }).values('dow', 'hour').annotate(count=Count('id'))
+
+    # Normalizar a índices 0-6 (Lunes=0) y 0-23
+    # En SQL Server, por defecto DATEPART(weekday) depende de SET DATEFIRST; asumimos Domingo=1.
+    # Convertimos: 1->6 (Domingo), 2->0 (Lunes), ..., 7->5 (Sábado)
+    def map_weekday(d):
+        # Domingo=1 -> 6; Lunes=2 -> 0; Martes=3 -> 1; ...; Sábado=7 -> 5
+        return (d + 5) % 7
+
+    heatmap_matrix = [[0 for _ in range(24)] for _ in range(7)]
+    for row in clicks_day_hour:
+        dow = map_weekday(int(row['dow']))
+        hour = int(row['hour'])
+        heatmap_matrix[dow][hour] = int(row['count'])
+
+    heatmap_days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
     social_networks = SocialNetwork.objects.filter(is_active=True)
+    # Lista de propiedades con publicidad (al menos un WhatsApp link asociado), orden alfabético por dirección
+    try:
+        properties_list = (
+            Property.objects.filter(is_active=True, whatsapp_links__isnull=False)
+            .distinct()
+            .order_by('real_address')
+        )
+    except Exception:
+        properties_list = (
+            Property.objects.filter(whatsapp_links__isnull=False)
+            .distinct()
+            .order_by('real_address')
+        )
+
+    # Totales y desglose por fuente
+    total_clicks = clicks.count()
+    source_counts_qs = clicks.values('utm_source').annotate(count=Count('id')).order_by('-count')
+    source_counts = [{'utm_source': row['utm_source'] or 'N/A', 'count': row['count']} for row in source_counts_qs]
+
+    # Estadísticas por propiedad (usando real_address) y desglose por red social
+    property_clicks_qs = clicks.values(
+        'whatsapp_link__property__real_address'
+    ).annotate(total=Count('id')).order_by('-total')
+
+    # Desglose por red: counts por (property, social_network)
+    property_network_qs = clicks.values(
+        'whatsapp_link__property__real_address',
+        'whatsapp_link__social_network__name'
+    ).annotate(count=Count('id'))
+
+    # Construir mapa: {address: {network_name: count, ..., total: N}}
+    property_stats = {}
+    for row in property_clicks_qs:
+        addr = row['whatsapp_link__property__real_address'] or 'Sin dirección'
+        property_stats[addr] = {'total': row['total']}
+    for row in property_network_qs:
+        addr = row['whatsapp_link__property__real_address'] or 'Sin dirección'
+        net = row['whatsapp_link__social_network__name'] or 'N/A'
+        property_stats.setdefault(addr, {'total': 0})
+        property_stats[addr][net] = row['count']
+
+    # KPI: ratio de clics por propiedad vs total global
+    for addr, stats in property_stats.items():
+        stats['ratio'] = (stats['total'] / total_clicks) if total_clicks else 0
+
+    # Obtener listado único de redes para cabeceras
+    network_names = list(
+        clicks.values_list('whatsapp_link__social_network__name', flat=True)
+        .distinct().order_by('whatsapp_link__social_network__name')
+    )
+
+    # Top 10 propiedades por clics
+    top_properties = list(property_clicks_qs[:10])
+
+    # Top 10 campañas (utm_campaign) por clics
+    top_campaigns_qs = clicks.values('utm_campaign').annotate(total=Count('id')).order_by('-total')[:10]
+    top_campaigns = [{'utm_campaign': row['utm_campaign'] or 'N/A', 'total': row['total']} for row in top_campaigns_qs]
+
+    # Distribución por red (para pie chart)
+    network_dist_qs = clicks.values('utm_source').annotate(total=Count('id')).order_by('-total')
+    network_dist_labels = [row['utm_source'] or 'N/A' for row in network_dist_qs]
+    network_dist_data = [row['total'] for row in network_dist_qs]
 
     context = {
         'start': start,
         'end': end,
         'social_networks': social_networks,
         'social_network_id': social_network_id or '',
+        'properties_list': properties_list,
+        'property_id': property_id or '',
+        'utm_source': utm_source or '',
+        'utm_campaign': utm_campaign or '',
         'leads_by_day_labels': json.dumps(leads_by_day_labels),
         'leads_by_day_data': json.dumps(leads_by_day_data),
         'leads_by_hour_labels': json.dumps(leads_by_hour_labels),
         'leads_by_hour_data': json.dumps(leads_by_hour_data),
         'leads_by_week_labels': json.dumps(leads_by_week_labels),
         'leads_by_week_data': json.dumps(leads_by_week_data),
+        'total_clicks': total_clicks,
+        'source_counts': source_counts,
+        'property_stats': property_stats,
+        'network_names': network_names,
+        'peak_hours': peak_hours,
+        'heatmap_matrix': heatmap_matrix,
+        'heatmap_days': heatmap_days,
+        'top_properties': top_properties,
+        'top_campaigns': top_campaigns,
+        'network_dist_labels': json.dumps(network_dist_labels),
+        'network_dist_data': json.dumps(network_dist_data),
     }
     return render(request, 'properties/marketing_utm_dashboard.html', context)
