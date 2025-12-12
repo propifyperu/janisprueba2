@@ -22,3 +22,10 @@ def to_list(start, end):
         return list(range(start, end))
     except Exception:
         return []
+
+@register.filter
+def first(seq):
+    try:
+        return seq[0]
+    except Exception:
+        return None

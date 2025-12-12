@@ -1,5 +1,6 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load static %}
+{% load dashboard_utils %}
 
 {% block title %}Enlaces WhatsApp - {{ property.code }}{% endblock %}
 
@@ -92,13 +93,16 @@
                                 <p class="small text-muted mb-0">{{ link.created_at|date:"d/m/Y H:i" }}</p>
                             </div>
 
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-outline-primary" type="button" onclick="copyLink('{{ link.get_whatsapp_url }}')">
-                                    <i class="fas fa-link"></i> Copiar Enlace
-                                </button>
+                            <div class="d-flex flex-wrap gap-2">
                                 <a class="btn btn-sm btn-success" href="{% url 'properties:track_whatsapp_click' link.id %}" target="_blank" rel="noopener">
-                                    <i class="fab fa-whatsapp"></i> Abrir WhatsApp
+                                    <i class="fab fa-whatsapp"></i> Abrir (track + WhatsApp)
                                 </a>
+                                <button class="btn btn-sm btn-outline-primary" type="button" onclick="copyLink(getTrackingUrl({{ link.id }}))">
+                                    <i class="fas fa-copy"></i> Copiar enlace de tracking
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" onclick="copyLink('{{ link.get_whatsapp_url }}')">
+                                    <i class="fas fa-link"></i> Copiar wa.me (sin tracking)
+                                </button>
                                 <a href="{% url 'properties:whatsapp_link_delete' link.id %}" class="btn btn-sm btn-outline-danger">
                                     <i class="fas fa-trash"></i> Eliminar
                                 </a>
@@ -128,6 +132,12 @@ function copyLink(url) {
     navigator.clipboard.writeText(url).then(() => {
         alert('Enlace copiado al portapapeles');
     });
+}
+
+function getTrackingUrl(linkId) {
+    // Construye el URL absoluto hacia el tracker usando el dominio provisto
+    const base = 'https://janis-core2-app.azurewebsites.net';
+    return `${base}{% url 'properties:track_whatsapp_click' 0 %}`.replace('/0/', `/${linkId}/`);
 }
 </script>
 {% endblock %}

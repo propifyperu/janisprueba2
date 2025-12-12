@@ -41,12 +41,18 @@
                             <td>{{ property.real_address }}</td>
                             <td>{{ property.currency.symbol }} {{ property.price }}</td>
                             <td>
-                                <span class="badge bg-info">{{ property.whatsapp_links.count }} enlaces</span>
+                                <span class="badge bg-success">{{ property.utm_active }} activos</span>
+                                <span class="badge bg-secondary">{{ property.utm_total }} totales</span>
                             </td>
                             <td>
                                 <a href="{% url 'properties:whatsapp_links' property.id %}" class="btn btn-dark btn-sm">
                                     <i class="fas fa-link me-1"></i> Gestionar UTMs
                                 </a>
+                                {% if property.whatsapp_links.exists %}
+                                    <a href="{% url 'properties:marketing_utm_dashboard' %}?property={{ property.id }}" class="btn btn-outline-primary btn-sm ms-1">
+                                        <i class="fas fa-chart-line me-1"></i> Ver estadísticas
+                                    </a>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
@@ -61,3 +67,5 @@
     </div>
 </div>
 {% endblock %}
+
+

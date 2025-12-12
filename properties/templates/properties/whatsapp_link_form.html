@@ -97,6 +97,9 @@
                             <a href="{% url 'properties:whatsapp_links' property.id %}" class="btn btn-secondary">
                                 <i class="fas fa-times"></i> Cancelar
                             </a>
+                            <button type="button" class="btn btn-outline-primary" onclick="copyTrackingPreview()">
+                                <i class="fas fa-copy"></i> Copiar enlace de tracking (preview)
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -137,6 +140,17 @@ function updateUTMSource() {
     const socialNetwork = document.getElementById('social_network').value;
     // El utm_source se llena automáticamente con la red social seleccionada
     console.log('Red social seleccionada:', socialNetwork);
+}
+
+function copyTrackingPreview() {
+    // Este botón sirve como guía: tras crear el enlace, el tracking final será
+    // https://janis-core2-app.azurewebsites.net/marketing/whatsapp/track/<link_id>/
+    // Aquí mostramos el formato para que el usuario entienda cómo compartirlo.
+    const base = 'https://janis-core2-app.azurewebsites.net';
+    const sample = `${base}/marketing/whatsapp/track/<ID_DEL_ENLACE>`;
+    navigator.clipboard.writeText(sample).then(() => {
+        alert('Formato del enlace de tracking copiado. Una vez creado el enlace, usa el botón en la lista para copiar el enlace real con ID.');
+    });
 }
 
 // Validación de formulario

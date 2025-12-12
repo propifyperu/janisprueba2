@@ -1281,9 +1281,16 @@ def api_video_types(request):
 @login_required
 def marketing_properties_list(request):
     """Lista propiedades para gestión de Marketing/UTMs"""
-    properties = Property.objects.filter(is_active=True).select_related(
-        'currency'
-    ).prefetch_related('whatsapp_links').order_by('-created_at')
+    from django.db.models import Count, Q
+    properties = (
+        Property.objects.filter(is_active=True)
+        .select_related('currency')
+        .annotate(
+            utm_total=Count('whatsapp_links', distinct=True),
+            utm_active=Count('whatsapp_links', filter=Q(whatsapp_links__is_active=True), distinct=True),
+        )
+        .order_by('-created_at')
+    )
     
     return render(request, 'properties/marketing_properties_list.html', {
         'properties': properties
