@@ -291,11 +291,22 @@
                             </h5>
 
                             <div class="row">
-                                <div class="col-md-6 mb-3">
+                                <div class="col-12 mb-3">
                                     <label class="form-label">Responsable de la propiedad</label>
                                     {{ form.responsible }}
                                 </div>
-                                <div class="col-md-6 mb-3">
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Tipo</label>
+                                    {{ form.property_type }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Subtipo</label>
+                                    {{ form.property_subtype }}
+                                </div>
+                                <div class="col-md-4 mb-3">
                                     <label class="form-label required-field">Estado</label>
                                     {{ form.status }}
                                     <div id="antiquityFields" class="mt-3 d-none">
@@ -312,33 +323,25 @@
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label required-field">Tipo</label>
-                                    {{ form.property_type }}
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label required-field">Subtipo</label>
-                                    {{ form.property_subtype }}
-                                </div>
-                                <div class="col-md-4 mb-3">
                                     <label class="form-label required-field">Condición</label>
                                     {{ form.condition }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Forma de Pago</label>
+                                    {{ form.forma_de_pago }}
                                 </div>
                             </div>
 
                             <div class="row">
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="form-label required-field">Precio</label>
                                     {{ form.price }}
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="form-label required-field">Moneda</label>
                                     {{ form.currency }}
                                 </div>
-                                <div class="col-md-3 mb-3">
-                                    <label class="form-label">Forma de Pago</label>
-                                    {{ form.forma_de_pago }}
-                                </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <div class="form-check form-switch mt-4">
                                         {{ form.has_maintenance }}
                                         <label class="form-check-label">Incluye Mantenimiento</label>
