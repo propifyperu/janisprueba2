@@ -219,6 +219,23 @@ class PropertyStatus(models.Model):
     def __str__(self):
         return self.name
 
+class PropertyCondition(models.Model):
+   
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'property_conditions'
+        ordering = ['order', 'name']
+        verbose_name = "Condición de Propiedad"
+        verbose_name_plural = "Condiciones de Propiedad"
+    
+    def __str__(self):
+        return self.name
+
 class Currency(models.Model):
     code = models.CharField(max_length=3, unique=True)
     name = models.CharField(max_length=50)
@@ -449,6 +466,8 @@ class Property(TitleCaseMixin, models.Model):
     property_type = models.ForeignKey('PropertyType', on_delete=models.PROTECT, blank=True, null=True)
     property_subtype = models.ForeignKey('PropertySubtype', on_delete=models.PROTECT, blank=True, null=True)
     status = models.ForeignKey('PropertyStatus', on_delete=models.PROTECT, blank=True, null=True)
+    condition = models.ForeignKey('PropertyCondition', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Condición Física")
+    operation_type = models.ForeignKey('OperationType', on_delete=models.PROTECT, blank=True, null=True, verbose_name="Tipo de Operación")
     responsible = models.ForeignKey(
         get_user_model(),
         on_delete=models.SET_NULL,
@@ -908,5 +927,23 @@ class UTMClick(models.Model):
 
     def __str__(self):
         return f"{self.tracking_id} @ {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+class OperationType(models.Model):
+    """Tipos de operación: Venta, Alquiler, Anticresis, etc."""
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    code = models.CharField(max_length=20, unique=True)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'operation_types'
+        ordering = ['order', 'name']
+        verbose_name = "Tipo de Operación"
+        verbose_name_plural = "Tipos de Operación"
+    
+    def __str__(self):
+        return self.name
 
 
