@@ -184,10 +184,15 @@
                                     {{ form.property_type }}
                                     {{ form.property_type.errors }}
                                 </div>
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="form-label required-field">Subtipo</label>
                                     {{ form.property_subtype }}
                                     {{ form.property_subtype.errors }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Condición</label>
+                                    {{ form.condition }}
+                                    {{ form.condition.errors }}
                                 </div>
                             </div>
 
@@ -1585,7 +1590,33 @@ document.addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(ev) {
                 if (previewDiv) {
-                    previewDiv.innerHTML = `<img src="${ev.target.result}" alt="Previsualización">`;
+                    previewDiv.innerHTML = `
+                        <div class="position-relative d-inline-block">
+                            <img src="${ev.target.result}" alt="Previsualización">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn" title="Eliminar" style="position:absolute; top:6px; right:6px;">&times;</button>
+                        </div>`;
+
+                    const btn = previewDiv.querySelector('.remove-file-btn');
+                    if (btn) {
+                        btn.addEventListener('click', function() {
+                            const container = fileInput.closest('.dynamic-form-item');
+                            const parent = container ? container.parentNode : null;
+                            if (parent && parent.children && parent.children.length > 1) {
+                                parent.removeChild(container);
+                                renumberImageOrders();
+                            } else if (container) {
+                                try { fileInput.value = ''; } catch(e) {}
+                                const preview = container.querySelector('.image-preview');
+                                if (preview) preview.innerHTML = '';
+                                container.querySelectorAll('[name="image_types"], [name="image_ambientes"], [name="image_orders"], [name="image_captions"]').forEach(field => {
+                                    if (field.tagName === 'SELECT') field.selectedIndex = 0;
+                                    else field.value = '';
+                                    field.disabled = false;
+                                });
+                                renumberImageOrders();
+                            }
+                        });
+                    }
                 }
             };
             reader.readAsDataURL(file);
@@ -1610,7 +1641,36 @@ document.addEventListener('change', function(e) {
             videoElement.addEventListener('loadeddata', () => {
                 URL.revokeObjectURL(objectUrl);
             }, { once: true });
-            previewDiv.appendChild(videoElement);
+            const wrapper = document.createElement('div');
+            wrapper.className = 'position-relative d-inline-block';
+            wrapper.appendChild(videoElement);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-outline-danger remove-file-btn';
+            btn.title = 'Eliminar';
+            btn.style.position = 'absolute';
+            btn.style.top = '6px';
+            btn.style.right = '6px';
+            btn.innerHTML = '&times;';
+            btn.addEventListener('click', function() {
+                const container = fileInput.closest('.dynamic-form-item');
+                const parent = container ? container.parentNode : null;
+                if (parent && parent.children && parent.children.length > 1) {
+                    parent.removeChild(container);
+                    renumberImageOrders();
+                } else if (container) {
+                    try { fileInput.value = ''; } catch(e) {}
+                    const preview = container.querySelector('.video-preview');
+                    if (preview) preview.innerHTML = '';
+                    container.querySelectorAll('[name="video_types"], [name="video_titles"], [name="video_descriptions"]').forEach(field => {
+                        if (field.tagName === 'SELECT') field.selectedIndex = 0;
+                        else field.value = '';
+                        field.disabled = false;
+                    });
+                }
+            });
+            wrapper.appendChild(btn);
+            previewDiv.appendChild(wrapper);
         } else if (previewDiv) {
             previewDiv.textContent = '';
         }
@@ -1654,6 +1714,43 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+});
+
+function renumberImageOrders() {
+    const container = document.getElementById('image-forms');
+    if (!container) return;
+    const items = Array.from(container.querySelectorAll('.dynamic-form-item'));
+    items.forEach((item, idx) => {
+        const orderInput = item.querySelector('input[name="image_orders"]');
+        if (orderInput) {
+            orderInput.value = idx + 1;
+        }
+    });
+}
+
+// Delegated handler para botones de eliminación
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.classList && e.target.classList.contains('remove-file-btn')) {
+        const btn = e.target;
+        const container = btn.closest('.dynamic-form-item');
+        if (!container) return;
+        const parent = container.parentNode;
+        if (parent && parent.children && parent.children.length > 1) {
+            parent.removeChild(container);
+            renumberImageOrders();
+        } else {
+            // limpiar el único bloque
+            const fileInput = container.querySelector('input[type="file"]');
+            try { if (fileInput) fileInput.value = ''; } catch(e) {}
+            const preview = container.querySelector('.image-preview, .video-preview');
+            if (preview) preview.innerHTML = '';
+            container.querySelectorAll('[name^="image_"], [name^="video_"], [name^="document_"]').forEach(field => {
+                if (field.tagName === 'SELECT') field.selectedIndex = 0;
+                else field.value = '';
+                field.disabled = false;
+            });
+        }
+    }
 });
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBrL1QF7vTl9zF8FmCUumfRpFJcaYokO7Q&libraries=places&callback=initMap" async defer></script>

@@ -50,10 +50,10 @@
 {% block dashboard_extra_js %}
 <script>
 // Solo el bloque de inicialización del mapa, similar a property_create.html
-let map;
-let marker;
-let autocomplete;
-let geocoder;
+var map = window.map || null;
+var marker = window.marker || null;
+var autocomplete = window.autocomplete || null;
+var geocoder = window.geocoder || null;
 
 function initMap() {
     geocoder = new google.maps.Geocoder();
@@ -616,10 +616,10 @@ window.gm_authFailure = function() {
 
 <script>
 // Variables globales para el mapa
-let map;
-let marker;
-let autocomplete;
-let geocoder;
+var map = window.map || null;
+var marker = window.marker || null;
+var autocomplete = window.autocomplete || null;
+var geocoder = window.geocoder || null;
 
 // Inicializar mapa cuando la API esté cargada
 function initMap() {

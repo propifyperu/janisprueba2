@@ -14,3 +14,5 @@ djangorestframework-simplejwt
 
 python-dotenv
 requests
+django-storages
+azure-storage-blob

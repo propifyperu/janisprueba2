@@ -51,7 +51,7 @@ class PropertyForm(forms.ModelForm):
         model = Property
         fields = [
             'code', 'codigo_unico_propiedad', 'title', 'description',
-            'owner', 'property_type', 'property_subtype', 'status', 'responsible',
+            'owner', 'property_type', 'property_subtype', 'condition', 'status', 'responsible',
             'antiquity_years', 'delivery_date',
             'price', 'currency', 'maintenance_fee', 'has_maintenance',
             'floors', 'bedrooms', 'bathrooms', 'half_bathrooms',
@@ -68,6 +68,7 @@ class PropertyForm(forms.ModelForm):
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Título para campañas o publicaciones'}),
             'property_type': forms.Select(attrs={'class': 'form-select'}),
             'property_subtype': forms.Select(attrs={'class': 'form-select'}),
+            'condition': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'responsible': forms.Select(attrs={'class': 'form-select'}),
             'owner': forms.Select(attrs={'class': 'form-select'}),

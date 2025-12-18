@@ -8,6 +8,7 @@ from .models import (
     DocumentType, PropertyType, PropertySubtype, PropertyStatus, Currency,
     MeasurementUnit, GarageType, ServiceType, FloorType, RoomType, LevelType,
     Profession, Tag,
+    PropertyCondition, OperationType,
     # Propiedades
     Property, PropertyOwner, PropertyImage, PropertyVideo, PropertyDocument,
     PropertyFinancialInfo, PropertyRoom, ImageType, VideoType,
@@ -102,6 +103,22 @@ class PropertySubtypeAdmin(admin.ModelAdmin):
     list_display = ('name', 'property_type', 'is_active')
     list_filter = ('is_active', 'property_type')
     search_fields = ('name',)
+
+
+@admin.register(PropertyCondition)
+class PropertyConditionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'order', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    ordering = ('order', 'name')
+
+
+@admin.register(OperationType)
+class OperationTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'order', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'code')
+    ordering = ('order', 'name')
 
 
 @admin.register(PropertyStatus)
@@ -261,7 +278,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('code', 'codigo_unico_propiedad', 'title', 'description')
         }),
         ('Clasificación', {
-            'fields': ('property_type', 'property_subtype', 'status')
+            'fields': ('property_type', 'property_subtype', 'condition', 'operation_type', 'status')
         }),
         ('Propietario y Responsable', {
             'fields': ('owner', 'responsible', 'created_by')

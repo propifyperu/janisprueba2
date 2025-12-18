@@ -159,6 +159,24 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Optional Azure Blob storage for media files.
+# If AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY are provided in the environment,
+# the project will use django-storages Azure backend so both local and remote
+# deployments can share the same media container.
+AZURE_ACCOUNT_NAME = os.environ.get('AZURE_ACCOUNT_NAME')
+AZURE_ACCOUNT_KEY = os.environ.get('AZURE_ACCOUNT_KEY')
+AZURE_CONTAINER = os.environ.get('AZURE_CONTAINER', 'media')
+
+if AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY:
+    # Use django-storages Azure backend
+    DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
+    # django-storages reads these settings
+    AZURE_ACCOUNT_NAME = AZURE_ACCOUNT_NAME
+    AZURE_ACCOUNT_KEY = AZURE_ACCOUNT_KEY
+    AZURE_CONTAINER = AZURE_CONTAINER
+    # Public URL for media served from the blob container
+    MEDIA_URL = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
