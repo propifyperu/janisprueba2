@@ -9,6 +9,7 @@ from .models import (
     MeasurementUnit, GarageType, ServiceType, FloorType, RoomType, LevelType,
     Profession, Tag,
     PropertyCondition, OperationType,
+    PaymentMethod,
     # Propiedades
     Property, PropertyOwner, PropertyImage, PropertyVideo, PropertyDocument,
     PropertyFinancialInfo, PropertyRoom, ImageType, VideoType,
@@ -134,6 +135,14 @@ class CurrencyAdmin(admin.ModelAdmin):
     list_display = ('name', 'symbol', 'code', 'is_active')
     list_filter = ('is_active',)
     search_fields = ('name', 'code')
+
+
+@admin.register(PaymentMethod)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'order', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'code')
+    ordering = ('order', 'name')
 
 
 @admin.register(MeasurementUnit)
@@ -284,7 +293,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('owner', 'responsible', 'created_by')
         }),
         ('Precio y Moneda', {
-            'fields': ('price', 'currency', 'maintenance_fee', 'has_maintenance')
+            'fields': ('price', 'currency', 'forma_de_pago', 'maintenance_fee', 'has_maintenance')
         }),
         ('Características Físicas', {
             'fields': ('floors', 'bedrooms', 'bathrooms', 'half_bathrooms', 'garage_spaces', 'garage_type')

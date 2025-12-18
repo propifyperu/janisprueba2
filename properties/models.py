@@ -493,6 +493,8 @@ class Property(TitleCaseMixin, models.Model):
     # Precio y moneda
     price = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, default=0)
     currency = models.ForeignKey('Currency', on_delete=models.PROTECT, blank=True, null=True)
+    # Forma de pago (nuevo campo FK a PaymentMethod)
+    forma_de_pago = models.ForeignKey('PaymentMethod', on_delete=models.PROTECT, blank=True, null=True, verbose_name="Forma de Pago")
     maintenance_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     has_maintenance = models.BooleanField(default=False)
     
@@ -658,6 +660,26 @@ class PropertyFinancialInfo(models.Model):
     negotiation_status = models.ForeignKey('NegotiationStatus', on_delete=models.SET_NULL, null=True, blank=True, related_name='financial_records')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+# =============================================================================
+# MODELO PARA FORMAS DE PAGO
+# =============================================================================
+class PaymentMethod(TitleCaseMixin, models.Model):
+    title_case_fields = ('name',)
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=20, blank=True, null=True)
+    description = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'payment_methods'
+        ordering = ('order', 'name')
+
+    def __str__(self):
+        return self.name
 
     class Meta:
         db_table = 'property_financial_info'

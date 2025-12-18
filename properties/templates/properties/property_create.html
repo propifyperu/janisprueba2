@@ -326,15 +326,19 @@
                             </div>
 
                             <div class="row">
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label required-field">Precio</label>
                                     {{ form.price }}
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label required-field">Moneda</label>
                                     {{ form.currency }}
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Forma de Pago</label>
+                                    {{ form.forma_de_pago }}
+                                </div>
+                                <div class="col-md-3 mb-3">
                                     <div class="form-check form-switch mt-4">
                                         {{ form.has_maintenance }}
                                         <label class="form-check-label">Incluye Mantenimiento</label>

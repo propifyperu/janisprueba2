@@ -225,17 +225,22 @@
                             </div>
 
                             <div class="row">
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label required-field">Precio</label>
                                     {{ form.price }}
                                     {{ form.price.errors }}
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label required-field">Moneda</label>
                                     {{ form.currency }}
                                     {{ form.currency.errors }}
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Forma de Pago</label>
+                                    {{ form.forma_de_pago }}
+                                    {{ form.forma_de_pago.errors }}
+                                </div>
+                                <div class="col-md-3 mb-3">
                                     <div class="form-check form-switch mt-4">
                                         {{ form.has_maintenance }}
                                         <label class="form-check-label">Incluye mantenimiento</label>
