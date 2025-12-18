@@ -68,6 +68,34 @@
     .room-table th {
         vertical-align: middle;
     }
+
+    .image-preview {
+        min-height: 90px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .image-preview img {
+        max-width: 220px;
+        max-height: 180px;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(4, 125, 125, 0.25);
+    }
+
+    .video-preview {
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .video-preview video {
+        max-width: 220px;
+        max-height: 180px;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(4, 125, 125, 0.25);
+    }
 </style>
 {% endblock %}
 
@@ -502,27 +530,41 @@
                                     <small class="text-muted">La primera imagen válida se marcará como principal automáticamente.</small>
                                 </div>
 
-                                <!-- Imágenes Existentes -->
-                                {% if form.instance.images.all %}
-                                <div class="mb-3">
-                                    <p class="fw-semibold text-muted small">Imágenes existentes:</p>
+                                <!-- Imágenes Existentes (editable) -->
+                                {% for image in form.instance.images.all %}
+                                <div class="dynamic-form-item existing-image-item">
+                                    <input type="hidden" name="existing_image_ids" value="{{ image.id }}">
                                     <div class="row g-3">
-                                        {% for image in form.instance.images.all %}
-                                        <div class="col-lg-6 col-xl-4">
-                                            <div class="card h-100 border-info">
-                                                <img src="{{ image.image.url }}" alt="{{ image.caption }}" class="card-img-top" style="height: 180px; object-fit: cover;">
-                                                <div class="card-body">
-                                                    <p class="small text-muted mb-2">{{ image.caption }}</p>
-                                                    <a href="{{ image.image.url }}" target="_blank" class="btn btn-sm btn-outline-primary">Ver</a>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('¿Seguro?')) { location.href='#'; }">Eliminar</button>
-                                                </div>
+                                        <div class="col-xl-5 col-lg-6">
+                                            <label class="form-label">Archivo (reemplazar si desea)</label>
+                                            <input type="file" name="images" class="form-control" accept="image/*">
+                                            <div class="small text-muted mt-1">Archivo actual: <a href="{{ image.image.url }}" target="_blank">ver</a></div>
+                                        </div>
+                                        <div class="col-md-3 col-lg-2">
+                                            <label class="form-label">Tipo</label>
+                                            <select name="image_types" class="form-select" data-selected="{% if image.image_type %}{{ image.image_type.id }}{% endif %}"></select>
+                                        </div>
+                                        <div class="col-md-3 col-lg-2">
+                                            <label class="form-label">Ambiente</label>
+                                            <select name="image_ambientes" class="form-select" data-selected="{% if image.image_ambiente %}{{ image.image_ambiente.id }}{% endif %}"></select>
+                                        </div>
+                                        <div class="col-md-2 col-lg-2">
+                                            <label class="form-label">Orden</label>
+                                            <input type="number" name="image_orders" class="form-control" min="1" value="{{ image.order|default:forloop.counter }}">
+                                        </div>
+                                        <div class="col-lg-8 col-md-12">
+                                            <label class="form-label">Descripción</label>
+                                            <input type="text" name="image_captions" class="form-control" value="{{ image.caption }}" placeholder="Descripción de la imagen">
+                                        </div>
+                                        <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
+                                            <div class="image-preview w-100 text-center">
+                                                <img src="{{ image.image.url }}" alt="{{ image.caption }}" style="max-width:200px; max-height:160px; border-radius:0.5rem; border:1px solid rgba(4,125,125,0.25);">
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn mt-2">Eliminar bloque</button>
                                             </div>
                                         </div>
-                                        {% endfor %}
                                     </div>
-                                    <hr class="my-3">
                                 </div>
-                                {% endif %}
+                                {% endfor %}
 
                                 <div id="image-forms">
                                     <div class="dynamic-form-item">
@@ -561,32 +603,39 @@
                             <div>
                                 <h6 class="text-primary">Videos</h6>
 
-                                <!-- Videos Existentes -->
-                                {% if form.instance.videos.all %}
-                                <div class="mb-3">
-                                    <p class="fw-semibold text-muted small">Videos existentes:</p>
+                                <!-- Videos Existentes (editable) -->
+                                {% for video in form.instance.videos.all %}
+                                <div class="dynamic-form-item existing-video-item">
+                                    <input type="hidden" name="existing_video_ids" value="{{ video.id }}">
                                     <div class="row g-3">
-                                        {% for video in form.instance.videos.all %}
-                                        <div class="col-lg-6 col-xl-4">
-                                            <div class="card h-100 border-info">
-                                                <div class="ratio ratio-16x9">
-                                                    <video controls preload="metadata" style="object-fit: cover;">
-                                                        <source src="{{ video.video.url }}" type="video/mp4">
-                                                    </video>
-                                                </div>
-                                                <div class="card-body">
-                                                    <p class="small text-muted mb-2"><strong>{{ video.title }}</strong></p>
-                                                    <p class="small text-muted mb-2">{{ video.description }}</p>
-                                                    <a href="{{ video.video.url }}" target="_blank" class="btn btn-sm btn-outline-primary">Ver</a>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('¿Seguro?')) { location.href='#'; }">Eliminar</button>
-                                                </div>
+                                        <div class="col-xl-5 col-lg-6">
+                                            <label class="form-label">Archivo (reemplazar si desea)</label>
+                                            <input type="file" name="videos" class="form-control" accept="video/mp4,video/webm,video/ogg">
+                                            <div class="small text-muted mt-1">Archivo actual: <a href="{{ video.video.url }}" target="_blank">ver</a></div>
+                                        </div>
+                                        <div class="col-md-3 col-lg-2">
+                                            <label class="form-label">Tipo</label>
+                                            <select name="video_types" class="form-select" data-selected="{% if video.video_type %}{{ video.video_type.id }}{% endif %}"></select>
+                                        </div>
+                                        <div class="col-md-4 col-lg-4">
+                                            <label class="form-label">Título</label>
+                                            <input type="text" name="video_titles" class="form-control" value="{{ video.title }}" placeholder="Título del video">
+                                        </div>
+                                        <div class="col-lg-8 col-md-12">
+                                            <label class="form-label">Descripción</label>
+                                            <textarea name="video_descriptions" class="form-control" rows="2" placeholder="Descripción opcional">{{ video.description }}</textarea>
+                                        </div>
+                                        <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
+                                            <div class="video-preview w-100 text-center">
+                                                <video controls preload="metadata" style="max-width:220px; max-height:160px; border-radius:0.5rem; border:1px solid rgba(4,125,125,0.25);">
+                                                    <source src="{{ video.video.url }}" type="video/mp4">
+                                                </video>
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn mt-2">Eliminar bloque</button>
                                             </div>
                                         </div>
-                                        {% endfor %}
                                     </div>
-                                    <hr class="my-3">
                                 </div>
-                                {% endif %}
+                                {% endfor %}
 
                                 <div id="video-forms">
                                     <div class="dynamic-form-item">
@@ -628,35 +677,34 @@
                             <div class="mb-4">
                                 <h6 class="text-primary">Documentos Legales</h6>
 
-                                <!-- Documentos Existentes -->
-                                {% if form.instance.documents.all %}
-                                <div class="mb-3">
-                                    <p class="fw-semibold text-muted small">Documentos existentes:</p>
-                                    <div class="row g-3">
-                                        {% for doc in form.instance.documents.all %}
-                                        <div class="col-lg-6 col-xl-4">
-                                            <div class="card h-100 border-info">
-                                                <div class="card-header bg-light">
-                                                    <a href="{{ doc.file.url }}" target="_blank" rel="noopener" class="text-decoration-none">
-                                                        <i class="fas fa-file"></i> {{ doc.title }}
-                                                    </a>
-                                                </div>
-                                                <div class="card-body">
-                                                    <p class="small text-muted mb-2">{{ doc.description }}</p>
-                                                    <small class="text-muted">Tipo: {% if doc.document_type %}{{ doc.document_type.name }}{% else %}Sin especificar{% endif %}</small>
-                                                    <br>
-                                                    <small class="text-muted">Tamaño: {{ doc.file.size|filesizeformat }}</small>
-                                                    <br>
-                                                    <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">Descargar</a>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('¿Seguro?')) { location.href='#'; }">Eliminar</button>
-                                                </div>
-                                            </div>
+                                <!-- Documentos Existentes (editable) -->
+                                {% for doc in form.instance.documents.all %}
+                                <div class="dynamic-form-item existing-document-item">
+                                    <input type="hidden" name="existing_document_ids" value="{{ doc.id }}">
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Archivo (reemplazar si desea)</label>
+                                            <input type="file" name="documents" class="form-control" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                                            <div class="small text-muted mt-1">Archivo actual: <a href="{{ doc.file.url }}" target="_blank">ver</a></div>
                                         </div>
-                                        {% endfor %}
+                                        <div class="col-md-4">
+                                            <label class="form-label">Tipo de Documento</label>
+                                            <select name="document_types" class="form-select" data-selected="{% if doc.document_type %}{{ doc.document_type.id }}{% endif %}"></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Título</label>
+                                            <input type="text" name="document_titles" class="form-control" value="{{ doc.title }}" placeholder="Título del documento">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label">Descripción</label>
+                                            <textarea name="document_descriptions" class="form-control" rows="2" placeholder="Notas u observaciones">{{ doc.description }}</textarea>
+                                        </div>
+                                        <div class="col-12 mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn">Eliminar bloque</button>
+                                        </div>
                                     </div>
-                                    <hr class="my-3">
                                 </div>
-                                {% endif %}
+                                {% endfor %}
 
                                 <div id="document-forms">
                                     <div class="dynamic-form-item">
@@ -1524,6 +1572,11 @@ function populateImageTypeSelect(select) {
             data.forEach(type => {
                 select.innerHTML += `<option value="${type.id}">${type.name}</option>`;
             });
+            // seleccionar el valor si está marcado en data-selected
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
         })
         .catch(() => {
             select.innerHTML = '<option value="">Error al cargar tipos</option>';
@@ -1538,6 +1591,10 @@ function populateImageAmbienteSelect(select) {
             data.forEach(room => {
                 select.innerHTML += `<option value="${room.id}">${room.name}</option>`;
             });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
         })
         .catch(() => {
             select.innerHTML = '<option value="">Error al cargar ambientes</option>';
@@ -1552,6 +1609,10 @@ function populateVideoTypeSelect(select) {
             data.forEach(videoType => {
                 select.innerHTML += `<option value="${videoType.id}">${videoType.name}</option>`;
             });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
         })
         .catch(() => {
             select.innerHTML = '<option value="">Error al cargar tipos</option>';
@@ -1566,6 +1627,10 @@ function populateDocumentTypeSelect(select) {
             data.forEach(docType => {
                 select.innerHTML += `<option value="${docType.id}">${docType.name}</option>`;
             });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
         })
         .catch(error => {
             select.innerHTML = '<option value="">Error al cargar tipos</option>';
