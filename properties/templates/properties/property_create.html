@@ -1717,6 +1717,10 @@ function populateImageTypeSelect(select) {
             data.forEach(type => {
                 select.innerHTML += `<option value="${type.id}">${type.name}</option>`;
             });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
         })
         .catch(() => {
             select.innerHTML = '<option value="">Error al cargar tipos</option>';
@@ -1731,6 +1735,10 @@ function populateImageAmbienteSelect(select) {
             data.forEach(room => {
                 select.innerHTML += `<option value="${room.id}">${room.name}</option>`;
             });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
         })
         .catch(() => {
             select.innerHTML = '<option value="">Error al cargar ambientes</option>';
@@ -1745,6 +1753,10 @@ function populateVideoTypeSelect(select) {
             data.forEach(videoType => {
                 select.innerHTML += `<option value="${videoType.id}">${videoType.name}</option>`;
             });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
         })
         .catch(() => {
             select.innerHTML = '<option value="">Error al cargar tipos</option>';
@@ -1759,6 +1771,10 @@ function populateDocumentTypeSelect(select) {
             data.forEach(docType => {
                 select.innerHTML += `<option value="${docType.id}">${docType.name}</option>`;
             });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
         })
         .catch(error => {
             select.innerHTML = '<option value="">Error al cargar tipos</option>';
