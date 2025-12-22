@@ -26,16 +26,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'clave_para_desarrollo')
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
+DEBUG = True
 
-# ALLOWED_HOSTS: se puede configurar vía variable de entorno `ALLOWED_HOSTS`
-# como una lista separada por comas. Por defecto permitimos localhost, la app
-# conocida y cualquier subdominio de azurewebsites.net.
-raw_hosts = os.environ.get(
-    'ALLOWED_HOSTS',
-    'janis-core2-app.azurewebsites.net,localhost,127.0.0.1,.azurewebsites.net',
-)
-ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(',') if h.strip()]
+ALLOWED_HOSTS = [
+    'janis-core2-app.azurewebsites.net',
+    'localhost',
+    '127.0.0.1',
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -101,14 +98,13 @@ WSGI_APPLICATION = "janis_core3.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        # Allow overriding database connection via environment variables for deployments.
-        'NAME': os.environ.get('DB_NAME', 'propify_db'),
-        'USER': os.environ.get('DB_USER', 'adminpropify'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'Propify12345@'),
-        'HOST': os.environ.get('DB_HOST', 'propify.database.windows.net'),
-        'PORT': os.environ.get('DB_PORT', '1433'),
+        'NAME': 'propify_db',
+        'USER': 'adminpropify',
+        'PASSWORD': 'Propify12345@',
+        'HOST': 'propify.database.windows.net',
+        'PORT': '1433',
         'OPTIONS': {
-            'driver': os.environ.get('ODBC_DRIVER', 'ODBC Driver 18 for SQL Server'),
+            'driver': 'ODBC Driver 18 for SQL Server',
             'extra_params': 'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;',
             'connection_timeout': 60,
         },
@@ -116,11 +112,6 @@ DATABASES = {
         'TIME_ZONE': 'America/Lima',
     }
 }
-
-# Nota: eliminamos el fallback a SQLite para obligar al proyecto a usar la
-# configuración de base de datos proporcionada por las variables de entorno.
-# Si necesita desarrollo offline, configure una BD de desarrollo distinta
-# y ajuste las variables de entorno en su entorno local.
 
 
 # Password validation
@@ -155,14 +146,9 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# CSRF trusted origins: también configurable por entorno (comma-separated)
-# Deben incluir el esquema (https://...). Añade aquí tu endpoint de Front Door
-# o el dominio público del App Service si procede.
-raw_csrf = os.environ.get(
-    'CSRF_TRUSTED_ORIGINS',
+CSRF_TRUSTED_ORIGINS = [
     'https://janis-core2-app.azurewebsites.net',
-)
-CSRF_TRUSTED_ORIGINS = [u.strip() for u in raw_csrf.split(',') if u.strip()]
+]
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"

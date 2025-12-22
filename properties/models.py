@@ -660,14 +660,6 @@ class PropertyFinancialInfo(models.Model):
     negotiation_status = models.ForeignKey('NegotiationStatus', on_delete=models.SET_NULL, null=True, blank=True, related_name='financial_records')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'property_financial_info'
-        verbose_name = 'Información financiera de la propiedad'
-        verbose_name_plural = 'Información financiera de propiedades'
-
-    def __str__(self):
-        return f"Finanzas {self.property.code}" if getattr(self, 'property_id', None) else 'Finanzas sin propiedad'
 
 
 # =============================================================================
@@ -689,6 +681,13 @@ class PaymentMethod(TitleCaseMixin, models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        db_table = 'property_financial_info'
+        verbose_name = 'Información financiera de la propiedad'
+        verbose_name_plural = 'Información financiera de propiedades'
+
+    def __str__(self):
+        return f"Finanzas {self.property.code}" if self.property_id else 'Finanzas sin propiedad'
 
 
 # =============================================================================

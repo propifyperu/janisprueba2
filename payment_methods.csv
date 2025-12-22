@@ -1,6 +1,0 @@
-id,name,code,description,order,is_active,created_at
-1,Efectivo,,,0,True,2025-12-18 16:49:30.9788760 +00:00
-2,Credito Hipotecario,,,0,True,2025-12-18 16:49:47.0919480 +00:00
-3,Transferencia,TRANSFER,,1,True,2025-12-18 16:52:42.4561630 +00:00
-4,Efectivo,CASH,,2,True,2025-12-18 16:52:43.3389690 +00:00
-5,Tarjeta,CARD,,3,True,2025-12-18 16:52:44.3724240 +00:00

@@ -94,23 +94,6 @@ class PropertyForm(forms.ModelForm):
         for field_name in self.fields:
             self.fields[field_name].required = False
 
-        # Hotfix: evitar fallos en entornos donde la tabla/columnas de PaymentMethod
-        # no estén sincronizadas con los modelos (producción). Si la consulta a la
-        # tabla falla, dejamos el queryset vacío para que el formulario no provoque
-        # un 500 al renderizar. Esto es temporal hasta que la DB esté sincronizada.
-        try:
-            if 'forma_de_pago' in self.fields:
-                # import local para evitar problemas de importación circular
-                from .models import PaymentMethod
-                self.fields['forma_de_pago'].queryset = PaymentMethod.objects.filter(is_active=True).order_by('order')
-        except Exception:
-            if 'forma_de_pago' in self.fields:
-                # Asignar choices vacío para evitar errores al renderizar el widget
-                try:
-                    self.fields['forma_de_pago'].choices = []
-                except Exception:
-                    pass
-
     def clean(self):
         cleaned_data = super().clean()
         status = cleaned_data.get('status')
