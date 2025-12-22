@@ -16,3 +16,4 @@ python-dotenv
 requests
 django-storages
 azure-storage-blob
+azure-identity

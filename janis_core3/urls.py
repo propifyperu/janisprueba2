@@ -24,6 +24,8 @@ from .api_views import revoke_refresh_token
 from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
+from .media_views import media_proxy
+from django.urls import re_path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -41,3 +43,8 @@ urlpatterns = [
 # Servir archivos de media en desarrollo
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Proxy media route for private Azure blobs (always enabled)
+urlpatterns += [
+    re_path(r'^media-proxy/(?P<path>.*)$', media_proxy, name='media_proxy'),
+]

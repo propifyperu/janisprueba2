@@ -181,14 +181,14 @@ AZURE_ACCOUNT_NAME = os.environ.get('AZURE_ACCOUNT_NAME')
 AZURE_ACCOUNT_KEY = os.environ.get('AZURE_ACCOUNT_KEY')
 AZURE_CONTAINER = os.environ.get('AZURE_CONTAINER', 'media')
 
-if AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY:
-    # Use django-storages Azure backend
-    DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
-    # django-storages reads these settings
+if AZURE_ACCOUNT_NAME:
+    # Use Managed Identity / Azure backend that stores blobs and returns proxy URLs
+    DEFAULT_FILE_STORAGE = 'janis_core3.storage_backends.AzureManagedIdentityStorage'
+    # django-storages / backend settings
     AZURE_ACCOUNT_NAME = AZURE_ACCOUNT_NAME
     AZURE_ACCOUNT_KEY = AZURE_ACCOUNT_KEY
     AZURE_CONTAINER = AZURE_CONTAINER
-    # Public URL for media served from the blob container
+    # MEDIA_URL remains the base; the storage backend will append SAS tokens
     MEDIA_URL = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
 
 # Default primary key field type

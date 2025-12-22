@@ -559,7 +559,10 @@ def create_property_view(request):
 
                 try:
                     draft = Property.objects.create(**draft_kwargs)
-                except Exception:
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.exception('Error creando borrador de propiedad: %s', e)
                     draft = None
 
             # Si tenemos un borrador (nuevo o existente), guardar archivos subidos en él
@@ -590,8 +593,12 @@ def create_property_view(request):
                                 order=order,
                                 uploaded_by=request.user
                             )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.exception('Error guardando imagen en borrador: %s', e)
+                            from django.contrib import messages
+                            messages.error(request, 'Error al guardar imagen (borrador). Revisa los logs.')
 
                 # videos
                 videos_files = request.FILES.getlist('videos')
@@ -616,8 +623,12 @@ def create_property_view(request):
                                 description=description,
                                 uploaded_by=request.user
                             )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.exception('Error guardando video en borrador: %s', e)
+                            from django.contrib import messages
+                            messages.error(request, 'Error al guardar video (borrador). Revisa los logs.')
 
                 # documentos
                 documents_files = request.FILES.getlist('documents')
@@ -642,8 +653,12 @@ def create_property_view(request):
                                 description=description,
                                 uploaded_by=request.user
                             )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.exception('Error guardando documento en borrador: %s', e)
+                            from django.contrib import messages
+                            messages.error(request, 'Error al guardar documento (borrador). Revisa los logs.')
 
             # preparar contexto para re-renderizar el formulario con los recursos ya subidos
             contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
@@ -758,8 +773,12 @@ def create_property_view(request):
                             new_value=f"Imagen subida: {img.caption or img.image.name}",
                             changed_by=request.user
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error registrando cambio de imagen para la propiedad %s: %s', property_obj.pk, e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error al registrar evento de imagen. Revisa los logs.')
                     primary_image_set = True
 
             # ===================== PROCESAR VIDEOS =====================
@@ -795,8 +814,12 @@ def create_property_view(request):
                             new_value=f"Video subido: {vid.title}",
                             changed_by=request.user
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error registrando cambio de video para la propiedad %s: %s', property_obj.pk, e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error al registrar evento de video. Revisa los logs.')
 
             # ===================== PROCESAR DOCUMENTOS =====================
             documents_files = request.FILES.getlist('documents')
@@ -831,8 +854,12 @@ def create_property_view(request):
                             new_value=f"Documento subido: {doc.title}",
                             changed_by=request.user
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error registrando cambio de documento para la propiedad %s: %s', property_obj.pk, e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error al registrar evento de documento. Revisa los logs.')
 
             # ===================== PROCESAR HABITACIONES =====================
             room_levels = request.POST.getlist('room_levels')
