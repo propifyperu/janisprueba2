@@ -26,13 +26,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'clave_para_desarrollo')
 
-DEBUG = True
+# DEBUG desde variable de entorno (False por defecto en producción)
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = [
-    'janis-core2-app.azurewebsites.net',
-    'localhost',
-    '127.0.0.1',
-]
+# Hosts permitidos desde App Setting `ALLOWED_HOSTS` (coma-separados)
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 # Application definition
 
 INSTALLED_APPS = [
@@ -97,19 +95,20 @@ WSGI_APPLICATION = "janis_core3.wsgi.application"
 
 DATABASES = {
     'default': {
-        'ENGINE': 'mssql',
-        'NAME': 'propify_db',
-        'USER': 'adminpropify',
-        'PASSWORD': 'Propify12345@',
-        'HOST': 'propify.database.windows.net',
-        'PORT': '1433',
+        # Leer credenciales desde variables de entorno para producción
+        'ENGINE': os.environ.get('DB_ENGINE', 'mssql'),
+        'NAME': os.environ.get('DB_NAME', 'propify_db'),
+        'USER': os.environ.get('DB_USER', 'adminpropify'),
+        'PASSWORD': os.environ.get('DB_PASS', os.environ.get('DB_PASSWORD', 'Propify12345@')),
+        'HOST': os.environ.get('DB_HOST', 'propify.database.windows.net'),
+        'PORT': os.environ.get('DB_PORT', '1433'),
         'OPTIONS': {
-            'driver': 'ODBC Driver 18 for SQL Server',
-            'extra_params': 'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;',
-            'connection_timeout': 60,
+            'driver': os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
+            'extra_params': os.environ.get('DB_EXTRA_PARAMS', 'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;'),
+            'connection_timeout': int(os.environ.get('DB_CONN_TIMEOUT', 60)),
         },
-        'CONN_MAX_AGE': 0,
-        'TIME_ZONE': 'America/Lima',
+        'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', 0)),
+        'TIME_ZONE': os.environ.get('DB_TIME_ZONE', 'America/Lima'),
     }
 }
 
@@ -147,7 +146,7 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 CSRF_TRUSTED_ORIGINS = [
-    'https://janis-core2-app.azurewebsites.net',
+    o.strip() for o in os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://localhost').split(',') if o.strip()
 ]
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
@@ -228,8 +227,7 @@ SIMPLE_JWT = {
 # For mobile native apps using Retrofit this is not strictly necessary, but
 # android emulators or embedded webviews may require correct origins.
 CORS_ALLOWED_ORIGINS = [
-    'https://janis-core2-app.azurewebsites.net',
-    'http://localhost:8000',
+    o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:8000').split(',') if o.strip()
 ]
 
 # If you prefer to allow all origins during development, set the following to True
