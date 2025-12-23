@@ -93,14 +93,21 @@ WSGI_APPLICATION = "janis_core3.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Normalizar DB user/host antes de definir el diccionario DATABASES
+_db_user = os.environ.get('DB_USER', 'sqladmin') or 'sqladmin'
+_db_host = os.environ.get('DB_HOST', 'janisdevsql58636.database.windows.net')
+_server_short = _db_host.split('.')[0] if _db_host else _db_host
+if '@' not in _db_user and _server_short:
+    _db_user = f"{_db_user}@{_server_short}"
+
 DATABASES = {
     'default': {
         # Leer credenciales desde variables de entorno para producción
         'ENGINE': os.environ.get('DB_ENGINE', 'mssql'),
-        'NAME': os.environ.get('DB_NAME', 'propify_db'),
-        'USER': os.environ.get('DB_USER', 'adminpropify'),
-        'PASSWORD': os.environ.get('DB_PASS', os.environ.get('DB_PASSWORD', 'Propify12345@')),
-        'HOST': os.environ.get('DB_HOST', 'propify.database.windows.net'),
+        'NAME': os.environ.get('DB_NAME', 'janis_main'),
+        'USER': _db_user,
+        'PASSWORD': os.environ.get('DB_PASS', os.environ.get('DB_PASSWORD', '')),
+        'HOST': _db_host,
         'PORT': os.environ.get('DB_PORT', '1433'),
         'OPTIONS': {
             'driver': os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
