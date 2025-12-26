@@ -54,5 +54,7 @@ urlpatterns = [
     path('marketing/propiedades/', marketing_properties_list, name='marketing_properties_list'),
     path('marketing/dashboard/', marketing_utm_dashboard, name='marketing_utm_dashboard'),
     path('api/', include(router.urls)),
+    # Servir imágenes almacenadas como blob en la tabla `property_images`
+    path('images/blob/<int:pk>/', views.image_blob_view, name='image_blob'),
     path('', PropertyDashboardView.as_view(), name='dashboard_root'),
 ]

@@ -45,10 +45,22 @@
                         <div class="carousel-inner">
                             {% for image in property.images.all %}
                             <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                {% if image.image_blob %}
+                                <img src="{% url 'properties:image_blob' image.id %}" alt="{{ image.caption }}" 
+                                     class="d-block w-100 rounded" style="height: 400px; object-fit: cover; cursor: pointer;"
+                                     data-bs-toggle="modal" data-bs-target="#imageModal"
+                                     onclick="openImageModal('{% url 'properties:image_blob' image.id %}', '{{ image.caption }}')">
+                                {% elif image.image %}
                                 <img src="{{ image.image.url }}" alt="{{ image.caption }}" 
                                      class="d-block w-100 rounded" style="height: 400px; object-fit: cover; cursor: pointer;"
                                      data-bs-toggle="modal" data-bs-target="#imageModal"
                                      onclick="openImageModal('{{ image.image.url }}', '{{ image.caption }}')">
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-image fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted">No hay imagen</p>
+                                </div>
+                                {% endif %}
                                 <div class="carousel-caption d-none d-md-block">
                                     <h5>{{ image.caption }}</h5>
                                     <small>Haz click para ampliar</small>
@@ -71,9 +83,15 @@
                     {% if property.images.all|length > 1 %}
                     <div class="d-flex gap-2 mt-3 overflow-auto pb-2">
                         {% for image in property.images.all %}
-                        <img src="{{ image.image.url }}" alt="{{ image.caption }}" 
-                             class="rounded" style="height: 60px; width: 80px; object-fit: cover; cursor: pointer; flex-shrink: 0;"
-                             onclick="document.querySelector('#imagesCarousel').querySelector('.carousel-inner').children[{{ forloop.counter0 }}].classList.add('active'); Array.from(document.querySelector('#imagesCarousel').querySelector('.carousel-inner').children).forEach((el, idx) => { if(idx !== {{ forloop.counter0 }}) el.classList.remove('active'); })">
+                            {% if image.image_blob %}
+                            <img src="{% url 'properties:image_blob' image.id %}" alt="{{ image.caption }}" 
+                                class="rounded" style="height: 60px; width: 80px; object-fit: cover; cursor: pointer; flex-shrink: 0;"
+                                onclick="document.querySelector('#imagesCarousel').querySelector('.carousel-inner').children[{{ forloop.counter0 }}].classList.add('active'); Array.from(document.querySelector('#imagesCarousel').querySelector('.carousel-inner').children).forEach((el, idx) => { if(idx !== {{ forloop.counter0 }}) el.classList.remove('active'); })">
+                            {% elif image.image %}
+                            <img src="{{ image.image.url }}" alt="{{ image.caption }}" 
+                                class="rounded" style="height: 60px; width: 80px; object-fit: cover; cursor: pointer; flex-shrink: 0;"
+                                onclick="document.querySelector('#imagesCarousel').querySelector('.carousel-inner').children[{{ forloop.counter0 }}].classList.add('active'); Array.from(document.querySelector('#imagesCarousel').querySelector('.carousel-inner').children).forEach((el, idx) => { if(idx !== {{ forloop.counter0 }}) el.classList.remove('active'); })">
+                            {% endif %}
                         {% endfor %}
                     </div>
                     {% endif %}

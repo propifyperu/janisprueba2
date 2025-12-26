@@ -48,6 +48,8 @@ def delete_draft_view(request, pk):
         messages.error(request, 'No se encontró el borrador o no tienes permiso para borrarlo.')
     return HttpResponseRedirect(reverse('properties:drafts'))
 from django.http import HttpResponse
+from django.http import HttpResponseNotFound
+from django.contrib.auth.decorators import login_required
 
 # Vista ULTRA SIMPLE sin templates - SOLO HTML PURO
 def simple_properties_view(request):
@@ -168,6 +170,29 @@ def track_whatsapp_click(request, link_id):
 
     # Redirigir a WhatsApp
     return redirect(link.get_whatsapp_url())
+
+
+@login_required
+def image_blob_view(request, pk):
+    """Servir el contenido binario de `PropertyImage.image_blob` cuando exista.
+
+    Si no existe `image_blob`, redirige a `image.url` si está disponible.
+    """
+    from .models import PropertyImage
+    pi = get_object_or_404(PropertyImage, pk=pk)
+
+    # Si hay blob en la base de datos lo servimos directamente
+    if getattr(pi, 'image_blob', None):
+        content_type = pi.image_content_type or 'image/jpeg'
+        resp = HttpResponse(pi.image_blob, content_type=content_type)
+        # permitir caché por defecto (puedes ajustar headers aquí)
+        return resp
+
+    # Si no hay blob pero hay un archivo en storage, redirigimos a su URL
+    if getattr(pi, 'image', None) and getattr(pi.image, 'url', None):
+        return redirect(pi.image.url)
+
+    return HttpResponseNotFound('Image not found')
 from .forms import PropertyOwnerForm
 from .models import PropertyOwner
 from django.views.generic import ListView, CreateView, DetailView

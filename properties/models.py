@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.conf import settings
+import mimetypes
 import random
 import string
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField
@@ -588,6 +590,9 @@ class PropertyImage(TitleCaseMixin, models.Model):
     title_case_fields = ('caption',)
     property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='properties/images/')
+    # Campo para almacenar el blob directamente en la tabla (opcional)
+    image_blob = models.BinaryField(null=True, blank=True)
+    image_content_type = models.CharField(max_length=100, blank=True, null=True)
     image_type = models.ForeignKey('ImageType', on_delete=models.PROTECT, null=True, blank=True)
     image_ambiente = models.ForeignKey('RoomType', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Ambiente de la imagen")
     caption = models.CharField(max_length=255, blank=True)
@@ -604,8 +609,56 @@ class PropertyImage(TitleCaseMixin, models.Model):
         return f"Imagen {self.id} - {self.property.code}"
 
     def save(self, *args, **kwargs):
+        """Guardar la instancia y volcar el contenido del ImageField en `image_blob`.
+
+        Esto asegura que la imagen quede almacenada en la fila de la tabla, lo que
+        permite servirla desde la base de datos independientemente del storage.
+        """
         self._apply_title_case()
         super().save(*args, **kwargs)
+
+        try:
+            if self.image:
+                data = None
+                f = getattr(self.image, 'file', None)
+                if f is not None:
+                    try:
+                        f.seek(0)
+                    except Exception:
+                        pass
+                    try:
+                        data = f.read()
+                    except Exception:
+                        data = None
+
+                if data is None:
+                    try:
+                        with self.image.open(mode='rb') as fh:
+                            data = fh.read()
+                    except Exception:
+                        data = None
+
+                if data:
+                    # determinar tipo de contenido
+                    ct = None
+                    try:
+                        fo = getattr(self.image, 'file', None)
+                        if fo is not None and hasattr(fo, 'content_type'):
+                            ct = fo.content_type
+                    except Exception:
+                        ct = None
+
+                    if not ct:
+                        guessed = mimetypes.guess_type(getattr(self.image, 'name', '') or '')[0]
+                        ct = guessed or 'image/jpeg'
+
+                    # actualizar mediante queryset para evitar recursión en save()
+                    type(self).objects.filter(pk=self.pk).update(image_blob=data, image_content_type=ct)
+                    self.image_blob = data
+                    self.image_content_type = ct
+        except Exception:
+            # no fallar el guardado por errores al leer/volcar el binario
+            pass
 
 class PropertyVideo(TitleCaseMixin, models.Model):
     title_case_fields = ('title',)
