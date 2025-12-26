@@ -149,8 +149,7 @@
         width: 50%;
     }
 
-    .fields-table th:nth-child(2),
-    .fields-table th:nth-child(3) {
+    .fields-table th:nth-child(2) {
         width: 25%;
     }
 
@@ -397,7 +396,6 @@
                     <tr>
                         <th>Campo</th>
                         <th style="text-align: center;">Ver</th>
-                        <th style="text-align: center;">Editar</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -408,7 +406,6 @@
                 <tr>
                     <td class="field-name">${field.display_name}</td>
                     <td class="checkbox-wrapper"><label class="custom-checkbox"><input type="checkbox" class="can-view-field" data-role-id="${roleId}" data-field-name="${field.field_name}" ${field.can_view ? 'checked' : ''} onchange="savePermission(${roleId}, '${field.field_name}', 'can_view', this.checked)" /><span class="checkmark"></span></label></td>
-                    <td class="checkbox-wrapper"><label class="custom-checkbox"><input type="checkbox" class="can-edit-field" data-role-id="${roleId}" data-field-name="${field.field_name}" ${field.can_edit ? 'checked' : ''} onchange="savePermission(${roleId}, '${field.field_name}', 'can_edit', this.checked)" /><span class="checkmark"></span></label></td>
                 </tr>
             `;
         });
