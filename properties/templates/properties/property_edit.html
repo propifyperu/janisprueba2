@@ -546,7 +546,15 @@
                                         <div class="col-xl-5 col-lg-6">
                                             <label class="form-label">Archivo (reemplazar si desea)</label>
                                             <input type="file" name="images" class="form-control" accept="image/*">
-                                            <div class="small text-muted mt-1">Archivo actual: <a href="{{ image.image.url }}" target="_blank">ver</a></div>
+                                            <div class="small text-muted mt-1">Archivo actual: 
+                                                {% if image.image_blob %}
+                                                    <a href="{% url 'properties:image_blob' image.id %}" target="_blank">ver</a>
+                                                {% elif image.image %}
+                                                    <a href="{{ image.image.url }}" target="_blank">ver</a>
+                                                {% else %}
+                                                    (no disponible)
+                                                {% endif %}
+                                            </div>
                                         </div>
                                         <div class="col-md-3 col-lg-2">
                                             <label class="form-label">Tipo</label>
@@ -566,7 +574,13 @@
                                         </div>
                                         <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
                                             <div class="image-preview w-100 text-center">
-                                                <img src="{{ image.image.url }}" alt="{{ image.caption }}" style="max-width:200px; max-height:160px; border-radius:0.5rem; border:1px solid rgba(4,125,125,0.25);">
+                                                {% if image.image_blob %}
+                                                    <img src="{% url 'properties:image_blob' image.id %}" alt="{{ image.caption }}" style="max-width:200px; max-height:160px; border-radius:0.5rem; border:1px solid rgba(4,125,125,0.25);">
+                                                {% elif image.image %}
+                                                    <img src="{{ image.image.url }}" alt="{{ image.caption }}" style="max-width:200px; max-height:160px; border-radius:0.5rem; border:1px solid rgba(4,125,125,0.25);">
+                                                {% else %}
+                                                    <div class="text-muted">No disponible</div>
+                                                {% endif %}
                                                 <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn mt-2">Eliminar bloque</button>
                                             </div>
                                         </div>

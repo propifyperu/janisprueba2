@@ -1095,6 +1095,17 @@ def edit_property_view(request, pk):
             image_captions = request.POST.getlist('image_captions')
             image_orders = request.POST.getlist('image_orders')
             primary_image_set = False
+
+            # Helper para normalizar orden de imágenes a 1..N
+            from django.db.models import Max
+            def _normalize_image_orders(prop):
+                imgs = list(PropertyImage.objects.filter(property=prop).order_by('order', 'uploaded_at', 'id'))
+                for idx2, im in enumerate(imgs, start=1):
+                    if im.order != idx2:
+                        PropertyImage.objects.filter(pk=im.pk).update(order=idx2)
+
+            # calcular orden base según las imágenes existentes
+            max_order = PropertyImage.objects.filter(property=property_obj).aggregate(m=Max('order'))['m'] or 0
             for idx, image_file in enumerate(images_files):
                 if image_file:
                     try:
@@ -1102,10 +1113,12 @@ def edit_property_view(request, pk):
                         image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
                     except (ImageType.DoesNotExist, ValueError):
                         image_type = None
+                    # Si el formulario proporcionó un order concreto, usarlo; si no, anexar al final
                     try:
-                        order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
+                        provided = image_orders[idx] if idx < len(image_orders) and image_orders[idx] else None
+                        order = int(provided) if provided else (max_order + 1)
                     except ValueError:
-                        order = idx + 1
+                        order = max_order + 1
                     caption = image_captions[idx] if idx < len(image_captions) else ''
                     is_primary = not primary_image_set
                     img = PropertyImage.objects.create(
@@ -1118,6 +1131,9 @@ def edit_property_view(request, pk):
                         uploaded_by=request.user
                     )
                     primary_image_set = True
+                    # aumentar el max_order para siguientes imágenes sin orden
+                    if order >= max_order:
+                        max_order = order
                     try:
                         PropertyChange.objects.create(
                             property=property_obj,
@@ -1128,6 +1144,9 @@ def edit_property_view(request, pk):
                         )
                     except Exception:
                         pass
+
+            # Normalizar secuencia de orders tras posibles adiciones
+            _normalize_image_orders(property_obj)
 
             # Videos
             videos_files = request.FILES.getlist('videos')
