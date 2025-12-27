@@ -262,7 +262,7 @@
                 <div class="contact-card">
                     <div class="card-body">
                         <div class="contact-avatar">
-                            {{ contact.first_name|first }}{{ contact.last_name|first }}
+                            {{ contact.first_name|default:""|slice:":1" }}{{ contact.last_name|default:""|slice:":1" }}
                         </div>
                         <div class="contact-summary">
                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
