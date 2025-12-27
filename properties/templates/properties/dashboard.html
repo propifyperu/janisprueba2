@@ -711,7 +711,9 @@
                         </div>
                         <div class="property-actions">
                             <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-external-link-alt me-1"></i>Ver detalle</a>
-                            <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary btn-sm ms-2"><i class="fas fa-edit me-1"></i>Editar</a>
+                            {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
+                                <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary btn-sm ms-2"><i class="fas fa-edit me-1"></i>Editar</a>
+                            {% endif %}
                             <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info btn-sm ms-2" title="Ver historial de cambios"><i class="fas fa-history me-1"></i>Historial</a>
                             <span class="last-update">Actualizado el {{ property.updated_at|date:"d/m/Y" }}</span>
                         </div>
