@@ -245,6 +245,22 @@ class ContactCreateView(LoginRequiredMixin, CreateView):
         return redirect('properties:contact_list')
 
 
+class MyPropertiesView(LoginRequiredMixin, ListView):
+    """Lista de propiedades creadas por el usuario actualmente logueado (activas)."""
+    model = Property
+    template_name = 'properties/my_properties.html'
+    context_object_name = 'properties'
+    paginate_by = 12
+
+    def get_queryset(self):
+        return Property.objects.filter(created_by=self.request.user, is_active=True).order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['property_count'] = context['properties'].count()
+        return context
+
+
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -421,8 +437,22 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             images_qs = list(property_obj.images.all())
             if images_qs:
                 first_image = images_qs[0]
-                if first_image and first_image.image:
-                    first_image_url = first_image.image.url
+                if first_image:
+                    # Preferir la URL del ImageField cuando exista. Usar URL absoluta
+                    if getattr(first_image, 'image', None) and getattr(first_image.image, 'url', None):
+                        try:
+                            first_image_url = request.build_absolute_uri(first_image.image.url)
+                        except Exception:
+                            first_image_url = first_image.image.url
+                    # Si la imagen se almacenó como blob en la tabla, usar la vista que la sirve (URL absoluta)
+                    elif getattr(first_image, 'image_blob', None):
+                        try:
+                            first_image_url = request.build_absolute_uri(reverse('properties:image_blob', kwargs={'pk': first_image.pk}))
+                        except Exception:
+                            try:
+                                first_image_url = reverse('properties:image_blob', kwargs={'pk': first_image.pk})
+                            except Exception:
+                                first_image_url = ''
 
             markers.append({
                 'id': property_obj.id,
