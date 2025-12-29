@@ -622,7 +622,7 @@ class PropertyImage(TitleCaseMixin, models.Model):
 
         # Intentar volcar el contenido del ImageField a image_blob siempre que haya un archivo
         try:
-            if self.image:
+            if self.image and getattr(self.image, 'name', None):
                 # Ignorar archivos vacíos
                 try:
                     if getattr(self.image, 'size', 0) == 0:
@@ -630,34 +630,16 @@ class PropertyImage(TitleCaseMixin, models.Model):
                 except Exception:
                     pass
 
-                # Leer en chunks para reducir picos temporales (pero el resultado seguirá en memoria)
-                data_acc = bytearray()
+                # Leer usando el almacenamiento por defecto para asegurar compatibilidad
+                from django.core.files.storage import default_storage
+                data = None
                 try:
-                    with self.image.open(mode='rb') as fh:
-                        while True:
-                            chunk = fh.read(65536)
-                            if not chunk:
-                                break
-                            data_acc.extend(chunk)
+                    with default_storage.open(self.image.name, 'rb') as fh:
+                        data = fh.read()
                 except Exception:
-                    # fallback: intentar acceder al file object directamente
-                    f = getattr(self.image, 'file', None)
-                    if f is not None:
-                        try:
-                            try:
-                                f.seek(0)
-                            except Exception:
-                                pass
-                            while True:
-                                chunk = f.read(65536)
-                                if not chunk:
-                                    break
-                                data_acc.extend(chunk)
-                        except Exception:
-                            data_acc = bytearray()
+                    data = None
 
-                if data_acc:
-                    data_bytes = bytes(data_acc)
+                if data:
                     # determinar tipo de contenido
                     ct = None
                     try:
@@ -673,8 +655,8 @@ class PropertyImage(TitleCaseMixin, models.Model):
 
                     # actualizar mediante queryset para evitar recursión en save()
                     try:
-                        type(self).objects.filter(pk=self.pk).update(image_blob=data_bytes, image_content_type=ct)
-                        self.image_blob = data_bytes
+                        type(self).objects.filter(pk=self.pk).update(image_blob=data, image_content_type=ct)
+                        self.image_blob = data
                         self.image_content_type = ct
                     except Exception:
                         import logging
