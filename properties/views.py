@@ -632,7 +632,9 @@ def create_property_view(request):
                 image_captions = request.POST.getlist('image_captions')
                 image_orders = request.POST.getlist('image_orders')
                 for idx, image_file in enumerate(images_files):
-                    if image_file:
+                    # Ignorar inputs vacíos (campo presente pero sin fichero)
+                    if not image_file or getattr(image_file, 'size', 0) == 0:
+                        continue
                         try:
                             image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
                             image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
@@ -797,7 +799,9 @@ def create_property_view(request):
                 from django.contrib import messages as _messages
                 _messages.warning(request, f'Se han subido más de {max_images} imágenes; sólo se procesarán las primeras {max_images}.')
             for idx, image_file in enumerate(images_files):
-                if image_file:
+                # Ignorar inputs vacíos (campo presente pero sin fichero)
+                if not image_file or getattr(image_file, 'size', 0) == 0:
+                    continue
                     try:
                         image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
                         image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
@@ -1147,7 +1151,9 @@ def edit_property_view(request, pk):
             # calcular orden base según las imágenes existentes
             max_order = PropertyImage.objects.filter(property=property_obj).aggregate(m=Max('order'))['m'] or 0
             for idx, image_file in enumerate(images_files):
-                if image_file:
+                # Ignorar inputs vacíos (campo presente pero sin fichero)
+                if not image_file or getattr(image_file, 'size', 0) == 0:
+                    continue
                     try:
                         image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
                         image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
