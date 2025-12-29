@@ -26,6 +26,7 @@ urlpatterns = [
     path('dashboard/', PropertyDashboardView.as_view(), name='list'),
     path('marketing/whatsapp/track/<int:link_id>/', views.track_whatsapp_click, name='track_whatsapp_click'),
     path('crear/', create_property_view, name='create'),
+    path('mis-propiedades/', views.MyPropertiesView.as_view(), name='my_properties'),
     path('<int:pk>/', PropertyDetailView.as_view(), name='detail'),
     path('borradores/', drafts_list_view, name='drafts'),
     path('borradores/<int:pk>/borrar/', delete_draft_view, name='delete_draft'),

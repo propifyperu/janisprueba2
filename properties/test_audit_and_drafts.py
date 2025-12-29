@@ -109,7 +109,8 @@ class AuditAndDraftsTests(TestCase):
             created_by=self.user1,
             department='D', province='P', district='D', urbanization='',
             exact_address='Borrador', coordinates='', title='Draft',
-            is_active=False,
+                is_active=False,
+                is_draft=True,
         )
 
         # Acceder como otro usuario debe 404

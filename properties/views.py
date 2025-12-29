@@ -39,7 +39,8 @@ def get_visible_fields_for_user(user):
 def delete_draft_view(request, pk):
     from .models import Property
     try:
-        draft = Property.objects.get(pk=pk, created_by=request.user, is_active=False)
+        # Asegurarse de borrar solo objetos marcados explícitamente como Borrador
+        draft = Property.objects.get(pk=pk, created_by=request.user, is_active=False, is_draft=True)
         draft.delete()
         from django.contrib import messages
         messages.success(request, 'Borrador eliminado correctamente.')
@@ -280,8 +281,8 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         # Añadir videos, documentos y datos financieros al contexto para la plantilla
         property_obj = self.get_object()
-        # Si el objeto es un borrador, sólo el creador o superuser pueden verlo
-        if property_obj.is_active is False and property_obj.created_by and property_obj.created_by != self.request.user and not self.request.user.is_superuser:
+        # Si el objeto es un borrador (`is_draft=True`), sólo el creador o superuser pueden verlo
+        if getattr(property_obj, 'is_draft', False) and property_obj.created_by and property_obj.created_by != self.request.user and not self.request.user.is_superuser:
             raise Http404()
         # videos relacionados
         try:
@@ -334,7 +335,8 @@ def property_timeline_view(request, pk):
 @login_required
 def drafts_list_view(request):
     """Listar borradores (propiedades creadas por el usuario con is_active=False)."""
-    drafts = Property.objects.filter(created_by=request.user, is_active=False).order_by('-created_at')
+    # Filtrar por `is_draft=True` y `is_active=False` para listar solo borradores reales
+    drafts = Property.objects.filter(created_by=request.user, is_active=False, is_draft=True).order_by('-created_at')
     return render(request, 'properties/property_drafts.html', {
         'drafts': drafts,
     })
@@ -543,7 +545,8 @@ def create_property_view(request):
             draft_id = request.POST.get('draft_id')
             if draft_id:
                 try:
-                    draft = Property.objects.get(pk=int(draft_id), created_by=request.user, is_active=False)
+                    # Asegurarse de obtener sólo borradores explícitos (is_draft=True)
+                    draft = Property.objects.get(pk=int(draft_id), created_by=request.user, is_active=False, is_draft=True)
                 except Exception:
                     draft = None
 
@@ -605,6 +608,7 @@ def create_property_view(request):
                     'owner': owner,
                     'created_by': request.user,
                     'is_active': False,
+                    'is_draft': True,
                 }
                 # intentar setear algunos campos opcionales desde POST
                 for fld in ['title', 'description', 'exact_address', 'real_address', 'coordinates', 'department', 'province', 'district', 'urbanization']:
@@ -722,22 +726,9 @@ def create_property_view(request):
             existing_documents = list(PropertyDocument.objects.filter(property=draft)) if draft else []
             draft_id_to_pass = draft.pk if draft else ''
             from django.contrib import messages
-            messages.warning(request, 'Borrador guardado. Puedes continuar editando más tarde.')
-            # Mostrar formulario vacío tras guardar borrador para evitar errores de validación
-            return render(request, 'properties/property_create.html', {
-                'form': PropertyForm(),
-                'owner_form': PropertyOwnerForm(),
-                'financial_form': PropertyFinancialInfoForm(),
-                'departments': departments,
-                'level_types': level_types,
-                'room_types': room_types,
-                'floor_types': floor_types,
-                'contactos_existentes': contactos_existentes,
-                'draft_id': draft_id_to_pass,
-                'existing_images': existing_images,
-                'existing_videos': existing_videos,
-                'existing_documents': existing_documents,
-            })
+            messages.success(request, 'Borrador guardado. Puedes gestionarlo desde Borradores.')
+            # Redirigir a la lista de borradores para que el usuario confirme el guardado
+            return redirect('properties:drafts')
         # Validar form y owner_form según el caso
         existing_owner_id = request.POST.get('existing_owner')
         owner_form_valid = True
@@ -761,7 +752,11 @@ def create_property_view(request):
             property_obj = form.save(commit=False)
             property_obj.owner = owner
             property_obj.created_by = request.user
-            property_obj.is_active = True  # Guardar como propiedad ACTIVA, no como borrador
+            # Determinar estado según la acción del formulario: solo marcar como activa
+            # si se solicitó expresamente guardar la propiedad activa.
+            property_obj.is_active = True if action == 'save_property' else False
+            # Ajustar flag explícito de borrador
+            property_obj.is_draft = False if action == 'save_property' else True
             property_obj.save()
             form.save_m2m()
 
@@ -794,6 +789,13 @@ def create_property_view(request):
             image_orders = request.POST.getlist('image_orders')
             
             primary_image_set = False
+            # Limitar número de imágenes por subida para evitar OOM/timeout
+            from django.conf import settings as _dj_settings
+            max_images = getattr(_dj_settings, 'PROPERTY_MAX_IMAGES_UPLOAD', 10)
+            if len(images_files) > max_images:
+                images_files = images_files[:max_images]
+                from django.contrib import messages as _messages
+                _messages.warning(request, f'Se han subido más de {max_images} imágenes; sólo se procesarán las primeras {max_images}.')
             for idx, image_file in enumerate(images_files):
                 if image_file:
                     try:
@@ -810,15 +812,23 @@ def create_property_view(request):
                     caption = image_captions[idx] if idx < len(image_captions) else ''
                     is_primary = not primary_image_set
                     
-                    img = PropertyImage.objects.create(
-                        property=property_obj,
-                        image=image_file,
-                        image_type=image_type,
-                        caption=caption,
-                        order=order,
-                        is_primary=is_primary,
-                        uploaded_by=request.user
-                    )
+                    try:
+                        img = PropertyImage.objects.create(
+                            property=property_obj,
+                            image=image_file,
+                            image_type=image_type,
+                            caption=caption,
+                            order=order,
+                            is_primary=is_primary,
+                            uploaded_by=request.user
+                        )
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error guardando imagen: %s', e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error guardando una imagen. Revisa los logs.')
+                        continue
                     # Registrar evento de imagen subida
                     try:
                         PropertyChange.objects.create(
@@ -1151,16 +1161,24 @@ def edit_property_view(request, pk):
                         order = max_order + 1
                     caption = image_captions[idx] if idx < len(image_captions) else ''
                     is_primary = not primary_image_set
-                    img = PropertyImage.objects.create(
-                        property=property_obj,
-                        image=image_file,
-                        image_type=image_type,
-                        caption=caption,
-                        order=order,
-                        is_primary=is_primary,
-                        uploaded_by=request.user
-                    )
-                    primary_image_set = True
+                    try:
+                        img = PropertyImage.objects.create(
+                            property=property_obj,
+                            image=image_file,
+                            image_type=image_type,
+                            caption=caption,
+                            order=order,
+                            is_primary=is_primary,
+                            uploaded_by=request.user
+                        )
+                        primary_image_set = True
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error guardando imagen en edición: %s', e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error guardando una imagen. Revisa los logs.')
+                        continue
                     # aumentar el max_order para siguientes imágenes sin orden
                     if order >= max_order:
                         max_order = order

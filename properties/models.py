@@ -554,6 +554,8 @@ class Property(TitleCaseMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    # Flag explícito para marcar un registro como Borrador (editable, no publicado)
+    is_draft = models.BooleanField(default=False)
     is_ready_for_sale = models.BooleanField(default=False)
     
     class Meta:
@@ -619,6 +621,21 @@ class PropertyImage(TitleCaseMixin, models.Model):
 
         try:
             if self.image:
+                # Evitar volcar blobs muy grandes en memoria; configurable vía settings
+                from django.conf import settings as _dj_settings
+                max_blob = getattr(_dj_settings, 'PROPERTY_IMAGE_MAX_BLOB_SIZE', 2 * 1024 * 1024)  # 2MB por defecto
+
+                # Intentar obtener tamaño del archivo
+                size = None
+                try:
+                    size = getattr(self.image, 'size', None)
+                except Exception:
+                    size = None
+
+                if size is not None and size > max_blob:
+                    # No volcar a blob para archivos grandes
+                    return super().save(*args, **kwargs)
+
                 data = None
                 f = getattr(self.image, 'file', None)
                 if f is not None:
@@ -658,7 +675,11 @@ class PropertyImage(TitleCaseMixin, models.Model):
                     self.image_content_type = ct
         except Exception:
             # no fallar el guardado por errores al leer/volcar el binario
-            pass
+            try:
+                return super().save(*args, **kwargs)
+            except Exception:
+                pass
+        return super().save(*args, **kwargs)
 
 class PropertyVideo(TitleCaseMixin, models.Model):
     title_case_fields = ('title',)
