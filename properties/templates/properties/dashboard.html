@@ -538,11 +538,6 @@
         <div class="filter-bar">
             <form method="get">
                 <div class="filter-control">
-                    <label for="filter-search">Buscar</label>
-                    <input type="text" class="form-control" id="filter-search" name="search" placeholder="Título, código o propietario" value="{{ filters.search }}">
-                </div>
-
-                <div class="filter-control">
                     <label for="filter-type">Tipo</label>
                     <select class="form-select" id="filter-type" name="property_type">
                         <option value="">Todos</option>
@@ -553,21 +548,21 @@
                 </div>
 
                 <div class="filter-control">
-                    <label for="filter-status">Estado</label>
-                    <select class="form-select" id="filter-status" name="status">
+                    <label for="filter-district">Distrito</label>
+                    <select class="form-select" id="filter-district" name="district">
                         <option value="">Todos</option>
-                        {% for st in statuses %}
-                            <option value="{{ st.id }}" {% if filters.status == st.id|stringformat:'s' %}selected{% endif %}>{{ st.name }}</option>
+                        {% for d in districts_list %}
+                            <option value="{{ d }}" {% if filters.district == d %}selected{% endif %}>{{ d }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
                 <div class="filter-control">
-                    <label for="filter-department">Departamento</label>
-                    <select class="form-select" id="filter-department" name="department">
+                    <label for="filter-payment">Método de pago</label>
+                    <select class="form-select" id="filter-payment" name="payment_method">
                         <option value="">Todos</option>
-                        {% for dept in departments_list %}
-                            <option value="{{ dept }}" {% if filters.department == dept %}selected{% endif %}>{{ dept }}</option>
+                        {% for pm in payment_methods %}
+                            <option value="{{ pm.id }}" {% if filters.payment_method == pm.id|stringformat:'s' %}selected{% endif %}>{{ pm.name }}</option>
                         {% endfor %}
                     </select>
                 </div>

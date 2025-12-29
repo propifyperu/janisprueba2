@@ -364,26 +364,22 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 Q(created_by=self.request.user) | Q(assigned_agent=self.request.user)
             )
 
-        search = self.request.GET.get('search', '').strip()
-        if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search)
-                | Q(code__icontains=search)
-                | Q(owner__first_name__icontains=search)
-                | Q(owner__last_name__icontains=search)
-            )
-
+        # Filtrar solo por: distrito, tipo de propiedad, forma de pago y rango de precio
         property_type = self.request.GET.get('property_type', '').strip()
         if property_type:
             queryset = queryset.filter(property_type_id=property_type)
 
-        status = self.request.GET.get('status', '').strip()
-        if status:
-            queryset = queryset.filter(status_id=status)
+        district = self.request.GET.get('district', '').strip()
+        if district:
+            queryset = queryset.filter(district__iexact=district)
 
-        department = self.request.GET.get('department', '').strip()
-        if department:
-            queryset = queryset.filter(department__iexact=department)
+        payment_method = self.request.GET.get('payment_method', '').strip()
+        if payment_method:
+            try:
+                pm_id = int(payment_method)
+                queryset = queryset.filter(forma_de_pago_id=pm_id)
+            except ValueError:
+                pass
 
         price_min = self.request.GET.get('price_min', '').strip()
         if price_min:
@@ -404,21 +400,20 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         properties = context['properties']
-
         context['user_role'] = self.request.user.role.name if self.request.user.role else 'Sin rol'
-        # Cachear las listas para evitar queries adicionales
+        # Listas para selects reducidas según requerimiento
         context['property_types'] = PropertyType.objects.filter(is_active=True).order_by('name')
-        context['statuses'] = PropertyStatus.objects.filter(is_active=True).order_by('order')
-        # Obtener departamentos de las propiedades ya cargadas en memoria
-        context['departments_list'] = sorted(set(
-            p.department for p in properties if p.department
+        from .models import PaymentMethod
+        context['payment_methods'] = PaymentMethod.objects.filter(is_active=True).order_by('order')
+        # Obtener distritos de las propiedades ya cargadas en memoria
+        context['districts_list'] = sorted(set(
+            p.district for p in properties if p.district
         ))
 
         context['filters'] = {
-            'search': self.request.GET.get('search', '').strip(),
             'property_type': self.request.GET.get('property_type', '').strip(),
-            'status': self.request.GET.get('status', '').strip(),
-            'department': self.request.GET.get('department', '').strip(),
+            'district': self.request.GET.get('district', '').strip(),
+            'payment_method': self.request.GET.get('payment_method', '').strip(),
             'price_min': self.request.GET.get('price_min', '').strip(),
             'price_max': self.request.GET.get('price_max', '').strip(),
         }
