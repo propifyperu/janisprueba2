@@ -459,13 +459,13 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                     # Preferir la URL del ImageField cuando exista. Usar URL absoluta
                     if getattr(first_image, 'image', None) and getattr(first_image.image, 'url', None):
                         try:
-                            first_image_url = request.build_absolute_uri(first_image.image.url)
+                            first_image_url = self.request.build_absolute_uri(first_image.image.url)
                         except Exception:
                             first_image_url = first_image.image.url
                     # Si la imagen se almacenó como blob en la tabla, usar la vista que la sirve (URL absoluta)
                     elif getattr(first_image, 'image_blob', None):
                         try:
-                            first_image_url = request.build_absolute_uri(reverse('properties:image_blob', kwargs={'pk': first_image.pk}))
+                            first_image_url = self.request.build_absolute_uri(reverse('properties:image_blob', kwargs={'pk': first_image.pk}))
                         except Exception:
                             try:
                                 first_image_url = reverse('properties:image_blob', kwargs={'pk': first_image.pk})
@@ -651,31 +651,34 @@ def create_property_view(request):
                     # Ignorar inputs vacíos (campo presente pero sin fichero)
                     if not image_file or getattr(image_file, 'size', 0) == 0:
                         continue
-                        try:
-                            image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
-                            image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
-                        except Exception:
-                            image_type = None
-                        try:
-                            order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
-                        except Exception:
-                            order = idx + 1
-                        caption = image_captions[idx] if idx < len(image_captions) else ''
-                        try:
-                            PropertyImage.objects.create(
-                                property=draft,
-                                image=image_file,
-                                image_type=image_type,
-                                caption=caption,
-                                order=order,
-                                uploaded_by=request.user
-                            )
-                        except Exception as e:
-                            import logging
-                            logger = logging.getLogger(__name__)
-                            logger.exception('Error guardando imagen en borrador: %s', e)
-                            from django.contrib import messages
-                            messages.error(request, 'Error al guardar imagen (borrador). Revisa los logs.')
+
+                    try:
+                        image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
+                        image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
+                    except Exception:
+                        image_type = None
+
+                    try:
+                        order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
+                    except Exception:
+                        order = idx + 1
+
+                    caption = image_captions[idx] if idx < len(image_captions) else ''
+                    try:
+                        PropertyImage.objects.create(
+                            property=draft,
+                            image=image_file,
+                            image_type=image_type,
+                            caption=caption,
+                            order=order,
+                            uploaded_by=request.user
+                        )
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error guardando imagen en borrador: %s', e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error al guardar imagen (borrador). Revisa los logs.')
 
                 # videos
                 videos_files = request.FILES.getlist('videos')
@@ -808,63 +811,59 @@ def create_property_view(request):
             
             primary_image_set = False
             # Limitar número de imágenes por subida para evitar OOM/timeout
-            from django.conf import settings as _dj_settings
-            max_images = getattr(_dj_settings, 'PROPERTY_MAX_IMAGES_UPLOAD', 10)
-            if len(images_files) > max_images:
-                images_files = images_files[:max_images]
-                from django.contrib import messages as _messages
-                _messages.warning(request, f'Se han subido más de {max_images} imágenes; sólo se procesarán las primeras {max_images}.')
+            # No limitar la cantidad de imágenes aquí; procesarlas todas
             for idx, image_file in enumerate(images_files):
                 # Ignorar inputs vacíos (campo presente pero sin fichero)
                 if not image_file or getattr(image_file, 'size', 0) == 0:
                     continue
-                    try:
-                        image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
-                        image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
-                    except (ImageType.DoesNotExist, ValueError):
-                        image_type = None
-                    
-                    try:
-                        order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
-                    except ValueError:
-                        order = idx + 1
-                    
-                    caption = image_captions[idx] if idx < len(image_captions) else ''
-                    is_primary = not primary_image_set
-                    
-                    try:
-                        img = PropertyImage.objects.create(
-                            property=property_obj,
-                            image=image_file,
-                            image_type=image_type,
-                            caption=caption,
-                            order=order,
-                            is_primary=is_primary,
-                            uploaded_by=request.user
-                        )
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.exception('Error guardando imagen: %s', e)
-                        from django.contrib import messages
-                        messages.error(request, 'Error guardando una imagen. Revisa los logs.')
-                        continue
-                    # Registrar evento de imagen subida
-                    try:
-                        PropertyChange.objects.create(
-                            property=property_obj,
-                            field_name='image',
-                            old_value=None,
-                            new_value=f"Imagen subida: {img.caption or img.image.name}",
-                            changed_by=request.user
-                        )
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.exception('Error registrando cambio de imagen para la propiedad %s: %s', property_obj.pk, e)
-                        from django.contrib import messages
-                        messages.error(request, 'Error al registrar evento de imagen. Revisa los logs.')
-                    primary_image_set = True
+
+                try:
+                    image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
+                    image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
+                except (ImageType.DoesNotExist, ValueError):
+                    image_type = None
+                
+                try:
+                    order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
+                except ValueError:
+                    order = idx + 1
+                
+                caption = image_captions[idx] if idx < len(image_captions) else ''
+                is_primary = not primary_image_set
+                
+                try:
+                    img = PropertyImage.objects.create(
+                        property=property_obj,
+                        image=image_file,
+                        image_type=image_type,
+                        caption=caption,
+                        order=order,
+                        is_primary=is_primary,
+                        uploaded_by=request.user
+                    )
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.exception('Error guardando imagen: %s', e)
+                    from django.contrib import messages
+                    messages.error(request, 'Error guardando una imagen. Revisa los logs.')
+                    continue
+                # Registrar evento de imagen subida
+                try:
+                    PropertyChange.objects.create(
+                        property=property_obj,
+                        field_name='image',
+                        old_value=None,
+                        new_value=f"Imagen subida: {img.caption or img.image.name}",
+                        changed_by=request.user
+                    )
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.exception('Error registrando cambio de imagen para la propiedad %s: %s', property_obj.pk, e)
+                    from django.contrib import messages
+                    messages.error(request, 'Error al registrar evento de imagen. Revisa los logs.')
+                primary_image_set = True
 
             # ===================== PROCESAR VIDEOS =====================
             videos_files = request.FILES.getlist('videos')
@@ -881,7 +880,7 @@ def create_property_view(request):
                         video_type = None
                     
                     title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
-                    description = video_descriptions[idx] if idx < len(video_descripciones) else ''
+                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
                     
                     vid = PropertyVideo.objects.create(
                         property=property_obj,
@@ -910,7 +909,7 @@ def create_property_view(request):
             documents_files = request.FILES.getlist('documents')
             document_types = request.POST.getlist('document_types')
             document_titles = request.POST.getlist('document_titles')
-            document_descriptions = request.POST.getlist('document_descripciones')
+            document_descriptions = request.POST.getlist('document_descriptions') or request.POST.getlist('document_descripciones')
             
             for idx, document_file in enumerate(documents_files):
                 if document_file:
@@ -921,7 +920,7 @@ def create_property_view(request):
                         doc_type = None
                     
                     title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
-                    description = document_descriptions[idx] if idx < len(document_descripciones) else ''
+                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
                     
                     doc = PropertyDocument.objects.create(
                         property=property_obj,
@@ -998,7 +997,7 @@ def create_property_view(request):
                         order = idx
                     
                     name = room_names[idx] if idx < len(room_names) else ''
-                    description = room_descriptions[idx] if idx < len(room_descripciones) else ''
+                    description = room_descriptions[idx] if idx < len(room_descriptions) else ''
                     
                     PropertyRoom.objects.create(
                         property=property_obj,
@@ -1170,50 +1169,51 @@ def edit_property_view(request, pk):
                 # Ignorar inputs vacíos (campo presente pero sin fichero)
                 if not image_file or getattr(image_file, 'size', 0) == 0:
                     continue
-                    try:
-                        image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
-                        image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
-                    except (ImageType.DoesNotExist, ValueError):
-                        image_type = None
-                    # Si el formulario proporcionó un order concreto, usarlo; si no, anexar al final
-                    try:
-                        provided = image_orders[idx] if idx < len(image_orders) and image_orders[idx] else None
-                        order = int(provided) if provided else (max_order + 1)
-                    except ValueError:
-                        order = max_order + 1
-                    caption = image_captions[idx] if idx < len(image_captions) else ''
-                    is_primary = not primary_image_set
-                    try:
-                        img = PropertyImage.objects.create(
-                            property=property_obj,
-                            image=image_file,
-                            image_type=image_type,
-                            caption=caption,
-                            order=order,
-                            is_primary=is_primary,
-                            uploaded_by=request.user
-                        )
-                        primary_image_set = True
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.exception('Error guardando imagen en edición: %s', e)
-                        from django.contrib import messages
-                        messages.error(request, 'Error guardando una imagen. Revisa los logs.')
-                        continue
-                    # aumentar el max_order para siguientes imágenes sin orden
-                    if order >= max_order:
-                        max_order = order
-                    try:
-                        PropertyChange.objects.create(
-                            property=property_obj,
-                            field_name='image',
-                            old_value=None,
-                            new_value=f"Imagen subida: {img.caption or img.image.name}",
-                            changed_by=request.user
-                        )
-                    except Exception:
-                        pass
+
+                try:
+                    image_type_id = image_types[idx] if idx < len(image_types) and image_types[idx] else None
+                    image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
+                except (ImageType.DoesNotExist, ValueError):
+                    image_type = None
+                # Si el formulario proporcionó un order concreto, usarlo; si no, anexar al final
+                try:
+                    provided = image_orders[idx] if idx < len(image_orders) and image_orders[idx] else None
+                    order = int(provided) if provided else (max_order + 1)
+                except ValueError:
+                    order = max_order + 1
+                caption = image_captions[idx] if idx < len(image_captions) else ''
+                is_primary = not primary_image_set
+                try:
+                    img = PropertyImage.objects.create(
+                        property=property_obj,
+                        image=image_file,
+                        image_type=image_type,
+                        caption=caption,
+                        order=order,
+                        is_primary=is_primary,
+                        uploaded_by=request.user
+                    )
+                    primary_image_set = True
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.exception('Error guardando imagen en edición: %s', e)
+                    from django.contrib import messages
+                    messages.error(request, 'Error guardando una imagen. Revisa los logs.')
+                    continue
+                # aumentar el max_order para siguientes imágenes sin orden
+                if order >= max_order:
+                    max_order = order
+                try:
+                    PropertyChange.objects.create(
+                        property=property_obj,
+                        field_name='image',
+                        old_value=None,
+                        new_value=f"Imagen subida: {img.caption or img.image.name}",
+                        changed_by=request.user
+                    )
+                except Exception:
+                    pass
 
             # Normalizar secuencia de orders tras posibles adiciones
             _normalize_image_orders(property_obj)
@@ -1222,7 +1222,7 @@ def edit_property_view(request, pk):
             videos_files = request.FILES.getlist('videos')
             video_types = request.POST.getlist('video_types')
             video_titles = request.POST.getlist('video_titles')
-            video_descriptions = request.POST.getlist('video_descripciones')
+            video_descriptions = request.POST.getlist('video_descriptions') or request.POST.getlist('video_descripciones')
             for idx, video_file in enumerate(videos_files):
                 if video_file:
                     try:
@@ -1232,7 +1232,7 @@ def edit_property_view(request, pk):
                         video_type = None
                     
                     title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
-                    description = video_descriptions[idx] if idx < len(video_descripciones) else ''
+                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
                     vid = PropertyVideo.objects.create(
                         property=property_obj,
                         video=video_file,
@@ -1256,7 +1256,7 @@ def edit_property_view(request, pk):
             documents_files = request.FILES.getlist('documents')
             document_types = request.POST.getlist('document_types')
             document_titles = request.POST.getlist('document_titles')
-            document_descriptions = request.POST.getlist('document_descripciones')
+            document_descriptions = request.POST.getlist('document_descriptions') or request.POST.getlist('document_descripciones')
             for idx, document_file in enumerate(documents_files):
                 if document_file:
                     try:
@@ -1266,7 +1266,7 @@ def edit_property_view(request, pk):
                         doc_type = None
                     
                     title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
-                    description = document_descriptions[idx] if idx < len(document_descripciones) else ''
+                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
                     doc = PropertyDocument.objects.create(
                         property=property_obj,
                         file=document_file,

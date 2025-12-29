@@ -4,6 +4,10 @@
 {% block title %}Explorar Propiedades - Janis Platform{% endblock %}
 {% block dashboard_extra_css %}
 <style>
+    :root {
+        --color-accent: #2ea44f; /* verde principal */
+        --color-accent-dark: #258e45; /* hover / oscuro */
+    }
     /* Asegurar que el contenido principal sea flexible */
     .main-content {
         flex: 1;
@@ -466,6 +470,22 @@
     .filter-actions .btn-outline-secondary:focus {
         background-color: #047d7d;
         border-color: #047d7d;
+        color: #ffffff;
+    }
+
+    /* Hacer visible el botón de aplicar filtros usando variable CSS */
+    .filter-actions .btn.btn-primary {
+        background-color: var(--color-accent);
+        border-color: var(--color-accent);
+        color: #ffffff;
+        font-weight: 700;
+        box-shadow: 0 6px 18px rgba(46,164,79,0.12);
+    }
+
+    .filter-actions .btn.btn-primary:hover,
+    .filter-actions .btn.btn-primary:focus {
+        background-color: var(--color-accent-dark);
+        border-color: var(--color-accent-dark);
         color: #ffffff;
     }
 
