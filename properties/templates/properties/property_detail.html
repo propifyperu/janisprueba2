@@ -180,6 +180,11 @@
                                 {% if property.unit_location %}
                                 <li><strong>Ubicación en edificio:</strong> {{ property.get_unit_location_display }}</li>
                                 {% endif %}
+                                {% if property.parking_cost_included %}
+                                <li><strong>Estacionamiento:</strong> Incluido en el precio</li>
+                                {% elif property.parking_cost %}
+                                <li><strong>Costo de Estacionamiento:</strong> {{ property.currency.symbol }} {{ property.parking_cost|floatformat:2 }}</li>
+                                {% endif %}
                             </ul>
                         </div>
                         <div class="col-md-6">

@@ -509,6 +509,9 @@ class Property(TitleCaseMixin, models.Model):
     # Garaje
     garage_spaces = models.PositiveIntegerField(default=0, blank=True, null=True)
     garage_type = models.ForeignKey('GarageType', on_delete=models.SET_NULL, null=True, blank=True)
+    # Costo de estacionamiento: puede estar incluido en el precio o ser un costo adicional
+    parking_cost_included = models.BooleanField(default=False, verbose_name='Estacionamiento incluido en precio')
+    parking_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Costo Estacionamiento', help_text='Costo adicional por estacionamiento si no está incluido en el precio')
     
     # Áreas
     land_area = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

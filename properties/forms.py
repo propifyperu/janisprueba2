@@ -56,6 +56,7 @@ class PropertyForm(forms.ModelForm):
             'price', 'currency', 'forma_de_pago', 'maintenance_fee', 'has_maintenance',
             'floors', 'bedrooms', 'bathrooms', 'half_bathrooms',
             'garage_spaces', 'garage_type',
+            'parking_cost_included', 'parking_cost',
             'land_area', 'land_area_unit', 'built_area', 'built_area_unit',
             'front_measure', 'depth_measure',
             'unit_location',
@@ -77,6 +78,13 @@ class PropertyForm(forms.ModelForm):
             'forma_de_pago': forms.Select(attrs={'class': 'form-select'}),
             'garage_type': forms.Select(attrs={'class': 'form-select'}),
             'unit_location': forms.Select(attrs={'class': 'form-select', 'id': 'id_unit_location'}),
+            'parking_cost_included': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'parking_cost': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Ej: 120.00'
+            }),
             'land_area_unit': forms.Select(attrs={'class': 'form-select'}),
             'built_area_unit': forms.Select(attrs={'class': 'form-select'}),
             'water_service': forms.Select(attrs={'class': 'form-select'}),

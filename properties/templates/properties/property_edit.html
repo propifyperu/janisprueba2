@@ -293,6 +293,19 @@
                                     {{ form.has_maintenance.errors }}
                                 </div>
                             </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <div class="form-check form-switch mt-3">
+                                        {{ form.parking_cost_included }}
+                                        <label class="form-check-label">Estacionamiento incluido</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Costo de Estacionamiento</label>
+                                    {{ form.parking_cost }}
+                                    {{ form.parking_cost.errors }}
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Información financiera -->
