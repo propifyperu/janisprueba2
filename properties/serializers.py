@@ -103,6 +103,7 @@ class PropertySerializer(serializers.ModelSerializer):
             'id', 'code', 'title', 'description', 'price', 'currency_symbol', 'property_type',
             'status', 'bedrooms', 'bathrooms', 'half_bathrooms', 'land_area', 'built_area',
             'garage_spaces', 'garage_type', 'has_maintenance', 'maintenance_fee',
+            'unit_location',
             'owner', 'responsible_name', 'assigned_agent', 'created_at', 'updated_at',
             'latitude', 'longitude', 'images', 'videos', 'documents', 'rooms', 'financial_info',
             'real_address', 'exact_address', 'coordinates', 'department', 'province', 'district', 'urbanization',

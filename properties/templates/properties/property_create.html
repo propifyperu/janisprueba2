@@ -348,6 +348,14 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="row" id="unitLocationRow" style="display:none;">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Ubicación en edificio</label>
+                                    {{ form.unit_location }}
+                                    {{ form.unit_location.errors }}
+                                    <small class="form-text text-muted">Solo visible cuando el tipo es Departamento.</small>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- STEP 2.5: INFORMACIÓN FINANCIERA -->
@@ -1039,9 +1047,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function setupUnitLocationVisibility() {
+        const typeSelect = document.getElementById('id_property_type');
+        const unitRow = document.getElementById('unitLocationRow');
+        if (!typeSelect || !unitRow) return;
+
+        function evaluate() {
+            const sel = typeSelect.options[typeSelect.selectedIndex];
+            const text = (sel && sel.text) ? sel.text.toLowerCase() : '';
+            const isDepartamento = text.includes('departamento');
+            unitRow.style.display = isDepartamento ? '' : 'none';
+            if (!isDepartamento) {
+                const input = document.getElementById('id_unit_location');
+                if (input) input.value = '';
+            }
+        }
+
+        typeSelect.addEventListener('change', evaluate);
+        evaluate();
+    }
+
     if (statusSelect) {
         statusSelect.addEventListener('change', toggleStatusFields);
         toggleStatusFields();
+        if (typeof setupUnitLocationVisibility === 'function') setupUnitLocationVisibility();
     }
 
     if (propertyForm && savingOverlay) {

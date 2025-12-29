@@ -557,6 +557,21 @@ class Property(TitleCaseMixin, models.Model):
     # Flag explícito para marcar un registro como Borrador (editable, no publicado)
     is_draft = models.BooleanField(default=False)
     is_ready_for_sale = models.BooleanField(default=False)
+    # Ubicación dentro de un edificio (solo aplica cuando la propiedad es un departamento)
+    UNIT_LOCATION_CHOICES = [
+        ('basement', 'Sótano'),
+        ('1', '1er piso'),
+        ('2', '2do piso'),
+        ('3', '3er piso'),
+        ('4', '4to piso'),
+        ('5', '5to piso'),
+        ('6', '6to piso'),
+        ('7', '7mo piso'),
+        ('8', '8vo piso'),
+        ('9', '9no piso'),
+        ('10', '10mo piso'),
+    ]
+    unit_location = models.CharField(max_length=20, choices=UNIT_LOCATION_CHOICES, blank=True, null=True, verbose_name='Ubicación (nivel)')
     
     class Meta:
         db_table = 'properties'

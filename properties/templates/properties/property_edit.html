@@ -96,6 +96,39 @@
         border-radius: 0.5rem;
         border: 1px solid rgba(4, 125, 125, 0.25);
     }
+
+    /* Layout profesional para la sección Características */
+    .form-section .feature-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .form-section .feature-item {
+        flex: 1 1 30%;
+        min-width: 180px;
+    }
+
+    .form-section .feature-item .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .form-section .feature-item .form-control,
+    .form-section .feature-item select {
+        width: 100%;
+        padding: 0.55rem 0.75rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(58,59,69,0.08);
+        background: #fbfcfd;
+    }
+
+    @media (max-width: 767px) {
+        .form-section .feature-item {
+            flex: 1 1 100%;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -187,6 +220,15 @@
                                     <label class="form-label">Responsable de la propiedad</label>
                                     {{ form.responsible }}
                                     {{ form.responsible.errors }}
+                                </div>
+                            </div>
+
+                            <div class="row" id="unitLocationRow" style="display:none;">
+                                <div class="col-md-4 mb-3" id="unitLocationWrapper">
+                                    <label class="form-label">Ubicación en edificio</label>
+                                    {{ form.unit_location }}
+                                    {{ form.unit_location.errors }}
+                                    <small class="form-text text-muted">Solo visible cuando el tipo es Departamento.</small>
                                 </div>
                             </div>
 
@@ -314,69 +356,72 @@
                                 <i class="fas fa-ruler-combined me-2"></i>Características
                             </h5>
 
-                            <div class="row">
-                                <div class="col-md-2 mb-3">
+                            <div class="feature-row mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Dormitorios</label>
                                     {{ form.bedrooms }}
                                     {{ form.bedrooms.errors }}
                                 </div>
-                                <div class="col-md-2 mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Baños</label>
                                     {{ form.bathrooms }}
                                     {{ form.bathrooms.errors }}
                                 </div>
-                                <div class="col-md-2 mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Medios baños</label>
                                     {{ form.half_bathrooms }}
                                     {{ form.half_bathrooms.errors }}
                                 </div>
-                                <div class="col-md-2 mb-3">
+                            </div>
+
+                            <div class="feature-row mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Pisos</label>
                                     {{ form.floors }}
                                     {{ form.floors.errors }}
                                 </div>
-                                <div class="col-md-2 mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Estacionamientos</label>
                                     {{ form.garage_spaces }}
                                     {{ form.garage_spaces.errors }}
                                 </div>
-                                <div class="col-md-2 mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Tipo garaje</label>
                                     {{ form.garage_type }}
                                     {{ form.garage_type.errors }}
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-3 mb-3">
+                            <div class="feature-row mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Área terreno</label>
                                     {{ form.land_area }}
                                     {{ form.land_area.errors }}
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Unidad</label>
                                     {{ form.land_area_unit }}
                                     {{ form.land_area_unit.errors }}
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Área construida</label>
                                     {{ form.built_area }}
                                     {{ form.built_area.errors }}
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Unidad</label>
                                     {{ form.built_area_unit }}
                                     {{ form.built_area_unit.errors }}
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
+                            <div class="feature-row">
+                                <div class="feature-item">
                                     <label class="form-label">Frente (m)</label>
                                     {{ form.front_measure }}
                                     {{ form.front_measure.errors }}
                                 </div>
-                                <div class="col-md-6 mb-3">
+                                <div class="feature-item">
                                     <label class="form-label">Profundidad (m)</label>
                                     {{ form.depth_measure }}
                                     {{ form.depth_measure.errors }}
@@ -1210,6 +1255,29 @@ function setupStatusSection() {
     toggleStatusFields();
 }
 
+function setupUnitLocationVisibility() {
+    const typeSelect = document.getElementById('id_property_type');
+    const unitRow = document.getElementById('unitLocationRow');
+
+    if (!typeSelect || !unitRow) return;
+
+    function evaluate() {
+        const sel = typeSelect.options[typeSelect.selectedIndex];
+        const text = (sel && sel.text) ? sel.text.toLowerCase() : '';
+        const isDepartamento = text.includes('departamento');
+        unitRow.style.display = isDepartamento ? '' : 'none';
+        // If hiding, clear the value
+        if (!isDepartamento) {
+            const input = document.getElementById('id_unit_location');
+            if (input) input.value = '';
+        }
+    }
+
+    typeSelect.addEventListener('change', evaluate);
+    // Inicializar visibilidad
+    evaluate();
+}
+
 function setupSubtypeSelector() {
     const propertyTypeSelect = document.getElementById('id_property_type');
     const propertySubtypeSelect = document.getElementById('id_property_subtype');
@@ -1405,6 +1473,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupStatusSection();
     setupSubtypeSelector();
     setupLocationSelectors();
+    setupUnitLocationVisibility();
 
     const propertyForm = document.getElementById('propertyForm');
     const savingOverlay = document.getElementById('savingOverlay');

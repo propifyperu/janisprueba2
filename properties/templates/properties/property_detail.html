@@ -177,6 +177,9 @@
                                 <li><strong>Medios Baños:</strong> {{ property.half_bathrooms }}</li>
                                 <li><strong>Pisos:</strong> {{ property.floors }}</li>
                                 <li><strong>Estacionamientos:</strong> {{ property.garage_spaces }}</li>
+                                {% if property.unit_location %}
+                                <li><strong>Ubicación en edificio:</strong> {{ property.get_unit_location_display }}</li>
+                                {% endif %}
                             </ul>
                         </div>
                         <div class="col-md-6">

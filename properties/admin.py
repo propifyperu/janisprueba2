@@ -276,8 +276,8 @@ class PropertyOwnerAdmin(admin.ModelAdmin):
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display = ('code', 'title', 'property_type', 'status', 'price', 'owner', 'is_active', 'created_at')
-    list_filter = ('is_active', 'status', 'property_type', 'created_at', 'department')
+    list_display = ('code', 'title', 'property_type', 'unit_location', 'status', 'price', 'owner', 'is_active', 'created_at')
+    list_filter = ('is_active', 'status', 'property_type', 'created_at', 'department', 'unit_location')
     search_fields = ('code', 'title', 'owner__first_name', 'owner__last_name', 'description')
     readonly_fields = ('created_at', 'updated_at', 'code', 'codigo_unico_propiedad')
     inlines = [PropertyImageInline, PropertyVideoInline, PropertyDocumentInline, PropertyRoomInline]
@@ -302,7 +302,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('land_area', 'land_area_unit', 'built_area', 'built_area_unit', 'front_measure', 'depth_measure')
         }),
         ('Ubicación', {
-            'fields': ('real_address', 'exact_address', 'coordinates', 'department', 'province', 'district', 'urbanization')
+            'fields': ('real_address', 'exact_address', 'coordinates', 'department', 'province', 'district', 'urbanization', 'unit_location')
         }),
         ('Servicios', {
             'fields': ('water_service', 'energy_service', 'drainage_service', 'gas_service')

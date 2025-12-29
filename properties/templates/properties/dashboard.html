@@ -707,6 +707,9 @@
                             {% if property.has_maintenance and property.maintenance_fee %}
                             <span><i class="fas fa-tools"></i>Mant. {{ property.currency.symbol }} {{ property.maintenance_fee|floatformat:0 }}</span>
                             {% endif %}
+                            {% if property.unit_location %}
+                            <span><i class="fas fa-building"></i> {{ property.get_unit_location_display }}</span>
+                            {% endif %}
                         </div>
                         <div class="property-contacts">
                             <span><i class="fas fa-user-tie"></i>Propietario: {{ property.owner.full_name }}</span>
