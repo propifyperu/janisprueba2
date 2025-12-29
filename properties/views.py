@@ -406,9 +406,30 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         from .models import PaymentMethod
         context['payment_methods'] = PaymentMethod.objects.filter(is_active=True).order_by('order')
         # Obtener distritos de las propiedades ya cargadas en memoria
-        context['districts_list'] = sorted(set(
-            p.district for p in properties if p.district
-        ))
+        # Resolver posibles valores numéricos a nombres usando el modelo District
+        try:
+            from .models import District
+
+            def _resolve_district(value):
+                if not value:
+                    return ''
+                try:
+                    if str(value).isdigit():
+                        obj = District.objects.filter(pk=int(value)).first()
+                        if obj:
+                            return getattr(obj, 'name', str(value))
+                    return str(value)
+                except Exception:
+                    return str(value)
+
+            context['districts_list'] = sorted(set(
+                _resolve_district(p.district) for p in properties if p.district
+            ))
+        except Exception:
+            # En caso de error, caer al valor bruto
+            context['districts_list'] = sorted(set(
+                p.district for p in properties if p.district
+            ))
 
         context['filters'] = {
             'property_type': self.request.GET.get('property_type', '').strip(),
