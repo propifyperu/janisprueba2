@@ -5,6 +5,28 @@
 
 {% block dashboard_extra_css %}
 <style>
+document.addEventListener('DOMContentLoaded', function(){
+    // Mostrar/ocultar campo Nombre de Proyecto y botón clonar según checkbox
+    const isProjectCheckbox = document.getElementById('id_is_project');
+    const projectRow = document.getElementById('projectRow');
+    const projectNameWrapper = document.getElementById('projectNameWrapper');
+    const projectNameInput = document.getElementById('id_project_name');
+    const cloneBtn = document.getElementById('cloneBtn');
+
+    function updateProjectVisibility(){
+        const checked = isProjectCheckbox && isProjectCheckbox.checked;
+        if(projectRow) projectRow.style.display = checked ? '' : 'none';
+        if(projectNameWrapper) projectNameWrapper.style.display = checked ? '' : 'none';
+        if(cloneBtn) cloneBtn.style.display = checked ? '' : 'none';
+        if(!checked && projectNameInput) projectNameInput.value = '';
+    }
+
+    if(isProjectCheckbox){
+        isProjectCheckbox.addEventListener('change', updateProjectVisibility);
+        updateProjectVisibility();
+    }
+});
+
     .form-section {
         border: 1px solid #e3e6f0;
         border-radius: 0.5rem;
@@ -247,6 +269,19 @@
                                         {% endfor %}
                                     </select>
                                 </div>
+
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <div class="form-check form-switch mt-3">
+                                        {{ form.parking_cost_included }}
+                                        <label class="form-check-label">Estacionamiento incluido</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Costo de Estacionamiento</label>
+                                    {{ form.parking_cost }}
+                                </div>
+                            </div>
                             </div>
 
                             <!-- Formulario para nuevo contacto (oculto inicialmente) -->
@@ -348,24 +383,27 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <div class="form-check form-switch mt-3">
-                                        {{ form.parking_cost_included }}
-                                        <label class="form-check-label">Estacionamiento incluido</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Costo de Estacionamiento</label>
-                                    {{ form.parking_cost }}
-                                </div>
-                            </div>
+                            <!-- parking fields moved to Características -->
                             <div class="row" id="unitLocationRow" style="display:none;">
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label">Ubicación en edificio</label>
                                     {{ form.unit_location }}
                                     {{ form.unit_location.errors }}
                                     <small class="form-text text-muted">Solo visible cuando el tipo es Departamento.</small>
+                                </div>
+                            </div>
+                            <div class="row" id="projectRow">
+                                <div class="col-md-4 mb-3">
+                                    <div class="form-check form-switch mt-3">
+                                        {{ form.is_project }}
+                                        <label class="form-check-label">Proyecto</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3" id="projectNameWrapper" style="display:none;">
+                                    <label class="form-label">Nombre del proyecto</label>
+                                    {{ form.project_name }}
+                                    {{ form.project_name.errors }}
+                                    <small class="form-text text-muted">Nombre común para agrupar propiedades si se trata de un proyecto.</small>
                                 </div>
                             </div>
                         </div>
@@ -776,7 +814,32 @@
                             <button type="submit" name="action" value="save_property" class="btn btn-primary" id="submitBtn" style="background-color: #047d7d; border-color: #047d7d; color: #fff;">
                                 <i class="fas fa-save me-2"></i>Guardar Propiedad Activa
                             </button>
+                            <button type="submit" name="action" value="save_and_clone" class="btn btn-success" id="cloneBtn" style="display:none;">
+                                <i class="fas fa-copy me-2"></i>Guardar y clonar propiedad
+                            </button>
                         </div>
+                    </form>
+
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function(){
+                            const isProjectCheckbox = document.getElementById('id_is_project');
+                            const projectNameWrapper = document.getElementById('projectNameWrapper');
+                            const projectNameInput = document.getElementById('id_project_name');
+                            const cloneBtn = document.getElementById('cloneBtn');
+
+                            function updateProjectVisibility(){
+                                const checked = isProjectCheckbox && isProjectCheckbox.checked;
+                                if(projectNameWrapper) projectNameWrapper.style.display = checked ? '' : 'none';
+                                if(cloneBtn) cloneBtn.style.display = checked ? '' : 'none';
+                                if(!checked && projectNameInput) projectNameInput.value = '';
+                            }
+
+                            if(isProjectCheckbox){
+                                isProjectCheckbox.addEventListener('change', updateProjectVisibility);
+                                updateProjectVisibility();
+                            }
+                        });
+                    </script>
                     </form>
                 </div>
             </div>

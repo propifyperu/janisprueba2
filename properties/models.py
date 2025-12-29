@@ -575,6 +575,9 @@ class Property(TitleCaseMixin, models.Model):
         ('10', '10mo piso'),
     ]
     unit_location = models.CharField(max_length=20, choices=UNIT_LOCATION_CHOICES, blank=True, null=True, verbose_name='Ubicación (nivel)')
+    # Proyecto: agrupa propiedades bajo un mismo nombre de proyecto
+    is_project = models.BooleanField(default=False, verbose_name='Proyecto')
+    project_name = models.CharField(max_length=200, blank=True, null=True, verbose_name='Nombre de proyecto', help_text='Nombre para agrupar propiedades cuando se trate de un proyecto')
     
     class Meta:
         db_table = 'properties'

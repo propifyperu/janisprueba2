@@ -60,6 +60,7 @@ class PropertyForm(forms.ModelForm):
             'land_area', 'land_area_unit', 'built_area', 'built_area_unit',
             'front_measure', 'depth_measure',
             'unit_location',
+            'is_project', 'project_name',
             'real_address', 'exact_address', 'coordinates', 'department', 'province', 'district', 'urbanization',
             'water_service', 'energy_service', 'drainage_service', 'gas_service',
             'amenities', 'zoning', 'tags',
@@ -96,6 +97,8 @@ class PropertyForm(forms.ModelForm):
             'assigned_agent': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_ready_for_sale': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+                'is_project': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_is_project'}),
+                'project_name': forms.TextInput(attrs={'class': 'form-control', 'id': 'id_project_name', 'placeholder': 'Nombre del proyecto (si aplica)'}),
         }
 
     def __init__(self, *args, **kwargs):
