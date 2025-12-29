@@ -616,46 +616,48 @@ class PropertyImage(TitleCaseMixin, models.Model):
         Esto asegura que la imagen quede almacenada en la fila de la tabla, lo que
         permite servirla desde la base de datos independientemente del storage.
         """
+        # Normalizar campos y guardar inicialmente para asegurar pk
         self._apply_title_case()
-        super().save(*args, **kwargs)
+        result = super().save(*args, **kwargs)
 
+        # Intentar volcar el contenido del ImageField a image_blob siempre que haya un archivo
         try:
             if self.image:
-                # Evitar volcar blobs muy grandes en memoria; configurable vía settings
-                from django.conf import settings as _dj_settings
-                max_blob = getattr(_dj_settings, 'PROPERTY_IMAGE_MAX_BLOB_SIZE', 2 * 1024 * 1024)  # 2MB por defecto
-
-                # Intentar obtener tamaño del archivo
-                size = None
+                # Ignorar archivos vacíos
                 try:
-                    size = getattr(self.image, 'size', None)
+                    if getattr(self.image, 'size', 0) == 0:
+                        return result
                 except Exception:
-                    size = None
+                    pass
 
-                if size is not None and size > max_blob:
-                    # No volcar a blob para archivos grandes
-                    return super().save(*args, **kwargs)
+                # Leer en chunks para reducir picos temporales (pero el resultado seguirá en memoria)
+                data_acc = bytearray()
+                try:
+                    with self.image.open(mode='rb') as fh:
+                        while True:
+                            chunk = fh.read(65536)
+                            if not chunk:
+                                break
+                            data_acc.extend(chunk)
+                except Exception:
+                    # fallback: intentar acceder al file object directamente
+                    f = getattr(self.image, 'file', None)
+                    if f is not None:
+                        try:
+                            try:
+                                f.seek(0)
+                            except Exception:
+                                pass
+                            while True:
+                                chunk = f.read(65536)
+                                if not chunk:
+                                    break
+                                data_acc.extend(chunk)
+                        except Exception:
+                            data_acc = bytearray()
 
-                data = None
-                f = getattr(self.image, 'file', None)
-                if f is not None:
-                    try:
-                        f.seek(0)
-                    except Exception:
-                        pass
-                    try:
-                        data = f.read()
-                    except Exception:
-                        data = None
-
-                if data is None:
-                    try:
-                        with self.image.open(mode='rb') as fh:
-                            data = fh.read()
-                    except Exception:
-                        data = None
-
-                if data:
+                if data_acc:
+                    data_bytes = bytes(data_acc)
                     # determinar tipo de contenido
                     ct = None
                     try:
@@ -670,16 +672,20 @@ class PropertyImage(TitleCaseMixin, models.Model):
                         ct = guessed or 'image/jpeg'
 
                     # actualizar mediante queryset para evitar recursión en save()
-                    type(self).objects.filter(pk=self.pk).update(image_blob=data, image_content_type=ct)
-                    self.image_blob = data
-                    self.image_content_type = ct
+                    try:
+                        type(self).objects.filter(pk=self.pk).update(image_blob=data_bytes, image_content_type=ct)
+                        self.image_blob = data_bytes
+                        self.image_content_type = ct
+                    except Exception:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error actualizando image_blob para PropertyImage %s', getattr(self, 'pk', None))
         except Exception:
-            # no fallar el guardado por errores al leer/volcar el binario
-            try:
-                return super().save(*args, **kwargs)
-            except Exception:
-                pass
-        return super().save(*args, **kwargs)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception('Error al volcar el binario de la imagen para PropertyImage %s', getattr(self, 'pk', None))
+
+        return result
 
 class PropertyVideo(TitleCaseMixin, models.Model):
     title_case_fields = ('title',)
