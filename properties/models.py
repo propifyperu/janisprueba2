@@ -838,6 +838,8 @@ class Requirement(TitleCaseMixin, models.Model):
     budget_approx = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     budget_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     budget_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    # Moneda asociada al presupuesto
+    currency = models.ForeignKey('Currency', on_delete=models.PROTECT, null=True, blank=True)
 
     # Medio de pago y estado
     payment_method = models.ForeignKey('PaymentMethod', on_delete=models.PROTECT, null=True, blank=True)

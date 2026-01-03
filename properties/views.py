@@ -310,6 +310,8 @@ def requirement_create_view(request):
                 req.budget_min = data.get('budget_min')
                 req.budget_max = data.get('budget_max')
                 req.budget_approx = None
+            # Moneda
+            req.currency = data.get('currency')
             req.payment_method = data.get('payment_method')
             req.status = data.get('status')
             req.department = data.get('department')

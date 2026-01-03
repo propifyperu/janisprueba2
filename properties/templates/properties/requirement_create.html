@@ -19,95 +19,134 @@
                 <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
+
+                        <!-- Fila 1 -->
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label">Nombre del cliente</label>
+                                <label class="form-label" for="{{ form.client_name.id_for_label }}">Nombre del cliente</label>
                                 {{ form.client_name }}
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Teléfono</label>
+                                <label class="form-label" for="{{ form.phone.id_for_label }}">Teléfono</label>
                                 {{ form.phone }}
                             </div>
+                        </div>
 
+                        <!-- Fila 2 -->
+                        <div class="row g-3 mt-2">
                             <div class="col-md-6">
-                                <label class="form-label">Tipo</label>
+                                <label class="form-label" for="{{ form.property_type.id_for_label }}">Tipo</label>
                                 {{ form.property_type }}
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Subtipo</label>
+                                <label class="form-label" for="{{ form.property_subtype.id_for_label }}">Subtipo</label>
                                 {{ form.property_subtype }}
                             </div>
+                        </div>
 
+                        <!-- Fila 3 – Presupuesto -->
+                        <div class="row g-3 mt-2">
                             <div class="col-md-4">
-                                <label class="form-label">Presupuesto - Tipo</label>
+                                <label class="form-label" for="{{ form.budget_type.id_for_label }}">Presupuesto - Tipo</label>
                                 {{ form.budget_type }}
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Min</label>
+                                <label class="form-label" for="{{ form.budget_min.id_for_label }}">Mínimo</label>
                                 {{ form.budget_min }}
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Max / Aproximado</label>
+                                <label class="form-label" for="{{ form.budget_max.id_for_label }}">Máximo</label>
                                 {{ form.budget_max }}
+                            </div>
+                        </div>
+
+                        <!-- Fila 4 – Aproximado (opcional) -->
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-12">
+                                <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Presupuesto aproximado (si aplica)</label>
                                 {{ form.budget_approx }}
                             </div>
+                        </div>
 
+                        <!-- Fila 4b – Moneda -->
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <label class="form-label" for="{{ form.currency.id_for_label }}">Moneda</label>
+                                {{ form.currency }}
+                            </div>
+                        </div>
+
+                        <!-- Fila 5 -->
+                        <div class="row g-3 mt-2">
                             <div class="col-md-6">
-                                <label class="form-label">Medio de pago</label>
+                                <label class="form-label" for="{{ form.payment_method.id_for_label }}">Medio de pago</label>
                                 {{ form.payment_method }}
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Estado</label>
+                                <label class="form-label" for="{{ form.status.id_for_label }}">Estado</label>
                                 {{ form.status }}
                             </div>
+                        </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label">Departamento</label>
+                        <!-- Fila 6 – Ubicación (12 columnas) -->
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-3">
+                                <label class="form-label" for="{{ form.department.id_for_label }}">Departamento</label>
                                 {{ form.department }}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Provincia</label>
+                            <div class="col-md-3">
+                                <label class="form-label" for="{{ form.province.id_for_label }}">Provincia</label>
                                 {{ form.province }}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Distrito</label>
+                            <div class="col-md-3">
+                                <label class="form-label" for="{{ form.district.id_for_label }}">Distrito</label>
                                 {{ form.district }}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Urbanización</label>
+                            <div class="col-md-3">
+                                <label class="form-label" for="{{ form.urbanization.id_for_label }}">Urbanización</label>
                                 {{ form.urbanization }}
                             </div>
+                        </div>
 
+                        <!-- Fila 7 – Características -->
+                        <div class="row g-3 mt-2">
                             <div class="col-md-3">
-                                <label class="form-label">Habitaciones</label>
+                                <label class="form-label" for="{{ form.bedrooms.id_for_label }}">Habitaciones</label>
                                 {{ form.bedrooms }}
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Baños</label>
+                                <label class="form-label" for="{{ form.bathrooms.id_for_label }}">Baños</label>
                                 {{ form.bathrooms }}
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Medios baños</label>
+                                <label class="form-label" for="{{ form.half_bathrooms.id_for_label }}">Medios baños</label>
                                 {{ form.half_bathrooms }}
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Cochera</label>
+                                <label class="form-label" for="{{ form.garage_spaces.id_for_label }}">Cochera</label>
                                 {{ form.garage_spaces }}
                             </div>
+                        </div>
 
+                        <!-- Fila 8 – Observaciones -->
+                        <div class="row g-3 mt-2">
                             <div class="col-12">
-                                <label class="form-label">Observaciones</label>
+                                <label class="form-label" for="{{ form.notes.id_for_label }}">Observaciones</label>
                                 {{ form.notes }}
                             </div>
+                        </div>
 
+                        <!-- Botón guardar -->
+                        <div class="row g-3 mt-2">
                             <div class="col-12 text-end">
-                                <button class="btn btn-teal" type="submit"><i class="fas fa-save me-2"></i>Guardar</button>
+                                <button class="btn btn-teal" type="submit">
+                                    <i class="fas fa-save me-2"></i>Guardar
+                                </button>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
-
         </div>
     </div>
 </div>

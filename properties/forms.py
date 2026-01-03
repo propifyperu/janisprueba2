@@ -286,7 +286,7 @@ class RequirementForm(forms.ModelForm):
         model = None  # se reemplaza en runtime para evitar import circular
         fields = [
             'client_name', 'phone', 'property_type', 'property_subtype',
-            'budget_type', 'budget_approx', 'budget_min', 'budget_max',
+            'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'currency',
             'payment_method', 'status',
             'department', 'province', 'district', 'urbanization',
             'bedrooms', 'bathrooms', 'half_bathrooms', 'floors', 'garage_spaces',
@@ -317,6 +317,7 @@ class RequirementSimpleForm(forms.Form):
     budget_approx = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     budget_min = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     budget_max = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    currency = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     payment_method = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     status = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     department = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
@@ -340,6 +341,9 @@ class RequirementSimpleForm(forms.Form):
             self.fields['property_subtype'].queryset = PropertySubtype.objects.filter(is_active=True).order_by('name')
             self.fields['payment_method'].queryset = PaymentMethod.objects.filter(is_active=True).order_by('order')
             self.fields['status'].queryset = PropertyStatus.objects.filter(is_active=True).order_by('order')
+            # Monedas
+            from .models import Currency
+            self.fields['currency'].queryset = Currency.objects.filter(is_active=True).order_by('name')
             self.fields['department'].queryset = Department.objects.filter(is_active=True).order_by('name')
             self.fields['province'].queryset = Province.objects.filter(is_active=True).order_by('name')
             self.fields['district'].queryset = District.objects.filter(is_active=True).order_by('name')
@@ -350,6 +354,11 @@ class RequirementSimpleForm(forms.Form):
             self.fields['property_subtype'].queryset = PropertySubtype.objects.none()
             self.fields['payment_method'].queryset = PaymentMethod.objects.none()
             self.fields['status'].queryset = PropertyStatus.objects.none()
+            # Monedas
+            try:
+                self.fields['currency'].queryset = Currency.objects.none()
+            except Exception:
+                pass
             self.fields['department'].queryset = Department.objects.none()
             self.fields['province'].queryset = Province.objects.none()
             self.fields['district'].queryset = District.objects.none()
