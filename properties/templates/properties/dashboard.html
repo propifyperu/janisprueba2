@@ -8,6 +8,16 @@
         --color-accent: #2ea44f; /* verde principal */
         --color-accent-dark: #258e45; /* hover / oscuro */
     }
+    .age-warning {
+        color: #b91c1c; /* rojo suave */
+        background: rgba(185,28,28,0.04);
+        border-left: 3px solid #b91c1c;
+        padding: 6px 10px;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+        display: none;
+    }
     /* Asegurar que el contenido principal sea flexible */
     .main-content {
         flex: 1;
@@ -52,6 +62,23 @@
         display: flex;
         gap: 0.75rem;
     }
+    .advanced-filters {
+        display: none;
+        margin-top: 1rem;
+        width: 100%;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        background: #f8faf9;
+        border: 1px solid rgba(4,125,125,0.06);
+        gap: 1rem;
+        box-shadow: 0 8px 20px rgba(4,125,125,0.04);
+    }
+    .advanced-filters.show {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    .advanced-filters .adv-control { min-width: 180px; }
+    .adv-mode-row { display:flex; gap:0.5rem; align-items:center; }
 
     .layer-toggle-bar {
         display: flex;
@@ -598,8 +625,118 @@
                 </div>
 
                 <div class="filter-actions">
+                    <button type="button" id="toggle-advanced-filters" class="btn btn-outline-secondary"><i class="fas fa-sliders-h me-2"></i>Filtro avanzado</button>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-filter me-2"></i>Aplicar</button>
                     <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+                
+                <div class="advanced-filters" id="advancedFilters">
+                    <div class="adv-control">
+                        <label class="small">Urbanización</label>
+                        <select name="urbanization" class="form-select">
+                            <option value="">Todas</option>
+                            {% for u in urbanizations_list %}
+                                <option value="{{ u.id }}" {% if filters.urbanization == u.id|stringformat:'s' %}selected{% endif %}>{{ u.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Habitaciones</label>
+                        <div class="adv-mode-row">
+                            <select name="bedrooms_mode" class="form-select form-select-sm" onchange="toggleBedroomsMode(this.value)">
+                                <option value="">Ninguno</option>
+                                <option value="range" {% if filters.bedrooms_mode == 'range' %}selected{% endif %}>Rango</option>
+                                <option value="approx" {% if filters.bedrooms_mode == 'approx' %}selected{% endif %}>Aproximada</option>
+                            </select>
+                        </div>
+                        <div class="mt-2" id="bedroomsRange" style="display: none;">
+                            <input type="number" name="bedrooms_min" class="form-control mb-1" placeholder="Min" value="{{ filters.bedrooms_min }}">
+                            <input type="number" name="bedrooms_max" class="form-control" placeholder="Max" value="{{ filters.bedrooms_max }}">
+                        </div>
+                        <div class="mt-2" id="bedroomsApprox" style="display: none;">
+                            <input type="number" name="bedrooms_approx" class="form-control" placeholder="Cantidad aproximada" value="{{ filters.bedrooms_approx }}">
+                        </div>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Baños</label>
+                        <select name="bathrooms_mode" class="form-select form-select-sm" onchange="toggleBathroomsMode(this.value)">
+                            <option value="">Ninguno</option>
+                            <option value="range" {% if filters.bathrooms_mode == 'range' %}selected{% endif %}>Rango</option>
+                            <option value="approx" {% if filters.bathrooms_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                        </select>
+                        <div class="mt-2" id="bathroomsRange" style="display: none;">
+                            <input type="number" name="bathrooms_min" class="form-control mb-1" placeholder="Min" value="{{ filters.bathrooms_min }}">
+                            <input type="number" name="bathrooms_max" class="form-control" placeholder="Max" value="{{ filters.bathrooms_max }}">
+                        </div>
+                        <div class="mt-2" id="bathroomsApprox" style="display: none;">
+                            <input type="number" name="bathrooms_approx" class="form-control" placeholder="Cantidad aproximada" value="{{ filters.bathrooms_approx }}">
+                        </div>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Estacionamientos</label>
+                        <select name="garage_mode" class="form-select form-select-sm" onchange="toggleGarageMode(this.value)">
+                            <option value="">Ninguno</option>
+                            <option value="range" {% if filters.garage_mode == 'range' %}selected{% endif %}>Rango</option>
+                            <option value="approx" {% if filters.garage_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                        </select>
+                        <div class="mt-2" id="garageRange" style="display: none;">
+                            <input type="number" name="garage_min" class="form-control mb-1" placeholder="Min" value="{{ filters.garage_min }}">
+                            <input type="number" name="garage_max" class="form-control" placeholder="Max" value="{{ filters.garage_max }}">
+                        </div>
+                        <div class="mt-2" id="garageApprox" style="display: none;">
+                            <input type="number" name="garage_approx" class="form-control" placeholder="Cantidad aproximada" value="{{ filters.garage_approx }}">
+                        </div>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Área</label>
+                        <select name="area_field" class="form-select form-select-sm">
+                            <option value="land" {% if filters.area_field == 'land' %}selected{% endif %}>Terreno</option>
+                            <option value="built" {% if filters.area_field == 'built' %}selected{% endif %}>Construida</option>
+                        </select>
+                        <select name="area_mode" class="form-select form-select-sm mt-2" onchange="toggleAreaMode(this.value)">
+                            <option value="">Ninguno</option>
+                            <option value="range" {% if filters.area_mode == 'range' %}selected{% endif %}>Rango</option>
+                            <option value="approx" {% if filters.area_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                        </select>
+                        <div class="mt-2" id="areaRange" style="display: none;">
+                            <input type="number" step="0.1" name="area_min" class="form-control mb-1" placeholder="Min (m2)" value="{{ filters.area_min }}">
+                            <input type="number" step="0.1" name="area_max" class="form-control" placeholder="Max (m2)" value="{{ filters.area_max }}">
+                        </div>
+                        <div class="mt-2" id="areaApprox" style="display: none;">
+                            <input type="number" step="0.1" name="area_approx" class="form-control" placeholder="Cantidad aproximada (m2)" value="{{ filters.area_approx }}">
+                        </div>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Estado</label>
+                        <select name="status" id="filter-status" class="form-select">
+                            <option value="">Cualquiera</option>
+                            <option value="antiguedad" {% if filters.status == 'antiguedad' %}selected{% endif %}>Antigüedad</option>
+                            {% for s in statuses %}
+                                <option value="{{ s.id }}" {% if filters.status == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <div class="mt-2" id="ageControls" style="display: none;">
+                            <select name="age_mode" id="ageMode" class="form-select form-select-sm" onchange="toggleAgeMode(this.value)">
+                                <option value="">Ninguno</option>
+                                <option value="range" {% if filters.age_mode == 'range' %}selected{% endif %}>Rango</option>
+                                <option value="approx" {% if filters.age_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                            </select>
+                            <div class="mt-2" id="ageRange" style="display: none;">
+                                <input type="number" name="age_min" class="form-control mb-1" placeholder="Min (años)" value="{{ filters.age_min }}">
+                                <input type="number" name="age_max" class="form-control" placeholder="Max (años)" value="{{ filters.age_max }}">
+                            </div>
+                            <div class="mt-2" id="ageApprox" style="display: none;">
+                                <input type="number" name="age_approx" class="form-control" placeholder="Años aproximados" value="{{ filters.age_approx }}">
+                            </div>
+                        <div id="ageWarning" class="age-warning" {% if age_warning %}style="display:block;"{% endif %}>{{ age_warning }}</div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -757,6 +894,152 @@ const layerDefinitions = {
     hospitals: { type: 'hospital', color: '#d81b60' },
     malls: { type: 'shopping_mall', color: '#8e24aa' }
 };
+
+// Advanced filters UI helpers
+function toggleAdvancedFilters() {
+    const adv = document.getElementById('advancedFilters');
+    if (!adv) return;
+    adv.classList.toggle('show');
+}
+
+function toggleBedroomsMode(mode) {
+    document.getElementById('bedroomsRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('bedroomsApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+function toggleBathroomsMode(mode) {
+    document.getElementById('bathroomsRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('bathroomsApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+function toggleGarageMode(mode) {
+    document.getElementById('garageRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('garageApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+function toggleAreaMode(mode) {
+    document.getElementById('areaRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('areaApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('toggle-advanced-filters');
+    if (btn) btn.addEventListener('click', toggleAdvancedFilters);
+
+    // Inicializar visibilidad segun filtros actuales
+    try {
+        toggleBedroomsMode('{{ filters.bedrooms_mode }}');
+        toggleBathroomsMode('{{ filters.bathrooms_mode }}');
+        toggleGarageMode('{{ filters.garage_mode }}');
+        toggleAreaMode('{{ filters.area_mode }}');
+        // Si alguno de los advanced filters tiene valor, mostrar el panel
+        const advHas = ['{{ filters.urbanization }}','{{ filters.bedrooms_mode }}','{{ filters.bedrooms_min }}','{{ filters.bedrooms_max }}','{{ filters.bedrooms_approx }}','{{ filters.bathrooms_mode }}','{{ filters.garage_mode }}','{{ filters.area_mode }}','{{ filters.status }}','{{ filters.age_mode }}','{{ filters.age_min }}','{{ filters.age_max }}','{{ filters.age_approx }}'].some(v => v && v.trim && v.trim() !== '');
+        if (advHas) {
+            const adv = document.getElementById('advancedFilters'); if (adv) adv.classList.add('show');
+        }
+    } catch (e) {
+        // ignore template rendering issues
+    }
+});
+
+// Age mode toggles and status->age visibility
+function toggleAgeMode(mode) {
+    document.getElementById('ageRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('ageApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const statusSelect = document.getElementById('filter-status');
+    function updateAgeVisibility() {
+        const ageCtr = document.getElementById('ageControls');
+        if (!statusSelect) return;
+        if (statusSelect.value === 'antiguedad') {
+            ageCtr.style.display = 'block';
+        } else {
+            ageCtr.style.display = 'none';
+        }
+    }
+    if (statusSelect) {
+        statusSelect.addEventListener('change', updateAgeVisibility);
+        updateAgeVisibility();
+        toggleAgeMode('{{ filters.age_mode }}');
+    }
+
+    // Funcionalidad para actualizar la advertencia de antiguedad en vivo
+    function updateAgeWarning() {
+        const warningEl = document.getElementById('ageWarning');
+        if (!warningEl) return;
+        const status = statusSelect ? statusSelect.value : '';
+        if (status !== 'antiguedad') {
+            warningEl.style.display = 'none';
+            warningEl.textContent = '';
+            return;
+        }
+        const ageMode = document.getElementById('ageMode') ? document.getElementById('ageMode').value : '';
+        let msg = '';
+        if (ageMode === 'range') {
+            const amin = document.querySelector('input[name="age_min"]').value || '';
+            const amax = document.querySelector('input[name="age_max"]').value || '';
+            if (amin && amax) msg = `Buscando propiedades entre ${amin} y ${amax} años.`;
+            else if (amin) msg = `Buscando propiedades desde ${amin} años.`;
+            else if (amax) msg = `Buscando propiedades de hasta ${amax} años.`;
+        } else if (ageMode === 'approx') {
+            const a = document.querySelector('input[name="age_approx"]').value || '';
+            if (a) msg = `Buscando propiedades con antigüedad ≈ ${a} años (±1 año).`;
+        }
+        if (msg) {
+            warningEl.textContent = msg;
+            warningEl.style.display = 'block';
+        } else {
+            // si no hay valores, mostrar la advertencia server-side si existe (ya impresa)
+            if (!warningEl.textContent) {
+                warningEl.style.display = 'none';
+            }
+        }
+    }
+
+    // Adjuntar listeners para actualizar en vivo
+    const ageMinEl = document.querySelector('input[name="age_min"]');
+    const ageMaxEl = document.querySelector('input[name="age_max"]');
+    const ageApproxEl = document.querySelector('input[name="age_approx"]');
+    if (ageMinEl) ageMinEl.addEventListener('input', updateAgeWarning);
+    if (ageMaxEl) ageMaxEl.addEventListener('input', updateAgeWarning);
+    if (ageApproxEl) ageApproxEl.addEventListener('input', updateAgeWarning);
+    if (document.getElementById('ageMode')) document.getElementById('ageMode').addEventListener('change', updateAgeWarning);
+    if (statusSelect) statusSelect.addEventListener('change', updateAgeWarning);
+
+    // Cascada: al cambiar distrito, cargar urbanizaciones via API (reusa endpoint existente)
+    const districtSelect = document.getElementById('filter-district');
+    const urbanizationSelect = document.querySelector('select[name="urbanization"]');
+    if (districtSelect && urbanizationSelect) {
+        districtSelect.addEventListener('change', function() {
+            const districtId = this.value;
+            if (!districtId) {
+                urbanizationSelect.innerHTML = '<option value="">Seleccione un distrito primero</option>';
+                urbanizationSelect.disabled = true;
+                return;
+            }
+            urbanizationSelect.disabled = true;
+            urbanizationSelect.innerHTML = '<option value="">Cargando urbanizaciones...</option>';
+            fetch("{% url 'properties:api_urbanizations' %}?district_id=" + encodeURIComponent(districtId))
+                .then(r => { if(!r.ok) throw new Error('reload'); return r.json(); })
+                .then(data => {
+                    urbanizationSelect.innerHTML = '<option value="">Todas</option>';
+                    data.forEach(u => {
+                        const opt = document.createElement('option');
+                        opt.value = u.id;
+                        opt.textContent = u.name;
+                        urbanizationSelect.appendChild(opt);
+                    });
+                    urbanizationSelect.disabled = false;
+                })
+                .catch(() => {
+                    urbanizationSelect.innerHTML = '<option value="">Error</option>';
+                    urbanizationSelect.disabled = true;
+                });
+        });
+    }
+});
 
 // Cache for generated SVG icons per layer
 const poiIconCache = {};

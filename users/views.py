@@ -216,7 +216,36 @@ def register_success_view(request):
 
 
 def profile_view(request):
-    return render(request, 'users/profile.html')
+    from django.contrib import messages
+
+    # Permitir cambiar tema desde el perfil (POST desde el desplegable)
+    if request.method == 'POST' and request.user.is_authenticated:
+        theme = request.POST.get('theme')
+        try:
+            profile = request.user.profile
+        except Exception:
+            # Crear perfil si no existe
+            from .models import UserProfile
+            profile = UserProfile.objects.create(user=request.user)
+
+        if theme in dict(profile.THEME_CHOICES):
+            profile.theme = theme
+            profile.save(update_fields=['theme'])
+            messages.success(request, 'Apariencia actualizada.')
+        else:
+            messages.error(request, 'Opción de apariencia inválida.')
+        return redirect('users:profile')
+
+    # Asegurar que la plantilla reciba el objeto `profile` en el contexto
+    profile = None
+    if request.user.is_authenticated:
+        try:
+            profile = request.user.profile
+        except Exception:
+            from .models import UserProfile
+            profile = UserProfile.objects.create(user=request.user)
+
+    return render(request, 'users/profile.html', {'profile': profile})
 
 
 def profile_edit_view(request):

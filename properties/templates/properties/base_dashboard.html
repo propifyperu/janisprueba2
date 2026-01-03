@@ -57,10 +57,8 @@
 
     .sidebar {
         width: var(--sidebar-width);
-        background: #047d7d !important;
         color: var(--color-on-dark);
         padding: 2.5rem 1.75rem;
-        box-shadow: 8px 0 24px rgba(4, 125, 125, 0.22);
         position: fixed;
         top: 0;
         left: 0;
@@ -71,6 +69,17 @@
         flex-direction: column;
     }
 
+    /* Temas para la barra lateral - por usuario */
+    .sidebar.theme-green {
+        background: #047d7d !important;
+        box-shadow: 8px 0 24px rgba(4, 125, 125, 0.22);
+    }
+
+    .sidebar.theme-black {
+        background: #000 !important;
+        box-shadow: 8px 0 24px rgba(0, 0, 0, 0.32);
+    }
+
     .sidebar-inner {
         display: flex;
         flex-direction: column;
@@ -78,33 +87,29 @@
         overflow-y: auto;
         overflow-x: hidden;
         position: relative;
+        padding-right: 0.75rem;
     }
 
-    /* Scrollbar personalizado (verde claro) para el sidebar */
+    /* Ocultar visualmente la scrollbar pero mantener funcionalidad (rueda del ratón)
+       - IE/Edge: -ms-overflow-style: none
+       - Firefox: scrollbar-width: none
+       - WebKit: set width/height a 0 para ocultar el track/thumb
+    */
     .sidebar-inner {
-        scrollbar-width: thin; /* Firefox */
-        scrollbar-color: #8fdccf transparent; /* thumb, track */
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+        scrollbar-color: transparent transparent;
     }
 
     .sidebar-inner::-webkit-scrollbar {
-        width: 8px;
+        width: 0;
+        height: 0;
         background: transparent;
     }
 
-    .sidebar-inner::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .sidebar-inner::-webkit-scrollbar-thumb {
-        background-color: #8fdccf; /* verde claro */
-        border-radius: 999px;
-        border: 2px solid rgba(0,0,0,0.06);
-        transition: background-color 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .sidebar-inner:hover::-webkit-scrollbar-thumb {
-        background-color: #6fe0b8;
-        box-shadow: 0 0 6px rgba(111, 224, 184, 0.25);
+    /* Mantener el área scrollable con inercia en móviles */
+    .sidebar-inner {
+        -webkit-overflow-scrolling: touch;
     }
 
     .sidebar::after {
@@ -117,8 +122,52 @@
         opacity: 0.7;
     }
 
+    /* Indicador sutil para mostrar que el sidebar es desplazable
+       Se muestra solo cuando el contenedor tiene overflow (vía clase .scrollable) */
+    .sidebar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 18px;
+        pointer-events: none;
+        display: none;
+        transition: opacity 0.18s ease;
+    }
+
+    .sidebar.scrollable::before {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Gradiente para tema verde */
+    .sidebar.theme-green.scrollable::before {
+        background: linear-gradient(to left, rgba(0,0,0,0.12), rgba(0,0,0,0.04) 40%, transparent 100%);
+    }
+
+    /* Gradiente para tema negro (alto contraste, más sutil) */
+    .sidebar.theme-black.scrollable::before {
+        background: linear-gradient(to left, rgba(255,255,255,0.06), rgba(255,255,255,0.03) 40%, transparent 100%);
+    }
+
+    /* Evitar overlay verde cuando el tema es negro */
+    .sidebar.theme-black::after {
+        background: none !important;
+        opacity: 1;
+    }
+
+    /* Scrollbar thumb para tema negro */
+    .sidebar.theme-black .sidebar-inner::-webkit-scrollbar-thumb {
+        background-color: rgba(255,255,255,0.12);
+        border-radius: 999px;
+        border: 2px solid rgba(0,0,0,0.2);
+    }
+
+    .sidebar.theme-green .nav-link,
+    .sidebar.theme-black .nav-link,
     .sidebar .nav-link {
-        color: rgba(243, 253, 253, 0.85);
+        color: rgba(243, 253, 253, 0.95);
         font-weight: 600;
         letter-spacing: 0.25px;
         padding: 0.75rem 0;
@@ -145,6 +194,10 @@
         outline: none !important;
         box-shadow: none !important;
         transform: translateX(6px);
+    }
+
+    .sidebar .nav {
+        padding-right: 0.5rem; /* separar del scrollbar */
     }
 
     .nav-group {
@@ -314,7 +367,7 @@
 
 {% block content %}
 <div class="properties-layout">
-    <aside class="sidebar">
+    <aside class="sidebar {% if request.user.is_authenticated and profile %}theme-{{ profile.theme|default:'green' }}{% else %}theme-green{% endif %}">
         <div class="sidebar-inner">
             <div class="mb-5 position-relative">
                 {% block sidebar_header %}
@@ -490,8 +543,36 @@ function setupCreatePropertyLink() {
 document.addEventListener('DOMContentLoaded', () => {
     setupSidebarMenus();
     setupCreatePropertyLink();
+    setupSidebarScrollableIndicator();
 });
 document.addEventListener('htmx:afterSwap', setupSidebarMenus);
+document.addEventListener('htmx:afterSwap', setupSidebarScrollableIndicator);
+
+function setupSidebarScrollableIndicator() {
+    const aside = document.querySelector('.sidebar');
+    if (!aside) return;
+    const inner = aside.querySelector('.sidebar-inner');
+    if (!inner) return;
+
+    function update() {
+        if (inner.scrollHeight > inner.clientHeight) {
+            aside.classList.add('scrollable');
+        } else {
+            aside.classList.remove('scrollable');
+        }
+        // marcar si está en el fondo (opcional, puede usarse para ajustar la opacidad)
+        if (inner.scrollTop + inner.clientHeight >= inner.scrollHeight - 1) {
+            aside.classList.add('at-bottom');
+        } else {
+            aside.classList.remove('at-bottom');
+        }
+    }
+
+    inner.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    // calcular inicialmente
+    setTimeout(update, 50);
+}
 </script>
 {% block dashboard_extra_js %}{% endblock %}
 {% endblock %}

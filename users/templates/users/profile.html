@@ -260,6 +260,16 @@
                             <i class="fas fa-arrow-left me-2"></i>Volver al panel
                         </a>
                     </div>
+                    <div class="mt-2">
+                        <form method="post" id="theme-form">
+                            {% csrf_token %}
+                            <label class="form-label small text-muted">Apariencia</label>
+                            <select name="theme" id="id_theme" class="form-select form-select-sm" onchange="document.getElementById('theme-form').submit()">
+                                <option value="green" {% if profile.theme == 'green' %}selected{% endif %}>Verde (predeterminado)</option>
+                                <option value="black" {% if profile.theme == 'black' %}selected{% endif %}>Negro</option>
+                            </select>
+                        </form>
+                    </div>
                 </div>
             </div>
 

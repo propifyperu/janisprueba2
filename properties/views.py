@@ -395,6 +395,149 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             except (InvalidOperation, ValueError):
                 pass
 
+        # --- Advanced filters ---
+        # Urbanización (puede ser id numérico o texto)
+        urbanization = self.request.GET.get('urbanization', '').strip()
+        if urbanization:
+            if urbanization.isdigit():
+                queryset = queryset.filter(urbanization=urbanization)
+            else:
+                queryset = queryset.filter(urbanization__icontains=urbanization)
+
+        # Habitaciones (bedrooms): modo 'range' o 'approx'
+        bedrooms_mode = self.request.GET.get('bedrooms_mode', '').strip()
+        if bedrooms_mode == 'range':
+            bmin = self.request.GET.get('bedrooms_min', '').strip()
+            bmax = self.request.GET.get('bedrooms_max', '').strip()
+            try:
+                if bmin:
+                    queryset = queryset.filter(bedrooms__gte=int(bmin))
+                if bmax:
+                    queryset = queryset.filter(bedrooms__lte=int(bmax))
+            except ValueError:
+                pass
+        elif bedrooms_mode == 'approx':
+            approx = self.request.GET.get('bedrooms_approx', '').strip()
+            try:
+                a = int(approx)
+                queryset = queryset.filter(bedrooms__gte=max(0, a-1), bedrooms__lte=a+1)
+            except ValueError:
+                pass
+
+        # Baños (bathrooms)
+        bathrooms_mode = self.request.GET.get('bathrooms_mode', '').strip()
+        if bathrooms_mode == 'range':
+            bmin = self.request.GET.get('bathrooms_min', '').strip()
+            bmax = self.request.GET.get('bathrooms_max', '').strip()
+            try:
+                if bmin:
+                    queryset = queryset.filter(bathrooms__gte=int(bmin))
+                if bmax:
+                    queryset = queryset.filter(bathrooms__lte=int(bmax))
+            except ValueError:
+                pass
+        elif bathrooms_mode == 'approx':
+            approx = self.request.GET.get('bathrooms_approx', '').strip()
+            try:
+                a = int(approx)
+                queryset = queryset.filter(bathrooms__gte=max(0, a-1), bathrooms__lte=a+1)
+            except ValueError:
+                pass
+
+        # Estacionamientos (garage_spaces)
+        garage_mode = self.request.GET.get('garage_mode', '').strip()
+        if garage_mode == 'range':
+            gmin = self.request.GET.get('garage_min', '').strip()
+            gmax = self.request.GET.get('garage_max', '').strip()
+            try:
+                if gmin:
+                    queryset = queryset.filter(garage_spaces__gte=int(gmin))
+                if gmax:
+                    queryset = queryset.filter(garage_spaces__lte=int(gmax))
+            except ValueError:
+                pass
+        elif garage_mode == 'approx':
+            approx = self.request.GET.get('garage_approx', '').strip()
+            try:
+                a = int(approx)
+                queryset = queryset.filter(garage_spaces__gte=max(0, a-1), garage_spaces__lte=a+1)
+            except ValueError:
+                pass
+
+        # Área (land_area o built_area)
+        area_field = self.request.GET.get('area_field', 'land').strip()
+        area_mode = self.request.GET.get('area_mode', '').strip()
+        area_min = self.request.GET.get('area_min', '').strip()
+        area_max = self.request.GET.get('area_max', '').strip()
+        area_approx = self.request.GET.get('area_approx', '').strip()
+        area_field_name = 'land_area' if area_field == 'land' else 'built_area'
+        try:
+            if area_mode == 'range':
+                if area_min:
+                    queryset = queryset.filter(**{f"{area_field_name}__gte": float(area_min)})
+                if area_max:
+                    queryset = queryset.filter(**{f"{area_field_name}__lte": float(area_max)})
+            elif area_mode == 'approx' and area_approx:
+                # approximate: +/-10% range
+                a = float(area_approx)
+                low = max(0.0, a * 0.9)
+                high = a * 1.1
+                queryset = queryset.filter(**{f"{area_field_name}__gte": low, f"{area_field_name}__lte": high})
+        except (ValueError, TypeError):
+            pass
+
+        # Estado (status) por id, o filtro especial 'antiguedad' (edad de la propiedad en años)
+        status = self.request.GET.get('status', '').strip()
+        if status:
+            if status == 'antiguedad':
+                # Filtrar por antiguedad usando created_at (años) con cálculo por años reales
+                from django.utils import timezone
+                from datetime import timedelta
+                now = timezone.now()
+
+                def years_ago(dt, years):
+                    # Intenta restar años preservando mes/día; maneja 29-feb ajustando a 28-feb
+                    try:
+                        return dt.replace(year=dt.year - years)
+                    except ValueError:
+                        try:
+                            # Fallback para 29-feb -> 28-feb
+                            return dt.replace(month=2, day=28, year=dt.year - years)
+                        except Exception:
+                            return dt - timedelta(days=365 * years)
+
+                age_mode = self.request.GET.get('age_mode', '').strip()
+                if age_mode == 'range':
+                    age_min = self.request.GET.get('age_min', '').strip()
+                    age_max = self.request.GET.get('age_max', '').strip()
+                    try:
+                        if age_min:
+                            years = int(age_min)
+                            cutoff = years_ago(now, years)
+                            # propiedades con edad >= age_min -> created_at <= cutoff
+                            queryset = queryset.filter(created_at__lte=cutoff)
+                        if age_max:
+                            years = int(age_max)
+                            cutoff = years_ago(now, years)
+                            # propiedades con edad <= age_max -> created_at >= cutoff
+                            queryset = queryset.filter(created_at__gte=cutoff)
+                    except ValueError:
+                        pass
+                elif age_mode == 'approx':
+                    approx = self.request.GET.get('age_approx', '').strip()
+                    try:
+                        a = int(approx)
+                        low = years_ago(now, a + 1)
+                        high = years_ago(now, max(0, a - 1))
+                        queryset = queryset.filter(created_at__gte=low, created_at__lte=high)
+                    except ValueError:
+                        pass
+            else:
+                if status.isdigit():
+                    queryset = queryset.filter(status_id=int(status))
+                else:
+                    queryset = queryset.filter(status__name__icontains=status)
+
         return queryset.order_by('-created_at')
 
     def get_context_data(self, **kwargs):
@@ -438,6 +581,58 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             'price_min': self.request.GET.get('price_min', '').strip(),
             'price_max': self.request.GET.get('price_max', '').strip(),
         }
+        # Añadir filtros avanzados actuales para persistir la UI
+        context['filters'].update({
+            'urbanization': self.request.GET.get('urbanization', '').strip(),
+            'bedrooms_mode': self.request.GET.get('bedrooms_mode', '').strip(),
+            'bedrooms_min': self.request.GET.get('bedrooms_min', '').strip(),
+            'bedrooms_max': self.request.GET.get('bedrooms_max', '').strip(),
+            'bedrooms_approx': self.request.GET.get('bedrooms_approx', '').strip(),
+            'bathrooms_mode': self.request.GET.get('bathrooms_mode', '').strip(),
+            'bathrooms_min': self.request.GET.get('bathrooms_min', '').strip(),
+            'bathrooms_max': self.request.GET.get('bathrooms_max', '').strip(),
+            'bathrooms_approx': self.request.GET.get('bathrooms_approx', '').strip(),
+            'garage_mode': self.request.GET.get('garage_mode', '').strip(),
+            'garage_min': self.request.GET.get('garage_min', '').strip(),
+            'garage_max': self.request.GET.get('garage_max', '').strip(),
+            'garage_approx': self.request.GET.get('garage_approx', '').strip(),
+            'area_field': self.request.GET.get('area_field', 'land').strip(),
+            'area_mode': self.request.GET.get('area_mode', '').strip(),
+            'area_min': self.request.GET.get('area_min', '').strip(),
+            'area_max': self.request.GET.get('area_max', '').strip(),
+            'area_approx': self.request.GET.get('area_approx', '').strip(),
+            'status': self.request.GET.get('status', '').strip(),
+        })
+
+        # Preparar mensaje de advertencia para 'antiguedad' que indique el rango o valor buscado
+        age_warning = ''
+        try:
+            if context['filters'].get('status') == 'antiguedad':
+                age_mode = self.request.GET.get('age_mode', '').strip()
+                if age_mode == 'range':
+                    age_min = self.request.GET.get('age_min', '').strip()
+                    age_max = self.request.GET.get('age_max', '').strip()
+                    if age_min and age_max:
+                        age_warning = f"Buscando propiedades entre {age_min} y {age_max} años."
+                    elif age_min:
+                        age_warning = f"Buscando propiedades desde {age_min} años."
+                    elif age_max:
+                        age_warning = f"Buscando propiedades de hasta {age_max} años."
+                elif age_mode == 'approx':
+                    approx = self.request.GET.get('age_approx', '').strip()
+                    if approx:
+                        age_warning = f"Buscando propiedades con antigüedad ≈ {approx} años (±1 año)."
+        except Exception:
+            age_warning = ''
+
+        context['age_warning'] = age_warning
+
+        # Listas para selects avanzados
+        context['statuses'] = PropertyStatus.objects.filter(is_active=True).order_by('order')
+        try:
+            context['urbanizations_list'] = list(Urbanization.objects.filter(is_active=True).order_by('name').values('id', 'name'))
+        except Exception:
+            context['urbanizations_list'] = []
 
         markers = []
         for property_obj in properties[:50]:  # Limitar a 50 propiedades por página

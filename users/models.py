@@ -82,6 +82,12 @@ class UserProfile(models.Model):
     email_notifications = models.BooleanField(default=True)
     whatsapp_notifications = models.BooleanField(default=False)
     push_notifications = models.BooleanField(default=False)
+    # Preferencia de apariencia del usuario: 'green' (por defecto) o 'black'
+    THEME_CHOICES = (
+        ('green', 'Verde (predeterminado)'),
+        ('black', 'Negro'),
+    )
+    theme = models.CharField(max_length=20, choices=THEME_CHOICES, default='green')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
