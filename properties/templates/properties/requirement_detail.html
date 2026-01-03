@@ -1,0 +1,83 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Detalle Requerimiento - Janis Platform{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-10 col-xl-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h1 class="h5 mb-0"><i class="fas fa-eye me-2"></i>Detalle de Requerimiento</h1>
+                <a href="{% url 'properties:requirements_list' %}" class="btn btn-outline-teal">Volver a lista</a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">ID</dt>
+                        <dd class="col-sm-8">{{ requirement.id }}</dd>
+
+                        <dt class="col-sm-4">Creado por</dt>
+                        <dd class="col-sm-8">{% if requirement.created_by %}{{ requirement.created_by.get_full_name|default:requirement.created_by.username }}{% else %}-{% endif %}</dd>
+
+                        {% if can_view_pii %}
+                        <dt class="col-sm-4">Cliente</dt>
+                        <dd class="col-sm-8">{{ requirement.client_name|default:'-' }}</dd>
+
+                        <dt class="col-sm-4">Teléfono</dt>
+                        <dd class="col-sm-8">{{ requirement.phone|default:'-' }}</dd>
+                        {% else %}
+                        <dt class="col-sm-4">Cliente</dt>
+                        <dd class="col-sm-8">Privado</dd>
+
+                        <dt class="col-sm-4">Teléfono</dt>
+                        <dd class="col-sm-8">Privado</dd>
+                        {% endif %}
+
+                        <dt class="col-sm-4">Tipo</dt>
+                        <dd class="col-sm-8">{% if requirement.property_type %}{{ requirement.property_type.name }}{% else %}-{% endif %}</dd>
+
+                        <dt class="col-sm-4">Subtipo</dt>
+                        <dd class="col-sm-8">{% if requirement.property_subtype %}{{ requirement.property_subtype.name }}{% else %}-{% endif %}</dd>
+
+                        <dt class="col-sm-4">Presupuesto</dt>
+                        <dd class="col-sm-8">
+                            {% if requirement.budget_type == 'approx' %}
+                                {% if requirement.budget_approx %}{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_approx }}{% else %}-{% endif %}
+                            {% else %}
+                                {% if requirement.budget_min and requirement.budget_max %}{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_min }} - {% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_max }}{% else %}-{% endif %}
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Medio de pago</dt>
+                        <dd class="col-sm-8">{% if requirement.payment_method %}{{ requirement.payment_method.name }}{% else %}-{% endif %}</dd>
+
+                        <dt class="col-sm-4">Estado</dt>
+                        <dd class="col-sm-8">{% if requirement.status %}{{ requirement.status.name }}{% else %}-{% endif %}</dd>
+
+                        <dt class="col-sm-4">Ubicación</dt>
+                        <dd class="col-sm-8">
+                            {% if requirement.department %}{{ requirement.department.name }}{% endif %}
+                            {% if requirement.province %} / {{ requirement.province.name }}{% endif %}
+                            {% if requirement.district %} / {{ requirement.district.name }}{% endif %}
+                            {% if requirement.urbanization %} / {{ requirement.urbanization.name }}{% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Características</dt>
+                        <dd class="col-sm-8">
+                            Habitaciones: {{ requirement.bedrooms|default:'-' }} · Baños: {{ requirement.bathrooms|default:'-' }} · Medios baños: {{ requirement.half_bathrooms|default:'-' }} · Pisos: {{ requirement.floors|default:'-' }} · Cocheras: {{ requirement.garage_spaces|default:'-' }}
+                        </dd>
+
+                        <dt class="col-sm-4">Observaciones</dt>
+                        <dd class="col-sm-8">{{ requirement.notes|default:'-' }}</dd>
+
+                        <dt class="col-sm-4">Fecha</dt>
+                        <dd class="col-sm-8">{{ requirement.created_at|date:"d/m/Y H:i" }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

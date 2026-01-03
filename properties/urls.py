@@ -24,6 +24,7 @@ urlpatterns = [
     path('contactos/<int:pk>/editar/', views.ContactEditView.as_view(), name='contact_edit'),
     # Requerimientos (búsquedas de clientes)
     path('requerimientos/', views.RequirementListView.as_view(), name='requirements_list'),
+    path('requerimientos/<int:pk>/', views.RequirementDetailView.as_view(), name='requirements_detail'),
     path('requerimientos/crear/', views.requirement_create_view, name='requirements_create'),
     path('requerimientos/mis-requerimientos/', views.MyRequirementsView.as_view(), name='requirements_my'),
     path('api/property-subtypes/', views.api_property_subtypes, name='api_property_subtypes'),

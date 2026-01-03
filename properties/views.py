@@ -352,6 +352,21 @@ class MyRequirementsView(LoginRequiredMixin, ListView):
             return Requirement.objects.none()
 
 
+class RequirementDetailView(LoginRequiredMixin, DetailView):
+    model = Requirement
+    template_name = 'properties/requirement_detail.html'
+    context_object_name = 'requirement'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        req = self.get_object()
+        user = self.request.user
+        # Solo puede ver PII el superuser o el creador del requerimiento
+        can_view_pii = user.is_superuser or (req.created_by and req.created_by.id == user.id)
+        context['can_view_pii'] = can_view_pii
+        return context
+
+
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
