@@ -553,26 +553,38 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         try:
             from .models import District
 
-            def _resolve_district(value):
+            def _resolve_district_obj(value):
                 if not value:
-                    return ''
+                    return None
                 try:
                     if str(value).isdigit():
                         obj = District.objects.filter(pk=int(value)).first()
                         if obj:
-                            return getattr(obj, 'name', str(value))
-                    return str(value)
+                            return {'id': obj.id, 'name': getattr(obj, 'name', str(value))}
+                        else:
+                            return {'id': int(value), 'name': str(value)}
+                    return {'id': '', 'name': str(value)}
                 except Exception:
-                    return str(value)
+                    return {'id': '', 'name': str(value)}
 
-            context['districts_list'] = sorted(set(
-                _resolve_district(p.district) for p in properties if p.district
-            ))
+            # Mantener el orden y eliminar duplicados por (id,name)
+            seen = set()
+            districts = []
+            for p in properties:
+                if not p.district:
+                    continue
+                resolved = _resolve_district_obj(p.district)
+                key = (str(resolved.get('id')), resolved.get('name'))
+                if key not in seen:
+                    seen.add(key)
+                    districts.append(resolved)
+
+            # ordenar por nombre para mostrar
+            context['districts_list'] = sorted(districts, key=lambda x: (x.get('name') or ''))
         except Exception:
-            # En caso de error, caer al valor bruto
-            context['districts_list'] = sorted(set(
-                p.district for p in properties if p.district
-            ))
+            # En caso de error, caer al valor bruto como lista de nombres
+            names = sorted({p.district for p in properties if p.district})
+            context['districts_list'] = [{'id': '', 'name': n} for n in names]
 
         context['filters'] = {
             'property_type': self.request.GET.get('property_type', '').strip(),

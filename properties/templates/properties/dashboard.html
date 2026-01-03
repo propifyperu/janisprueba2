@@ -599,7 +599,10 @@
                     <select class="form-select" id="filter-district" name="district">
                         <option value="">Todos</option>
                         {% for d in districts_list %}
-                            <option value="{{ d }}" {% if filters.district == d %}selected{% endif %}>{{ d }}</option>
+                            <option value="{{ d.id }}" 
+                                {% if d.id and filters.district == d.id|stringformat:'s' %}selected
+                                {% elif not d.id and filters.district == d.name %}selected
+                                {% endif %}>{{ d.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -717,7 +720,9 @@
                             <option value="">Cualquiera</option>
                             <option value="antiguedad" {% if filters.status == 'antiguedad' %}selected{% endif %}>Antigüedad</option>
                             {% for s in statuses %}
-                                <option value="{{ s.id }}" {% if filters.status == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+                                {% if s.name|lower != 'antigüedad' %}
+                                    <option value="{{ s.id }}" {% if filters.status == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+                                {% endif %}
                             {% endfor %}
                         </select>
 
