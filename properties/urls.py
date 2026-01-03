@@ -1,19 +1,5 @@
-from django.urls import path
-from django.urls import path, include
+﻿from django.urls import path, include
 from . import views
-from .views import (
-    PropertyDashboardView, create_property_view, PropertyDetailView,
-    edit_property_view,
-    property_timeline_view, drafts_list_view, delete_draft_view,
-    ContactListView, ContactCreateView, ContactDetailView, ContactEditView,
-    api_property_subtypes, api_provinces, api_districts, api_urbanizations,
-    api_document_types, api_image_types, api_roomtypes, api_video_types,
-    SimplePropertyListView, simple_properties_view,
-    # WhatsApp
-    whatsapp_links_list, whatsapp_link_create, whatsapp_link_delete,
-    leads_list, lead_detail, crm_dashboard,
-    marketing_properties_list, marketing_utm_dashboard
-)
 from .api import PropertyViewSet
 from rest_framework.routers import DefaultRouter
 
@@ -21,41 +7,45 @@ router = DefaultRouter()
 router.register(r'properties', PropertyViewSet, basename='properties')
 
 urlpatterns = [
-    path('ultra-simple/', simple_properties_view, name='ultra_simple_list'),
-    path('simple-list/', SimplePropertyListView.as_view(), name='simple_property_list'),
-    path('dashboard/', PropertyDashboardView.as_view(), name='list'),
+    path('ultra-simple/', views.simple_properties_view, name='ultra_simple_list'),
+    path('simple-list/', views.SimplePropertyListView.as_view(), name='simple_property_list'),
+    path('dashboard/', views.PropertyDashboardView.as_view(), name='list'),
     path('marketing/whatsapp/track/<int:link_id>/', views.track_whatsapp_click, name='track_whatsapp_click'),
-    path('crear/', create_property_view, name='create'),
+    path('crear/', views.create_property_view, name='create'),
     path('mis-propiedades/', views.MyPropertiesView.as_view(), name='my_properties'),
-    path('<int:pk>/', PropertyDetailView.as_view(), name='detail'),
-    path('borradores/', drafts_list_view, name='drafts'),
-    path('borradores/<int:pk>/borrar/', delete_draft_view, name='delete_draft'),
-    path('<int:pk>/timeline/', property_timeline_view, name='timeline'),
-    path('<int:pk>/editar/', edit_property_view, name='edit'),
-    path('contactos/', ContactListView.as_view(), name='contact_list'),
-    path('contactos/crear/', ContactCreateView.as_view(), name='contact_create'),
-    path('contactos/<int:pk>/', ContactDetailView.as_view(), name='contact_detail'),
-    path('contactos/<int:pk>/editar/', ContactEditView.as_view(), name='contact_edit'),
-    path('api/property-subtypes/', api_property_subtypes, name='api_property_subtypes'),
-    path('api/provinces/', api_provinces, name='api_provinces'),
-    path('api/districts/', api_districts, name='api_districts'),
-    path('api/urbanizations/', api_urbanizations, name='api_urbanizations'),
-    path('api/document-types/', api_document_types, name='api_document_types'),
-    path('api/image-types/', api_image_types, name='api_image_types'),
-    path('api/roomtypes/', api_roomtypes, name='api_roomtypes'),
-    path('api/video-types/', api_video_types, name='api_video_types'),
+    path('<int:pk>/', views.PropertyDetailView.as_view(), name='detail'),
+    path('borradores/', views.drafts_list_view, name='drafts'),
+    path('borradores/<int:pk>/borrar/', views.delete_draft_view, name='delete_draft'),
+    path('<int:pk>/timeline/', views.property_timeline_view, name='timeline'),
+    path('<int:pk>/editar/', views.edit_property_view, name='edit'),
+    path('contactos/', views.ContactListView.as_view(), name='contact_list'),
+    path('contactos/crear/', views.ContactCreateView.as_view(), name='contact_create'),
+    path('contactos/<int:pk>/', views.ContactDetailView.as_view(), name='contact_detail'),
+    path('contactos/<int:pk>/editar/', views.ContactEditView.as_view(), name='contact_edit'),
+    # Requerimientos (búsquedas de clientes)
+    path('requerimientos/', views.RequirementListView.as_view(), name='requirements_list'),
+    path('requerimientos/crear/', views.requirement_create_view, name='requirements_create'),
+    path('requerimientos/mis-requerimientos/', views.MyRequirementsView.as_view(), name='requirements_my'),
+    path('api/property-subtypes/', views.api_property_subtypes, name='api_property_subtypes'),
+    path('api/provinces/', views.api_provinces, name='api_provinces'),
+    path('api/districts/', views.api_districts, name='api_districts'),
+    path('api/urbanizations/', views.api_urbanizations, name='api_urbanizations'),
+    path('api/document-types/', views.api_document_types, name='api_document_types'),
+    path('api/image-types/', views.api_image_types, name='api_image_types'),
+    path('api/roomtypes/', views.api_roomtypes, name='api_roomtypes'),
+    path('api/video-types/', views.api_video_types, name='api_video_types'),
     # WhatsApp
-    path('whatsapp/enlaces/<int:property_id>/', whatsapp_links_list, name='whatsapp_links'),
-    path('whatsapp/enlaces/<int:property_id>/crear/', whatsapp_link_create, name='whatsapp_link_create'),
-    path('whatsapp/enlaces/<int:link_id>/borrar/', whatsapp_link_delete, name='whatsapp_link_delete'),
-    path('whatsapp/leads/', leads_list, name='leads_list'),
-    path('whatsapp/leads/<int:property_id>/', leads_list, name='leads_list_by_property'),
-    path('whatsapp/leads/detalle/<int:lead_id>/', lead_detail, name='lead_detail'),
-    path('crm/', crm_dashboard, name='crm_dashboard'),
-    path('marketing/propiedades/', marketing_properties_list, name='marketing_properties_list'),
-    path('marketing/dashboard/', marketing_utm_dashboard, name='marketing_utm_dashboard'),
+    path('whatsapp/enlaces/<int:property_id>/', views.whatsapp_links_list, name='whatsapp_links'),
+    path('whatsapp/enlaces/<int:property_id>/crear/', views.whatsapp_link_create, name='whatsapp_link_create'),
+    path('whatsapp/enlaces/<int:link_id>/borrar/', views.whatsapp_link_delete, name='whatsapp_link_delete'),
+    path('whatsapp/leads/', views.leads_list, name='leads_list'),
+    path('whatsapp/leads/<int:property_id>/', views.leads_list, name='leads_list_by_property'),
+    path('whatsapp/leads/detalle/<int:lead_id>/', views.lead_detail, name='lead_detail'),
+    path('crm/', views.crm_dashboard, name='crm_dashboard'),
+    path('marketing/propiedades/', views.marketing_properties_list, name='marketing_properties_list'),
+    path('marketing/dashboard/', views.marketing_utm_dashboard, name='marketing_utm_dashboard'),
     path('api/', include(router.urls)),
     # Servir imágenes almacenadas como blob en la tabla `property_images`
     path('images/blob/<int:pk>/', views.image_blob_view, name='image_blob'),
-    path('', PropertyDashboardView.as_view(), name='dashboard_root'),
+    path('', views.PropertyDashboardView.as_view(), name='dashboard_root'),
 ]

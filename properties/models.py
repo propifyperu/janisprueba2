@@ -804,6 +804,76 @@ class PropertyRoom(TitleCaseMixin, models.Model):
             self.area = self.width * self.length
         super().save(*args, **kwargs)
 
+
+# =============================================================================
+# MODELO DE REQUERIMIENTOS (BUSQUEDAS DE CLIENTES)
+# =============================================================================
+class Requirement(TitleCaseMixin, models.Model):
+    """Modelo para almacenar requerimientos/requests de clientes.
+
+    - Los campos PII usan EncryptedCharField/EncryptedTextField.
+    - Auditoría básica: created_by, modified_by, created_at, updated_at.
+    """
+    BUDGET_TYPE_CHOICES = (
+        ('approx', 'Aproximado'),
+        ('range', 'Rango'),
+    )
+
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='requirements_created')
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='requirements_modified')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    # Datos del cliente (PII cifrada)
+    client_name = EncryptedCharField(max_length=256, blank=True, null=True)
+    phone = EncryptedCharField(max_length=80, blank=True, null=True)
+
+    # Tipos y subtipos
+    property_type = models.ForeignKey('PropertyType', on_delete=models.PROTECT, null=True, blank=True)
+    property_subtype = models.ForeignKey('PropertySubtype', on_delete=models.PROTECT, null=True, blank=True)
+
+    # Presupuesto
+    budget_type = models.CharField(max_length=20, choices=BUDGET_TYPE_CHOICES, default='approx')
+    budget_approx = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    budget_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    budget_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    # Medio de pago y estado
+    payment_method = models.ForeignKey('PaymentMethod', on_delete=models.PROTECT, null=True, blank=True)
+    status = models.ForeignKey('PropertyStatus', on_delete=models.SET_NULL, null=True, blank=True)
+
+    # Ubicación
+    department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True)
+    province = models.ForeignKey('Province', on_delete=models.SET_NULL, null=True, blank=True)
+    district = models.ForeignKey('District', on_delete=models.SET_NULL, null=True, blank=True)
+    urbanization = models.ForeignKey('Urbanization', on_delete=models.SET_NULL, null=True, blank=True)
+
+    # Características
+    bedrooms = models.PositiveSmallIntegerField(null=True, blank=True)
+    bathrooms = models.PositiveSmallIntegerField(null=True, blank=True)
+    half_bathrooms = models.PositiveSmallIntegerField(null=True, blank=True)
+    floors = models.PositiveSmallIntegerField(null=True, blank=True)
+    garage_spaces = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    notes = EncryptedTextField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'requirements'
+        verbose_name = 'Requerimiento'
+        verbose_name_plural = 'Requerimientos'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        # Evitar mostrar PII en representaciones por defecto
+        type_name = self.property_type.name if self.property_type else ''
+        return f"Requerimiento {self.id} {type_name}"
+
+    def save(self, *args, **kwargs):
+        # Aplicar TitleCase si hay campos configurados
+        self._apply_title_case()
+        super().save(*args, **kwargs)
+
 # =============================================================================
 # MODELO DE AUDITORÍA DE CAMBIOS EN PROPIEDADES
 # =============================================================================

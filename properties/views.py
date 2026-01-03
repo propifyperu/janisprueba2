@@ -112,8 +112,8 @@ from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView, ListView, CreateView
 from django.db.models import Q
-from .models import Property, PropertyType, PropertyStatus, PropertyOwner, PropertySubtype
-from .forms import PropertyOwnerForm
+from .models import Property, PropertyType, PropertyStatus, PropertyOwner, PropertySubtype, Requirement
+from .forms import PropertyOwnerForm, RequirementForm
 
 # ...existing code...
 
@@ -260,6 +260,94 @@ class MyPropertiesView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['property_count'] = context['properties'].count()
         return context
+
+
+class RequirementListView(LoginRequiredMixin, ListView):
+    model = Requirement
+    template_name = 'properties/requirements_list.html'
+    context_object_name = 'requirements'
+    paginate_by = 12
+
+    def get_queryset(self):
+        qs = Requirement.objects.filter(is_active=True).order_by('-created_at')
+        from django.db import OperationalError
+        try:
+            q = self.request.GET.get('search', '').strip()
+            if q:
+                qs = qs.filter(
+                    Q(property_type__name__icontains=q) |
+                    Q(property_subtype__name__icontains=q) |
+                    Q(district__name__icontains=q) |
+                    Q(urbanization__name__icontains=q)
+                )
+            return qs
+        except OperationalError:
+            return Requirement.objects.none()
+
+
+@login_required
+def requirement_create_view(request):
+    from .forms import RequirementSimpleForm
+    from django.contrib import messages
+
+    if request.method == 'POST':
+        form = RequirementSimpleForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            req = Requirement()
+            req.created_by = request.user
+            req.client_name = data.get('client_name')
+            req.phone = data.get('phone')
+            req.property_type = data.get('property_type')
+            req.property_subtype = data.get('property_subtype')
+            bt = data.get('budget_type')
+            req.budget_type = bt or 'approx'
+            if bt == 'approx':
+                req.budget_approx = data.get('budget_approx')
+                req.budget_min = None
+                req.budget_max = None
+            else:
+                req.budget_min = data.get('budget_min')
+                req.budget_max = data.get('budget_max')
+                req.budget_approx = None
+            req.payment_method = data.get('payment_method')
+            req.status = data.get('status')
+            req.department = data.get('department')
+            req.province = data.get('province')
+            req.district = data.get('district')
+            req.urbanization = data.get('urbanization')
+            req.bedrooms = data.get('bedrooms')
+            req.bathrooms = data.get('bathrooms')
+            req.half_bathrooms = data.get('half_bathrooms')
+            req.floors = data.get('floors')
+            req.garage_spaces = data.get('garage_spaces')
+            req.notes = data.get('notes')
+            from django.db import OperationalError
+            try:
+                req.save()
+            except OperationalError:
+                messages.error(request, 'No se puede guardar el requerimiento: base de datos no preparada. Contacte al administrador.')
+                return render(request, 'properties/requirement_create.html', {'form': form})
+            messages.success(request, 'Requerimiento guardado correctamente.')
+            return redirect('properties:requirements_my')
+    else:
+        form = RequirementSimpleForm()
+
+    return render(request, 'properties/requirement_create.html', {'form': form})
+
+
+class MyRequirementsView(LoginRequiredMixin, ListView):
+    model = Requirement
+    template_name = 'properties/my_requirements.html'
+    context_object_name = 'requirements'
+    paginate_by = 12
+
+    def get_queryset(self):
+        from django.db import OperationalError
+        try:
+            return Requirement.objects.filter(created_by=self.request.user).order_by('-created_at')
+        except OperationalError:
+            return Requirement.objects.none()
 
 
 

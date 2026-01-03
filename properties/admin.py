@@ -17,6 +17,8 @@ from .models import (
     PropertyWhatsAppLink, LeadStatus, Lead, WhatsAppConversation, SocialNetwork, WhatsAppNumber, UTMClick
 )
 
+from .models import Requirement
+
 
 # ===================== ADMIN PARA SERVICIOS =====================
 @admin.register(WaterServiceType)
@@ -396,6 +398,15 @@ class PropertyWhatsAppLinkAdmin(admin.ModelAdmin):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(Requirement)
+class RequirementAdmin(admin.ModelAdmin):
+    list_display = ('id', 'client_name', 'phone', 'property_type', 'district', 'urbanization', 'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'created_at')
+    list_filter = ('is_active', 'budget_type', 'property_type', 'department')
+    search_fields = ('client_name', 'phone')
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('-created_at',)
 
 
 @admin.register(LeadStatus)

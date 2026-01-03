@@ -279,3 +279,78 @@ class PropertyRoomForm(forms.ModelForm):
                 'placeholder': 'Orden de visualización'
             }),
         }
+
+
+class RequirementForm(forms.ModelForm):
+    class Meta:
+        model = None  # se reemplaza en runtime para evitar import circular
+        fields = [
+            'client_name', 'phone', 'property_type', 'property_subtype',
+            'budget_type', 'budget_approx', 'budget_min', 'budget_max',
+            'payment_method', 'status',
+            'department', 'province', 'district', 'urbanization',
+            'bedrooms', 'bathrooms', 'half_bathrooms', 'floors', 'garage_spaces',
+            'notes'
+        ]
+
+    def __init__(self, *args, **kwargs):
+        # Importar aquí para evitar ciclos
+        from .models import Requirement
+        # Asignar el modelo antes de inicializar para que ModelForm construya los campos
+        self._meta.model = Requirement
+        super().__init__(*args, **kwargs)
+        # Hacer campos opcionales por defecto
+        for field_name in self.fields:
+            self.fields[field_name].required = False
+        # Widgets básicos
+        self.fields['client_name'].widget = forms.TextInput(attrs={'class': 'form-control'})
+        self.fields['phone'].widget = forms.TextInput(attrs={'class': 'form-control'})
+        self.fields['notes'].widget = forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+
+
+class RequirementSimpleForm(forms.Form):
+    client_name = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    phone = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    property_type = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    property_subtype = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    budget_type = forms.ChoiceField(choices=(('approx','Aproximado'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    budget_approx = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    budget_min = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    budget_max = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    payment_method = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    status = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    department = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    province = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    district = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    urbanization = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    bedrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    half_bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    floors = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    garage_spaces = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    notes = forms.CharField(required=False, widget=forms.Textarea(attrs={'class':'form-control','rows':3}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Importar modelos aquí para evitar ciclos y establecer querysets dinámicamente
+        from .models import PropertyType, PropertySubtype, PaymentMethod, PropertyStatus, Department, Province, District, Urbanization
+        from django.db import OperationalError
+        try:
+            self.fields['property_type'].queryset = PropertyType.objects.filter(is_active=True).order_by('name')
+            self.fields['property_subtype'].queryset = PropertySubtype.objects.filter(is_active=True).order_by('name')
+            self.fields['payment_method'].queryset = PaymentMethod.objects.filter(is_active=True).order_by('order')
+            self.fields['status'].queryset = PropertyStatus.objects.filter(is_active=True).order_by('order')
+            self.fields['department'].queryset = Department.objects.filter(is_active=True).order_by('name')
+            self.fields['province'].queryset = Province.objects.filter(is_active=True).order_by('name')
+            self.fields['district'].queryset = District.objects.filter(is_active=True).order_by('name')
+            self.fields['urbanization'].queryset = Urbanization.objects.filter(is_active=True).order_by('name')
+        except OperationalError:
+            # Si las tablas no existen (deploy sin migraciones), devolver querysets vacíos para no fallar la carga
+            self.fields['property_type'].queryset = PropertyType.objects.none()
+            self.fields['property_subtype'].queryset = PropertySubtype.objects.none()
+            self.fields['payment_method'].queryset = PaymentMethod.objects.none()
+            self.fields['status'].queryset = PropertyStatus.objects.none()
+            self.fields['department'].queryset = Department.objects.none()
+            self.fields['province'].queryset = Province.objects.none()
+            self.fields['district'].queryset = District.objects.none()
+            self.fields['urbanization'].queryset = Urbanization.objects.none()

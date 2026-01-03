@@ -323,7 +323,7 @@
             </div>
             <div class="roles-list-items" id="rolesList">
                 {% for role_data in roles_data %}
-                    <div class="role-list-item" data-role-id="{{ role_data.role.id }}" onclick="selectRole(this, {{ role_data.role.id }}, '{{ role_data.role.name }}')">
+                    <div class="role-list-item" data-role-id="{{ role_data.role.id }}" data-role-name="{{ role_data.role.name|escapejs }}" onclick="selectRole(this)">
                         <span class="role-icon">
                             {% if role_data.role.code_name == 'admin' %}
                                 <i class="fas fa-shield-alt"></i>
@@ -363,7 +363,9 @@
 </div>
 
 <script>
-    function selectRole(element, roleId, roleName) {
+    function selectRole(element) {
+        const roleId = parseInt(element.dataset.roleId);
+        const roleName = element.dataset.roleName || '';
         // Marcar como activo
         document.querySelectorAll('.role-list-item').forEach(el => {
             el.classList.remove('active');

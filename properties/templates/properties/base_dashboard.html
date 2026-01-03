@@ -426,6 +426,22 @@
             </div>
 
             <div class="nav-group">
+                {% url 'properties:requirements_list' as requirements_list_url %}
+                {% url 'properties:requirements_create' as requirements_create_url %}
+                {% url 'properties:requirements_my' as requirements_my_url %}
+                <button class="nav-group-toggle{% if 'requerimientos' in request.path %} expanded{% endif %}" type="button" data-target="requirementsSubmenu" aria-controls="requirementsSubmenu" aria-expanded="{% if 'requerimientos' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Requerimientos</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'requerimientos' in request.path %} show{% endif %}" id="requirementsSubmenu">
+                    <a class="nav-link {% if request.path == requirements_list_url %}active{% endif %}" href="{{ requirements_list_url }}"><i class="fas fa-list me-2"></i>Lista de requerimientos</a>
+                    <a class="nav-link {% if request.path == requirements_create_url %}active{% endif %}" href="{{ requirements_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear requerimiento</a>
+                    <a class="nav-link {% if request.path == requirements_my_url %}active{% endif %}" href="{{ requirements_my_url }}"><i class="fas fa-user me-2"></i>Mis requerimientos</a>
+                </div>
+            </div>
+
+            <div class="nav-group">
                 <button class="nav-group-toggle{% if 'marketing' in request.path %} expanded{% endif %}" type="button" data-target="marketingSubmenu" aria-controls="marketingSubmenu" aria-expanded="{% if 'marketing' in request.path %}true{% else %}false{% endif %}">
                     <i class="fas fa-bullhorn"></i>
                     <span>Marketing</span>
