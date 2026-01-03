@@ -720,7 +720,7 @@
                             <option value="">Cualquiera</option>
                             <option value="antiguedad" {% if filters.status == 'antiguedad' %}selected{% endif %}>Antigüedad</option>
                             {% for s in statuses %}
-                                {% if s.name|lower != 'antigüedad' %}
+                                {% if s.name|lower != 'antigüedad' and s.name|lower != 'antiguedad' %}
                                     <option value="{{ s.id }}" {% if filters.status == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
                                 {% endif %}
                             {% endfor %}
