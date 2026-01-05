@@ -6,6 +6,8 @@
 {% block dashboard_extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
+    /* Usar color de la barra lateral directamente como fallback
+       (algunas plantillas no envuelven con .permissions-page) */
     .permissions-page {
         --primary-color: #047D7D;
         --secondary-color: #279896;
@@ -14,13 +16,13 @@
         font-weight: 500;
     }
     .btn-teal {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-        color: #fff;
+        background-color: var(--primary-color, #047D7D) !important;
+        border-color: var(--primary-color, #047D7D) !important;
+        color: #fff !important;
     }
     .btn-teal:hover {
-        background-color: var(--secondary-color);
-        border-color: var(--secondary-color);
+        background-color: var(--secondary-color, #279896) !important;
+        border-color: var(--secondary-color, #279896) !important;
     }
 </style>
 {% endblock %}
