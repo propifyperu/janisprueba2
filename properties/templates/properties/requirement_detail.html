@@ -60,8 +60,14 @@
                         <dd class="col-sm-8">
                             {% if requirement.department %}{{ requirement.department.name }}{% endif %}
                             {% if requirement.province %} / {{ requirement.province.name }}{% endif %}
-                            {% if requirement.district %} / {{ requirement.district.name }}{% endif %}
-                            {% if requirement.urbanization %} / {{ requirement.urbanization.name }}{% endif %}
+                            {% comment %}Mostrar distritos múltiples si existen, fallback a FK `district`{% endcomment %}
+                            {% with ds=requirement.districts.all %}
+                                {% if ds and ds|length > 0 %}
+                                    / {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                {% elif requirement.district %}
+                                    / {{ requirement.district.name }}
+                                {% endif %}
+                            {% endwith %}
                         </dd>
 
                         <dt class="col-sm-4">Características</dt>

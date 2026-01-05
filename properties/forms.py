@@ -373,3 +373,37 @@ class RequirementSimpleForm(forms.Form):
             self.fields['province'].queryset = Province.objects.none()
             self.fields['district'].queryset = District.objects.none()
             self.fields['urbanization'].queryset = Urbanization.objects.none()
+
+
+class RequirementEditForm(forms.ModelForm):
+    """Formulario para editar un `Requirement` desde la UI.
+
+    Incluye el campo M2M `districts` (selección múltiple) en lugar del FK `district`.
+    """
+    class Meta:
+        from .models import Requirement
+        model = Requirement
+        fields = [
+            'client_name', 'phone', 'property_type', 'property_subtype',
+            'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'currency',
+            'payment_method', 'status',
+            'department', 'province', 'districts',
+            'bedrooms', 'bathrooms', 'half_bathrooms', 'floors', 'garage_spaces',
+            'notes', 'area_type', 'land_area_approx', 'land_area_min', 'land_area_max'
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Hacer campos opcionales por defecto y aplicar widgets coherentes con create
+        for field_name in self.fields:
+            self.fields[field_name].required = False
+        self.fields['client_name'].widget = forms.TextInput(attrs={'class': 'form-control'})
+        self.fields['phone'].widget = forms.TextInput(attrs={'class': 'form-control'})
+        self.fields['notes'].widget = forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+        # districts: mostrar como select múltiple con tamaño usable
+        try:
+            from .models import District
+            self.fields['districts'].queryset = District.objects.filter(is_active=True).order_by('name')
+            self.fields['districts'].widget = forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
+        except Exception:
+            pass

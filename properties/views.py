@@ -404,6 +404,58 @@ class RequirementDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
+from django.views.generic.edit import UpdateView
+from django.contrib import messages
+
+
+class RequirementUpdateView(LoginRequiredMixin, UpdateView):
+    model = Requirement
+    template_name = 'properties/requirement_edit.html'
+    form_class = None  # set in get_form_class to avoid import cycles
+
+    def get_form_class(self):
+        from .forms import RequirementEditForm
+        return RequirementEditForm
+
+    def form_valid(self, form):
+        req = form.save(commit=False)
+        # sólo el creador o superuser puede editar
+        if not (self.request.user.is_superuser or (req.created_by and req.created_by.id == self.request.user.id)):
+            messages.error(self.request, 'No tienes permiso para editar este requerimiento.')
+            return redirect('properties:requirements_my')
+        req.modified_by = self.request.user
+        req.save()
+        # guardar M2M `districts`
+        try:
+            form.save_m2m()
+        except Exception:
+            pass
+        messages.success(self.request, 'Requerimiento actualizado correctamente.')
+        return redirect('properties:requirements_detail', pk=req.pk)
+
+
+@login_required
+@require_POST
+def requirement_delete_view(request, pk):
+    """Elimina un Requirement si el usuario es su creador o superuser."""
+    try:
+        req = Requirement.objects.get(pk=pk)
+    except Requirement.DoesNotExist:
+        from django.contrib import messages
+        messages.error(request, 'Requerimiento no encontrado.')
+        return redirect('properties:requirements_my')
+
+    if not (request.user.is_superuser or (req.created_by and req.created_by.id == request.user.id)):
+        from django.contrib import messages
+        messages.error(request, 'No tienes permiso para borrar este requerimiento.')
+        return redirect('properties:requirements_my')
+
+    req.delete()
+    from django.contrib import messages
+    messages.success(request, 'Requerimiento eliminado correctamente.')
+    return redirect('properties:requirements_my')
+
+
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required

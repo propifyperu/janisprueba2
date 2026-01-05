@@ -1,0 +1,41 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Editar Requerimiento - Janis Platform{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-10 col-xl-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h1 class="h5 mb-0"><i class="fas fa-edit me-2"></i>Editar Requerimiento</h1>
+                <a href="{% url 'properties:requirements_detail' requirement.id %}" class="btn btn-outline-teal">Volver</a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% for field in form.visible_fields %}
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-teal"><i class="fas fa-save me-2"></i>Guardar cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
