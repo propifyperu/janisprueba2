@@ -125,6 +125,7 @@
                             </div>
                             <div class="col-md-12">
                                 <label class="form-label" for="{{ form.district.id_for_label }}">Distritos (selección múltiple)</label>
+                                <div class="small text-muted mb-1">Puedes seleccionar varios distritos (mantén Ctrl/Cmd o usa la caja de búsqueda).</div>
                                 {{ form.district }}
                             </div>
                         </div>
@@ -186,6 +187,30 @@
                                 var at = document.getElementById("{{ form.area_type.id_for_label }}");
                                 if(at) at.addEventListener('change', toggleArea);
                             });
+                        })();
+                        </script>
+                        <!-- Select2 para multi-select de distritos -->
+                        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+                        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+                        <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+                        <script>
+                        (function(){
+                            try{
+                                document.addEventListener('DOMContentLoaded', function(){
+                                    var $ = window.jQuery;
+                                    if(!$) return;
+                                    var sel = $('#{{ form.district.id_for_label }}');
+                                    if(sel.length){
+                                        sel.select2({
+                                            placeholder: 'Selecciona distritos',
+                                            width: '100%',
+                                            allowClear: true
+                                        });
+                                    }
+                                });
+                            }catch(e){
+                                console.warn('Select2 init failed', e);
+                            }
                         })();
                         </script>
                     </form>
