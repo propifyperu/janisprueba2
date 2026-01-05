@@ -96,6 +96,23 @@ def login_view(request):
                 device_id=device_id,
                 status='approved'
             ).first()
+
+            # Si el usuario tiene algún dispositivo aprobado distinto al actual,
+            # registrar un intento no autorizado para que los admins lo revisen.
+            try:
+                from security.models import UnauthorizedDeviceLoginAttempt
+            except Exception:
+                UnauthorizedDeviceLoginAttempt = None
+
+            any_approved_elsewhere = AuthorizedDevice.objects.filter(user=user, status='approved').exclude(device_id=device_id).exists()
+            if any_approved_elsewhere and not approved_device and UnauthorizedDeviceLoginAttempt:
+                UnauthorizedDeviceLoginAttempt.objects.create(
+                    user=user,
+                    username=user.username,
+                    device_id=device_id,
+                    ip_address=client_ip,
+                    user_agent=user_agent[:255]
+                )
             
             if approved_device:
                 logger.info(f"[LOGIN] ✓ Usuario tiene dispositivo aprobado (ID={approved_device.id})")

@@ -1,0 +1,86 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Intentos no autorizados{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      <div class="card mb-3">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="mb-0">Intentos de inicio desde dispositivos no autorizados</h4>
+            <p class="text-muted mb-0">Revisa intentos fallidos y aprueba dispositivos manualmente si applies.</p>
+          </div>
+          <div>
+            <a href="{% url 'security:device_list' %}" class="btn btn-outline-secondary">Volver a Dispositivos</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          {% if attempts %}
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Device ID</th>
+                  <th>IP</th>
+                  <th>User Agent</th>
+                  <th>Fecha / Hora</th>
+                  <th>Resuelto</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in attempts %}
+                <tr>
+                  <td>{{ a.user.get_full_name|default:a.username }}</td>
+                  <td><code>{{ a.device_id }}</code></td>
+                  <td>{{ a.ip_address|default:'-' }}</td>
+                  <td style="max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ a.user_agent }}</td>
+                  <td>{{ a.attempted_at|date:'d/m/Y H:i' }}</td>
+                  <td>{% if a.resolved %}Sí ({{ a.resolved_at|date:'d/m/Y H:i' }}){% else %}No{% endif %}</td>
+                  <td>
+                    {% if not a.resolved %}
+                    <form method="post" action="{% url 'security:unauthorized_attempt_approve' a.pk %}">{% csrf_token %}
+                      <button class="btn btn-sm btn-success">Aprobar dispositivo</button>
+                    </form>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {% if is_paginated %}
+          <nav aria-label="Paginación" class="mt-3">
+            <ul class="pagination">
+              {% if page_obj.has_previous %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
+              {% endif %}
+              {% for n in page_obj.paginator.page_range %}
+              <li class="page-item {% if page_obj.number == n %}active{% endif %}"><a class="page-link" href="?page={{ n }}">{{ n }}</a></li>
+              {% endfor %}
+              {% if page_obj.has_next %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a></li>
+              {% endif %}
+            </ul>
+          </nav>
+          {% endif %}
+
+          {% else %}
+          <p class="text-muted">No hay intentos registrados.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

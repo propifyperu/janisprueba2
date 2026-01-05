@@ -4,6 +4,7 @@ from django.core.paginator import Paginator
 from django.urls import reverse
 from django.http import JsonResponse
 from .models import AuthorizedDevice
+from .models import UnauthorizedDeviceLoginAttempt
 
 def verify_device(request, device_id=None):
 	"""Vista para que usuarios verifiquen su dispositivo durante el registro"""
@@ -101,6 +102,63 @@ def device_list(request):
 		'request': request,
 	}
 	return render(request, 'security/decive_list.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def unauthorized_attempts_list(request):
+	"""Lista de intentos de inicio de sesión desde dispositivos no autorizados."""
+	attempts = UnauthorizedDeviceLoginAttempt.objects.all()
+	q = request.GET.get('q', '')
+	if q:
+		attempts = attempts.filter(username__icontains=q) | attempts.filter(device_id__icontains=q)
+	paginator = Paginator(attempts, 20)
+	page_number = request.GET.get('page')
+	page_obj = paginator.get_page(page_number)
+	context = {
+		'attempts': page_obj.object_list,
+		'page_obj': page_obj,
+		'is_paginated': page_obj.has_other_pages(),
+		'request': request,
+	}
+	return render(request, 'security/unauthorized_attempts.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def approve_attempt(request, pk):
+	"""Aprobar un intento creando (o actualizando) un AuthorizedDevice y marcando el intento como resuelto."""
+	import logging
+	from django.utils import timezone
+
+	logger = logging.getLogger(__name__)
+	attempt = get_object_or_404(UnauthorizedDeviceLoginAttempt, pk=pk)
+
+	if request.method == 'POST':
+		# Crear o actualizar AuthorizedDevice
+		device, created = AuthorizedDevice.objects.get_or_create(
+			user=attempt.user,
+			device_id=attempt.device_id,
+			defaults={
+				'platform': attempt.user_agent[:150],
+				'user_agent': attempt.user_agent[:255],
+				'ip_address': attempt.ip_address,
+				'status': 'approved',
+				'name': 'Aprobado desde attempts'
+			}
+		)
+		if not created:
+			device.status = 'approved'
+			device.ip_address = attempt.ip_address
+			device.user_agent = attempt.user_agent[:255]
+			device.save(update_fields=['status', 'ip_address', 'user_agent'])
+
+		attempt.resolved = True
+		attempt.resolved_at = timezone.now()
+		attempt.save(update_fields=['resolved', 'resolved_at'])
+		logger.info(f"[ATTEMPT_APPROVE] Approved device {device.id} for user {attempt.user}")
+
+	return redirect(reverse('security:unauthorized_attempts'))
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
