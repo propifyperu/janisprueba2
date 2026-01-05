@@ -2,121 +2,133 @@
 {% load static %}
 
 {% block title %}Crear Requerimiento - Janis Platform{% endblock %}
-
-{% block dashboard_content %}
-<div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-10 col-xl-8">
-            <div class="page-header-card mb-4 d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h5 mb-0"><i class="fas fa-plus-circle me-2"></i>Crear Requerimiento</h1>
-                    <p class="mb-0 text-muted">Registre lo que busca el cliente para poder asignarle propiedades cuando haya coincidencias.</p>
-                </div>
-                <a href="{% url 'properties:requirements_list' %}" class="btn btn-outline-teal">Volver a lista</a>
-            </div>
-
-            <div class="card">
-                <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-
-                        <!-- Fila 1 -->
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label" for="{{ form.client_name.id_for_label }}">Nombre del cliente</label>
-                                {{ form.client_name }}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label" for="{{ form.phone.id_for_label }}">Teléfono</label>
-                                {{ form.phone }}
+                        <!-- Sección: Datos del cliente -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">DATOS DEL CLIENTE</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.client_name.id_for_label }}">Nombre del cliente</label>
+                                    {{ form.client_name }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.phone.id_for_label }}">Teléfono</label>
+                                    {{ form.phone }}
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Fila 2 -->
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-6">
-                                <label class="form-label" for="{{ form.property_type.id_for_label }}">Tipo</label>
-                                {{ form.property_type }}
+                        <!-- Sección: Tipo de inmueble -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">TIPO DE INMUEBLE</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.property_type.id_for_label }}">Tipo</label>
+                                    {{ form.property_type }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.property_subtype.id_for_label }}">Subtipo</label>
+                                    {{ form.property_subtype }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.area_type.id_for_label }}">Área terreno - Tipo</label>
+                                    {{ form.area_type }}
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label" for="{{ form.property_subtype.id_for_label }}">Subtipo</label>
-                                {{ form.property_subtype }}
+                            <div class="row g-3 mt-2">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.land_area_min.id_for_label }}">Mínimo (m²)</label>
+                                    {{ form.land_area_min }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.land_area_max.id_for_label }}">Máximo (m²)</label>
+                                    {{ form.land_area_max }}
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Fila 3 – Presupuesto -->
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-4">
-                                <label class="form-label" for="{{ form.budget_type.id_for_label }}">Presupuesto - Tipo</label>
-                                {{ form.budget_type }}
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label" for="{{ form.budget_min.id_for_label }}">Mínimo</label>
-                                {{ form.budget_min }}
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label" for="{{ form.budget_max.id_for_label }}">Máximo</label>
-                                {{ form.budget_max }}
-                            </div>
-                        </div>
-
-                        <!-- Fila 4 – Aproximado (opcional) -->
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-12">
-                                <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Presupuesto aproximado (si aplica)</label>
-                                {{ form.budget_approx }}
-                            </div>
-                        </div>
-
-                        <!-- Fila 4b – Moneda -->
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-4">
-                                <label class="form-label" for="{{ form.currency.id_for_label }}">Moneda</label>
-                                {{ form.currency }}
+                            <div class="row g-3 mt-2">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.land_area_approx.id_for_label }}">Área aproximada (m²)</label>
+                                    {{ form.land_area_approx }}
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Fila X – Área de terreno -->
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-4">
-                                <label class="form-label" for="{{ form.area_type.id_for_label }}">Área terreno - Tipo</label>
-                                {{ form.area_type }}
+                        <!-- Sección: Ubicación -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">UBICACIÓN</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.department.id_for_label }}">Departamento</label>
+                                    {{ form.department }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.province.id_for_label }}">Provincia</label>
+                                    {{ form.province }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.district.id_for_label }}">Distrito(s)</label>
+                                    <div class="small text-muted mb-1">Puedes seleccionar varios distritos (Ctrl/Cmd + clic o usar la caja de búsqueda).</div>
+                                    {{ form.district }}
+                                </div>
                             </div>
                         </div>
 
-                        <div id="area-range-rows" class="row g-3 mt-2">
-                            <div class="col-md-4">
-                                <label class="form-label" for="{{ form.land_area_min.id_for_label }}">Mínimo (m²)</label>
-                                {{ form.land_area_min }}
+                        <!-- Sección: Presupuesto -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">PRESUPUESTO</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.budget_type.id_for_label }}">Tipo</label>
+                                    {{ form.budget_type }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.budget_min.id_for_label }}">Mínimo</label>
+                                    {{ form.budget_min }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.budget_max.id_for_label }}">Máximo</label>
+                                    {{ form.budget_max }}
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label" for="{{ form.land_area_max.id_for_label }}">Máximo (m²)</label>
-                                {{ form.land_area_max }}
-                            </div>
-                        </div>
-                        <div id="area-approx-row" class="row g-3 mt-2">
-                            <div class="col-md-12">
-                                <label class="form-label" for="{{ form.land_area_approx.id_for_label }}">Área aproximada (m²)</label>
-                                {{ form.land_area_approx }}
+                            <div class="row g-3 mt-2">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Aproximado</label>
+                                    {{ form.budget_approx }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.currency.id_for_label }}">Moneda</label>
+                                    {{ form.currency }}
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Fila 5 -->
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-6">
-                                <label class="form-label" for="{{ form.payment_method.id_for_label }}">Medio de pago</label>
-                                {{ form.payment_method }}
+                        <!-- Sección: Características -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">CARACTERÍSTICAS</h5>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.bedrooms.id_for_label }}">Habitaciones</label>
+                                    {{ form.bedrooms }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.bathrooms.id_for_label }}">Baños</label>
+                                    {{ form.bathrooms }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.half_bathrooms.id_for_label }}">Medios baños</label>
+                                    {{ form.half_bathrooms }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.garage_spaces.id_for_label }}">Cochera</label>
+                                    {{ form.garage_spaces }}
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label" for="{{ form.status.id_for_label }}">Estado</label>
-                                {{ form.status }}
+                            <div class="row g-3 mt-2">
+                                <div class="col-12">
+                                    <label class="form-label" for="{{ form.notes.id_for_label }}">Observaciones</label>
+                                    {{ form.notes }}
+                                </div>
                             </div>
                         </div>
-
-                        <!-- Fila 6 – Ubicación (12 columnas) -->
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-3">
-                                <label class="form-label" for="{{ form.department.id_for_label }}">Departamento</label>
                                 {{ form.department }}
                             </div>
                             <div class="col-md-3">
