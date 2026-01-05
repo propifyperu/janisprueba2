@@ -32,8 +32,15 @@
                                     <td>{{ r.client_name|default:'-' }}</td>
                                     <td>{{ r.phone|default:'-' }}</td>
                                     <td>
-                                        {% if r.district %}{{ r.district.name }}{% endif %}
-                                        {% if r.urbanization %} / {{ r.urbanization.name }}{% endif %}
+                                        {% with ds=r.districts.all %}
+                                            {% if ds and ds|length > 0 %}
+                                                {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                            {% elif r.district %}
+                                                {{ r.district.name }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        {% endwith %}
                                     </td>
                                     <td>
                                         {% if r.budget_type == 'approx' %}
@@ -44,6 +51,14 @@
                                     </td>
                                     <td>{% if r.property_type %}{{ r.property_type.name }}{% else %}-{% endif %}</td>
                                     <td>{{ r.created_at|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>
+                                        <a href="{% url 'properties:requirements_edit' r.id %}" class="btn btn-sm btn-outline-teal ms-1">Editar</a>
+                                        <form method="post" action="{% url 'properties:requirements_delete' r.id %}" style="display:inline;" onsubmit="return confirm('¿Confirmas eliminar este requerimiento?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-danger ms-1">Borrar</button>
+                                        </form>
+                                    </td>
                                 </tr>
                                 {% empty %}
                                 <tr><td colspan="6" class="text-center py-4">No hay requerimientos registrados por ti.</td></tr>
