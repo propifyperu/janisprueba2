@@ -308,6 +308,12 @@ class RequirementForm(forms.ModelForm):
         self.fields['notes'].widget = forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
 
 
+class DistrictMultipleChoiceField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        # Mostrar solo el nombre del distrito (evitar mostrar 'Distrito - Provincia')
+        return getattr(obj, 'name', str(obj))
+
+
 class RequirementSimpleForm(forms.Form):
     client_name = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     phone = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
@@ -328,7 +334,7 @@ class RequirementSimpleForm(forms.Form):
     department = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     province = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     # Permitir selección múltiple para búsquedas en varios distritos
-    district = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
+    district = DistrictMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
     bedrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     half_bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
