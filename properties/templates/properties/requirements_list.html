@@ -32,8 +32,7 @@
                             <tbody>
                                 {% for r in requirements %}
                                 <tr>
-                                    {# Mostrar PII sólo para superuser o creador #}
-                                    {% if request.user.is_superuser or (r.created_by and r.created_by.id == request.user.id) %}
+                                    {% if request.user.is_superuser or r.created_by and r.created_by.id == request.user.id %}
                                         <td>{{ r.client_name|default:'-' }}</td>
                                         <td>{{ r.phone|default:'-' }}</td>
                                     {% else %}
@@ -52,7 +51,6 @@
                                     </td>
 
                                     <td>
-                                        {# Mostrar M2M `districts` si tiene, sino fallback a FK `district` #}
                                         {% with ds=r.districts.all %}
                                             {% if ds and ds|length > 0 %}
                                                 {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
@@ -65,7 +63,7 @@
                                     </td>
 
                                     <td>
-                                        {% with symbol=(r.currency.symbol if r.currency else "$") %}
+                                        {% with symbol=r.currency.symbol|default:"$" %}
                                             {% if r.budget_type == 'approx' %}
                                                 {% if r.budget_approx %}{{ symbol }} {{ r.budget_approx }}{% else %}-{% endif %}
                                             {% else %}
@@ -82,19 +80,12 @@
                                         {% endif %}
                                     </td>
 
-                                    <td>{{ r.property_type.name if r.property_type else '-' }}</td>
+                                    <td>{{ r.property_type.name|default:'-' }}</td>
 
                                     <td>{{ r.created_at|date:"d/m/Y" }}</td>
 
                                     <td>
                                         <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>
-                                        {% if request.user.is_superuser or (r.created_by and r.created_by.id == request.user.id) %}
-                                            <a href="{% url 'properties:requirements_edit' r.id %}" class="btn btn-sm btn-outline-teal ms-1">Editar</a>
-                                            <form method="post" action="{% url 'properties:requirements_delete' r.id %}" style="display:inline;" onsubmit="return confirm('¿Confirmas eliminar este requerimiento?');">
-                                                {% csrf_token %}
-                                                <button type="submit" class="btn btn-sm btn-danger ms-1">Borrar</button>
-                                            </form>
-                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
