@@ -46,16 +46,16 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% comment %}Soportar múltiples distritos/urbanizaciones si existen{% endcomment %}
-                                        {% comment %}Mostrar nombres separados por comas para M2M{% endcomment %}
-                                        {% if r.districts.exists %}
-                                            {% for d in r.districts.all %}
-                                                {{ d.name }}{% if not forloop.last %}, {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            {% if r.district %}{{ r.district.name }}{% endif %}
-                                        {% endif %}
-                                        {# urbanizaciones eliminadas: no mostrar #}
+                                        {% comment %}Mostrar distritos (M2M) de forma segura, fallback a FK `district` o '-'{% endcomment %}
+                                        {% with ds=r.districts.all %}
+                                            {% if ds %}
+                                                {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                            {% elif r.district %}
+                                                {{ r.district.name }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        {% endwith %}
                                     </td>
                                     <td>
                                         {% if r.budget_type == 'approx' %}
@@ -81,7 +81,7 @@
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="6" class="text-center py-4">No hay requerimientos registrados.</td></tr>
+                                <tr><td colspan="8" class="text-center py-4">No hay requerimientos registrados.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
