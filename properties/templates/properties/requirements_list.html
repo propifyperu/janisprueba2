@@ -21,8 +21,9 @@
                                     <th>Cliente</th>
                                     <th>Teléfono</th>
                                     <th>Usuario</th>
-                                    <th>Distrito / Urbanización</th>
+                                    <th>Ubicación</th>
                                     <th>Presupuesto</th>
+                                    <th>Área terreno</th>
                                     <th>Tipo</th>
                                     <th>Fecha publicación</th>
                                     <th>Acciones</th>
@@ -31,24 +32,29 @@
                             <tbody>
                                 {% for r in requirements %}
                                 <tr>
+                                    {# Mostrar PII sólo para superuser o creador #}
                                     {% if request.user.is_superuser or (r.created_by and r.created_by.id == request.user.id) %}
-                                    <td>{{ r.client_name|default:'-' }}</td>
-                                    <td>{{ r.phone|default:'-' }}</td>
+                                        <td>{{ r.client_name|default:'-' }}</td>
+                                        <td>{{ r.phone|default:'-' }}</td>
                                     {% else %}
-                                    <td>Privado</td>
-                                    <td>Privado</td>
+                                        <td>Privado</td>
+                                        <td>Privado</td>
                                     {% endif %}
+
                                     <td>
                                         {% if r.created_by %}
-                                            {{ r.created_by.get_full_name|default:r.created_by.username }}
+                                            {% with fullname=r.created_by.get_full_name %}
+                                                {{ fullname|default:r.created_by.username }}
+                                            {% endwith %}
                                         {% else %}
                                             -
                                         {% endif %}
                                     </td>
+
                                     <td>
-                                        {% comment %}Mostrar distritos (M2M) de forma segura, fallback a FK `district` o '-'{% endcomment %}
+                                        {# Mostrar M2M `districts` si tiene, sino fallback a FK `district` #}
                                         {% with ds=r.districts.all %}
-                                            {% if ds %}
+                                            {% if ds and ds|length > 0 %}
                                                 {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
                                             {% elif r.district %}
                                                 {{ r.district.name }}
@@ -57,31 +63,35 @@
                                             {% endif %}
                                         {% endwith %}
                                     </td>
+
                                     <td>
-                                        {% if r.budget_type == 'approx' %}
-                                            {% if r.budget_approx %}{% if r.currency %}{{ r.currency.symbol }}{% else %}$ {% endif %}{{ r.budget_approx }}{% else %}-{% endif %}
-                                        {% else %}
-                                            {% if r.budget_min and r.budget_max %}{% if r.currency %}{{ r.currency.symbol }}{% else %}$ {% endif %}{{ r.budget_min }} - {% if r.currency %}{{ r.currency.symbol }}{% else %}$ {% endif %}{{ r.budget_max }}{% else %}-{% endif %}
-                                        {% endif %}
+                                        {% with symbol=(r.currency.symbol if r.currency else "$") %}
+                                            {% if r.budget_type == 'approx' %}
+                                                {% if r.budget_approx %}{{ symbol }} {{ r.budget_approx }}{% else %}-{% endif %}
+                                            {% else %}
+                                                {% if r.budget_min and r.budget_max %}{{ symbol }} {{ r.budget_min }} - {{ symbol }} {{ r.budget_max }}{% else %}-{% endif %}
+                                            {% endif %}
+                                        {% endwith %}
                                     </td>
+
                                     <td>
-                                        {% comment %}Área de terreno: mostrar aproximado o rango según disponibilidad{% endcomment %}
                                         {% if r.area_type == 'approx' %}
                                             {% if r.land_area_approx %}{{ r.land_area_approx }} m²{% else %}-{% endif %}
                                         {% else %}
                                             {% if r.land_area_min and r.land_area_max %}{{ r.land_area_min }} - {{ r.land_area_max }} m²{% else %}-{% endif %}
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        {% if r.property_type %}{{ r.property_type.name }}{% else %}-{% endif %}
-                                    </td>
+
+                                    <td>{{ r.property_type.name if r.property_type else '-' }}</td>
+
                                     <td>{{ r.created_at|date:"d/m/Y" }}</td>
+
                                     <td>
                                         <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="8" class="text-center py-4">No hay requerimientos registrados.</td></tr>
+                                <tr><td colspan="9" class="text-center py-4">No hay requerimientos registrados.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
