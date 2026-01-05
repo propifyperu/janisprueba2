@@ -2,6 +2,38 @@
 {% load static %}
 
 {% block title %}Crear Requerimiento - Janis Platform{% endblock %}
+
+{% block dashboard_extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .permissions-page {
+        --primary-color: #047D7D;
+        --secondary-color: #279896;
+    }
+    .form-label {
+        font-weight: 500;
+    }
+    .btn-teal {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        color: #fff;
+    }
+    .btn-teal:hover {
+        background-color: var(--secondary-color);
+        border-color: var(--secondary-color);
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
                         <!-- Sección: Datos del cliente -->
                         <div class="mb-4">
                             <h5 class="fw-bold mb-3">DATOS DEL CLIENTE</h5>
@@ -34,7 +66,7 @@
                                     {{ form.area_type }}
                                 </div>
                             </div>
-                            <div class="row g-3 mt-2">
+                            <div class="row g-3 mt-2" id="area-range-rows">
                                 <div class="col-md-6">
                                     <label class="form-label" for="{{ form.land_area_min.id_for_label }}">Mínimo (m²)</label>
                                     {{ form.land_area_min }}
@@ -44,7 +76,7 @@
                                     {{ form.land_area_max }}
                                 </div>
                             </div>
-                            <div class="row g-3 mt-2">
+                            <div class="row g-3 mt-2" id="area-approx-row" style="display:none;">
                                 <div class="col-md-12">
                                     <label class="form-label" for="{{ form.land_area_approx.id_for_label }}">Área aproximada (m²)</label>
                                     {{ form.land_area_approx }}
@@ -129,46 +161,6 @@
                                 </div>
                             </div>
                         </div>
-                                {{ form.department }}
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="{{ form.province.id_for_label }}">Provincia</label>
-                                {{ form.province }}
-                            </div>
-                            <div class="col-md-12">
-                                <label class="form-label" for="{{ form.district.id_for_label }}">Distritos (selección múltiple)</label>
-                                <div class="small text-muted mb-1">Puedes seleccionar varios distritos (mantén Ctrl/Cmd o usa la caja de búsqueda).</div>
-                                {{ form.district }}
-                            </div>
-                        </div>
-
-                        <!-- Fila 7 – Características -->
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-3">
-                                <label class="form-label" for="{{ form.bedrooms.id_for_label }}">Habitaciones</label>
-                                {{ form.bedrooms }}
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="{{ form.bathrooms.id_for_label }}">Baños</label>
-                                {{ form.bathrooms }}
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="{{ form.half_bathrooms.id_for_label }}">Medios baños</label>
-                                {{ form.half_bathrooms }}
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="{{ form.garage_spaces.id_for_label }}">Cochera</label>
-                                {{ form.garage_spaces }}
-                            </div>
-                        </div>
-
-                        <!-- Fila 8 – Observaciones -->
-                        <div class="row g-3 mt-2">
-                            <div class="col-12">
-                                <label class="form-label" for="{{ form.notes.id_for_label }}">Observaciones</label>
-                                {{ form.notes }}
-                            </div>
-                        </div>
 
                         <!-- Botón guardar -->
                         <div class="row g-3 mt-2">
@@ -178,57 +170,59 @@
                                 </button>
                             </div>
                         </div>
-                        <script>
-                        (function(){
-                            function toggleArea() {
-                                var at = document.getElementById("{{ form.area_type.id_for_label }}");
-                                var approxRow = document.getElementById('area-approx-row');
-                                var rangeRows = document.getElementById('area-range-rows');
-                                if(!at) return;
-                                var val = at.value || '';
-                                if(val === 'approx'){
-                                    if(approxRow) approxRow.style.display = '';
-                                    if(rangeRows) rangeRows.style.display = 'none';
-                                } else {
-                                    if(approxRow) approxRow.style.display = 'none';
-                                    if(rangeRows) rangeRows.style.display = '';
-                                }
-                            }
-                            document.addEventListener('DOMContentLoaded', function(){
-                                toggleArea();
-                                var at = document.getElementById("{{ form.area_type.id_for_label }}");
-                                if(at) at.addEventListener('change', toggleArea);
-                            });
-                        })();
-                        </script>
-                        <!-- Select2 para multi-select de distritos -->
-                        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-                        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-                        <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-                        <script>
-                        (function(){
-                            try{
-                                document.addEventListener('DOMContentLoaded', function(){
-                                    var $ = window.jQuery;
-                                    if(!$) return;
-                                    var sel = $('#{{ form.district.id_for_label }}');
-                                    if(sel.length){
-                                        sel.select2({
-                                            placeholder: 'Selecciona distritos',
-                                            width: '100%',
-                                            allowClear: true
-                                        });
-                                    }
-                                });
-                            }catch(e){
-                                console.warn('Select2 init failed', e);
-                            }
-                        })();
-                        </script>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+/* Área tipo toggle */
+(function(){
+    function toggleArea() {
+        const at = document.getElementById("{{ form.area_type.id_for_label }}");
+        const approxRow = document.getElementById('area-approx-row');
+        const rangeRows = document.getElementById('area-range-rows');
+        if(!at) return;
+        const val = at.value || '';
+        if(val === 'approx'){
+            if(approxRow) approxRow.style.display = '';
+            if(rangeRows) rangeRows.style.display = 'none';
+        } else {
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows) rangeRows.style.display = '';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleArea();
+        const at = document.getElementById("{{ form.area_type.id_for_label }}");
+        if(at) at.addEventListener('change', toggleArea);
+    });
+})();
+
+/* Select2 distritos */
+(function(){
+    try{
+        document.addEventListener('DOMContentLoaded', function(){
+            const $ = window.jQuery;
+            if(!$) return;
+            const sel = $('#{{ form.district.id_for_label }}');
+            if(sel.length){
+                sel.select2({
+                    placeholder: 'Selecciona distritos',
+                    width: '100%',
+                    allowClear: true
+                });
+            }
+        });
+    }catch(e){
+        console.warn('Select2 init failed', e);
+    }
+})();
+</script>
 {% endblock %}
