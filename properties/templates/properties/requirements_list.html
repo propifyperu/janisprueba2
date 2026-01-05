@@ -55,14 +55,7 @@
                                         {% else %}
                                             {% if r.district %}{{ r.district.name }}{% endif %}
                                         {% endif %}
-                                        {% if r.urbanizations.exists %}
-                                            {% if r.districts.exists %} / {% endif %}
-                                            {% for u in r.urbanizations.all %}
-                                                {{ u.name }}{% if not forloop.last %}, {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            {% if r.urbanization %} / {{ r.urbanization.name }}{% endif %}
-                                        {% endif %}
+                                        {# urbanizaciones eliminadas: no mostrar #}
                                     </td>
                                     <td>
                                         {% if r.budget_type == 'approx' %}

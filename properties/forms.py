@@ -327,9 +327,8 @@ class RequirementSimpleForm(forms.Form):
     status = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     department = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     province = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
-    # Permitir selección múltiple para búsquedas en varios distritos/urbanizaciones
+    # Permitir selección múltiple para búsquedas en varios distritos
     district = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
-    urbanization = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
     bedrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     half_bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
@@ -353,7 +352,6 @@ class RequirementSimpleForm(forms.Form):
             self.fields['department'].queryset = Department.objects.filter(is_active=True).order_by('name')
             self.fields['province'].queryset = Province.objects.filter(is_active=True).order_by('name')
             self.fields['district'].queryset = District.objects.filter(is_active=True).order_by('name')
-            self.fields['urbanization'].queryset = Urbanization.objects.filter(is_active=True).order_by('name')
         except OperationalError:
             # Si las tablas no existen (deploy sin migraciones), devolver querysets vacíos para no fallar la carga
             self.fields['property_type'].queryset = PropertyType.objects.none()

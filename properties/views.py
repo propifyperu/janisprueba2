@@ -346,35 +346,21 @@ def requirement_create_view(request):
                 messages.error(request, 'No se puede guardar el requerimiento: error inesperado al guardar.')
                 return render(request, 'properties/requirement_create.html', {'form': form})
 
-            # Asignar distritos y urbanizaciones múltiples si vienen
+            # Asignar distritos múltiples si vienen
             districts_sel = data.get('district') or []
-            urbanizations_sel = data.get('urbanization') or []
             try:
-                # `district` y `urbanization` en el formulario ahora son MultipleChoice
                 req.districts.set(districts_sel)
-                req.urbanizations.set(urbanizations_sel)
             except Exception:
-                # No bloquear si falla el set M2M; registrar y continuar
                 pass
 
-            # Para compatibilidad, si solo hay una selección, guardarla también en el FK simple
+            # Para compatibilidad, si sólo hay una selección, asignarla al FK `district`
             try:
                 if hasattr(districts_sel, '__len__') and len(districts_sel) == 1:
-                    first = list(districts_sel)[0]
-                    req.district = first
+                    req.district = list(districts_sel)[0]
                 else:
                     req.district = None
             except Exception:
                 req.district = None
-
-            try:
-                if hasattr(urbanizations_sel, '__len__') and len(urbanizations_sel) == 1:
-                    firstu = list(urbanizations_sel)[0]
-                    req.urbanization = firstu
-                else:
-                    req.urbanization = None
-            except Exception:
-                req.urbanization = None
             from django.db import OperationalError
             try:
                 req.save()
