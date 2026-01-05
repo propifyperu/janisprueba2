@@ -46,8 +46,23 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if r.district %}{{ r.district.name }}{% endif %}
-                                        {% if r.urbanization %} / {{ r.urbanization.name }}{% endif %}
+                                        {% comment %}Soportar múltiples distritos/urbanizaciones si existen{% endcomment %}
+                                        {% comment %}Mostrar nombres separados por comas para M2M{% endcomment %}
+                                        {% if r.districts.exists %}
+                                            {% for d in r.districts.all %}
+                                                {{ d.name }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            {% if r.district %}{{ r.district.name }}{% endif %}
+                                        {% endif %}
+                                        {% if r.urbanizations.exists %}
+                                            {% if r.districts.exists %} / {% endif %}
+                                            {% for u in r.urbanizations.all %}
+                                                {{ u.name }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            {% if r.urbanization %} / {{ r.urbanization.name }}{% endif %}
+                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if r.budget_type == 'approx' %}

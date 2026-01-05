@@ -327,8 +327,9 @@ class RequirementSimpleForm(forms.Form):
     status = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     department = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     province = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
-    district = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
-    urbanization = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    # Permitir selección múltiple para búsquedas en varios distritos/urbanizaciones
+    district = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
+    urbanization = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
     bedrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     half_bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))

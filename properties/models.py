@@ -859,6 +859,9 @@ class Requirement(TitleCaseMixin, models.Model):
     province = models.ForeignKey('Province', on_delete=models.SET_NULL, null=True, blank=True)
     district = models.ForeignKey('District', on_delete=models.SET_NULL, null=True, blank=True)
     urbanization = models.ForeignKey('Urbanization', on_delete=models.SET_NULL, null=True, blank=True)
+    # Permitir múltiples distritos/urbanizaciones para búsquedas más flexibles
+    districts = models.ManyToManyField('District', blank=True, related_name='requirements_multiple')
+    urbanizations = models.ManyToManyField('Urbanization', blank=True, related_name='requirements_multiple')
 
     # Características
     bedrooms = models.PositiveSmallIntegerField(null=True, blank=True)

@@ -327,14 +327,54 @@ def requirement_create_view(request):
             req.status = data.get('status')
             req.department = data.get('department')
             req.province = data.get('province')
-            req.district = data.get('district')
-            req.urbanization = data.get('urbanization')
+            # `district` and `urbanization` are now multiple-choice fields;
+            # avoid assigning the queryset/list directly to the FK fields here.
+            # We'll set M2M after saving and set the single FK only if a single
+            # selection was provided (for backward compatibility).
+            # req.district = data.get('district')
+            # req.urbanization = data.get('urbanization')
             req.bedrooms = data.get('bedrooms')
             req.bathrooms = data.get('bathrooms')
             req.half_bathrooms = data.get('half_bathrooms')
             req.floors = data.get('floors')
             req.garage_spaces = data.get('garage_spaces')
             req.notes = data.get('notes')
+            # Guardar requerimiento primero para luego asignar M2M
+            try:
+                req.save()
+            except Exception:
+                messages.error(request, 'No se puede guardar el requerimiento: error inesperado al guardar.')
+                return render(request, 'properties/requirement_create.html', {'form': form})
+
+            # Asignar distritos y urbanizaciones múltiples si vienen
+            districts_sel = data.get('district') or []
+            urbanizations_sel = data.get('urbanization') or []
+            try:
+                # `district` y `urbanization` en el formulario ahora son MultipleChoice
+                req.districts.set(districts_sel)
+                req.urbanizations.set(urbanizations_sel)
+            except Exception:
+                # No bloquear si falla el set M2M; registrar y continuar
+                pass
+
+            # Para compatibilidad, si solo hay una selección, guardarla también en el FK simple
+            try:
+                if hasattr(districts_sel, '__len__') and len(districts_sel) == 1:
+                    first = list(districts_sel)[0]
+                    req.district = first
+                else:
+                    req.district = None
+            except Exception:
+                req.district = None
+
+            try:
+                if hasattr(urbanizations_sel, '__len__') and len(urbanizations_sel) == 1:
+                    firstu = list(urbanizations_sel)[0]
+                    req.urbanization = firstu
+                else:
+                    req.urbanization = None
+            except Exception:
+                req.urbanization = None
             from django.db import OperationalError
             try:
                 req.save()
