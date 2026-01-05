@@ -90,9 +90,10 @@ def login_view(request):
             
             logger.info(f"[LOGIN] user={user.username}, device_id={device_id[:16]}...")
             
-            # PASO 1: Verificar si el usuario TIENE ALGÚN dispositivo aprobado
+            # PASO 1: Verificar si el dispositivo ACTUAL está aprobado para este usuario
             approved_device = AuthorizedDevice.objects.filter(
                 user=user,
+                device_id=device_id,
                 status='approved'
             ).first()
             
