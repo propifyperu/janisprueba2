@@ -310,6 +310,17 @@ def requirement_create_view(request):
                 req.budget_min = data.get('budget_min')
                 req.budget_max = data.get('budget_max')
                 req.budget_approx = None
+            # Área de terreno
+            at = data.get('area_type')
+            req.area_type = at or 'approx'
+            if at == 'approx':
+                req.land_area_approx = data.get('land_area_approx')
+                req.land_area_min = None
+                req.land_area_max = None
+            else:
+                req.land_area_min = data.get('land_area_min')
+                req.land_area_max = data.get('land_area_max')
+                req.land_area_approx = None
             # Moneda
             req.currency = data.get('currency')
             req.payment_method = data.get('payment_method')

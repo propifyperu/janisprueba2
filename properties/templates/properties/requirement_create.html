@@ -76,6 +76,31 @@
                             </div>
                         </div>
 
+                        <!-- Fila X – Área de terreno -->
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <label class="form-label" for="{{ form.area_type.id_for_label }}">Área terreno - Tipo</label>
+                                {{ form.area_type }}
+                            </div>
+                        </div>
+
+                        <div id="area-range-rows" class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <label class="form-label" for="{{ form.land_area_min.id_for_label }}">Mínimo (m²)</label>
+                                {{ form.land_area_min }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="{{ form.land_area_max.id_for_label }}">Máximo (m²)</label>
+                                {{ form.land_area_max }}
+                            </div>
+                        </div>
+                        <div id="area-approx-row" class="row g-3 mt-2">
+                            <div class="col-md-12">
+                                <label class="form-label" for="{{ form.land_area_approx.id_for_label }}">Área aproximada (m²)</label>
+                                {{ form.land_area_approx }}
+                            </div>
+                        </div>
+
                         <!-- Fila 5 -->
                         <div class="row g-3 mt-2">
                             <div class="col-md-6">
@@ -144,6 +169,29 @@
                                 </button>
                             </div>
                         </div>
+                        <script>
+                        (function(){
+                            function toggleArea() {
+                                var at = document.getElementById("{{ form.area_type.id_for_label }}");
+                                var approxRow = document.getElementById('area-approx-row');
+                                var rangeRows = document.getElementById('area-range-rows');
+                                if(!at) return;
+                                var val = at.value || '';
+                                if(val === 'approx'){
+                                    if(approxRow) approxRow.style.display = '';
+                                    if(rangeRows) rangeRows.style.display = 'none';
+                                } else {
+                                    if(approxRow) approxRow.style.display = 'none';
+                                    if(rangeRows) rangeRows.style.display = '';
+                                }
+                            }
+                            document.addEventListener('DOMContentLoaded', function(){
+                                toggleArea();
+                                var at = document.getElementById("{{ form.area_type.id_for_label }}");
+                                if(at) at.addEventListener('change', toggleArea);
+                            });
+                        })();
+                        </script>
                     </form>
                 </div>
             </div>

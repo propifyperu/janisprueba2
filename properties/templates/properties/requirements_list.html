@@ -57,6 +57,14 @@
                                         {% endif %}
                                     </td>
                                     <td>
+                                        {% comment %}Área de terreno: mostrar aproximado o rango según disponibilidad{% endcomment %}
+                                        {% if r.area_type == 'approx' %}
+                                            {% if r.land_area_approx %}{{ r.land_area_approx }} m²{% else %}-{% endif %}
+                                        {% else %}
+                                            {% if r.land_area_min and r.land_area_max %}{{ r.land_area_min }} - {{ r.land_area_max }} m²{% else %}-{% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
                                         {% if r.property_type %}{{ r.property_type.name }}{% else %}-{% endif %}
                                     </td>
                                     <td>{{ r.created_at|date:"d/m/Y" }}</td>
