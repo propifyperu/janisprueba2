@@ -407,3 +407,54 @@ class RequirementEditForm(forms.ModelForm):
             self.fields['districts'].widget = forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
         except Exception:
             pass
+
+
+# =============================================================================
+# FORMULARIOS PARA AGENDA Y EVENTOS
+# =============================================================================
+
+class EventForm(forms.ModelForm):
+    """Formulario para crear/editar eventos"""
+    class Meta:
+        from .models import Event
+        model = Event
+        fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
+                  'detalle', 'interesado', 'property']
+        widgets = {
+            'event_type': forms.Select(attrs={'class': 'form-select'}),
+            'titulo': forms.TextInput(attrs={'class': 'form-control'}),
+            'fecha_evento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'hora_inicio': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'hora_fin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'detalle': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'interesado': forms.TextInput(attrs={'class': 'form-control'}),
+            'property': forms.Select(attrs={'class': 'form-select'}),
+        }
+        labels = {
+            'event_type': 'Tipo de evento',
+            'titulo': 'Título',
+            'fecha_evento': 'Fecha del evento',
+            'hora_inicio': 'Hora de inicio',
+            'hora_fin': 'Hora de término',
+            'detalle': 'Detalle de la visita',
+            'interesado': 'Interesado',
+            'property': 'Inmueble',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Cargar solo propiedades activas
+        from .models import Property, EventType
+        self.fields['property'].queryset = Property.objects.filter(is_active=True).order_by('-created_at')
+        self.fields['property'].required = False
+        self.fields['event_type'].queryset = EventType.objects.filter(is_active=True).order_by('name')
+        
+    def clean(self):
+        cleaned_data = super().clean()
+        hora_inicio = cleaned_data.get('hora_inicio')
+        hora_fin = cleaned_data.get('hora_fin')
+        
+        if hora_inicio and hora_fin and hora_fin <= hora_inicio:
+            raise forms.ValidationError('La hora de término debe ser posterior a la hora de inicio.')
+        
+        return cleaned_data

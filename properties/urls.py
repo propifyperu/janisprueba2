@@ -29,6 +29,13 @@ urlpatterns = [
     path('requerimientos/mis-requerimientos/', views.MyRequirementsView.as_view(), name='requirements_my'),
     path('requerimientos/<int:pk>/editar/', views.RequirementUpdateView.as_view(), name='requirements_edit'),
     path('requerimientos/<int:pk>/borrar/', views.requirement_delete_view, name='requirements_delete'),
+    # Agenda y Eventos
+    path('agenda/', views.agenda_calendar_view, name='agenda_calendar'),
+    path('agenda/eventos/crear/', views.event_create_view, name='event_create'),
+    path('agenda/eventos/<int:pk>/editar/', views.event_edit_view, name='event_edit'),
+    path('agenda/eventos/<int:pk>/borrar/', views.event_delete_view, name='event_delete'),
+    path('api/events/', views.api_events_json, name='api_events'),
+    # APIs
     path('api/property-subtypes/', views.api_property_subtypes, name='api_property_subtypes'),
     path('api/provinces/', views.api_provinces, name='api_provinces'),
     path('api/districts/', views.api_districts, name='api_districts'),

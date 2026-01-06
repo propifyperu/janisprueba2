@@ -1134,3 +1134,71 @@ class OperationType(models.Model):
         return self.name
 
 
+# =============================================================================
+# MODELO PARA AGENDA Y EVENTOS
+# =============================================================================
+
+class EventType(models.Model):
+    """Tipos de eventos: Visita, Reunión, Llamada, etc."""
+    name = models.CharField(max_length=100, unique=True)
+    color = models.CharField(max_length=7, default='#047D7D', help_text='Color en formato hex (ej: #047D7D)')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'event_types'
+        verbose_name = "Tipo de Evento"
+        verbose_name_plural = "Tipos de Evento"
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+
+
+class Event(TitleCaseMixin, models.Model):
+    """Modelo para eventos y visitas agendadas"""
+    title_case_fields = ('titulo', 'interesado')
+    
+    code = models.CharField(max_length=20, unique=True, editable=False)
+    event_type = models.ForeignKey('EventType', on_delete=models.PROTECT, verbose_name='Tipo de evento')
+    titulo = models.CharField(max_length=200, verbose_name='Título')
+    fecha_evento = models.DateField(verbose_name='Fecha del evento')
+    hora_inicio = models.TimeField(verbose_name='Hora de inicio')
+    hora_fin = models.TimeField(verbose_name='Hora de término')
+    detalle = models.TextField(blank=True, verbose_name='Detalle de la visita')
+    interesado = models.CharField(max_length=200, blank=True, verbose_name='Interesado')
+    property = models.ForeignKey('Property', on_delete=models.SET_NULL, null=True, blank=True, 
+                                 related_name='events', verbose_name='Inmueble')
+    
+    # Auditoría
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, 
+                                   related_name='created_events', verbose_name='Creado por')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        db_table = 'events'
+        verbose_name = "Evento"
+        verbose_name_plural = "Eventos"
+        ordering = ['-fecha_evento', '-hora_inicio']
+    
+    def __str__(self):
+        return f"{self.code} - {self.titulo}"
+    
+    def save(self, *args, **kwargs):
+        if not self.code:
+            # Generar código único para el evento
+            import random
+            import string
+            from django.utils import timezone
+            year = timezone.now().year
+            random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            self.code = f"EVT{year}{random_str}"
+        
+        # Aplicar title case
+        self._apply_title_case()
+        
+        super().save(*args, **kwargs)
+
+

@@ -14,7 +14,9 @@ from .models import (
     Property, PropertyOwner, PropertyImage, PropertyVideo, PropertyDocument,
     PropertyFinancialInfo, PropertyRoom, ImageType, VideoType,
     # WhatsApp
-    PropertyWhatsAppLink, LeadStatus, Lead, WhatsAppConversation, SocialNetwork, WhatsAppNumber, UTMClick
+    PropertyWhatsAppLink, LeadStatus, Lead, WhatsAppConversation, SocialNetwork, WhatsAppNumber, UTMClick,
+    # Agenda
+    EventType, Event
 )
 
 from .models import Requirement
@@ -497,3 +499,38 @@ class UTMClickAdmin(admin.ModelAdmin):
     list_filter = ('utm_source', 'utm_medium', 'utm_campaign', 'created_at')
     search_fields = ('tracking_id', 'whatsapp_link__link_name', 'ip_address')
     date_hierarchy = 'created_at'
+
+
+# ===================== ADMIN PARA AGENDA Y EVENTOS =====================
+@admin.register(EventType)
+class EventTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'color', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name',)
+    ordering = ('name',)
+
+
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
+    list_display = ('code', 'titulo', 'event_type', 'fecha_evento', 'hora_inicio', 'hora_fin', 'created_by', 'created_at')
+    list_filter = ('event_type', 'fecha_evento', 'is_active', 'created_at')
+    search_fields = ('code', 'titulo', 'interesado', 'property__code')
+    readonly_fields = ('code', 'created_at', 'updated_at')
+    fieldsets = (
+        ('Información del Evento', {
+            'fields': ('code', 'event_type', 'titulo')
+        }),
+        ('Fecha y Hora', {
+            'fields': ('fecha_evento', 'hora_inicio', 'hora_fin')
+        }),
+        ('Detalles', {
+            'fields': ('interesado', 'property', 'detalle')
+        }),
+        ('Auditoría', {
+            'fields': ('created_by', 'created_at', 'updated_at', 'is_active'),
+            'classes': ('collapse',)
+        }),
+    )
+    ordering = ('-fecha_evento', '-hora_inicio')
+    date_hierarchy = 'fecha_evento'
+

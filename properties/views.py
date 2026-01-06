@@ -456,6 +456,122 @@ def requirement_delete_view(request, pk):
     return redirect('properties:requirements_my')
 
 
+# =============================================================================
+# VISTAS PARA AGENDA Y EVENTOS
+# =============================================================================
+
+@login_required
+def agenda_calendar_view(request):
+    """Vista principal del calendario de eventos"""
+    from .models import EventType
+    event_types = EventType.objects.filter(is_active=True).order_by('name')
+    return render(request, 'properties/agenda_calendar.html', {
+        'event_types': event_types
+    })
+
+
+@login_required
+def event_create_view(request):
+    """Vista para crear un nuevo evento"""
+    from .forms import EventForm
+    from .models import Event
+    
+    if request.method == 'POST':
+        form = EventForm(request.POST)
+        if form.is_valid():
+            event = form.save(commit=False)
+            event.created_by = request.user
+            event.save()
+            from django.contrib import messages
+            messages.success(request, f'Evento "{event.titulo}" creado exitosamente.')
+            return redirect('properties:agenda_calendar')
+    else:
+        form = EventForm()
+    
+    return render(request, 'properties/event_create.html', {'form': form})
+
+
+@login_required
+def event_edit_view(request, pk):
+    """Vista para editar un evento existente"""
+    from .models import Event
+    from .forms import EventForm
+    
+    event = get_object_or_404(Event, pk=pk)
+    
+    # Solo el creador o superusuario puede editar
+    if not (request.user.is_superuser or event.created_by == request.user):
+        from django.contrib import messages
+        messages.error(request, 'No tienes permiso para editar este evento.')
+        return redirect('properties:agenda_calendar')
+    
+    if request.method == 'POST':
+        form = EventForm(request.POST, instance=event)
+        if form.is_valid():
+            form.save()
+            from django.contrib import messages
+            messages.success(request, f'Evento "{event.titulo}" actualizado exitosamente.')
+            return redirect('properties:agenda_calendar')
+    else:
+        form = EventForm(instance=event)
+    
+    return render(request, 'properties/event_edit.html', {'form': form, 'event': event})
+
+
+@login_required
+def event_delete_view(request, pk):
+    """Vista para eliminar un evento"""
+    from .models import Event
+    
+    event = get_object_or_404(Event, pk=pk)
+    
+    # Solo el creador o superusuario puede eliminar
+    if not (request.user.is_superuser or event.created_by == request.user):
+        from django.contrib import messages
+        messages.error(request, 'No tienes permiso para eliminar este evento.')
+        return redirect('properties:agenda_calendar')
+    
+    event.delete()
+    from django.contrib import messages
+    messages.success(request, 'Evento eliminado correctamente.')
+    return redirect('properties:agenda_calendar')
+
+
+@login_required
+def api_events_json(request):
+    """API para obtener eventos en formato JSON para el calendario"""
+    from .models import Event
+    from django.http import JsonResponse
+    import json
+    
+    # Si es superusuario, ve todos los eventos, sino solo los suyos
+    if request.user.is_superuser:
+        events = Event.objects.filter(is_active=True).select_related('event_type', 'property', 'created_by')
+    else:
+        events = Event.objects.filter(is_active=True, created_by=request.user).select_related('event_type', 'property', 'created_by')
+    
+    events_data = []
+    for event in events:
+        events_data.append({
+            'id': event.id,
+            'title': event.titulo,
+            'start': f"{event.fecha_evento}T{event.hora_inicio}",
+            'end': f"{event.fecha_evento}T{event.hora_fin}",
+            'backgroundColor': event.event_type.color,
+            'borderColor': event.event_type.color,
+            'extendedProps': {
+                'code': event.code,
+                'event_type': event.event_type.name,
+                'detalle': event.detalle,
+                'interesado': event.interesado,
+                'property': event.property.exact_address if event.property else '',
+                'property_code': event.property.code if event.property else '',
+                'created_by': event.created_by.get_full_name() if event.created_by else '',
+            }
+        })
+    
+    return JsonResponse(events_data, safe=False)
+
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
