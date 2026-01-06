@@ -140,7 +140,7 @@
                         <!-- Sección: Características -->
                         <div class="mb-4">
                             <h5 class="fw-bold mb-3">CARACTERÍSTICAS</h5>
-                            <div class="row g-3">
+                            <div class="row g-3" id="caracteristicas-fields">
                                 <div class="col-md-3">
                                     <label class="form-label" for="{{ form.bedrooms.id_for_label }}">Habitaciones</label>
                                     {{ form.bedrooms }}
@@ -229,6 +229,29 @@
         toggleBudget();
         const bt = document.getElementById("{{ form.budget_type.id_for_label }}");
         if(bt) bt.addEventListener('change', toggleBudget);
+    });
+})();
+
+/* Ocultar características si es Terreno */
+(function(){
+    function toggleCaracteristicas() {
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const caracFields = document.getElementById('caracteristicas-fields');
+        if(!typeSelect || !caracFields) return;
+        
+        const selectedText = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+        
+        // Ocultar solo los campos de habitaciones, baños, etc. si es terreno
+        if(selectedText.includes('terreno')){
+            caracFields.style.display = 'none';
+        } else {
+            caracFields.style.display = '';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleCaracteristicas();
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        if(typeSelect) typeSelect.addEventListener('change', toggleCaracteristicas);
     });
 })();
 
