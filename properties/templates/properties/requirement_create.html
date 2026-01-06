@@ -52,7 +52,7 @@
                                     <select class="form-select" name="existing_owner" id="existingOwner">
                                         <option value="">-- Seleccionar contacto --</option>
                                         {% for contacto in contactos_existentes %}
-                                            <option value="{{ contacto.id }}">{{ contacto.full_name|default:contacto.first_name }} {% if contacto.phone %}({{ contacto.phone }}){% endif %}</option>
+                                            <option value="{{ contacto.id }}">{{ contacto.full_name }}{% if contacto.display_phone %} ({{ contacto.display_phone }}){% endif %}</option>
                                         {% endfor %}
                                     </select>
                                 </div>

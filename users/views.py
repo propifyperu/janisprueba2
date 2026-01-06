@@ -54,11 +54,13 @@ def login_view(request):
     from security.models import AuthorizedDevice, DeviceStatus
     import hashlib
     
-    next_url = request.GET.get('next')
-    if not next_url:
-        next_url = '/dashboard/'
+    next_url = request.GET.get('next', '/dashboard/')
+    
     # Verificar que el usuario esté autenticado Y activo
     if request.user.is_authenticated and request.user.is_active:
+        # Evitar loop de redirección - si ya está en login, ir al dashboard
+        if next_url == '/users/login/' or not next_url or next_url == '/':
+            next_url = '/dashboard/'
         return redirect(next_url)
 
     form = LoginForm(request.POST or None)

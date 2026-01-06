@@ -434,12 +434,29 @@ class PropertyOwner(TitleCaseMixin, models.Model):
         db_table = 'property_owners'
         
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        parts = []
+        if self.first_name:
+            parts.append(str(self.first_name))
+        if self.last_name:
+            parts.append(str(self.last_name))
+        return " ".join(parts) if parts else "Sin nombre"
 
+    @property
     def full_name(self):
+        """Retorna el nombre completo del contacto, manejando campos encriptados."""
+        parts = []
+        if self.first_name:
+            parts.append(str(self.first_name))
+        if self.last_name:
+            parts.append(str(self.last_name))
         if self.maternal_last_name:
-            return f"{self.first_name} {self.last_name} {self.maternal_last_name}"
-        return f"{self.first_name} {self.last_name}"
+            parts.append(str(self.maternal_last_name))
+        return " ".join(parts) if parts else "Sin nombre"
+    
+    @property
+    def display_phone(self):
+        """Retorna el teléfono como string para mostrar en templates."""
+        return str(self.phone) if self.phone else ""
 
     def save(self, *args, **kwargs):
         self._apply_title_case()
@@ -1169,9 +1186,14 @@ class Event(TitleCaseMixin, models.Model):
     hora_inicio = models.TimeField(verbose_name='Hora de inicio')
     hora_fin = models.TimeField(verbose_name='Hora de término')
     detalle = models.TextField(blank=True, verbose_name='Detalle de la visita')
-    interesado = models.CharField(max_length=200, blank=True, verbose_name='Interesado')
+    
+    # Contacto vinculado (reemplaza interesado CharField)
+    contact = models.ForeignKey('PropertyOwner', on_delete=models.SET_NULL, null=True, blank=True, 
+                                related_name='events', verbose_name='Contacto')
+    interesado = models.CharField(max_length=200, blank=True, verbose_name='Interesado')  # DEPRECADO, usar contact
+    
     property = models.ForeignKey('Property', on_delete=models.SET_NULL, null=True, blank=True, 
-                                 related_name='events', verbose_name='Inmueble')
+                                 related_name='property_events', verbose_name='Inmueble')
     
     # Auditoría
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, 

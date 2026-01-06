@@ -418,7 +418,7 @@ class EventForm(forms.ModelForm):
         from .models import Event
         model = Event
         fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
-                  'detalle', 'interesado', 'property']
+                  'detalle', 'property']
         widgets = {
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
@@ -426,7 +426,6 @@ class EventForm(forms.ModelForm):
             'hora_inicio': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'hora_fin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'detalle': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'interesado': forms.TextInput(attrs={'class': 'form-control'}),
             'property': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
@@ -436,7 +435,6 @@ class EventForm(forms.ModelForm):
             'hora_inicio': 'Hora de inicio',
             'hora_fin': 'Hora de término',
             'detalle': 'Detalle de la visita',
-            'interesado': 'Interesado',
             'property': 'Inmueble',
         }
     
