@@ -207,6 +207,77 @@
     });
 })();
 
+/* Cascada Tipo -> Subtipo */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const subtypeSelect = document.getElementById('{{ form.property_subtype.id_for_label }}');
+        
+        if(!typeSelect || !subtypeSelect) return;
+
+        // Guardar todas las opciones originales del subtipo
+        const allSubtypes = Array.from(subtypeSelect.options).map(opt => ({
+            value: opt.value,
+            text: opt.text,
+            typeId: opt.getAttribute('data-type-id')
+        }));
+
+        function filterSubtypes() {
+            const selectedTypeId = typeSelect.value;
+            
+            // Limpiar el select de subtipos
+            subtypeSelect.innerHTML = '<option value="">---------</option>';
+            
+            if(!selectedTypeId) return;
+            
+            // Filtrar y agregar solo los subtipos que corresponden al tipo seleccionado
+            allSubtypes.forEach(subtype => {
+                if(subtype.typeId === selectedTypeId) {
+                    const option = document.createElement('option');
+                    option.value = subtype.value;
+                    // Extraer solo el nombre después del guión
+                    const parts = subtype.text.split(' - ');
+                    option.text = parts.length > 1 ? parts[1] : subtype.text;
+                    option.setAttribute('data-type-id', subtype.typeId);
+                    subtypeSelect.appendChild(option);
+                }
+            });
+        }
+
+        // Agregar data-type-id a todas las opciones existentes
+        const subtypeOptions = subtypeSelect.querySelectorAll('option[value]');
+        subtypeOptions.forEach(opt => {
+            if(opt.value) {
+                // Usar AJAX para obtener el tipo de cada subtipo
+                fetch(`/dashboard/propiedades/api/property-subtypes/?property_type=all`)
+                    .then(r => r.json())
+                    .then(data => {
+                        const subtype = data.find(s => s.id == opt.value);
+                        if(subtype) {
+                            opt.setAttribute('data-type-id', subtype.property_type);
+                        }
+                    });
+            }
+        });
+
+        // Esperar un momento para que se carguen los data-type-id y luego filtrar
+        setTimeout(() => {
+            // Recargar la lista completa con los atributos
+            const tempSubtypes = Array.from(subtypeSelect.options).map(opt => ({
+                value: opt.value,
+                text: opt.text,
+                typeId: opt.getAttribute('data-type-id')
+            }));
+            allSubtypes.length = 0;
+            allSubtypes.push(...tempSubtypes);
+            
+            filterSubtypes();
+        }, 500);
+
+        typeSelect.addEventListener('change', filterSubtypes);
+    });
+})();
+
 /* Select2 distritos */
 (function(){
     try{
@@ -225,6 +296,45 @@
     }catch(e){
         console.warn('Select2 init failed', e);
     }
+})();
+
+/* Cascada Tipo -> Subtipo */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const subtypeSelect = document.getElementById('{{ form.property_subtype.id_for_label }}');
+        
+        if(!typeSelect || !subtypeSelect) return;
+
+        // Cargar todos los subtipos desde el API
+        fetch('/dashboard/propiedades/api/property-subtypes/')
+            .then(r => r.json())
+            .then(allSubtypes => {
+                
+                function filterSubtypes() {
+                    const selectedTypeId = typeSelect.value;
+                    
+                    // Limpiar el select de subtipos
+                    subtypeSelect.innerHTML = '<option value="">---------</option>';
+                    
+                    if(!selectedTypeId) return;
+                    
+                    // Filtrar y agregar solo los subtipos que corresponden al tipo seleccionado
+                    allSubtypes.forEach(subtype => {
+                        if(subtype.property_type == selectedTypeId) {
+                            const option = document.createElement('option');
+                            option.value = subtype.id;
+                            option.text = subtype.name; // Solo el nombre, sin el tipo
+                            subtypeSelect.appendChild(option);
+                        }
+                    });
+                }
+
+                filterSubtypes();
+                typeSelect.addEventListener('change', filterSubtypes);
+            })
+            .catch(e => console.warn('Error al cargar subtipos:', e));
+    });
 })();
 </script>
 {% endblock %}

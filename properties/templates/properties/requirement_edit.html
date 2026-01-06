@@ -4,14 +4,17 @@
 {% block title %}Editar Requerimiento - Janis Platform{% endblock %}
 
 {% block dashboard_extra_css %}
-{{ block.super }}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
+    /* Usar color de la barra lateral directamente como fallback
+       (algunas plantillas no envuelven con .permissions-page) */
     .permissions-page {
         --primary-color: #047D7D;
         --secondary-color: #279896;
     }
-    .form-label { font-weight: 500; }
+    .form-label {
+        font-weight: 500;
+    }
     .btn-teal {
         background-color: var(--primary-color, #047D7D) !important;
         border-color: var(--primary-color, #047D7D) !important;
@@ -96,9 +99,9 @@
                                     {{ form.province }}
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label" for="{{ form.districts.id_for_label }}">Distrito(s)</label>
+                                    <label class="form-label" for="{{ form.district.id_for_label }}">Distrito(s)</label>
                                     <div class="small text-muted mb-1">Puedes seleccionar varios distritos (Ctrl/Cmd + clic o usar la caja de búsqueda).</div>
-                                    {{ form.districts }}
+                                    {{ form.district }}
                                 </div>
                             </div>
                         </div>
@@ -167,7 +170,6 @@
                                 <button class="btn btn-teal" type="submit">
                                     <i class="fas fa-save me-2"></i>Guardar
                                 </button>
-                                <a href="{% url 'properties:requirements_detail' object.id %}" class="btn btn-outline-teal ms-2">Cancelar</a>
                             </div>
                         </div>
                     </form>
@@ -211,7 +213,7 @@
         document.addEventListener('DOMContentLoaded', function(){
             const $ = window.jQuery;
             if(!$) return;
-            const sel = $('#{{ form.districts.id_for_label }}');
+            const sel = $('#{{ form.district.id_for_label }}');
             if(sel.length){
                 sel.select2({
                     placeholder: 'Selecciona distritos',
@@ -223,6 +225,50 @@
     }catch(e){
         console.warn('Select2 init failed', e);
     }
+})();
+
+/* Cascada Tipo -> Subtipo */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const subtypeSelect = document.getElementById('{{ form.property_subtype.id_for_label }}');
+        
+        if(!typeSelect || !subtypeSelect) return;
+
+        const selectedSubtypeId = subtypeSelect.value; // Guardar el valor actual
+
+        // Cargar todos los subtipos desde el API
+        fetch('/dashboard/propiedades/api/property-subtypes/')
+            .then(r => r.json())
+            .then(allSubtypes => {
+                
+                function filterSubtypes() {
+                    const selectedTypeId = typeSelect.value;
+                    
+                    // Limpiar el select de subtipos
+                    subtypeSelect.innerHTML = '<option value="">---------</option>';
+                    
+                    if(!selectedTypeId) return;
+                    
+                    // Filtrar y agregar solo los subtipos que corresponden al tipo seleccionado
+                    allSubtypes.forEach(subtype => {
+                        if(subtype.property_type == selectedTypeId) {
+                            const option = document.createElement('option');
+                            option.value = subtype.id;
+                            option.text = subtype.name; // Solo el nombre, sin el tipo
+                            if(subtype.id == selectedSubtypeId) {
+                                option.selected = true;
+                            }
+                            subtypeSelect.appendChild(option);
+                        }
+                    });
+                }
+
+                filterSubtypes();
+                typeSelect.addEventListener('change', filterSubtypes);
+            })
+            .catch(e => console.warn('Error al cargar subtipos:', e));
+    });
 })();
 </script>
 {% endblock %}
