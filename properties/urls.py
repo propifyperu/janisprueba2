@@ -3,6 +3,8 @@ from . import views
 from .api import PropertyViewSet
 from rest_framework.routers import DefaultRouter
 
+app_name = 'properties'
+
 router = DefaultRouter()
 router.register(r'properties', PropertyViewSet, basename='properties')
 

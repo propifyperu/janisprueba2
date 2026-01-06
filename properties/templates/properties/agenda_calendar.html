@@ -345,35 +345,79 @@ let miniCalendar;
 let currentEventId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== Iniciando calendario ===');
     const calendarEl = document.getElementById('calendar');
     const miniCalendarEl = document.getElementById('mini-calendar');
     
-    // Calendario principal
-    calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        locale: 'es',
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        },
-        buttonText: {
-            today: 'Hoy',
-            month: 'Mes',
-            week: 'Semana',
-            day: 'Día'
-        },
-        events: '/dashboard/propiedades/api/events/',
-        eventClick: function(info) {
-            showEventModal(info.event);
-        },
-        height: '100%',
-        nowIndicator: true,
-        editable: false,
-        selectable: false
-    });
+    if (!calendarEl) {
+        console.error('ERROR: No se encontró el elemento #calendar');
+        return;
+    }
     
-    calendar.render();
+    console.log('Elemento calendario encontrado:', calendarEl);
+    console.log('FullCalendar disponible:', typeof FullCalendar !== 'undefined');
+    
+    // Calendario principal
+    try {
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'es',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            buttonText: {
+                today: 'Hoy',
+                month: 'Mes',
+                week: 'Semana',
+                day: 'Día'
+            },
+            events: function(info, successCallback, failureCallback) {
+                console.log('Solicitando eventos a la API...');
+                const apiUrl = '{% url "properties:api_events" %}';
+                console.log('URL de la API:', apiUrl);
+                
+                fetch(apiUrl)
+                    .then(response => {
+                        console.log('Respuesta recibida. Status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('✅ Eventos cargados exitosamente:', data);
+                        console.log('Total de eventos:', data.length);
+                        successCallback(data);
+                    })
+                    .catch(error => {
+                        console.error('❌ Error al cargar eventos:', error);
+                        failureCallback(error);
+                    });
+            },
+            eventDidMount: function(info) {
+                console.log('Evento montado en el DOM:', info.event.title);
+            },
+            eventClick: function(info) {
+                console.log('Click en evento:', info.event.title);
+                showEventModal(info.event);
+            },
+            loading: function(isLoading) {
+                console.log('Estado de carga:', isLoading ? 'Cargando...' : 'Completado');
+            },
+            height: '100%',
+            nowIndicator: true,
+            editable: false,
+            selectable: false
+        });
+        
+        console.log('Renderizando calendario principal...');
+        calendar.render();
+        console.log('✅ Calendario principal renderizado');
+    } catch (error) {
+        console.error('❌ Error al crear/renderizar el calendario:', error);
+    }
     
     // Mini calendario en sidebar
     miniCalendar = new FullCalendar.Calendar(miniCalendarEl, {

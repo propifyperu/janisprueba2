@@ -538,11 +538,11 @@ def event_delete_view(request, pk):
 
 
 @login_required
+@login_required
 def api_events_json(request):
     """API para obtener eventos en formato JSON para el calendario"""
     from .models import Event
     from django.http import JsonResponse
-    import json
     
     # Si es superusuario, ve todos los eventos, sino solo los suyos
     if request.user.is_superuser:
@@ -570,6 +570,7 @@ def api_events_json(request):
             }
         })
     
+    print(f"API Events: Retornando {len(events_data)} eventos para el usuario {request.user.username}")
     return JsonResponse(events_data, safe=False)
 
 
