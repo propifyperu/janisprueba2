@@ -287,17 +287,51 @@ class RequirementListView(LoginRequiredMixin, ListView):
 
 @login_required
 def requirement_create_view(request):
-    from .forms import RequirementSimpleForm
+    from .forms import RequirementSimpleForm, PropertyOwnerForm
+    from .models import PropertyOwner, Requirement
     from django.contrib import messages
 
     if request.method == 'POST':
         form = RequirementSimpleForm(request.POST)
+        owner_form = PropertyOwnerForm(request.POST, request.FILES)
+        
+        # Determinar si se seleccionó un contacto existente o se crea uno nuevo
+        existing_owner_id = request.POST.get('existing_owner', '').strip()
+        
+        contact_instance = None
+        
+        if existing_owner_id:
+            # Usar contacto existente
+            try:
+                contact_instance = PropertyOwner.objects.get(id=existing_owner_id)
+            except PropertyOwner.DoesNotExist:
+                messages.error(request, 'El contacto seleccionado no existe.')
+                return render(request, 'properties/requirement_create.html', {
+                    'form': form,
+                    'owner_form': owner_form,
+                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+                })
+        else:
+            # Crear nuevo contacto
+            if owner_form.is_valid():
+                contact_instance = owner_form.save(commit=False)
+                contact_instance.created_by = request.user
+                contact_instance.save()
+                owner_form.save_m2m()  # Para tags
+            else:
+                messages.error(request, 'Error en los datos del contacto. Por favor verifica los campos.')
+                return render(request, 'properties/requirement_create.html', {
+                    'form': form,
+                    'owner_form': owner_form,
+                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+                })
+        
         if form.is_valid():
             data = form.cleaned_data
             req = Requirement()
             req.created_by = request.user
-            req.client_name = data.get('client_name')
-            req.phone = data.get('phone')
+            req.contact = contact_instance  # Asignar el contacto
+            
             req.property_type = data.get('property_type')
             req.property_subtype = data.get('property_subtype')
             bt = data.get('budget_type')
@@ -327,12 +361,7 @@ def requirement_create_view(request):
             req.status = data.get('status')
             req.department = data.get('department')
             req.province = data.get('province')
-            # `district` and `urbanization` are now multiple-choice fields;
-            # avoid assigning the queryset/list directly to the FK fields here.
-            # We'll set M2M after saving and set the single FK only if a single
-            # selection was provided (for backward compatibility).
-            # req.district = data.get('district')
-            # req.urbanization = data.get('urbanization')
+            
             req.bedrooms = data.get('bedrooms')
             req.bathrooms = data.get('bathrooms')
             req.half_bathrooms = data.get('half_bathrooms')
@@ -344,7 +373,11 @@ def requirement_create_view(request):
                 req.save()
             except Exception:
                 messages.error(request, 'No se puede guardar el requerimiento: error inesperado al guardar.')
-                return render(request, 'properties/requirement_create.html', {'form': form})
+                return render(request, 'properties/requirement_create.html', {
+                    'form': form,
+                    'owner_form': owner_form,
+                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+                })
 
             # Asignar distritos múltiples si vienen
             districts_sel = data.get('district') or []
@@ -366,13 +399,22 @@ def requirement_create_view(request):
                 req.save()
             except OperationalError:
                 messages.error(request, 'No se puede guardar el requerimiento: base de datos no preparada. Contacte al administrador.')
-                return render(request, 'properties/requirement_create.html', {'form': form})
+                return render(request, 'properties/requirement_create.html', {
+                    'form': form,
+                    'owner_form': owner_form,
+                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+                })
             messages.success(request, 'Requerimiento guardado correctamente.')
             return redirect('properties:requirements_my')
     else:
         form = RequirementSimpleForm()
+        owner_form = PropertyOwnerForm()
 
-    return render(request, 'properties/requirement_create.html', {'form': form})
+    return render(request, 'properties/requirement_create.html', {
+        'form': form,
+        'owner_form': owner_form,
+        'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+    })
 
 
 class MyRequirementsView(LoginRequiredMixin, ListView):
@@ -537,7 +579,6 @@ def event_delete_view(request, pk):
     return redirect('properties:agenda_calendar')
 
 
-@login_required
 @login_required
 def api_events_json(request):
     """API para obtener eventos en formato JSON para el calendario"""

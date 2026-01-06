@@ -315,8 +315,7 @@ class DistrictMultipleChoiceField(forms.ModelMultipleChoiceField):
 
 
 class RequirementSimpleForm(forms.Form):
-    client_name = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    phone = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    # Ya no se usa client_name ni phone directamente, sino contact FK
     property_type = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     property_subtype = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     budget_type = forms.ChoiceField(choices=(('approx','Aproximado'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))

@@ -825,7 +825,10 @@ class Requirement(TitleCaseMixin, models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
 
-    # Datos del cliente (PII cifrada)
+    # Contacto vinculado (reemplaza client_name y phone)
+    contact = models.ForeignKey('PropertyOwner', on_delete=models.SET_NULL, null=True, blank=True, related_name='requirements')
+    
+    # Datos del cliente (PII cifrada) - DEPRECADOS, usar contact FK
     client_name = EncryptedCharField(max_length=256, blank=True, null=True)
     phone = EncryptedCharField(max_length=80, blank=True, null=True)
 

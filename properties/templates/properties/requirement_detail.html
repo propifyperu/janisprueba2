@@ -22,16 +22,18 @@
                         <dd class="col-sm-8">{% if requirement.created_by %}{{ requirement.created_by.get_full_name|default:requirement.created_by.username }}{% else %}-{% endif %}</dd>
 
                         {% if can_view_pii %}
-                        <dt class="col-sm-4">Cliente</dt>
-                        <dd class="col-sm-8">{{ requirement.client_name|default:'-' }}</dd>
-
-                        <dt class="col-sm-4">Teléfono</dt>
-                        <dd class="col-sm-8">{{ requirement.phone|default:'-' }}</dd>
+                        <dt class="col-sm-4">Contacto</dt>
+                        <dd class="col-sm-8">
+                            {% if requirement.contact %}
+                                <a href="{% url 'properties:contact_detail' requirement.contact.id %}">{{ requirement.contact.full_name }}</a>
+                                {% if requirement.contact.phone %}<br><small class="text-muted">Tel: {{ requirement.contact.phone }}</small>{% endif %}
+                            {% else %}
+                                {{ requirement.client_name|default:'-' }}
+                                {% if requirement.phone %}<br><small class="text-muted">Tel: {{ requirement.phone }}</small>{% endif %}
+                            {% endif %}
+                        </dd>
                         {% else %}
-                        <dt class="col-sm-4">Cliente</dt>
-                        <dd class="col-sm-8">Privado</dd>
-
-                        <dt class="col-sm-4">Teléfono</dt>
+                        <dt class="col-sm-4">Contacto</dt>
                         <dd class="col-sm-8">Privado</dd>
                         {% endif %}
 
