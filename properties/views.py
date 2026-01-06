@@ -573,9 +573,10 @@ def api_events_json(request):
     return JsonResponse(events_data, safe=False)
 
 
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django import forms
+# =============================================================================
+# VISTAS PARA APIs Y OTROS ENDPOINTS
+# =============================================================================
+
 from decimal import Decimal, InvalidOperation
 from django.urls import reverse
 from django.conf import settings
