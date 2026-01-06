@@ -110,27 +110,29 @@
                         <div class="mb-4">
                             <h5 class="fw-bold mb-3">PRESUPUESTO</h5>
                             <div class="row g-3">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <label class="form-label" for="{{ form.budget_type.id_for_label }}">Tipo</label>
                                     {{ form.budget_type }}
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label" for="{{ form.budget_min.id_for_label }}">Mínimo</label>
-                                    {{ form.budget_min }}
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label" for="{{ form.budget_max.id_for_label }}">Máximo</label>
-                                    {{ form.budget_max }}
-                                </div>
-                            </div>
-                            <div class="row g-3 mt-2">
-                                <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Aproximado</label>
-                                    {{ form.budget_approx }}
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label" for="{{ form.currency.id_for_label }}">Moneda</label>
                                     {{ form.currency }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="budget-range-rows">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_min.id_for_label }}">Mínimo</label>
+                                    {{ form.budget_min }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_max.id_for_label }}">Máximo</label>
+                                    {{ form.budget_max }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="budget-approx-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Presupuesto aproximado</label>
+                                    {{ form.budget_approx }}
                                 </div>
                             </div>
                         </div>
@@ -189,15 +191,15 @@
     function toggleArea() {
         const at = document.getElementById("{{ form.area_type.id_for_label }}");
         const approxRow = document.getElementById('area-approx-row');
-        const rangeRows = document.getElementById('area-range-rows');
+        const rangeRows  = document.getElementById('area-range-rows');
         if(!at) return;
         const val = at.value || '';
         if(val === 'approx'){
             if(approxRow) approxRow.style.display = '';
-            if(rangeRows) rangeRows.style.display = 'none';
+            if(rangeRows)  rangeRows.style.display  = 'none';
         } else {
             if(approxRow) approxRow.style.display = 'none';
-            if(rangeRows) rangeRows.style.display = '';
+            if(rangeRows)  rangeRows.style.display  = '';
         }
     }
     document.addEventListener('DOMContentLoaded', function(){
@@ -207,74 +209,26 @@
     });
 })();
 
-/* Cascada Tipo -> Subtipo */
+/* Presupuesto tipo toggle */
 (function(){
-    document.addEventListener('DOMContentLoaded', function(){
-        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
-        const subtypeSelect = document.getElementById('{{ form.property_subtype.id_for_label }}');
-        
-        if(!typeSelect || !subtypeSelect) return;
-
-        // Guardar todas las opciones originales del subtipo
-        const allSubtypes = Array.from(subtypeSelect.options).map(opt => ({
-            value: opt.value,
-            text: opt.text,
-            typeId: opt.getAttribute('data-type-id')
-        }));
-
-        function filterSubtypes() {
-            const selectedTypeId = typeSelect.value;
-            
-            // Limpiar el select de subtipos
-            subtypeSelect.innerHTML = '<option value="">---------</option>';
-            
-            if(!selectedTypeId) return;
-            
-            // Filtrar y agregar solo los subtipos que corresponden al tipo seleccionado
-            allSubtypes.forEach(subtype => {
-                if(subtype.typeId === selectedTypeId) {
-                    const option = document.createElement('option');
-                    option.value = subtype.value;
-                    // Extraer solo el nombre después del guión
-                    const parts = subtype.text.split(' - ');
-                    option.text = parts.length > 1 ? parts[1] : subtype.text;
-                    option.setAttribute('data-type-id', subtype.typeId);
-                    subtypeSelect.appendChild(option);
-                }
-            });
+    function toggleBudget() {
+        const bt = document.getElementById("{{ form.budget_type.id_for_label }}");
+        const approxRow = document.getElementById('budget-approx-row');
+        const rangeRows  = document.getElementById('budget-range-rows');
+        if(!bt) return;
+        const val = bt.value || '';
+        if(val === 'approx'){
+            if(approxRow) approxRow.style.display = '';
+            if(rangeRows)  rangeRows.style.display  = 'none';
+        } else {
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows)  rangeRows.style.display  = '';
         }
-
-        // Agregar data-type-id a todas las opciones existentes
-        const subtypeOptions = subtypeSelect.querySelectorAll('option[value]');
-        subtypeOptions.forEach(opt => {
-            if(opt.value) {
-                // Usar AJAX para obtener el tipo de cada subtipo
-                fetch(`/dashboard/propiedades/api/property-subtypes/?property_type=all`)
-                    .then(r => r.json())
-                    .then(data => {
-                        const subtype = data.find(s => s.id == opt.value);
-                        if(subtype) {
-                            opt.setAttribute('data-type-id', subtype.property_type);
-                        }
-                    });
-            }
-        });
-
-        // Esperar un momento para que se carguen los data-type-id y luego filtrar
-        setTimeout(() => {
-            // Recargar la lista completa con los atributos
-            const tempSubtypes = Array.from(subtypeSelect.options).map(opt => ({
-                value: opt.value,
-                text: opt.text,
-                typeId: opt.getAttribute('data-type-id')
-            }));
-            allSubtypes.length = 0;
-            allSubtypes.push(...tempSubtypes);
-            
-            filterSubtypes();
-        }, 500);
-
-        typeSelect.addEventListener('change', filterSubtypes);
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleBudget();
+        const bt = document.getElementById("{{ form.budget_type.id_for_label }}");
+        if(bt) bt.addEventListener('change', toggleBudget);
     });
 })();
 
@@ -298,42 +252,34 @@
     }
 })();
 
-/* Cascada Tipo -> Subtipo */
+/* Cascada Tipo -> Subtipo  (ÚNICO Y FUNCIONAL) */
 (function(){
     document.addEventListener('DOMContentLoaded', function(){
-        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const typeSelect    = document.getElementById('{{ form.property_type.id_for_label }}');
         const subtypeSelect = document.getElementById('{{ form.property_subtype.id_for_label }}');
-        
-        if(!typeSelect || !subtypeSelect) return;
+        if (!typeSelect || !subtypeSelect) return;
 
-        // Cargar todos los subtipos desde el API
         fetch('/dashboard/propiedades/api/property-subtypes/')
-            .then(r => r.json())
+            .then(res => res.json())
             .then(allSubtypes => {
-                
-                function filterSubtypes() {
+                function filterSubtypes(){
                     const selectedTypeId = typeSelect.value;
-                    
-                    // Limpiar el select de subtipos
                     subtypeSelect.innerHTML = '<option value="">---------</option>';
-                    
-                    if(!selectedTypeId) return;
-                    
-                    // Filtrar y agregar solo los subtipos que corresponden al tipo seleccionado
-                    allSubtypes.forEach(subtype => {
-                        if(subtype.property_type == selectedTypeId) {
-                            const option = document.createElement('option');
-                            option.value = subtype.id;
-                            option.text = subtype.name; // Solo el nombre, sin el tipo
-                            subtypeSelect.appendChild(option);
-                        }
-                    });
-                }
+                    if (!selectedTypeId) return;
 
+                    allSubtypes
+                        .filter(sub => sub.property_type == selectedTypeId)
+                        .forEach(sub => {
+                            const opt = document.createElement('option');
+                            opt.value = sub.id;
+                            opt.textContent = sub.name;
+                            subtypeSelect.appendChild(opt);
+                        });
+                }
                 filterSubtypes();
                 typeSelect.addEventListener('change', filterSubtypes);
             })
-            .catch(e => console.warn('Error al cargar subtipos:', e));
+            .catch(err => console.error('Error al cargar subtipos:', err));
     });
 })();
 </script>
