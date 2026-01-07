@@ -138,8 +138,8 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label" for="{{ form.district.id_for_label }}">Distrito(s)</label>
-                                    <div class="small text-muted mb-1">Puedes seleccionar varios distritos (Ctrl/Cmd + clic o usar la caja de búsqueda).</div>
                                     {{ form.district }}
+                                    <div class="form-text small text-muted mt-1">Puedes seleccionar varios distritos (Ctrl/Cmd + clic o usar la caja de búsqueda).</div>
                                 </div>
                             </div>
                         </div>
@@ -346,27 +346,32 @@ document.addEventListener('DOMContentLoaded', function() {
         const subtypeSelect = document.getElementById('{{ form.property_subtype.id_for_label }}');
         if (!typeSelect || !subtypeSelect) return;
 
-        fetch('/dashboard/propiedades/api/property-subtypes/')
-            .then(res => res.json())
-            .then(allSubtypes => {
-                function filterSubtypes(){
-                    const selectedTypeId = typeSelect.value;
-                    subtypeSelect.innerHTML = '<option value="">---------</option>';
-                    if (!selectedTypeId) return;
-
-                    allSubtypes
-                        .filter(sub => sub.property_type == selectedTypeId)
-                        .forEach(sub => {
+        // Usar la URL del endpoint nombrado y pedir subtipos filtrados por type
+        const subtypesUrl = "{% url 'properties:api_property_subtypes' %}";
+        function loadSubtypesFor(typeId){
+            subtypeSelect.innerHTML = '<option value="">---------</option>';
+            if(!typeId) return;
+            fetch(subtypesUrl + '?property_type_id=' + encodeURIComponent(typeId))
+                .then(res => res.json())
+                    .then(data => {
+                        const list = Array.isArray(data) ? data : (data && data.subtypes ? data.subtypes : []);
+                        list.forEach(sub => {
                             const opt = document.createElement('option');
                             opt.value = sub.id;
                             opt.textContent = sub.name;
                             subtypeSelect.appendChild(opt);
                         });
-                }
-                filterSubtypes();
-                typeSelect.addEventListener('change', filterSubtypes);
-            })
-            .catch(err => console.error('Error al cargar subtipos:', err));
+                    })
+                .catch(err => console.error('Error al cargar subtipos:', err));
+        }
+
+        // Inicializar según el valor actual
+        loadSubtypesFor(typeSelect.value);
+        typeSelect.addEventListener('change', function(){
+            // limpiar subtipo seleccionado al cambiar tipo
+            subtypeSelect.value = '';
+            loadSubtypesFor(typeSelect.value);
+        });
     });
 })();
 </script>
