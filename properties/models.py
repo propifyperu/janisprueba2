@@ -899,6 +899,20 @@ class Requirement(TitleCaseMixin, models.Model):
     # Preferencia de pisos (selección múltiple): Sótano, 1º, 2º ... 20º
     preferred_floors = models.ManyToManyField('FloorOption', blank=True, related_name='requirements')
 
+    # Cantidad de pisos para casas (1-5). Se guarda como entero sencillo.
+    NUMBER_OF_FLOORS_CHOICES = [
+        (1, '1 piso'),
+        (2, '2 pisos'),
+        (3, '3 pisos'),
+        (4, '4 pisos'),
+        (5, '5 pisos'),
+    ]
+    number_of_floors = models.PositiveSmallIntegerField(
+        choices=NUMBER_OF_FLOORS_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='Cantidad de pisos'
+    )
     # Características
     bedrooms = models.PositiveSmallIntegerField(null=True, blank=True)
     bathrooms = models.PositiveSmallIntegerField(null=True, blank=True)

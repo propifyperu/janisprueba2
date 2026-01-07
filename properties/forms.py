@@ -336,6 +336,9 @@ class RequirementSimpleForm(forms.Form):
     district = DistrictMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
     # Preferencia de pisos (multi-select)
     preferred_floors = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
+    # Cantidad de pisos (solo para casas) — desplegable simple
+    NUMBER_OF_FLOORS_CHOICES = [('', '---------'), ('1', '1 piso'), ('2', '2 pisos'), ('3', '3 pisos'), ('4', '4 pisos'), ('5', '5 pisos')]
+    number_of_floors = forms.ChoiceField(choices=NUMBER_OF_FLOORS_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     bedrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     half_bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
@@ -397,6 +400,7 @@ class RequirementEditForm(forms.ModelForm):
             'department', 'province', 'districts',
             'bedrooms', 'bathrooms', 'half_bathrooms', 'floors', 'garage_spaces',
             'preferred_floors',
+                'number_of_floors',
             'notes', 'area_type', 'land_area_approx', 'land_area_min', 'land_area_max'
         ]
 

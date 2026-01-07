@@ -130,6 +130,14 @@
                                     <div class="form-text small text-muted mt-1">Selecciona uno o varios pisos (Ctrl/Cmd + clic).</div>
                                 </div>
                             </div>
+                            <!-- Cantidad de pisos (solo para Tipo = Casa) -->
+                            <div class="row g-3 mt-2" id="number-of-floors-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.number_of_floors.id_for_label }}">Cantidad de pisos</label>
+                                    {{ form.number_of_floors }}
+                                    <div class="form-text small text-muted mt-1">Selecciona la cantidad de pisos (aplicable para casas).</div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Sección: Ubicación -->
@@ -388,6 +396,36 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleFloors();
         if(dept) dept.addEventListener('change', toggleFloors);
         if(typeSelect) typeSelect.addEventListener('change', toggleFloors);
+    });
+})();
+
+/* Mostrar campo 'number_of_floors' sólo si el tipo es Casa */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const nofRow = document.getElementById('number-of-floors-row');
+        if(!nofRow || !typeSelect) return;
+
+        function isTypeCasa(){
+            try{
+                const txt = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+                return txt.includes('casa') || txt.includes('casas');
+            }catch(e){
+                return false;
+            }
+        }
+
+        function toggleNof(){
+            if(isTypeCasa()){
+                nofRow.style.display = '';
+            } else {
+                nofRow.style.display = 'none';
+                try{ document.getElementById('{{ form.number_of_floors.id_for_label }}').selectedIndex = 0; }catch(e){}
+            }
+        }
+
+        toggleNof();
+        typeSelect.addEventListener('change', toggleNof);
     });
 })();
 

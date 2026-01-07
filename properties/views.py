@@ -366,6 +366,12 @@ def requirement_create_view(request):
             req.bathrooms = data.get('bathrooms')
             req.half_bathrooms = data.get('half_bathrooms')
             req.floors = data.get('floors')
+            # Número de pisos (solo aplicable para tipo Casa). Guardar único valor entero si viene.
+            nof = data.get('number_of_floors')
+            try:
+                req.number_of_floors = int(nof) if nof not in (None, '') else None
+            except (ValueError, TypeError):
+                req.number_of_floors = None
             req.garage_spaces = data.get('garage_spaces')
             req.notes = data.get('notes')
             # Guardar requerimiento primero para luego asignar M2M
