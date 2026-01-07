@@ -205,7 +205,17 @@
                                     <label class="form-label" for="{{ form.property.id_for_label }}">
                                         Inmueble
                                     </label>
-                                    {{ form.property }}
+                                    {# Renderizamos manualmente el select para mostrar `exact_address` en lugar del __str__/código #}
+                                    <select class="form-select" id="{{ form.property.id_for_label }}" name="{{ form.property.html_name }}">
+                                        {% if form.property.field.empty_label %}
+                                            <option value="">{{ form.property.field.empty_label }}</option>
+                                        {% else %}
+                                            <option value="">-- Selecciona un inmueble --</option>
+                                        {% endif %}
+                                        {% for p in form.property.field.queryset %}
+                                            <option value="{{ p.pk }}"{% if form.property.value|stringformat:'s' == p.pk|stringformat:'s' %} selected{% endif %}>{{ p.exact_address }}</option>
+                                        {% endfor %}
+                                    </select>
                                     {% if form.property.errors %}
                                         <div class="text-danger small mt-1">{{ form.property.errors }}</div>
                                     {% endif %}
