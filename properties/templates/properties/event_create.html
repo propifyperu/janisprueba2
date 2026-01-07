@@ -135,8 +135,8 @@
                                         <option value="">-- Selecciona un contacto --</option>
                                         {% for owner in contactos_existentes %}
                                             <option value="{{ owner.id }}">
-                                                {{ owner.get_full_name }} 
-                                                {% if owner.phone %}({{ owner.phone }}){% endif %}
+                                                {{ owner.full_name }}
+                                                {% if owner.display_phone %}({{ owner.display_phone }}){% endif %}
                                             </option>
                                         {% endfor %}
                                     </select>
