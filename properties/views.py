@@ -386,6 +386,13 @@ def requirement_create_view(request):
             except Exception:
                 pass
 
+            # Asignar preferencias de pisos (M2M)
+            floors_sel = data.get('preferred_floors') or []
+            try:
+                req.preferred_floors.set(floors_sel)
+            except Exception:
+                pass
+
             # Para compatibilidad, si sólo hay una selección, asignarla al FK `district`
             try:
                 if hasattr(districts_sel, '__len__') and len(districts_sel) == 1:

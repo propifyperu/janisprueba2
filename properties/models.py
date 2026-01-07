@@ -294,6 +294,21 @@ class FloorType(models.Model):
     def __str__(self):
         return self.name
 
+
+class FloorOption(models.Model):
+    """Opciones de piso para preferencias en requerimientos (Sótano, 1er piso, ...)."""
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=20, blank=True, null=True)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'floor_options'
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name
+
 class RoomType(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -880,6 +895,9 @@ class Requirement(TitleCaseMixin, models.Model):
     district = models.ForeignKey('District', on_delete=models.SET_NULL, null=True, blank=True)
     # Nota: `urbanization` single-FK eliminado; se usa solo `districts` M2M
     districts = models.ManyToManyField('District', blank=True, related_name='requirements_multiple')
+
+    # Preferencia de pisos (selección múltiple): Sótano, 1º, 2º ... 20º
+    preferred_floors = models.ManyToManyField('FloorOption', blank=True, related_name='requirements')
 
     # Características
     bedrooms = models.PositiveSmallIntegerField(null=True, blank=True)

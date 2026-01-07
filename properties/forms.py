@@ -334,6 +334,8 @@ class RequirementSimpleForm(forms.Form):
     province = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     # Permitir selección múltiple para búsquedas en varios distritos
     district = DistrictMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
+    # Preferencia de pisos (multi-select)
+    preferred_floors = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
     bedrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     half_bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
@@ -357,6 +359,8 @@ class RequirementSimpleForm(forms.Form):
             self.fields['department'].queryset = Department.objects.filter(is_active=True).order_by('name')
             self.fields['province'].queryset = Province.objects.filter(is_active=True).order_by('name')
             self.fields['district'].queryset = District.objects.filter(is_active=True).order_by('name')
+            from .models import FloorOption
+            self.fields['preferred_floors'].queryset = FloorOption.objects.filter(is_active=True).order_by('order', 'name')
         except OperationalError:
             # Si las tablas no existen (deploy sin migraciones), devolver querysets vacíos para no fallar la carga
             self.fields['property_type'].queryset = PropertyType.objects.none()
@@ -372,6 +376,10 @@ class RequirementSimpleForm(forms.Form):
             self.fields['province'].queryset = Province.objects.none()
             self.fields['district'].queryset = District.objects.none()
             self.fields['urbanization'].queryset = Urbanization.objects.none()
+            try:
+                self.fields['preferred_floors'].queryset = FloorOption.objects.none()
+            except Exception:
+                pass
 
 
 class RequirementEditForm(forms.ModelForm):
@@ -388,6 +396,7 @@ class RequirementEditForm(forms.ModelForm):
             'payment_method', 'status',
             'department', 'province', 'districts',
             'bedrooms', 'bathrooms', 'half_bathrooms', 'floors', 'garage_spaces',
+            'preferred_floors',
             'notes', 'area_type', 'land_area_approx', 'land_area_min', 'land_area_max'
         ]
 

@@ -122,6 +122,14 @@
                                     {{ form.land_area_approx }}
                                 </div>
                             </div>
+                            <!-- Preferencia de pisos: mostrar sólo cuando se haya seleccionado Departamento -->
+                            <div class="row g-3 mt-2" id="preferred-floors-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.preferred_floors.id_for_label }}">Pisos preferidos</label>
+                                    {{ form.preferred_floors }}
+                                    <div class="form-text small text-muted mt-1">Selecciona uno o varios pisos (Ctrl/Cmd + clic).</div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Sección: Ubicación -->
@@ -333,10 +341,54 @@ document.addEventListener('DOMContentLoaded', function() {
                     allowClear: true
                 });
             }
+            // select2 para preferred_floors
+            const floorsSel = $('#{{ form.preferred_floors.id_for_label }}');
+            if(floorsSel.length){
+                floorsSel.select2({
+                    placeholder: 'Selecciona pisos',
+                    width: '100%',
+                    allowClear: true
+                });
+            }
         });
     }catch(e){
         console.warn('Select2 init failed', e);
     }
+})();
+
+/* Mostrar campo 'preferred_floors' sólo si hay department seleccionado */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const dept = document.getElementById('{{ form.department.id_for_label }}');
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const floorsRow = document.getElementById('preferred-floors-row');
+        if(!floorsRow) return;
+
+        function isTypeDepartamento(){
+            try{
+                const txt = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+                return txt.includes('departamento') || txt.includes('departamentos');
+            }catch(e){
+                return false;
+            }
+        }
+
+        function toggleFloors(){
+            const hasDept = dept && dept.value && dept.value !== '';
+            const typeIsDept = typeSelect && isTypeDepartamento();
+            if(hasDept || typeIsDept){
+                floorsRow.style.display = '';
+            } else {
+                floorsRow.style.display = 'none';
+                // limpiar selección cuando se oculta
+                try{ $("#{{ form.preferred_floors.id_for_label }}").val(null).trigger('change'); }catch(e){}
+            }
+        }
+
+        toggleFloors();
+        if(dept) dept.addEventListener('change', toggleFloors);
+        if(typeSelect) typeSelect.addEventListener('change', toggleFloors);
+    });
 })();
 
 /* Cascada Tipo -> Subtipo  (ÚNICO Y FUNCIONAL) */
