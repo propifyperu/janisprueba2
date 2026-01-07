@@ -1072,6 +1072,19 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                             except Exception:
                                 first_image_url = ''
 
+            # Preparar nombre seguro del propietario: puede ser método o atributo string
+            try:
+                _owner = getattr(property_obj, 'owner', None)
+                _full = getattr(_owner, 'full_name', None)
+                if callable(_full):
+                    owner_display = _full()
+                elif isinstance(_full, str):
+                    owner_display = _full
+                else:
+                    owner_display = str(_owner) if _owner is not None else ''
+            except Exception:
+                owner_display = str(getattr(property_obj, 'owner', ''))
+
             markers.append({
                 'id': property_obj.id,
                 'title': property_obj.title,
@@ -1084,7 +1097,7 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 'lat': lat,
                 'lng': lng,
                 'url': reverse('properties:detail', kwargs={'pk': property_obj.pk}),
-                'owner': property_obj.owner.full_name() if hasattr(property_obj.owner, 'full_name') else str(property_obj.owner),
+                'owner': owner_display,
                 'created': property_obj.created_at.strftime('%d/%m/%Y'),
                 'thumbnail': first_image_url,
             })
