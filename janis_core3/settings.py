@@ -97,7 +97,7 @@ WSGI_APPLICATION = "janis_core3.wsgi.application"
 
 # Normalizar DB user/host antes de definir el diccionario DATABASES
 _db_user = os.environ.get('DB_USER', 'sqladmin') or 'sqladmin'
-_db_host = os.environ.get('DB_HOST', 'janisdevsql58636.database.windows.net')
+_db_host = os.environ.get('DB_HOST', 'janis-server.database.windows.net')
 _server_short = _db_host.split('.')[0] if _db_host else _db_host
 if '@' not in _db_user and _server_short:
     _db_user = f"{_db_user}@{_server_short}"
@@ -106,7 +106,7 @@ DATABASES = {
     'default': {
         # Leer credenciales desde variables de entorno para producción
         'ENGINE': os.environ.get('DB_ENGINE', 'mssql'),
-        'NAME': os.environ.get('DB_NAME', 'janis_main'),
+        'NAME': os.environ.get('DB_NAME', 'dbpropify'),
         'USER': _db_user,
         'PASSWORD': os.environ.get('DB_PASS', os.environ.get('DB_PASSWORD', '')),
         'HOST': _db_host,
@@ -189,7 +189,7 @@ if AZURE_ACCOUNT_NAME:
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-FIELD_ENCRYPTION_KEY = 'Qk9vQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2g='
+FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', 'Qk9vQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2g=')
 LOGIN_URL = '/users/login/'
 
 # Django REST Framework basic add (customize as needed)
