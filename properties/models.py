@@ -913,6 +913,12 @@ class Requirement(TitleCaseMixin, models.Model):
         blank=True,
         verbose_name='Cantidad de pisos'
     )
+    # Ascensor: almacena 'yes'/'no' cuando aplica (departamentos). Nullable para mantener compatibilidad.
+    ASCENSOR_CHOICES = (
+        ('yes', 'Sí'),
+        ('no', 'No'),
+    )
+    ascensor = models.CharField(max_length=3, choices=ASCENSOR_CHOICES, null=True, blank=True, verbose_name='Ascensor')
     # Características
     bedrooms = models.PositiveSmallIntegerField(null=True, blank=True)
     bathrooms = models.PositiveSmallIntegerField(null=True, blank=True)

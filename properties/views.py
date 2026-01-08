@@ -372,6 +372,14 @@ def requirement_create_view(request):
                 req.number_of_floors = int(nof) if nof not in (None, '') else None
             except (ValueError, TypeError):
                 req.number_of_floors = None
+            # Ascensor (solo aplicable para departamentos). Esperamos 'yes'/'no' o vacío.
+            asc = data.get('ascensor') if isinstance(data, dict) else None
+            if asc in ('yes', 'no'):
+                req.ascensor = asc
+            else:
+                # como fallback, leer directamente del POST (caso plantilla custom)
+                asc_post = request.POST.get('ascensor')
+                req.ascensor = asc_post if asc_post in ('yes', 'no') else None
             req.garage_spaces = data.get('garage_spaces')
             req.notes = data.get('notes')
             # Guardar requerimiento primero para luego asignar M2M

@@ -130,6 +130,18 @@
                                     <div class="form-text small text-muted mt-1">Selecciona uno o varios pisos (Ctrl/Cmd + clic).</div>
                                 </div>
                             </div>
+                            <!-- Ascensor: mostrar sólo cuando el Tipo seleccionado sea Departamento -->
+                            <div class="row g-3 mt-2" id="ascensor-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="id_ascensor">Ascensor</label>
+                                    <select class="form-select" name="ascensor" id="id_ascensor">
+                                        <option value="">-- Seleccionar --</option>
+                                        <option value="yes">Sí</option>
+                                        <option value="no">No</option>
+                                    </select>
+                                    <div class="form-text small text-muted mt-1">Indica si se requiere ascensor (aplicable para departamentos).</div>
+                                </div>
+                            </div>
                             <!-- Cantidad de pisos (solo para Tipo = Casa) -->
                             <div class="row g-3 mt-2" id="number-of-floors-row" style="display:none;">
                                 <div class="col-md-12">
@@ -370,6 +382,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const dept = document.getElementById('{{ form.department.id_for_label }}');
         const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
         const floorsRow = document.getElementById('preferred-floors-row');
+        const ascRow = document.getElementById('ascensor-row');
         if(!floorsRow) return;
 
         function isTypeDepartamento(){
@@ -390,6 +403,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 floorsRow.style.display = 'none';
                 // limpiar selección cuando se oculta
                 try{ $("#{{ form.preferred_floors.id_for_label }}").val(null).trigger('change'); }catch(e){}
+            }
+
+            // Mostrar ascensor SÓLO cuando el tipo seleccionado sea Departamento (no por tener departamento en ubicación)
+            if(ascRow){
+                if(typeIsDept){
+                    ascRow.style.display = '';
+                } else {
+                    ascRow.style.display = 'none';
+                    try{ document.getElementById('id_ascensor').selectedIndex = 0; }catch(e){}
+                }
             }
         }
 
