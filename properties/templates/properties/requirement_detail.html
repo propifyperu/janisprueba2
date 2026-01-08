@@ -18,67 +18,85 @@
                         <dt class="col-sm-4">ID</dt>
                         <dd class="col-sm-8">{{ requirement.id }}</dd>
 
+                        {% if requirement.created_by %}
                         <dt class="col-sm-4">Creado por</dt>
-                        <dd class="col-sm-8">{% if requirement.created_by %}{{ requirement.created_by.get_full_name|default:requirement.created_by.username }}{% else %}-{% endif %}</dd>
+                        <dd class="col-sm-8">{{ requirement.created_by.get_full_name|default:requirement.created_by.username }}</dd>
+                        {% endif %}
 
-                        {% if can_view_pii %}
+                        {% if can_view_pii and requirement.contact or can_view_pii and requirement.client_name or can_view_pii and requirement.phone %}
                         <dt class="col-sm-4">Contacto</dt>
                         <dd class="col-sm-8">
                             {% if requirement.contact %}
                                 <a href="{% url 'properties:contact_detail' requirement.contact.id %}">{{ requirement.contact.full_name }}</a>
                                 {% if requirement.contact.phone %}<br><small class="text-muted">Tel: {{ requirement.contact.phone }}</small>{% endif %}
                             {% else %}
-                                {{ requirement.client_name|default:'-' }}
+                                {{ requirement.client_name }}
                                 {% if requirement.phone %}<br><small class="text-muted">Tel: {{ requirement.phone }}</small>{% endif %}
                             {% endif %}
                         </dd>
-                        {% else %}
-                        <dt class="col-sm-4">Contacto</dt>
-                        <dd class="col-sm-8">Privado</dd>
                         {% endif %}
 
+                        {% if requirement.property_type %}
                         <dt class="col-sm-4">Tipo</dt>
-                        <dd class="col-sm-8">{% if requirement.property_type %}{{ requirement.property_type.name }}{% else %}-{% endif %}</dd>
+                        <dd class="col-sm-8">{{ requirement.property_type.name }}</dd>
+                        {% endif %}
 
+                        {% if requirement.property_subtype %}
                         <dt class="col-sm-4">Subtipo</dt>
-                        <dd class="col-sm-8">{% if requirement.property_subtype %}{{ requirement.property_subtype.name }}{% else %}-{% endif %}</dd>
+                        <dd class="col-sm-8">{{ requirement.property_subtype.name }}</dd>
+                        {% endif %}
 
+                        {% comment %}Presupuesto: mostrar sólo si hay valores{% endcomment %}
+                        {% if requirement.budget_type == 'approx' and requirement.budget_approx %}
                         <dt class="col-sm-4">Presupuesto</dt>
-                        <dd class="col-sm-8">
-                            {% if requirement.budget_type == 'approx' %}
-                                {% if requirement.budget_approx %}{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_approx }}{% else %}-{% endif %}
-                            {% else %}
-                                {% if requirement.budget_min and requirement.budget_max %}{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_min }} - {% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_max }}{% else %}-{% endif %}
-                            {% endif %}
-                        </dd>
+                        <dd class="col-sm-8">{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_approx }}</dd>
+                        {% elif requirement.budget_type != 'approx' and requirement.budget_min and requirement.budget_max %}
+                        <dt class="col-sm-4">Presupuesto</dt>
+                        <dd class="col-sm-8">{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_min }} - {% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_max }}</dd>
+                        {% endif %}
 
+                        {% if requirement.payment_method %}
                         <dt class="col-sm-4">Medio de pago</dt>
-                        <dd class="col-sm-8">{% if requirement.payment_method %}{{ requirement.payment_method.name }}{% else %}-{% endif %}</dd>
+                        <dd class="col-sm-8">{{ requirement.payment_method.name }}</dd>
+                        {% endif %}
 
+                        {% if requirement.status %}
                         <dt class="col-sm-4">Estado</dt>
-                        <dd class="col-sm-8">{% if requirement.status %}{{ requirement.status.name }}{% else %}-{% endif %}</dd>
+                        <dd class="col-sm-8">{{ requirement.status.name }}</dd>
+                        {% endif %}
 
+                        {% comment %}Ubicación: mostrar sólo si hay alguna parte{% endcomment %}
+                        {% with ds=requirement.districts.all %}
+                        {% if requirement.department or requirement.province or ds and ds|length > 0 or requirement.district %}
                         <dt class="col-sm-4">Ubicación</dt>
                         <dd class="col-sm-8">
                             {% if requirement.department %}{{ requirement.department.name }}{% endif %}
                             {% if requirement.province %} / {{ requirement.province.name }}{% endif %}
-                            {% comment %}Mostrar distritos múltiples si existen, fallback a FK `district`{% endcomment %}
-                            {% with ds=requirement.districts.all %}
-                                {% if ds and ds|length > 0 %}
-                                    / {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                                {% elif requirement.district %}
-                                    / {{ requirement.district.name }}
-                                {% endif %}
-                            {% endwith %}
+                            {% if ds and ds|length > 0 %}
+                                / {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                            {% elif requirement.district %}
+                                / {{ requirement.district.name }}
+                            {% endif %}
                         </dd>
+                        {% endif %}
+                        {% endwith %}
 
+                        {% comment %}Características: mostrar sólo si al menos una tiene valor{% endcomment %}
+                        {% if requirement.bedrooms or requirement.bathrooms or requirement.half_bathrooms or requirement.floors or requirement.garage_spaces %}
                         <dt class="col-sm-4">Características</dt>
                         <dd class="col-sm-8">
-                            Habitaciones: {{ requirement.bedrooms|default:'-' }} · Baños: {{ requirement.bathrooms|default:'-' }} · Medios baños: {{ requirement.half_bathrooms|default:'-' }} · Pisos: {{ requirement.floors|default:'-' }} · Cocheras: {{ requirement.garage_spaces|default:'-' }}
+                            {% if requirement.bedrooms %}Habitaciones: {{ requirement.bedrooms }}{% endif %}
+                            {% if requirement.bathrooms %} · Baños: {{ requirement.bathrooms }}{% endif %}
+                            {% if requirement.half_bathrooms %} · Medios baños: {{ requirement.half_bathrooms }}{% endif %}
+                            {% if requirement.floors %} · Pisos: {{ requirement.floors }}{% endif %}
+                            {% if requirement.garage_spaces %} · Cocheras: {{ requirement.garage_spaces }}{% endif %}
                         </dd>
+                        {% endif %}
 
+                        {% if requirement.notes %}
                         <dt class="col-sm-4">Observaciones</dt>
-                        <dd class="col-sm-8">{{ requirement.notes|default:'-' }}</dd>
+                        <dd class="col-sm-8">{{ requirement.notes }}</dd>
+                        {% endif %}
 
                         <dt class="col-sm-4">Fecha</dt>
                         <dd class="col-sm-8">{{ requirement.created_at|date:"d/m/Y H:i" }}</dd>

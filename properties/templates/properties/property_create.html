@@ -410,6 +410,23 @@ document.addEventListener('DOMContentLoaded', function(){
                                     <small class="form-text text-muted">Selecciona la cantidad de pisos (aplicable para casas).</small>
                                 </div>
                             </div>
+                            <!-- PARAMETROS: mostrar solo para Terreno (select 1-7) -->
+                            <div class="row" id="parametros-pisos-row" style="display:none;">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">PARAMETROS</label>
+                                    <select class="form-select" name="parametros_cantidad_pisos" id="id_parametros_cantidad_pisos">
+                                        <option value="">-- Seleccionar --</option>
+                                        <option value="1">1er PISO</option>
+                                        <option value="2">2 PISO</option>
+                                        <option value="3">3er PISO</option>
+                                        <option value="4">4 PISO</option>
+                                        <option value="5">5 PISO</option>
+                                        <option value="6">6 PISO</option>
+                                        <option value="7">7 PISO</option>
+                                    </select>
+                                    <small class="form-text text-muted">Visible sólo cuando el Tipo es Terreno.</small>
+                                </div>
+                            </div>
                             <div class="row" id="projectRow">
                                 <div class="col-md-4 mb-3">
                                     <div class="form-check form-switch mt-3">
@@ -1151,6 +1168,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const elevatorRow = document.getElementById('elevatorRow');
         const elevatorSelect = document.getElementById('id_ascensor');
         const houseFloorsRow = document.getElementById('houseFloorsRow');
+        const parametrosRow = document.getElementById('parametros-pisos-row');
         if (!typeSelect || !unitRow) return;
 
         function evaluate() {
@@ -1158,6 +1176,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const text = (sel && sel.text) ? sel.text.toLowerCase() : '';
             const isDepartamento = text.includes('departamento');
             const isCasa = text.includes('casa');
+            const isTerreno = text.includes('terreno');
             unitRow.style.display = isDepartamento ? '' : 'none';
             if (!isDepartamento) {
                 const input = document.getElementById('id_unit_location');
@@ -1174,6 +1193,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!isCasa) {
                     const floorsInput = document.getElementById('id_floors');
                     if (floorsInput) floorsInput.value = '';
+                }
+            }
+            // Mostrar PARAMETROS (cantidad de pisos) sólo para Terreno
+            if (parametrosRow) {
+                parametrosRow.style.display = isTerreno ? '' : 'none';
+                if (!isTerreno) {
+                    try { const p = document.getElementById('id_parametros_cantidad_pisos'); if(p) p.selectedIndex = 0; } catch(e){}
                 }
             }
         }
