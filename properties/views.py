@@ -269,8 +269,8 @@ class RequirementListView(LoginRequiredMixin, ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        # Mostrar únicamente los requerimientos creados por el usuario actualmente logueado
-        qs = Requirement.objects.filter(is_active=True, created_by=self.request.user).order_by('-created_at')
+        # Mostrar los requerimientos activos de todos los usuarios (no filtrar por created_by)
+        qs = Requirement.objects.filter(is_active=True).order_by('-created_at')
         from django.db import OperationalError
         try:
             q = self.request.GET.get('search', '').strip()

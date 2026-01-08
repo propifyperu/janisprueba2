@@ -18,9 +18,6 @@
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Nombre</th>
-                                    <th>Apellido</th>
-                                    <th>Teléfono</th>
                                     <th>Tipo</th>
                                     <th>Provincia</th>
                                     <th>Distrito(s)</th>
@@ -31,41 +28,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% comment %} Mostrar únicamente los requerimientos creados por el usuario: la vista ya filtra por created_by {% endcomment %}
                                 {% for r in requirements %}
                                 <tr>
-                                    <td>
-                                        {% if r.contact %}
-                                            {{ r.contact.first_name|default:'-' }}
-                                        {% elif r.client_name %}
-                                            {{ r.client_name|cut:' '|slice:":1"|default:r.client_name }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if r.contact %}
-                                            {% if r.contact.last_name %}{{ r.contact.last_name }}{% elif r.contact.maternal_last_name %}{{ r.contact.maternal_last_name }}{% else %}-{% endif %}
-                                        {% else %}
-                                            {# Si no hay contacto, intentar tomar el resto del nombre si existe, sino dejar '-' #}
-                                            {% if r.client_name %}
-                                                {% comment %}Fallback: no hay campo apellido separado, mostrar '-'{% endcomment %}
-                                                -
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if r.contact and r.contact.phone %}
-                                            {{ r.contact.phone }}
-                                        {% elif r.phone %}
-                                            {{ r.phone }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-
                                     <td>{{ r.property_type.name|default:'-' }}</td>
 
                                     <td>
@@ -120,7 +84,7 @@
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="10" class="text-center py-4">No hay requerimientos registrados por ti.</td></tr>
+                                <tr><td colspan="7" class="text-center py-4">No hay requerimientos registrados.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
