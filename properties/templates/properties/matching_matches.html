@@ -43,52 +43,73 @@
                                 <td>{% if r.property.currency %}{{ r.property.currency.symbol }}{% else %}$ {% endif %}{{ r.property.price }}</td>
                                 <td>{{ r.property.district }}</td>
                                 <td>
-                                    <small>
-                                    {% for k,v in r.details.items %}
-                                        {% if not only_matches %}
-                                            {% if v.contrib is not None %}
-                                                {# Mostrar el valor del requerimiento para este criterio en lugar del nombre del campo #}
-                                                {% if k == 'property_type' %}
-                                                    <strong>{% if requirement.property_type %}{{ requirement.property_type.name }}{% else %}—{% endif %}</strong>: {{ v.contrib|floatformat:2 }}
-                                                {% elif k == 'property_subtype' %}
-                                                    <strong>{% if requirement.property_subtype %}{{ requirement.property_subtype.name }}{% else %}—{% endif %}</strong>: {{ v.contrib|floatformat:2 }}
-                                                {% elif k == 'district' %}
-                                                    <strong>{% if requirement.district %}{{ requirement.district.name }}{% elif requirement.districts.all %}{% for d in requirement.districts.all %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}</strong>: {{ v.contrib|floatformat:2 }}
-                                                {% elif k == 'price' %}
-                                                    <strong>{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{% if requirement.budget_type == 'approx' %}{{ requirement.budget_approx }}{% else %}{{ requirement.budget_min }} - {{ requirement.budget_max }}{% endif %}</strong>: {{ v.contrib|floatformat:2 }}
-                                                {% elif k == 'currency' %}
-                                                    <strong>{% if requirement.currency %}{{ requirement.currency.code }}{% else %}—{% endif %}</strong>: {{ v.contrib|floatformat:2 }}
-                                                {% elif k == 'bedrooms' %}
-                                                    <strong>{% if requirement.bedrooms %}{{ requirement.bedrooms }}{% else %}—{% endif %}</strong>: {{ v.contrib|floatformat:2 }}
-                                                {% elif k == 'land_area' %}
-                                                    <strong>{% if requirement.area_type == 'approx' %}{{ requirement.land_area_approx }}{% else %}{{ requirement.land_area_min }} - {{ requirement.land_area_max }}{% endif %}</strong>: {{ v.contrib|floatformat:2 }}
-                                                {% else %}
-                                                    <strong>{{ k }}</strong>: {{ v.contrib|floatformat:2 }}
-                                                {% endif %}
-                                                {% if v.matched %}<span class="badge bg-success ms-1">Coincide</span>{% else %}<span class="badge bg-secondary ms-1">No</span>{% endif %}
-                                                <div class="text-muted small">{{ v.info }}</div>
-                                            {% else %}
-                                                {% comment %} cuando el detalle es un valor numérico simple, mostrar el valor del requerimiento si aplica {% endcomment %}
-                                                {% if k == 'price' %}
-                                                    <strong>{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{% if requirement.budget_type == 'approx' %}{{ requirement.budget_approx }}{% else %}{{ requirement.budget_min }} - {{ requirement.budget_max }}{% endif %}</strong>: {{ v|floatformat:2 }}
-                                                {% elif k == 'property_type' %}
-                                                    <strong>{% if requirement.property_type %}{{ requirement.property_type.name }}{% else %}—{% endif %}</strong>: {{ v|floatformat:2 }}
-                                                {% else %}
-                                                    <strong>{{ k }}</strong>: {{ v|floatformat:2 }}
-                                                {% endif %}
+                                    <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Campo</th>
+                                                <th>Requerimiento</th>
+                                                <th>Propiedad</th>
+                                                <th>Coincide</th>
+                                                <th>Proximidad</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        {% for k,v in r.details.items %}
+                                            {% if not only_matches or v.matched %}
+                                            <tr>
+                                                <td class="align-middle">
+                                                    {% if k == 'property_type' %}Tipo
+                                                    {% elif k == 'property_subtype' %}Subtipo
+                                                    {% elif k == 'district' %}Distrito
+                                                    {% elif k == 'price' %}Precio
+                                                    {% elif k == 'currency' %}Moneda
+                                                    {% elif k == 'bedrooms' %}Dormitorios
+                                                    {% elif k == 'land_area' %}Área de terreno
+                                                    {% else %}{{ k }}
+                                                    {% endif %}
+                                                </td>
+                                                <td class="align-middle">
+                                                    {% if k == 'property_type' %}{% if requirement.property_type %}{{ requirement.property_type.name }}{% else %}—{% endif %}
+                                                    {% elif k == 'property_subtype' %}{% if requirement.property_subtype %}{{ requirement.property_subtype.name }}{% else %}—{% endif %}
+                                                    {% elif k == 'district' %}
+                                                        {% if requirement.district %}{{ requirement.district.name }}{% elif requirement.districts.all %}{% for d in requirement.districts.all %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}
+                                                    {% elif k == 'price' %}
+                                                        {% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{% if requirement.budget_type == 'approx' %}{{ requirement.budget_approx }}{% else %}{{ requirement.budget_min }} - {{ requirement.budget_max }}{% endif %}
+                                                    {% elif k == 'currency' %}
+                                                        {% if requirement.currency %}{{ requirement.currency.code }}{% else %}—{% endif %}
+                                                    {% elif k == 'bedrooms' %}
+                                                        {% if requirement.bedrooms %}{{ requirement.bedrooms }}{% else %}—{% endif %}
+                                                    {% elif k == 'land_area' %}
+                                                        {% if requirement.area_type == 'approx' %}{{ requirement.land_area_approx }}{% else %}{{ requirement.land_area_min }} - {{ requirement.land_area_max }}{% endif %}
+                                                    {% else %}
+                                                        —
+                                                    {% endif %}
+                                                </td>
+                                                <td class="align-middle">
+                                                    {% if k == 'property_type' %}{% if r.property.property_type %}{{ r.property.property_type.name }}{% else %}—{% endif %}
+                                                    {% elif k == 'property_subtype' %}{% if r.property.property_subtype %}{{ r.property.property_subtype.name }}{% else %}—{% endif %}
+                                                    {% elif k == 'district' %}{{ r.property.district|default:'—' }}
+                                                    {% elif k == 'price' %}{% if r.property.currency %}{{ r.property.currency.symbol }}{% else %}$ {% endif %}{{ r.property.price|default:'—' }}
+                                                    {% elif k == 'currency' %}{% if r.property.currency %}{{ r.property.currency.code }}{% else %}—{% endif %}
+                                                    {% elif k == 'bedrooms' %}{{ r.property.bedrooms|default:'—' }}
+                                                    {% elif k == 'land_area' %}{{ r.property.land_area|default:'—' }}
+                                                    {% else %}{{ r.property|getattr:k|default:'—' }}
+                                                    {% endif %}
+                                                </td>
+                                                <td class="align-middle">
+                                                    {% if v.matched %}<span class="badge bg-success">Coincide</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}
+                                                </td>
+                                                <td class="align-middle">{% if v.contrib is not None %}{{ v.contrib|floatformat:2 }}{% else %}—{% endif %}</td>
+                                            </tr>
+                                            {% if v.info %}
+                                                <tr><td colspan="5" class="small text-muted">{{ v.info }}</td></tr>
                                             {% endif %}
-                                            {% if not forloop.last %}<br/>{% endif %}
-                                        {% else %}
-                                            {% comment %} only_matches == True: mostrar solo aquellos con matched truthy {% endcomment %}
-                                            {% if v.matched %}
-                                                <strong>{{ k }}</strong>: {{ v.contrib|floatformat:2 }}
-                                                <span class="badge bg-success ms-1">Coincide</span>
-                                                <div class="text-muted small">{{ v.info }}</div>
-                                                {% if not forloop.last %}<br/>{% endif %}
                                             {% endif %}
-                                        {% endif %}
-                                    {% endfor %}
-                                    </small>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    </div>
                                 </td>
                                 <td><a class="btn btn-sm btn-outline-primary" href="{% url 'properties:detail' r.property.id %}">Ver</a></td>
                             </tr>
