@@ -392,6 +392,17 @@ document.addEventListener('DOMContentLoaded', function(){
                                     <small class="form-text text-muted">Solo visible cuando el tipo es Departamento.</small>
                                 </div>
                             </div>
+                            <div class="row" id="elevatorRow" style="display:none;">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Ascensor</label>
+                                    <select class="form-select" name="ascensor" id="id_ascensor">
+                                        <option value="">-- Seleccionar --</option>
+                                        <option value="yes">Sí</option>
+                                        <option value="no">No</option>
+                                    </select>
+                                    <small class="form-text text-muted">Visible solo para Tipo = Departamento.</small>
+                                </div>
+                            </div>
                             <div class="row" id="projectRow">
                                 <div class="col-md-4 mb-3">
                                     <div class="form-check form-switch mt-3">
@@ -1125,6 +1136,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupUnitLocationVisibility() {
         const typeSelect = document.getElementById('id_property_type');
         const unitRow = document.getElementById('unitLocationRow');
+        const elevatorRow = document.getElementById('elevatorRow');
+        const elevatorSelect = document.getElementById('id_ascensor');
         if (!typeSelect || !unitRow) return;
 
         function evaluate() {
@@ -1135,6 +1148,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!isDepartamento) {
                 const input = document.getElementById('id_unit_location');
                 if (input) input.value = '';
+                if (elevatorSelect) elevatorSelect.value = '';
+                if (elevatorRow) elevatorRow.style.display = 'none';
+            } else {
+                if (elevatorRow) elevatorRow.style.display = '';
             }
         }
 

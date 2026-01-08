@@ -60,6 +60,7 @@ class PropertyForm(forms.ModelForm):
             'land_area', 'land_area_unit', 'built_area', 'built_area_unit',
             'front_measure', 'depth_measure',
             'unit_location',
+            'ascensor',
             'is_project', 'project_name',
             'real_address', 'exact_address', 'coordinates', 'department', 'province', 'district', 'urbanization',
             'water_service', 'energy_service', 'drainage_service', 'gas_service',
@@ -79,6 +80,7 @@ class PropertyForm(forms.ModelForm):
             'forma_de_pago': forms.Select(attrs={'class': 'form-select'}),
             'garage_type': forms.Select(attrs={'class': 'form-select'}),
             'unit_location': forms.Select(attrs={'class': 'form-select', 'id': 'id_unit_location'}),
+            'ascensor': forms.Select(attrs={'class': 'form-select', 'id': 'id_ascensor'}),
             'parking_cost_included': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'parking_cost': forms.NumberInput(attrs={
                 'class': 'form-control',

@@ -625,6 +625,12 @@ class Property(TitleCaseMixin, models.Model):
     # Proyecto: agrupa propiedades bajo un mismo nombre de proyecto
     is_project = models.BooleanField(default=False, verbose_name='Proyecto')
     project_name = models.CharField(max_length=200, blank=True, null=True, verbose_name='Nombre de proyecto', help_text='Nombre para agrupar propiedades cuando se trate de un proyecto')
+    # Ascensor: almacena 'yes'/'no' cuando aplica (departamentos). Nullable para compatibilidad.
+    ASCENSOR_CHOICES = (
+        ('yes', 'Sí'),
+        ('no', 'No'),
+    )
+    ascensor = models.CharField(max_length=3, choices=ASCENSOR_CHOICES, null=True, blank=True, verbose_name='Ascensor')
     
     class Meta:
         db_table = 'properties'
