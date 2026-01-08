@@ -460,6 +460,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         try{ $("#{{ form.zonificacion.id_for_label }}").val(null).trigger('change'); }catch(e){}
                     }
                 }
+                // Mostrar PARAMETROS (cantidad de pisos) sólo para Terreno
+                const parametrosRow = document.getElementById('parametros-pisos-row');
+                try{
+                    if(parametrosRow){
+                        if(selectedText.includes('terreno')){
+                            parametrosRow.style.display = '';
+                        } else {
+                            parametrosRow.style.display = 'none';
+                            try{ document.getElementById('id_parametros_cantidad_pisos').selectedIndex = 0; }catch(e){}
+                        }
+                    }
+                }catch(e){}
             }catch(e){}
         }
 
