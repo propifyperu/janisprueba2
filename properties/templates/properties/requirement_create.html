@@ -620,5 +620,84 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 })();
+
+/* Cascada Departamento -> Provincia -> Distrito(s) */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const deptSel = document.getElementById('{{ form.department.id_for_label }}');
+        const provSel = document.getElementById('{{ form.province.id_for_label }}');
+        const distSel = document.getElementById('{{ form.district.id_for_label }}');
+        if(!deptSel || !provSel || !distSel) return;
+
+        const provincesUrl = "{% url 'properties:api_provinces' %}";
+        const districtsUrl = "{% url 'properties:api_districts' %}";
+
+        function clearSelect(sel, placeholder, multiple){
+            if(!sel) return;
+            if(multiple){
+                // mantener como select multiple: vaciar opciones
+                sel.innerHTML = '';
+            } else {
+                sel.innerHTML = `<option value="">${placeholder}</option>`;
+            }
+        }
+
+        function loadProvinces(departmentId){
+            clearSelect(provSel, 'Seleccione una provincia', false);
+            clearSelect(distSel, 'Seleccione una provincia primero', true);
+            if(!departmentId){ provSel.disabled = true; distSel.disabled = true; return; }
+            provSel.disabled = true;
+            fetch(provincesUrl + '?department_id=' + encodeURIComponent(departmentId))
+                .then(r => r.json())
+                .then(data => {
+                    provSel.innerHTML = '<option value="">Seleccione una provincia</option>';
+                    data.forEach(p => {
+                        const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name; provSel.appendChild(opt);
+                    });
+                    provSel.disabled = false;
+                    // limpiar distritos
+                    clearSelect(distSel, 'Seleccione una provincia primero', true);
+                    distSel.disabled = true;
+                })
+                .catch(err => {
+                    console.error('Error cargando provincias:', err);
+                    provSel.disabled = false;
+                });
+        }
+
+        function loadDistricts(provinceId){
+            clearSelect(distSel, 'Seleccione un distrito', true);
+            if(!provinceId){ distSel.disabled = true; return; }
+            distSel.disabled = true;
+            fetch(districtsUrl + '?province_id=' + encodeURIComponent(provinceId))
+                .then(r => r.json())
+                .then(data => {
+                    // si es select multiple, crear múltiples opciones
+                    distSel.innerHTML = '';
+                    // Añadir placeholder como opción deshabilitada si no es múltiple
+                    if(!distSel.multiple){ distSel.innerHTML = '<option value="">Seleccione un distrito</option>'; }
+                    data.forEach(d => {
+                        const opt = document.createElement('option'); opt.value = d.id; opt.textContent = d.name; distSel.appendChild(opt);
+                    });
+                    distSel.disabled = false;
+                })
+                .catch(err => {
+                    console.error('Error cargando distritos:', err);
+                    distSel.disabled = false;
+                });
+        }
+
+        // inicializar según valores actuales (si los hay)
+        if(deptSel.value){ loadProvinces(deptSel.value); }
+        if(provSel.value){ loadDistricts(provSel.value); }
+
+        deptSel.addEventListener('change', function(){
+            loadProvinces(this.value);
+            // limpiar selección múltiple de distritos
+            try{ $("#{{ form.district.id_for_label }}").val(null).trigger('change'); }catch(e){}
+        });
+        provSel.addEventListener('change', function(){ loadDistricts(this.value); try{ $("#{{ form.district.id_for_label }}").val(null).trigger('change'); }catch(e){} });
+    });
+})();
 </script>
 {% endblock %}
