@@ -130,6 +130,14 @@
                                     <div class="form-text small text-muted mt-1">Selecciona uno o varios pisos (Ctrl/Cmd + clic).</div>
                                 </div>
                             </div>
+                            <!-- Zonificación: mostrar sólo cuando el Tipo seleccionado sea Terreno -->
+                            <div class="row g-3 mt-2" id="zonificacion-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.zonificacion.id_for_label }}">Zonificación</label>
+                                    {{ form.zonificacion }}
+                                    <div class="form-text small text-muted mt-1">Selecciona una o más zonificaciones aplicables.</div>
+                                </div>
+                            </div>
                             <!-- Ascensor: mostrar sólo cuando el Tipo seleccionado sea Departamento -->
                             <div class="row g-3 mt-2" id="ascensor-row" style="display:none;">
                                 <div class="col-md-12">
@@ -148,6 +156,23 @@
                                     <label class="form-label" for="{{ form.number_of_floors.id_for_label }}">Cantidad de pisos</label>
                                     {{ form.number_of_floors }}
                                     <div class="form-text small text-muted mt-1">Selecciona la cantidad de pisos (aplicable para casas).</div>
+                                </div>
+                            </div>
+                            <!-- PARAMETROS: cantidad de pisos (select único 1-7) -->
+                            <div class="row g-3 mt-2" id="parametros-pisos-row">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="id_parametros_cantidad_pisos">PARAMETROS (cantidad de pisos)</label>
+                                    <select class="form-select" name="parametros_cantidad_pisos" id="id_parametros_cantidad_pisos">
+                                        <option value="">-- Seleccionar --</option>
+                                        <option value="1">1 piso</option>
+                                        <option value="2">2 pisos</option>
+                                        <option value="3">3 pisos</option>
+                                        <option value="4">4 pisos</option>
+                                        <option value="5">5 pisos</option>
+                                        <option value="6">6 pisos</option>
+                                        <option value="7">7 pisos</option>
+                                    </select>
+                                    <div class="form-text small text-muted mt-1">Selecciona una sola opción.</div>
                                 </div>
                             </div>
                         </div>
@@ -370,6 +395,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     allowClear: true
                 });
             }
+            // select2 para zonificacion
+            const zonSel = $('#{{ form.zonificacion.id_for_label }}');
+            if(zonSel.length){
+                zonSel.select2({
+                    placeholder: 'Selecciona zonificación',
+                    width: '100%',
+                    allowClear: true
+                });
+            }
         });
     }catch(e){
         console.warn('Select2 init failed', e);
@@ -414,6 +448,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     try{ document.getElementById('id_ascensor').selectedIndex = 0; }catch(e){}
                 }
             }
+            // Mostrar zonificacion SÓLO cuando el tipo seleccionado sea Terreno
+            const zonRow = document.getElementById('zonificacion-row');
+            try{
+                const selectedText = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+                if(zonRow){
+                    if(selectedText.includes('terreno')){
+                        zonRow.style.display = '';
+                    } else {
+                        zonRow.style.display = 'none';
+                        try{ $("#{{ form.zonificacion.id_for_label }}").val(null).trigger('change'); }catch(e){}
+                    }
+                }
+            }catch(e){}
         }
 
         toggleFloors();
