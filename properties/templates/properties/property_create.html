@@ -446,6 +446,11 @@ document.addEventListener('DOMContentLoaded', function(){
                                     {{ financial_form.negotiation_status }}
                                     {{ financial_form.negotiation_status.errors }}
                                 </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Tipo de Contrato</label>
+                                    {{ financial_form.contract_type }}
+                                    {{ financial_form.contract_type.errors }}
+                                </div>
                             </div>
 
                             <p class="text-muted small mb-0">Completa solo los campos confirmados en la negociación. Puedes actualizarlos más adelante.</p>

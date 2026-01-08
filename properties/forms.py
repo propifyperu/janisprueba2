@@ -158,6 +158,7 @@ class PropertyFinancialInfoForm(forms.ModelForm):
             'final_commission_percentage',
             'final_amount',
             'negotiation_status',
+            'contract_type',
         ]
         widgets = {
             'initial_commission_percentage': forms.NumberInput(attrs={
@@ -179,7 +180,18 @@ class PropertyFinancialInfoForm(forms.ModelForm):
                 'placeholder': 'Monto final negociado',
             }),
             'negotiation_status': forms.Select(attrs={'class': 'form-select'}),
+            'contract_type': forms.Select(attrs={'class': 'form-select'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Establecer queryset para contract_type si el modelo existe
+        try:
+            from .models import ContractType
+            self.fields['contract_type'].queryset = ContractType.objects.filter(is_active=True).order_by('name')
+            self.fields['contract_type'].required = False
+        except Exception:
+            pass
 
 
 class PropertyImageForm(forms.ModelForm):

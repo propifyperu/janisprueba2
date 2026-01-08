@@ -785,6 +785,24 @@ class PropertyDocument(TitleCaseMixin, models.Model):
         super().save(*args, **kwargs)
 
 # =============================================================================
+# MODELO PARA TIPOS DE CONTRATO (USADO EN PropertyFinancialInfo)
+# =============================================================================
+class ContractType(models.Model):
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=50, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'contract_types'
+        ordering = ['name']
+        verbose_name = 'Tipo de Contrato'
+        verbose_name_plural = 'Tipos de Contrato'
+
+    def __str__(self):
+        return self.name
+
+# =============================================================================
 # MODELO PARA INFORMACIÓN FINANCIERA
 # =============================================================================
 
@@ -794,6 +812,8 @@ class PropertyFinancialInfo(models.Model):
     final_commission_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     final_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     negotiation_status = models.ForeignKey('NegotiationStatus', on_delete=models.SET_NULL, null=True, blank=True, related_name='financial_records')
+    # Tipo de contrato: FK a ContractType (exclusivo / semi exclusivo / no exclusivo)
+    contract_type = models.ForeignKey('ContractType', on_delete=models.PROTECT, null=True, blank=True, related_name='financial_records', verbose_name='Tipo de Contrato')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
