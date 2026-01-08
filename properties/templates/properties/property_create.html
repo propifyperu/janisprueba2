@@ -403,6 +403,13 @@ document.addEventListener('DOMContentLoaded', function(){
                                     <small class="form-text text-muted">Visible solo para Tipo = Departamento.</small>
                                 </div>
                             </div>
+                            <div class="row" id="houseFloorsRow" style="display:none;">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Cantidad de pisos</label>
+                                    {{ form.floors }}
+                                    <small class="form-text text-muted">Selecciona la cantidad de pisos (aplicable para casas).</small>
+                                </div>
+                            </div>
                             <div class="row" id="projectRow">
                                 <div class="col-md-4 mb-3">
                                     <div class="form-check form-switch mt-3">
@@ -1143,20 +1150,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const unitRow = document.getElementById('unitLocationRow');
         const elevatorRow = document.getElementById('elevatorRow');
         const elevatorSelect = document.getElementById('id_ascensor');
+        const houseFloorsRow = document.getElementById('houseFloorsRow');
         if (!typeSelect || !unitRow) return;
 
         function evaluate() {
             const sel = typeSelect.options[typeSelect.selectedIndex];
             const text = (sel && sel.text) ? sel.text.toLowerCase() : '';
             const isDepartamento = text.includes('departamento');
+            const isCasa = text.includes('casa');
             unitRow.style.display = isDepartamento ? '' : 'none';
             if (!isDepartamento) {
                 const input = document.getElementById('id_unit_location');
                 if (input) input.value = '';
                 if (elevatorSelect) elevatorSelect.value = '';
                 if (elevatorRow) elevatorRow.style.display = 'none';
+                if (houseFloorsRow) houseFloorsRow.style.display = 'none';
             } else {
                 if (elevatorRow) elevatorRow.style.display = '';
+            }
+            // Mostrar campo "Cantidad de pisos" solo para Casas
+            if (houseFloorsRow) {
+                houseFloorsRow.style.display = isCasa ? '' : 'none';
+                if (!isCasa) {
+                    const floorsInput = document.getElementById('id_floors');
+                    if (floorsInput) floorsInput.value = '';
+                }
             }
         }
 
