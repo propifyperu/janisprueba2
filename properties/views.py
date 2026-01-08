@@ -407,6 +407,13 @@ def requirement_create_view(request):
             except Exception:
                 pass
 
+            # Asignar zonificaciones (M2M) si vienen
+            zon_sel = data.get('zonificacion') or []
+            try:
+                req.zonificaciones.set(zon_sel)
+            except Exception:
+                pass
+
             # Para compatibilidad, si sólo hay una selección, asignarla al FK `district`
             try:
                 if hasattr(districts_sel, '__len__') and len(districts_sel) == 1:

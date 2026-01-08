@@ -336,6 +336,8 @@ class RequirementSimpleForm(forms.Form):
     district = DistrictMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
     # Preferencia de pisos (multi-select)
     preferred_floors = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
+    # Zonificación (multi-select para búsquedas en varios tipos de suelo)
+    zonificacion = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
     # Cantidad de pisos (solo para casas) — desplegable simple
     NUMBER_OF_FLOORS_CHOICES = [('', '---------'), ('1', '1 piso'), ('2', '2 pisos'), ('3', '3 pisos'), ('4', '4 pisos'), ('5', '5 pisos')]
     number_of_floors = forms.ChoiceField(choices=NUMBER_OF_FLOORS_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
@@ -367,6 +369,8 @@ class RequirementSimpleForm(forms.Form):
             self.fields['district'].queryset = District.objects.filter(is_active=True).order_by('name')
             from .models import FloorOption
             self.fields['preferred_floors'].queryset = FloorOption.objects.filter(is_active=True).order_by('order', 'name')
+            from .models import ZoningOption
+            self.fields['zonificacion'].queryset = ZoningOption.objects.filter(is_active=True).order_by('order', 'name')
         except OperationalError:
             # Si las tablas no existen (deploy sin migraciones), devolver querysets vacíos para no fallar la carga
             self.fields['property_type'].queryset = PropertyType.objects.none()
@@ -386,6 +390,11 @@ class RequirementSimpleForm(forms.Form):
                 self.fields['preferred_floors'].queryset = FloorOption.objects.none()
             except Exception:
                 pass
+            try:
+                # Garantizar que el campo de zonificación no falle si no existen las tablas
+                self.fields['zonificacion'].queryset = ZoningOption.objects.none()
+            except Exception:
+                pass
 
 
 class RequirementEditForm(forms.ModelForm):
@@ -403,6 +412,7 @@ class RequirementEditForm(forms.ModelForm):
             'department', 'province', 'districts',
             'bedrooms', 'bathrooms', 'half_bathrooms', 'floors', 'garage_spaces',
             'preferred_floors',
+            'zonificaciones',
                 'number_of_floors',
                 'ascensor',
             'notes', 'area_type', 'land_area_approx', 'land_area_min', 'land_area_max'
@@ -421,6 +431,11 @@ class RequirementEditForm(forms.ModelForm):
             from .models import District
             self.fields['districts'].queryset = District.objects.filter(is_active=True).order_by('name')
             self.fields['districts'].widget = forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
+            from .models import ZoningOption
+            # zonificaciones: mostrar como select múltiple
+            if 'zonificaciones' in self.fields:
+                self.fields['zonificaciones'].queryset = ZoningOption.objects.filter(is_active=True).order_by('order', 'name')
+                self.fields['zonificaciones'].widget = forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
         except Exception:
             pass
 

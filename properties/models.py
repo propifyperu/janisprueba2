@@ -309,6 +309,21 @@ class FloorOption(models.Model):
     def __str__(self):
         return self.name
 
+
+class ZoningOption(models.Model):
+    """Opciones de zonificación para requisitos (Urbano, Rural, Industrial, Comercial)."""
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=20, blank=True, null=True)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'zoning_options'
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name
+
 class RoomType(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -898,6 +913,9 @@ class Requirement(TitleCaseMixin, models.Model):
 
     # Preferencia de pisos (selección múltiple): Sótano, 1º, 2º ... 20º
     preferred_floors = models.ManyToManyField('FloorOption', blank=True, related_name='requirements')
+
+    # Zonificación (M2M): Urbano, Rural, Industrial, Comercial
+    zonificaciones = models.ManyToManyField('ZoningOption', blank=True, related_name='requirements')
 
     # Cantidad de pisos para casas (1-5). Se guarda como entero sencillo.
     NUMBER_OF_FLOORS_CHOICES = [
