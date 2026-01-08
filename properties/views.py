@@ -269,7 +269,8 @@ class RequirementListView(LoginRequiredMixin, ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        qs = Requirement.objects.filter(is_active=True).order_by('-created_at')
+        # Mostrar únicamente los requerimientos creados por el usuario actualmente logueado
+        qs = Requirement.objects.filter(is_active=True, created_by=self.request.user).order_by('-created_at')
         from django.db import OperationalError
         try:
             q = self.request.GET.get('search', '').strip()
@@ -355,6 +356,17 @@ def requirement_create_view(request):
                 req.land_area_min = data.get('land_area_min')
                 req.land_area_max = data.get('land_area_max')
                 req.land_area_approx = None
+            # FRENTERA
+            fm = data.get('frontera_mode')
+            req.frontera_type = fm or 'approx'
+            if fm == 'approx':
+                req.frontera_approx = data.get('frontera_approx')
+                req.frontera_min = None
+                req.frontera_max = None
+            else:
+                req.frontera_min = data.get('frontera_min')
+                req.frontera_max = data.get('frontera_max')
+                req.frontera_approx = None
             # Moneda
             req.currency = data.get('currency')
             req.payment_method = data.get('payment_method')

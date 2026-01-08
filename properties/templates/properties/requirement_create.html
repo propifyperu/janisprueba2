@@ -122,6 +122,33 @@
                                     {{ form.land_area_approx }}
                                 </div>
                             </div>
+                            <!-- FRENTERA: modo (aproximada / rango) -->
+                            <div class="row g-3 mt-2" id="frontera-mode-row" style="display:none;">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="id_frontera_mode">FRENTERA - Tipo</label>
+                                    <select class="form-select" name="frontera_mode" id="id_frontera_mode">
+                                        <option value="">-- Seleccionar --</option>
+                                        <option value="approx">Aproximada</option>
+                                    </select>
+                                    <div class="form-text small text-muted mt-1">Selecciona si deseas una medida aproximada o un rango.</div>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="frontera-range-rows" style="display:none;">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="id_frontera_min">Mínimo (m)</label>
+                                    <input type="text" name="frontera_min" id="id_frontera_min" class="form-control" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="id_frontera_max">Máximo (m)</label>
+                                    <input type="text" name="frontera_max" id="id_frontera_max" class="form-control" />
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="frontera-approx-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="id_frontera_approx">Frontera aproximada (m)</label>
+                                    <input type="text" name="frontera_approx" id="id_frontera_approx" class="form-control" />
+                                </div>
+                            </div>
                             <!-- Preferencia de pisos: mostrar sólo cuando se haya seleccionado Departamento -->
                             <div class="row g-3 mt-2" id="preferred-floors-row" style="display:none;">
                                 <div class="col-md-12">
@@ -326,6 +353,32 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 })();
 
+/* FRENTERA tipo toggle */
+(function(){
+    function toggleFrontera(){
+        const fm = document.getElementById('id_frontera_mode');
+        const approxRow = document.getElementById('frontera-approx-row');
+        const rangeRows  = document.getElementById('frontera-range-rows');
+        if(!fm) return;
+        const val = fm.value || '';
+        if(val === 'approx'){
+            if(approxRow) approxRow.style.display = '';
+            if(rangeRows)  rangeRows.style.display  = 'none';
+        } else if(val === 'range'){
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows)  rangeRows.style.display  = '';
+        } else {
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows)  rangeRows.style.display  = 'none';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleFrontera();
+        const fm = document.getElementById('id_frontera_mode');
+        if(fm) fm.addEventListener('change', toggleFrontera);
+    });
+})();
+
 /* Presupuesto tipo toggle */
 (function(){
     function toggleBudget() {
@@ -469,6 +522,27 @@ document.addEventListener('DOMContentLoaded', function() {
                         } else {
                             parametrosRow.style.display = 'none';
                             try{ document.getElementById('id_parametros_cantidad_pisos').selectedIndex = 0; }catch(e){}
+                        }
+                    }
+                }catch(e){}
+
+                // Mostrar FRENTERA sólo para Terreno (modo aproximada por defecto)
+                try{
+                    const fronteraModeRow = document.getElementById('frontera-mode-row');
+                    const fronteraApproxRow = document.getElementById('frontera-approx-row');
+                    const fronteraRangeRows = document.getElementById('frontera-range-rows');
+                    if(fronteraModeRow){
+                        if(selectedText.includes('terreno')){
+                            fronteraModeRow.style.display = '';
+                            // forzar modo aproximada y mostrar su input
+                            try{ const fm = document.getElementById('id_frontera_mode'); if(fm){ fm.value = 'approx'; } }catch(e){}
+                            if(fronteraApproxRow) fronteraApproxRow.style.display = '';
+                            if(fronteraRangeRows) fronteraRangeRows.style.display = 'none';
+                        } else {
+                            fronteraModeRow.style.display = 'none';
+                            if(fronteraApproxRow) fronteraApproxRow.style.display = 'none';
+                            if(fronteraRangeRows) fronteraRangeRows.style.display = 'none';
+                            try{ const fm = document.getElementById('id_frontera_mode'); if(fm){ fm.selectedIndex = 0; } }catch(e){}
                         }
                     }
                 }catch(e){}

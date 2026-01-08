@@ -897,6 +897,15 @@ class Requirement(TitleCaseMixin, models.Model):
     land_area_approx = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     land_area_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     land_area_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    # FRENTERA (aproximada o rango)
+    FRONTERA_TYPE_CHOICES = (
+        ('approx', 'Aproximada'),
+        ('range', 'Rango'),
+    )
+    frontera_type = models.CharField(max_length=20, choices=FRONTERA_TYPE_CHOICES, default='approx')
+    frontera_approx = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    frontera_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    frontera_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     # Moneda asociada al presupuesto
     currency = models.ForeignKey('Currency', on_delete=models.PROTECT, null=True, blank=True)
 

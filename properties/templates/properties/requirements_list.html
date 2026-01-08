@@ -18,36 +18,64 @@
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Cliente</th>
+                                    <th>Nombre</th>
+                                    <th>Apellido</th>
                                     <th>Teléfono</th>
-                                    <th>Usuario</th>
-                                    <th>Ubicación</th>
+                                    <th>Tipo</th>
+                                    <th>Provincia</th>
+                                    <th>Distrito(s)</th>
                                     <th>Presupuesto</th>
                                     <th>Área terreno</th>
-                                    <th>Tipo</th>
                                     <th>Fecha publicación</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
+                                {% comment %} Mostrar únicamente los requerimientos creados por el usuario: la vista ya filtra por created_by {% endcomment %}
                                 {% for r in requirements %}
                                 <tr>
-                                    {% if request.user.is_superuser or r.created_by and r.created_by.id == request.user.id %}
-                                        <td>{{ r.client_name|default:'-' }}</td>
-                                        <td>{{ r.phone|default:'-' }}</td>
-                                    {% else %}
-                                        <td>Privado</td>
-                                        <td>Privado</td>
-                                    {% endif %}
-
                                     <td>
-                                        {% if r.created_by %}
-                                            {% with fullname=r.created_by.get_full_name %}
-                                                {{ fullname|default:r.created_by.username }}
-                                            {% endwith %}
+                                        {% if r.contact %}
+                                            {{ r.contact.first_name|default:'-' }}
+                                        {% elif r.client_name %}
+                                            {{ r.client_name|cut:' '|slice:":1"|default:r.client_name }}
                                         {% else %}
                                             -
                                         {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if r.contact %}
+                                            {% if r.contact.last_name %}{{ r.contact.last_name }}{% elif r.contact.maternal_last_name %}{{ r.contact.maternal_last_name }}{% else %}-{% endif %}
+                                        {% else %}
+                                            {# Si no hay contacto, intentar tomar el resto del nombre si existe, sino dejar '-' #}
+                                            {% if r.client_name %}
+                                                {% comment %}Fallback: no hay campo apellido separado, mostrar '-'{% endcomment %}
+                                                -
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if r.contact and r.contact.phone %}
+                                            {{ r.contact.phone }}
+                                        {% elif r.phone %}
+                                            {{ r.phone }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+
+                                    <td>{{ r.property_type.name|default:'-' }}</td>
+
+                                    <td>
+                                        {% with prov=r.province %}
+                                            {% if prov %}
+                                                {% if prov.name %}{{ prov.name }}{% else %}{{ prov }}{% endif %}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        {% endwith %}
                                     </td>
 
                                     <td>
@@ -55,7 +83,7 @@
                                             {% if ds and ds|length > 0 %}
                                                 {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
                                             {% elif r.district %}
-                                                {{ r.district.name }}
+                                                {% if r.district.name %}{{ r.district.name }}{% else %}{{ r.district }}{% endif %}
                                             {% else %}
                                                 -
                                             {% endif %}
@@ -80,16 +108,19 @@
                                         {% endif %}
                                     </td>
 
-                                    <td>{{ r.property_type.name|default:'-' }}</td>
-
                                     <td>{{ r.created_at|date:"d/m/Y" }}</td>
 
                                     <td>
                                         <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>
+                                        <a href="{% url 'properties:requirements_edit' r.id %}" class="btn btn-sm btn-outline-teal ms-1">Editar</a>
+                                        <form method="post" action="{% url 'properties:requirements_delete' r.id %}" style="display:inline;" onsubmit="return confirm('¿Confirmas eliminar este requerimiento?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-danger ms-1">Borrar</button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="9" class="text-center py-4">No hay requerimientos registrados.</td></tr>
+                                <tr><td colspan="10" class="text-center py-4">No hay requerimientos registrados por ti.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>

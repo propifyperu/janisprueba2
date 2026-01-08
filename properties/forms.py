@@ -327,6 +327,11 @@ class RequirementSimpleForm(forms.Form):
     land_area_approx = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
     land_area_min = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
     land_area_max = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    # FRENTERA (modo: aproximada / rango)
+    frontera_mode = forms.ChoiceField(choices=(('approx','Aproximada'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    frontera_approx = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    frontera_min = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    frontera_max = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
     currency = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     payment_method = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     status = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
@@ -413,6 +418,7 @@ class RequirementEditForm(forms.ModelForm):
             'bedrooms', 'bathrooms', 'half_bathrooms', 'floors', 'garage_spaces',
             'preferred_floors',
             'zonificaciones',
+            'frontera_type', 'frontera_approx', 'frontera_min', 'frontera_max',
                 'number_of_floors',
                 'ascensor',
             'notes', 'area_type', 'land_area_approx', 'land_area_min', 'land_area_max'

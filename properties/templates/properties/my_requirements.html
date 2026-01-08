@@ -18,39 +18,91 @@
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Cliente</th>
+                                    <th>Nombre</th>
+                                    <th>Apellido</th>
                                     <th>Teléfono</th>
-                                    <th>Distrito / Urbanización</th>
-                                    <th>Presupuesto</th>
                                     <th>Tipo</th>
+                                    <th>Provincia</th>
+                                    <th>Distrito(s)</th>
+                                    <th>Presupuesto</th>
+                                    <th>Área terreno</th>
                                     <th>Fecha publicación</th>
+                                    <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for r in requirements %}
                                 <tr>
-                                    <td>{{ r.client_name|default:'-' }}</td>
-                                    <td>{{ r.phone|default:'-' }}</td>
                                     <td>
-                                        {% with ds=r.districts.all %}
-                                            {% if ds and ds|length > 0 %}
-                                                {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                                            {% elif r.district %}
-                                                {{ r.district.name }}
+                                        {% if r.contact and r.contact.first_name %}
+                                            {{ r.contact.first_name }}
+                                        {% elif r.client_name %}
+                                            {{ r.client_name }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if r.contact %}
+                                            {% if r.contact.last_name %}{{ r.contact.last_name }}{% elif r.contact.maternal_last_name %}{{ r.contact.maternal_last_name }}{% else %}-{% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if r.contact and r.contact.phone %}
+                                            {{ r.contact.phone }}
+                                        {% elif r.phone %}
+                                            {{ r.phone }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+
+                                    <td>{% if r.property_type %}{{ r.property_type.name }}{% else %}-{% endif %}</td>
+
+                                    <td>
+                                        {% with prov=r.province %}
+                                            {% if prov %}
+                                                {% if prov.name %}{{ prov.name }}{% else %}{{ prov }}{% endif %}
                                             {% else %}
                                                 -
                                             {% endif %}
                                         {% endwith %}
                                     </td>
+
                                     <td>
-                                        {% if r.budget_type == 'approx' %}
-                                            {% if r.budget_approx %}${{ r.budget_approx }}{% else %}-{% endif %}
+                                        {% with ds=r.districts.all %}
+                                            {% if ds and ds|length > 0 %}
+                                                {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                            {% elif r.district %}
+                                                {% if r.district.name %}{{ r.district.name }}{% else %}{{ r.district }}{% endif %}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+
+                                    <td>
+                                        {% with symbol=r.currency.symbol|default:"$" %}
+                                            {% if r.budget_type == 'approx' %}
+                                                {% if r.budget_approx %}{{ symbol }} {{ r.budget_approx }}{% else %}-{% endif %}
+                                            {% else %}
+                                                {% if r.budget_min and r.budget_max %}{{ symbol }} {{ r.budget_min }} - {{ symbol }} {{ r.budget_max }}{% else %}-{% endif %}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+
+                                    <td>
+                                        {% if r.area_type == 'approx' %}
+                                            {% if r.land_area_approx %}{{ r.land_area_approx }} m²{% else %}-{% endif %}
                                         {% else %}
-                                            {% if r.budget_min and r.budget_max %}${{ r.budget_min }} - ${{ r.budget_max }}{% else %}-{% endif %}
+                                            {% if r.land_area_min and r.land_area_max %}{{ r.land_area_min }} - {{ r.land_area_max }} m²{% else %}-{% endif %}
                                         {% endif %}
                                     </td>
-                                    <td>{% if r.property_type %}{{ r.property_type.name }}{% else %}-{% endif %}</td>
+
                                     <td>{{ r.created_at|date:"d/m/Y" }}</td>
+
                                     <td>
                                         <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>
                                         <a href="{% url 'properties:requirements_edit' r.id %}" class="btn btn-sm btn-outline-teal ms-1">Editar</a>
@@ -61,7 +113,7 @@
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="6" class="text-center py-4">No hay requerimientos registrados por ti.</td></tr>
+                                <tr><td colspan="10" class="text-center py-4">No hay requerimientos registrados por ti.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
