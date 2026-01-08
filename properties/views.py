@@ -313,14 +313,14 @@ def requirement_create_view(request):
                     'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
                 })
         else:
-            # Crear nuevo contacto
-            if owner_form.is_valid():
+            # Crear nuevo contacto solo si el formulario contiene cambios reales
+            if owner_form.is_valid() and owner_form.has_changed():
                 contact_instance = owner_form.save(commit=False)
                 contact_instance.created_by = request.user
                 contact_instance.save()
                 owner_form.save_m2m()  # Para tags
             else:
-                messages.error(request, 'Error en los datos del contacto. Por favor verifica los campos.')
+                messages.error(request, 'Por favor selecciona un contacto existente o completa los datos del contacto.')
                 return render(request, 'properties/requirement_create.html', {
                     'form': form,
                     'owner_form': owner_form,
@@ -581,14 +581,14 @@ def event_create_view(request):
                     'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
                 })
         else:
-            # Crear nuevo contacto
-            if owner_form.is_valid():
+            # Crear nuevo contacto solo si el formulario contiene cambios reales
+            if owner_form.is_valid() and owner_form.has_changed():
                 contact_instance = owner_form.save(commit=False)
                 contact_instance.created_by = request.user
                 contact_instance.save()
                 owner_form.save_m2m()  # Para tags
             else:
-                messages.error(request, 'Error en los datos del contacto. Por favor verifica los campos.')
+                messages.error(request, 'Por favor selecciona un contacto existente o completa los datos del contacto.')
                 return render(request, 'properties/event_create.html', {
                     'form': form,
                     'owner_form': owner_form,
@@ -1406,18 +1406,19 @@ def create_property_view(request):
         # Validar form y owner_form según el caso
         existing_owner_id = request.POST.get('existing_owner')
         owner_form_valid = True
-        
+
         if existing_owner_id:
             # Si hay propietario existente, no necesitamos validar owner_form
             owner_form_valid = True
         else:
-            # Si se crea nuevo propietario, validar owner_form
-            owner_form_valid = owner_form.is_valid()
+            # Si se crea nuevo propietario, validar owner_form y asegurarnos de que tenga cambios
+            owner_form_valid = owner_form.is_valid() and owner_form.has_changed()
         
         if form.is_valid() and owner_form_valid:
             if existing_owner_id:
                 owner = PropertyOwner.objects.get(pk=existing_owner_id)
             else:
+                # Guardar nuevo owner sólo si el formulario contenía cambios (owner_form_valid asegura esto)
                 owner = owner_form.save(commit=False)
                 owner.created_by = request.user
                 owner.save()
