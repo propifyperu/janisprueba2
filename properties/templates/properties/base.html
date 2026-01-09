@@ -19,7 +19,7 @@
                     <a class="navbar-brand d-flex align-items-center" href="{% url 'properties:list' %}">
                         <img src="/media/Logo-Ho.png" alt="Logo" style="height:60px; margin-right:18px; margin-bottom:0;" />
                     </a>
-                    <form class="d-none d-md-block" method="get" action="{% url 'properties:list' %}" role="search" style="min-width:480px; max-width:1333px; margin-top:8px; flex:1;">
+                    <form class="d-none d-md-block" method="get" action="{% url 'properties:search' %}" role="search" style="min-width:480px; max-width:1333px; margin-top:8px; flex:1;">
                         <div class="input-group" style="border-radius:999px; overflow:hidden; height:35px; border:1px solid rgba(0,0,0,0.14); box-shadow: 0 1px 4px rgba(0,0,0,0.04);margin-left: 30px;">
                             <span class="input-group-text" id="search-addon" style="border:none; background:#fff; display:flex; align-items:center; justify-content:center; padding:0 12px;"><i class="fas fa-search"></i></span>
                             <input type="search" name="q" class="form-control border-0" placeholder="Buscar en Propify" aria-label="Buscar en Propify" aria-describedby="search-addon" style="height:35px; border:none; box-shadow:none;">
@@ -31,9 +31,13 @@
                 <div class="header-controls d-flex align-items-center gap-2" style="position:absolute; right:1.75rem; top:50%; transform:translateY(-50%);">
                     <a href="https://propify.pe/" target="_blank" rel="noopener noreferrer" class="btn btn-dark rounded-pill py-1 px-3" style="font-weight:600;">Ir a la web</a>
 
-                    <a href="mailto:info@propify.local" title="Correo" style="display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:8px; background:transparent; border:1px solid rgba(0,0,0,0.08); color:#6c757d;">
-                        <i class="far fa-envelope" style="color:inherit"></i>
-                    </a>
+                    {% if request.user.is_authenticated %}
+                        {% include 'chat/header_messages.html' %}
+                    {% else %}
+                        <a href="mailto:info@propify.local" title="Correo" style="display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:8px; background:transparent; border:1px solid rgba(0,0,0,0.08); color:#6c757d;">
+                            <i class="far fa-envelope" style="color:inherit"></i>
+                        </a>
+                    {% endif %}
                     <a href="#" title="Chat" style="display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:8px; background:transparent; border:1px solid rgba(0,0,0,0.08); color:#6c757d;">
                         <i class="far fa-comment" style="color:inherit"></i>
                     </a>

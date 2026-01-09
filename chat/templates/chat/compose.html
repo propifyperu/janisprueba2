@@ -1,0 +1,33 @@
+{% extends 'properties/base.html' %}
+{% block title %}Redactar mensaje{% endblock %}
+{% block content %}
+<div class="container my-4">
+  <h3>Redactar mensaje interno</h3>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label">Para</label>
+      <select name="recipients" class="form-select" multiple required>
+        {% for u in users %}
+          <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} &lt;{{ u.email }}&gt;</option>
+        {% endfor %}
+      </select>
+      <div class="form-text">Mantén presionado Ctrl/Cmd para seleccionar varios destinatarios.</div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Asunto</label>
+      <input name="subject" class="form-control" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Mensaje</label>
+      <textarea name="body" rows="6" class="form-control"></textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Adjuntos</label>
+      <input type="file" name="attachments" multiple class="form-control" />
+    </div>
+    <button class="btn btn-primary">Enviar</button>
+    <a class="btn btn-secondary ms-2" href="{% url 'chat:conversation_list' %}">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

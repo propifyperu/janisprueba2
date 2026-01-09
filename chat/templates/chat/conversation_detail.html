@@ -1,0 +1,44 @@
+{% extends 'properties/base.html' %}
+{% block title %}{{ conversation.title|default:'Conversación' }}{% endblock %}
+{% block content %}
+<div class="container my-4">
+  <h4>{{ conversation.title|default:'Conversación' }}</h4>
+  <div id="messagesArea" style="max-height:500px; overflow:auto; border:1px solid #eee; padding:12px; border-radius:6px;">
+    {% for m in messages %}
+      <div class="mb-3">
+        <div class="small text-muted">{{ m.sender_name }} · {{ m.created_at }}</div>
+        <div>{{ m.body|linebreaks }}</div>
+        {% for a in m.attachments.all %}
+          <div class="mt-2"><a href="{{ a.file.url }}" target="_blank">Adjunto: {{ a.file.name }}</a></div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+  <form id="sendMessageForm" method="post" enctype="multipart/form-data" class="mt-3">
+    {% csrf_token %}
+    <input type="hidden" name="conversation" value="{{ conversation.id }}" />
+    <div class="mb-2">
+      <textarea name="body" rows="3" class="form-control" placeholder="Escribe tu mensaje..."></textarea>
+    </div>
+    <div class="mb-2">
+      <input type="file" name="attachments" multiple />
+    </div>
+    <button class="btn btn-primary">Enviar</button>
+  </form>
+</div>
+
+<script>
+document.getElementById('sendMessageForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const form = e.currentTarget;
+  const data = new FormData(form);
+  const res = await fetch('{% url "chat:send_message" %}', {method:'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}, body: data});
+  if (res.ok){
+    location.reload();
+  } else {
+    const txt = await res.text();
+    alert('Error: '+txt);
+  }
+});
+</script>
+{% endblock %}
