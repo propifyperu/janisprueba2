@@ -3,6 +3,9 @@
 {% block content %}
 <div class="container my-4">
   <h3>Conversaciones</h3>
+  <div class="mb-3">
+    <a href="{% url 'chat:compose' %}" class="btn btn-primary">Redactar mensaje</a>
+  </div>
   <div class="list-group">
     {% for c in conversations %}
       <a href="{% url 'chat:conversation_detail' c.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">

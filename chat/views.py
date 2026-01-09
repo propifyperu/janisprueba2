@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
-from .models import Conversation, Message, Attachment
+from .models import MailThread, Message, Attachment
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -14,13 +14,13 @@ from django.shortcuts import redirect
 
 @login_required
 def conversation_list(request):
-    qs = Conversation.objects.filter(participants=request.user).order_by('-updated_at')
+    qs = MailThread.objects.filter(participants=request.user).order_by('-updated_at')
     return render(request, 'chat/conversation_list.html', {'conversations': qs})
 
 
 @login_required
 def conversation_detail(request, pk: int):
-    conv = get_object_or_404(Conversation, pk=pk)
+    conv = get_object_or_404(MailThread, pk=pk)
     if request.user not in conv.participants.all():
         return HttpResponseBadRequest('No autorizado')
     messages = conv.messages.select_related('sender').order_by('created_at')
@@ -40,7 +40,7 @@ def send_message(request):
     # allow messages that include attachments even without body text
     if not body and not request.FILES:
         return HttpResponseBadRequest('Empty message')
-    conv = get_object_or_404(Conversation, pk=conv_id)
+    conv = get_object_or_404(MailThread, pk=conv_id)
     if request.user not in conv.participants.all():
         return HttpResponseBadRequest('No autorizado')
     msg = Message.objects.create(
@@ -92,7 +92,7 @@ def fetch_messages(request):
         since = request.GET.get('since')
     except Exception:
         return HttpResponseBadRequest('Invalid params')
-    conv = get_object_or_404(Conversation, pk=conv_id)
+    conv = get_object_or_404(MailThread, pk=conv_id)
     if request.user not in conv.participants.all():
         return HttpResponseBadRequest('No autorizado')
     qs = conv.messages.select_related('sender').order_by('created_at')
@@ -131,7 +131,7 @@ def compose(request):
             except Exception:
                 continue
 
-        conv = Conversation.objects.create(title=subject or None)
+        conv = MailThread.objects.create(title=subject or None)
         conv.participants.add(*participants)
         conv.save()
 

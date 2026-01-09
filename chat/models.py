@@ -2,8 +2,12 @@ from django.db import models
 from django.conf import settings
 
 
-class Conversation(models.Model):
-    """Conversación entre usuarios. Puede ser 1:1 o grupal."""
+class MailThread(models.Model):
+    """Hilo de correo interno entre usuarios. Puede ser 1:1 o grupal.
+
+    Renombrado desde `Conversation` para reflejar que el flujo es estilo correo interno.
+    Se mantiene `db_table='chat_conversations'` para no cambiar la tabla existente.
+    """
     title = models.CharField(max_length=255, blank=True, null=True)
     participants = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='conversations')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -14,7 +18,7 @@ class Conversation(models.Model):
         ordering = ['-updated_at']
 
     def __str__(self):
-        return self.title or f'Conversation {self.id}'
+        return self.title or f'MailThread {self.id}'
 
 
 class Message(models.Model):
@@ -29,7 +33,7 @@ class Message(models.Model):
         ('system', 'System'),
     )
 
-    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    conversation = models.ForeignKey(MailThread, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     sender_name = models.CharField(max_length=255, blank=True, null=True)
     sender_role = models.CharField(max_length=100, blank=True, null=True)
