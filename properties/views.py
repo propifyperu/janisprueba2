@@ -114,6 +114,294 @@ from django.views.generic import DetailView, ListView, CreateView
 from django.db.models import Q
 from .models import Property, PropertyType, PropertyStatus, PropertyOwner, PropertySubtype, Requirement
 from .forms import PropertyOwnerForm, RequirementForm
+from .models import MatchingWeight
+from . import matching as matching_module
+from django.views.decorators.http import require_http_methods
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def matching_weights_view(request):
+    """Vista para listar y editar los pesos de matching (solo usuarios con permiso)."""
+    if not request.user.is_superuser:
+        return HttpResponse('Forbidden', status=403)
+
+    if request.method == 'POST':
+        # actualizar pesos desde el formulario
+        for key, value in request.POST.items():
+            if key.startswith('weight_'):
+                k = key.replace('weight_', '')
+                try:
+                    mw = MatchingWeight.objects.get(key=k)
+                    mw.weight = float(value)
+                    mw.save()
+                except MatchingWeight.DoesNotExist:
+                    MatchingWeight.objects.create(key=k, weight=float(value or 1.0))
+                except Exception:
+                    pass
+        # crear nuevo criterio si se envió
+        new_key = request.POST.get('new_key', '').strip()
+        new_weight = request.POST.get('new_weight', '').strip()
+        if new_key:
+            try:
+                # validar formato básico
+                if len(new_key) > 100 or not new_key.replace('_', '').isalnum():
+                    from django.contrib import messages
+                    messages.error(request, 'Clave inválida para el nuevo criterio.')
+                else:
+                    if MatchingWeight.objects.filter(key=new_key).exists():
+                        from django.contrib import messages
+                        messages.warning(request, f'El criterio "{new_key}" ya existe.')
+                    else:
+                        wval = float(new_weight) if new_weight else 1.0
+                        MatchingWeight.objects.create(key=new_key, weight=wval)
+                        from django.contrib import messages
+                        messages.success(request, f'Nuevo criterio "{new_key}" creado con peso {wval}.')
+            except Exception:
+                from django.contrib import messages
+                messages.error(request, 'No fue posible crear el nuevo criterio.')
+        return redirect('properties:matching_weights')
+        return redirect('properties:matching_weights')
+
+    weights = MatchingWeight.objects.all().order_by('key')
+    # Etiquetas en español para mostrar en el UI del selector (definidas antes de usarlas)
+    MATCHING_KEY_LABELS = {
+        'property_type': 'Tipo de propiedad',
+        'property_subtype': 'Subtipo',
+        'district': 'Distrito',
+        'province': 'Provincia',
+        'department': 'Departamento',
+        'urbanization': 'Urbanización',
+        'currency': 'Moneda',
+        'price': 'Precio',
+        'area': 'Área',
+        'land_area': 'Área de terreno',
+        'built_area': 'Área construida',
+        'front_measure': 'Frontera',
+        'depth_measure': 'Profundidad',
+        'bedrooms': 'Dormitorios',
+        'bathrooms': 'Baños',
+        'half_bathrooms': 'Medios baños',
+        'garage_spaces': 'Cochera (espacios)',
+        'garage_type': 'Tipo de garaje',
+        'parking_cost_included': 'Estacionamiento incluido',
+        'parking_cost': 'Costo de estacionamiento',
+        'amenities': 'Servicios / Amenidades',
+        'tags': 'Etiquetas',
+        'water_service': 'Servicio de agua',
+        'energy_service': 'Servicio de energía',
+        'drainage_service': 'Servicio de drenaje',
+        'gas_service': 'Servicio de gas',
+        'is_project': 'Proyecto (sí/no)',
+        'project_name': 'Nombre de proyecto',
+        'unit_location': 'Ubicación en unidad',
+        'ascensor': 'Ascensor (sí/no)',
+        'floors': 'Cantidad de pisos'
+    }
+    # Convertir a lista simple con etiqueta legible para facilitar el render en la plantilla
+    weights_list = []
+    for w in weights:
+        weights_list.append({
+            'key': w.key,
+            'weight': w.weight,
+            'label': MATCHING_KEY_LABELS.get(w.key, w.key)
+        })
+    # claves por defecto reconocidas por el motor de matching
+    DEFAULT_MATCHING_KEYS = [
+        'property_type', 'property_subtype', 'district', 'province', 'department', 'urbanization',
+        'currency', 'price', 'area', 'land_area', 'built_area', 'front_measure', 'depth_measure',
+        'bedrooms', 'bathrooms', 'half_bathrooms',
+        'garage_spaces', 'garage_type', 'parking_cost_included', 'parking_cost',
+        'amenities', 'tags',
+        'water_service', 'energy_service', 'drainage_service', 'gas_service',
+        'is_project', 'project_name', 'unit_location', 'ascensor', 'floors'
+    ]
+    
+    existing = set(weights.values_list('key', flat=True))
+    # Calcular solo las claves que existen en ambos modelos (Property y Requirement)
+    try:
+        prop_field_names = {f.name for f in Property._meta.get_fields()}
+    except Exception:
+        prop_field_names = set()
+    try:
+        req_field_names = {f.name for f in Requirement._meta.get_fields()}
+    except Exception:
+        req_field_names = set()
+
+    # Construir lista de tuplas (key, label) con solo campos compartidos
+    available_keys = []
+    for k in DEFAULT_MATCHING_KEYS:
+        if k in existing:
+            continue
+        if k in prop_field_names and k in req_field_names:
+            label = MATCHING_KEY_LABELS.get(k, k)
+            available_keys.append((k, label))
+    return render(request, 'properties/matching_weights.html', {
+        'weights': weights_list,
+        'available_keys': available_keys,
+    })
+
+
+@login_required
+def matching_matches_view(request, pk: int):
+    """Mostrar coincidencias calculadas para un `Requirement` concreto."""
+    req = get_object_or_404(Requirement, pk=pk)
+    # manejar flags: only_matches (mostrar solo criterios que coinciden) y export=csv
+    only_matches = bool(request.GET.get('only_matches'))
+    export = request.GET.get('export')
+
+    # calcular coincidencias
+    results = matching_module.get_matches_for_requirement(req, limit=50)
+
+    # Añadir representación legible del valor de la propiedad para cada criterio
+    for r in results:
+        prop = r.get('property')
+        details = r.get('details') or {}
+        for k, v in details.items():
+            try:
+                if k == 'property_type':
+                    pv = prop.property_type.name if getattr(prop, 'property_type', None) else '—'
+                elif k == 'property_subtype':
+                    pv = prop.property_subtype.name if getattr(prop, 'property_subtype', None) else '—'
+                elif k == 'district':
+                    pd = getattr(prop, 'district', None)
+                    if not pd:
+                        pv = '—'
+                    else:
+                        pd_str = str(pd).strip()
+                        # si es número, intentar resolver a District por id
+                        if pd_str.isdigit():
+                            try:
+                                from .models import District
+                                dobj = District.objects.filter(id=int(pd_str)).first()
+                                pv = dobj.name if dobj else pd_str
+                            except Exception:
+                                pv = pd_str
+                        else:
+                            pv = pd_str
+                elif k == 'price':
+                    symbol = prop.currency.symbol if getattr(prop, 'currency', None) else '$'
+                    pv = f"{symbol} {prop.price}" if getattr(prop, 'price', None) is not None else '—'
+                elif k == 'currency':
+                    pv = prop.currency.code if getattr(prop, 'currency', None) else '—'
+                elif k == 'payment_method':
+                    pm = getattr(prop, 'forma_de_pago', None)
+                    try:
+                        pv = pm.name if pm is not None else '—'
+                    except Exception:
+                        pv = str(pm) if pm is not None else '—'
+                elif k == 'bedrooms':
+                    pv = str(getattr(prop, 'bedrooms', '—') or '—')
+                elif k == 'land_area':
+                    pv = str(getattr(prop, 'land_area', '—') or '—')
+                else:
+                    val = getattr(prop, k, None)
+                    if val is None:
+                        pv = '—'
+                    else:
+                        # intentar tomar .name para FKs o convertir a string
+                        pv = getattr(val, 'name', None) or str(val)
+            except Exception:
+                pv = '—'
+
+            # asegurar que `v` sea dict y almacenar la representación
+            if isinstance(v, dict):
+                v['prop_value'] = pv
+            else:
+                # si v no es dict, convertir a dict para mantener compatibilidad
+                details[k] = {'contrib': 0, 'matched': False, 'info': '', 'prop_value': pv}
+
+        # Resolver nombre legible de distrito para la fila resumen (evita mostrar ids numéricos)
+        pd = getattr(prop, 'district', None)
+        if not pd:
+            district_display = ''
+        else:
+            try:
+                pd_str = str(pd).strip()
+                if pd_str.isdigit():
+                    from .models import District
+                    dobj = District.objects.filter(id=int(pd_str)).first()
+                    district_display = dobj.name if dobj else pd_str
+                else:
+                    district_display = pd_str
+            except Exception:
+                district_display = str(pd)
+
+        # Adjuntar display al resultado para uso en templates
+        r['district_display'] = district_display
+        # Asegurar que exista entrada para método de pago en detalles (es filtro excluyente pero útil mostrarlo)
+        try:
+            if 'payment_method' not in details:
+                req_pm = getattr(req, 'payment_method', None)
+                prop_pm = getattr(prop, 'forma_de_pago', None)
+                matched_pm = False
+                if req_pm and prop_pm:
+                    try:
+                        matched_pm = req_pm.id == prop_pm.id
+                    except Exception:
+                        matched_pm = str(req_pm) == str(prop_pm)
+                details['payment_method'] = {
+                    'contrib': 0.0,
+                    'matched': matched_pm,
+                    'info': 'match' if matched_pm else 'no_match',
+                    'prop_value': (prop_pm.name if prop_pm else (str(prop_pm) if prop_pm is not None else '—'))
+                }
+        except Exception:
+            pass
+
+    # si piden exportar a CSV, generar respuesta
+    if export == 'csv':
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        # cabecera
+        writer.writerow(['score', 'property_code', 'title', 'price', 'currency', 'district', 'details'])
+
+        for r in results:
+            prop = r['property']
+            details = []
+            for k, v in r['details'].items():
+                # v may be dict with contrib/matched/info
+                if isinstance(v, dict):
+                    if only_matches and not v.get('matched'):
+                        continue
+                    details.append(f"{k}:{v.get('contrib',0):.2f}|m:{int(bool(v.get('matched')))}|{v.get('info','')}")
+                else:
+                    details.append(f"{k}:{v}")
+
+            # resolver nombre de distrito para CSV
+            pd = getattr(prop, 'district', None)
+            if not pd:
+                district_display = ''
+            else:
+                pd_str = str(pd).strip()
+                if pd_str.isdigit():
+                    try:
+                        from .models import District
+                        dobj = District.objects.filter(id=int(pd_str)).first()
+                        district_display = dobj.name if dobj else pd_str
+                    except Exception:
+                        district_display = pd_str
+                else:
+                    district_display = pd_str
+
+            writer.writerow([
+                r['score'],
+                getattr(prop, 'code', ''),
+                getattr(prop, 'title', ''),
+                getattr(prop, 'price', ''),
+                getattr(prop, 'currency').symbol if getattr(prop, 'currency', None) else '',
+                district_display,
+                ';'.join(details)
+            ])
+
+        resp = HttpResponse(output.getvalue(), content_type='text/csv')
+        resp['Content-Disposition'] = f'attachment; filename="matches_requirement_{req.id}.csv"'
+        return resp
+
+    return render(request, 'properties/matching_matches.html', {'requirement': req, 'results': results, 'only_matches': only_matches})
 
 # ...existing code...
 
@@ -284,6 +572,36 @@ class RequirementListView(LoginRequiredMixin, ListView):
             return qs
         except OperationalError:
             return Requirement.objects.none()
+
+    def get_context_data(self, **kwargs):
+        """Añadir puntuaciones de matching para cada requerimiento mostrado en la página.
+
+        Calculamos la mejor coincidencia (limit=1) usando `matching.get_matches_for_requirement`
+        y exponemos un diccionario `matches_scores` en el contexto con {requirement_id: score}.
+        """
+        context = super().get_context_data(**kwargs)
+        reqs = context.get('requirements', [])
+        scores = {}
+        try:
+            for r in reqs:
+                try:
+                    res = matching_module.get_matches_for_requirement(r, limit=1)
+                    if res:
+                        scores[r.id] = res[0]['score']
+                        # attach to object for easy template access
+                        setattr(r, 'match_score', res[0]['score'])
+                    else:
+                        scores[r.id] = None
+                        setattr(r, 'match_score', None)
+                except Exception:
+                    scores[r.id] = None
+                    setattr(r, 'match_score', None)
+        except Exception:
+            # en caso de errores en DB/logic, no romper la página
+            scores = {}
+
+        context['matches_scores'] = scores
+        return context
 
 
 @login_required
@@ -1300,6 +1618,7 @@ def create_property_view(request):
                 image_types = request.POST.getlist('image_types')
                 image_captions = request.POST.getlist('image_captions')
                 image_orders = request.POST.getlist('image_orders')
+                image_sensibles = request.POST.getlist('image_sensibles')
                 for idx, image_file in enumerate(images_files):
                     # Ignorar inputs vacíos (campo presente pero sin fichero)
                     if not image_file or getattr(image_file, 'size', 0) == 0:
@@ -1318,12 +1637,19 @@ def create_property_view(request):
 
                     caption = image_captions[idx] if idx < len(image_captions) else ''
                     try:
+                        sensible_val = False
+                        try:
+                            v = image_sensibles[idx] if idx < len(image_sensibles) else None
+                            sensible_val = str(v) in ('1', 'true', 'on')
+                        except Exception:
+                            sensible_val = False
                         PropertyImage.objects.create(
                             property=draft,
                             image=image_file,
                             image_type=image_type,
                             caption=caption,
                             order=order,
+                            sensible=sensible_val,
                             uploaded_by=request.user
                         )
                     except Exception as e:
@@ -1462,6 +1788,7 @@ def create_property_view(request):
             image_types = request.POST.getlist('image_types')
             image_captions = request.POST.getlist('image_captions')
             image_orders = request.POST.getlist('image_orders')
+            image_sensibles = request.POST.getlist('image_sensibles')
             
             primary_image_set = False
             # Limitar número de imágenes por subida para evitar OOM/timeout
@@ -1486,12 +1813,19 @@ def create_property_view(request):
                 is_primary = not primary_image_set
                 
                 try:
+                    sensible_val = False
+                    try:
+                        v = image_sensibles[idx] if idx < len(image_sensibles) else None
+                        sensible_val = str(v) in ('1', 'true', 'on')
+                    except Exception:
+                        sensible_val = False
                     img = PropertyImage.objects.create(
                         property=property_obj,
                         image=image_file,
                         image_type=image_type,
                         caption=caption,
                         order=order,
+                        sensible=sensible_val,
                         is_primary=is_primary,
                         uploaded_by=request.user
                     )
@@ -1838,12 +2172,22 @@ def edit_property_view(request, pk):
                 caption = image_captions[idx] if idx < len(image_captions) else ''
                 is_primary = not primary_image_set
                 try:
+                    # try to read sensible value if provided (select ensures alignment)
+                    sensible_val = False
+                    try:
+                        image_sensibles = request.POST.getlist('image_sensibles')
+                        v = image_sensibles[idx] if idx < len(image_sensibles) else None
+                        sensible_val = str(v) in ('1', 'true', 'on')
+                    except Exception:
+                        sensible_val = False
+
                     img = PropertyImage.objects.create(
                         property=property_obj,
                         image=image_file,
                         image_type=image_type,
                         caption=caption,
                         order=order,
+                        sensible=sensible_val,
                         is_primary=is_primary,
                         uploaded_by=request.user
                     )
@@ -1871,6 +2215,21 @@ def edit_property_view(request, pk):
 
             # Normalizar secuencia de orders tras posibles adiciones
             _normalize_image_orders(property_obj)
+
+            # Actualizar flag `sensible` para imágenes existentes si se enviaron controles separados
+            try:
+                imgs = PropertyImage.objects.filter(property=property_obj)
+                for im in imgs:
+                    try:
+                        key = f'existing_image_sensible_{im.id}'
+                        v = request.POST.get(key)
+                        sensible_val = str(v) in ('1', 'true', 'on')
+                        if im.sensible != sensible_val:
+                            PropertyImage.objects.filter(pk=im.pk).update(sensible=sensible_val)
+                    except Exception:
+                        continue
+            except Exception:
+                pass
 
             # Videos
             videos_files = request.FILES.getlist('videos')

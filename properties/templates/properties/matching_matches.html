@@ -37,11 +37,16 @@
                         <tbody>
                             {% for r in results %}
                             <tr>
-                                <td><strong>{{ r.score }}</strong></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge bg-success">Encontrada</span>
+                                        <span class="ms-2 fw-bold text-dark">{{ r.score|floatformat:2 }}%</span>
+                                    </div>
+                                </td>
                                 <td>{{ r.property.exact_address }}</td>
                                 <td>{{ r.property.title }}</td>
                                 <td>{% if r.property.currency %}{{ r.property.currency.symbol }}{% else %}$ {% endif %}{{ r.property.price }}</td>
-                                <td>{{ r.property.district }}</td>
+                                <td>{{ r.district_display|default:'—' }}</td>
                                 <td>
                                     <div class="table-responsive">
                                     <table class="table table-sm table-bordered mb-0">
@@ -74,6 +79,8 @@
                                                     {% elif k == 'property_subtype' %}{% if requirement.property_subtype %}{{ requirement.property_subtype.name }}{% else %}—{% endif %}
                                                     {% elif k == 'district' %}
                                                         {% if requirement.district %}{{ requirement.district.name }}{% elif requirement.districts.all %}{% for d in requirement.districts.all %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}
+                                                    {% elif k == 'payment_method' %}
+                                                        {% if requirement.payment_method %}{{ requirement.payment_method.name }}{% else %}—{% endif %}
                                                     {% elif k == 'price' %}
                                                         {% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{% if requirement.budget_type == 'approx' %}{{ requirement.budget_approx }}{% else %}{{ requirement.budget_min }} - {{ requirement.budget_max }}{% endif %}
                                                     {% elif k == 'currency' %}
@@ -89,12 +96,13 @@
                                                 <td class="align-middle">
                                                     {% if k == 'property_type' %}{% if r.property.property_type %}{{ r.property.property_type.name }}{% else %}—{% endif %}
                                                     {% elif k == 'property_subtype' %}{% if r.property.property_subtype %}{{ r.property.property_subtype.name }}{% else %}—{% endif %}
-                                                    {% elif k == 'district' %}{{ r.property.district|default:'—' }}
+                                                        {% elif k == 'district' %}{{ r.district_display|default:'—' }}
+                                                        {% elif k == 'payment_method' %}{{ v.prop_value|default:'—' }}
                                                     {% elif k == 'price' %}{% if r.property.currency %}{{ r.property.currency.symbol }}{% else %}$ {% endif %}{{ r.property.price|default:'—' }}
                                                     {% elif k == 'currency' %}{% if r.property.currency %}{{ r.property.currency.code }}{% else %}—{% endif %}
                                                     {% elif k == 'bedrooms' %}{{ r.property.bedrooms|default:'—' }}
                                                     {% elif k == 'land_area' %}{{ r.property.land_area|default:'—' }}
-                                                    {% else %}{{ r.property|getattr:k|default:'—' }}
+                                                    {% else %}{{ v.prop_value|default:'—' }}
                                                     {% endif %}
                                                 </td>
                                                 <td class="align-middle">

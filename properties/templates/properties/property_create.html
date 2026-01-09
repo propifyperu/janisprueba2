@@ -5,28 +5,6 @@
 
 {% block dashboard_extra_css %}
 <style>
-document.addEventListener('DOMContentLoaded', function(){
-    // Mostrar/ocultar campo Nombre de Proyecto y botón clonar según checkbox
-    const isProjectCheckbox = document.getElementById('id_is_project');
-    const projectRow = document.getElementById('projectRow');
-    const projectNameWrapper = document.getElementById('projectNameWrapper');
-    const projectNameInput = document.getElementById('id_project_name');
-    const cloneBtn = document.getElementById('cloneBtn');
-
-    function updateProjectVisibility(){
-        const checked = isProjectCheckbox && isProjectCheckbox.checked;
-        if(projectRow) projectRow.style.display = checked ? '' : 'none';
-        if(projectNameWrapper) projectNameWrapper.style.display = checked ? '' : 'none';
-        if(cloneBtn) cloneBtn.style.display = checked ? '' : 'none';
-        if(!checked && projectNameInput) projectNameInput.value = '';
-    }
-
-    if(isProjectCheckbox){
-        isProjectCheckbox.addEventListener('change', updateProjectVisibility);
-        updateProjectVisibility();
-    }
-});
-
     .form-section {
         border: 1px solid #e3e6f0;
         border-radius: 0.5rem;
@@ -48,11 +26,6 @@ document.addEventListener('DOMContentLoaded', function(){
         font-weight: 600;
         color: #5a5c69;
         margin-bottom: 0.5rem;
-    }
-
-    .required-field::after {
-        content: " *";
-        color: #e74a3b;
     }
 
     .dynamic-form-item {
@@ -110,17 +83,32 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     .image-preview {
-        min-height: 90px;
+        min-height: 160px;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 0.5rem;
     }
 
-    .image-preview img {
-        max-width: 220px;
-        max-height: 180px;
+    .image-preview img,
+    .image-preview .preview-thumb {
+        width: 140px;
+        height: 140px;
+        object-fit: cover;
         border-radius: 0.5rem;
         border: 1px solid rgba(4, 125, 125, 0.25);
+        display: block;
+    }
+    .image-preview .form-check {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        margin-top: 0.25rem;
+    }
+    .image-preview .small {
+        text-align: center;
     }
 
     .video-preview {
@@ -203,8 +191,14 @@ document.addEventListener('DOMContentLoaded', function(){
                             <div class="row">
                                 {% for img in existing_images %}
                                 <div class="col-md-3 mb-3 image-preview">
-                                    <img src="{{ img.image.url }}" alt="{{ img.caption }}" class="img-fluid" />
+                                    <img src="{{ img.image.url }}" alt="{{ img.caption }}" class="preview-thumb" />
                                     <div class="small text-muted">{{ img.caption }}</div>
+                                    <div class="mt-1">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="existing_image_sensible_{{ img.id }}" name="existing_image_sensible_{{ img.id }}" {% if img.sensible %}checked{% endif %}>
+                                            <label class="form-check-label small" for="existing_image_sensible_{{ img.id }}">Sensible</label>
+                                        </div>
+                                    </div>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -270,18 +264,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                     </select>
                                 </div>
 
-                            <div class="row">
-                                <div class="col-md-3 mb-3">
-                                    <div class="form-check form-switch mt-3">
-                                        {{ form.parking_cost_included }}
-                                        <label class="form-check-label">Estacionamiento incluido</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label class="form-label">Costo de Estacionamiento</label>
-                                    {{ form.parking_cost }}
-                                </div>
-                            </div>
+                            
                             </div>
 
                             <!-- Formulario para nuevo contacto (oculto inicialmente) -->
@@ -534,6 +517,19 @@ document.addEventListener('DOMContentLoaded', function(){
                                 </div>
                             </div>
 
+                            <div class="row mt-2">
+                                <div class="col-md-3 mb-3">
+                                    <div class="form-check form-switch">
+                                        {{ form.parking_cost_included }}
+                                        <label class="form-check-label">Estacionamiento incluido</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Costo de Estacionamiento</label>
+                                    {{ form.parking_cost }}
+                                </div>
+                            </div>
+
                             <div class="row">
                                 <div class="col-md-3 mb-3">
                                     <label class="form-label required-field">Área Terreno</label>
@@ -550,6 +546,29 @@ document.addEventListener('DOMContentLoaded', function(){
                                 <div class="col-md-3 mb-3">
                                     <label class="form-label required-field">Unidad</label>
                                     {{ form.built_area_unit }}
+                                </div>
+                            </div>
+                            <!-- FRENTERA: visible sólo para Terreno (aproximada / rango) -->
+                            <div class="row" id="frentera-row" style="display:none;">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Frentera</label>
+                                    <select class="form-select" id="id_frentera_type" name="frentera_type">
+                                        <option value="approx">Aproximada</option>
+                                        <option value="range">Rango</option>
+                                    </select>
+
+                                    <div class="mt-2" id="frentera-approx-row">
+                                        <input type="number" step="0.01" name="frentera_approx" id="id_frentera_approx" class="form-control" placeholder="Frentera aproximada (m)">
+                                    </div>
+
+                                    <div class="mt-2 d-none" id="frentera-range-row">
+                                        <div class="input-group">
+                                            <input type="number" step="0.01" name="frentera_min" id="id_frentera_min" class="form-control" placeholder="Mínimo (m)">
+                                            <input type="number" step="0.01" name="frentera_max" id="id_frentera_max" class="form-control" placeholder="Máximo (m)">
+                                        </div>
+                                    </div>
+
+                                    <small class="form-text text-muted">Visible sólo cuando el Tipo es Terreno.</small>
                                 </div>
                             </div>
                         </div>
@@ -702,6 +721,16 @@ document.addEventListener('DOMContentLoaded', function(){
                                             </div>
                                             <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
                                                 <div class="image-preview w-100"></div>
+                                            </div>
+                                            <div class="col-12 mb-3">
+                                                <div class="form-check form-switch d-inline-block">
+                                                    <input class="form-check-input image-sensible-toggle" type="checkbox" role="switch">
+                                                    <label class="form-check-label">Sensible</label>
+                                                </div>
+                                                <select name="image_sensibles" class="d-none">
+                                                    <option value="0" selected>No</option>
+                                                    <option value="1">Sí</option>
+                                                </select>
                                             </div>
                                         </div>
                                     </div>
@@ -903,6 +932,27 @@ let map;
 let marker;
 let autocomplete;
 let geocoder;
+
+document.addEventListener('DOMContentLoaded', function(){
+    const isProjectCheckbox = document.getElementById('id_is_project');
+    const projectRow = document.getElementById('projectRow');
+    const projectNameWrapper = document.getElementById('projectNameWrapper');
+    const projectNameInput = document.getElementById('id_project_name');
+    const cloneBtn = document.getElementById('cloneBtn');
+
+    function updateProjectVisibility(){
+        const checked = isProjectCheckbox && isProjectCheckbox.checked;
+        if(projectRow) projectRow.style.display = checked ? '' : 'none';
+        if(projectNameWrapper) projectNameWrapper.style.display = checked ? '' : 'none';
+        if(cloneBtn) cloneBtn.style.display = checked ? '' : 'none';
+        if(!checked && projectNameInput) projectNameInput.value = '';
+    }
+
+    if(isProjectCheckbox){
+        isProjectCheckbox.addEventListener('change', updateProjectVisibility);
+        updateProjectVisibility();
+    }
+});
 
 function initMap() {
     console.log('Inicializando mapa...');
@@ -1169,6 +1219,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const elevatorSelect = document.getElementById('id_ascensor');
         const houseFloorsRow = document.getElementById('houseFloorsRow');
         const parametrosRow = document.getElementById('parametros-pisos-row');
+        const frenteraRow = document.getElementById('frentera-row');
+        const frenteraTypeSelect = document.getElementById('id_frentera_type');
+        const frenteraApproxRow = document.getElementById('frentera-approx-row');
+        const frenteraRangeRow = document.getElementById('frentera-range-row');
         if (!typeSelect || !unitRow) return;
 
         function evaluate() {
@@ -1202,9 +1256,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     try { const p = document.getElementById('id_parametros_cantidad_pisos'); if(p) p.selectedIndex = 0; } catch(e){}
                 }
             }
+            // Mostrar FRENTERA (aproximada / rango) sólo para Terreno
+            if (frenteraRow) {
+                frenteraRow.style.display = isTerreno ? '' : 'none';
+                if (!isTerreno) {
+                    try {
+                        const fa = document.getElementById('id_frentera_approx'); if (fa) fa.value = '';
+                        const fm = document.getElementById('id_frentera_min'); if (fm) fm.value = '';
+                        const fx = document.getElementById('id_frentera_max'); if (fx) fx.value = '';
+                        if (frenteraTypeSelect) frenteraTypeSelect.value = 'approx';
+                        if (frenteraApproxRow) frenteraApproxRow.classList.remove('d-none');
+                        if (frenteraRangeRow) frenteraRangeRow.classList.add('d-none');
+                    } catch(e){}
+                }
+            }
         }
 
         typeSelect.addEventListener('change', evaluate);
+        // manejar cambio de tipo de frentera (aprox / range)
+        if (frenteraTypeSelect) {
+            frenteraTypeSelect.addEventListener('change', function(){
+                const v = this.value;
+                if (v === 'range') {
+                    if (frenteraApproxRow) frenteraApproxRow.classList.add('d-none');
+                    if (frenteraRangeRow) frenteraRangeRow.classList.remove('d-none');
+                } else {
+                    if (frenteraApproxRow) frenteraApproxRow.classList.remove('d-none');
+                    if (frenteraRangeRow) frenteraRangeRow.classList.add('d-none');
+                }
+            });
+        }
+
         evaluate();
     }
 
@@ -1350,6 +1432,18 @@ function addImageForm() {
     container.appendChild(newForm);
     populateImageTypeSelect(newForm.querySelector('select[name="image_types"]'));
     populateImageAmbienteSelect(newForm.querySelector('select[name="image_ambientes"]'));
+    // Wire the sensible toggle to the hidden select so the server receives a value per image
+    try {
+        const toggle = newForm.querySelector('.image-sensible-toggle');
+        const hiddenSelect = newForm.querySelector('select[name="image_sensibles"]');
+        if (toggle && hiddenSelect) {
+            // initialize
+            hiddenSelect.value = toggle.checked ? '1' : '0';
+            toggle.addEventListener('change', function() {
+                hiddenSelect.value = this.checked ? '1' : '0';
+            });
+        }
+    } catch (e) { console.error(e); }
 }
 
 function renumberImageOrders() {
@@ -1964,6 +2058,20 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('select[name="image_ambientes"]').forEach(populateImageAmbienteSelect);
     document.querySelectorAll('select[name="video_types"]').forEach(populateVideoTypeSelect);
     document.querySelectorAll('select[name="document_types"]').forEach(populateDocumentTypeSelect);
+    // Wire existing sensible toggles (if any) to their hidden selects
+    try {
+        document.querySelectorAll('.dynamic-form-item').forEach(item => {
+            const toggle = item.querySelector('.image-sensible-toggle');
+            const hiddenSelect = item.querySelector('select[name="image_sensibles"]');
+            if (toggle && hiddenSelect) {
+                // initialize from select if present
+                try { toggle.checked = hiddenSelect.value === '1'; } catch(e) {}
+                toggle.addEventListener('change', function() {
+                    hiddenSelect.value = this.checked ? '1' : '0';
+                });
+            }
+        });
+    } catch (e) { console.error(e); }
 });
 
 document.addEventListener('change', function(e) {
@@ -1978,7 +2086,7 @@ document.addEventListener('change', function(e) {
                 if (previewDiv) {
                     previewDiv.innerHTML = `
                         <div class="position-relative d-inline-block">
-                            <img src="${ev.target.result}" alt="Previsualización">
+                            <img src="${ev.target.result}" alt="Previsualización" class="preview-thumb">
                             <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn" title="Eliminar" style="position:absolute; top:6px; right:6px;">&times;</button>
                         </div>`;
 

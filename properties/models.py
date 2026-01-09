@@ -674,6 +674,7 @@ class PropertyImage(TitleCaseMixin, models.Model):
     caption = models.CharField(max_length=255, blank=True)
     order = models.PositiveIntegerField(default=0)
     is_primary = models.BooleanField(default=False)
+    sensible = models.BooleanField(default=False, verbose_name='Sensible')
     uploaded_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     
@@ -742,6 +743,49 @@ class PropertyImage(TitleCaseMixin, models.Model):
             logger.exception('Error al volcar el binario de la imagen para PropertyImage %s', getattr(self, 'pk', None))
 
         return result
+
+
+# =============================================================================
+# MODELOS PARA EL MOTOR DE MATCHING
+# =============================================================================
+class MatchingWeight(models.Model):
+    """Pesos configurables para cada criterio de matching.
+
+    Se pueden ajustar manualmente desde el admin y son usados por
+    `properties.matching` para ponderar la puntuación.
+    """
+    key = models.CharField(max_length=100, unique=True, help_text='Identificador del criterio, ej: property_type, district, price')
+    weight = models.FloatField(default=1.0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'matching_weights'
+        verbose_name = 'Peso de Matching'
+        verbose_name_plural = 'Pesos de Matching'
+
+    def __str__(self):
+        return f"{self.key}: {self.weight}"
+
+
+class MatchEvent(models.Model):
+    """Registro de coincidencias consideradas positivas (ej. visita agendada).
+
+    Se usa para el aprendizaje simple: cuando un requerimiento vinculado a
+    un contacto programa una visita a una propiedad, se crea un MatchEvent
+    que luego permite ajustar pesos.
+    """
+    requirement = models.ForeignKey('Requirement', on_delete=models.CASCADE, related_name='match_events')
+    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='match_events')
+    created_at = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField(blank=True, null=True, help_text='Datos opcionales sobre el evento')
+
+    class Meta:
+        db_table = 'match_events'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"MatchEvent RQ:{self.requirement_id} PROP:{self.property_id} @ {self.created_at.strftime('%Y-%m-%d')}"
 
 class PropertyVideo(TitleCaseMixin, models.Model):
     title_case_fields = ('title',)

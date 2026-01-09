@@ -24,6 +24,7 @@
                                     <th>Presupuesto</th>
                                     <th>Área terreno</th>
                                     <th>Fecha publicación</th>
+                                    <th>Coincidencia</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -73,6 +74,17 @@
                                     </td>
 
                                     <td>{{ r.created_at|date:"d/m/Y" }}</td>
+
+                                    <td>
+                                        {% if r.match_score %}
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-success">Encontrada</span>
+                                                <span class="ms-2 fw-bold text-dark">{{ r.match_score|floatformat:2 }}%</span>
+                                            </div>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
 
                                     <td>
                                         <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>

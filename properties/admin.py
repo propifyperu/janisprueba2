@@ -20,6 +20,7 @@ from .models import (
 )
 
 from .models import Requirement
+from .models import MatchingWeight, MatchEvent
 
 
 # ===================== ADMIN PARA SERVICIOS =====================
@@ -533,4 +534,19 @@ class EventAdmin(admin.ModelAdmin):
     )
     ordering = ('-fecha_evento', '-hora_inicio')
     date_hierarchy = 'fecha_evento'
+
+
+# ===================== ADMIN PARA MATCHING =====================
+@admin.register(MatchingWeight)
+class MatchingWeightAdmin(admin.ModelAdmin):
+    list_display = ('key', 'weight', 'updated_at')
+    search_fields = ('key',)
+    ordering = ('key',)
+
+
+@admin.register(MatchEvent)
+class MatchEventAdmin(admin.ModelAdmin):
+    list_display = ('requirement', 'property', 'created_at')
+    search_fields = ('requirement__id', 'property__code')
+    ordering = ('-created_at',)
 

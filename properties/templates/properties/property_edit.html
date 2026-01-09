@@ -70,17 +70,32 @@
     }
 
     .image-preview {
-        min-height: 90px;
+        min-height: 160px;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 0.5rem;
     }
 
-    .image-preview img {
-        max-width: 220px;
-        max-height: 180px;
+    .image-preview img,
+    .image-preview .preview-thumb {
+        width: 140px;
+        height: 140px;
+        object-fit: cover;
         border-radius: 0.5rem;
         border: 1px solid rgba(4, 125, 125, 0.25);
+        display: block;
+    }
+    .image-preview .form-check {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        margin-top: 0.25rem;
+    }
+    .image-preview .small {
+        text-align: center;
     }
 
     .video-preview {
@@ -635,13 +650,20 @@
                                         <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
                                             <div class="image-preview w-100 text-center">
                                                 {% if image.image_blob %}
-                                                    <img src="{% url 'properties:image_blob' image.id %}" alt="{{ image.caption }}" style="max-width:200px; max-height:160px; border-radius:0.5rem; border:1px solid rgba(4,125,125,0.25);">
+                                                    <img src="{% url 'properties:image_blob' image.id %}" alt="{{ image.caption }}" class="preview-thumb">
                                                 {% elif image.image %}
-                                                    <img src="{{ image.image.url }}" alt="{{ image.caption }}" style="max-width:200px; max-height:160px; border-radius:0.5rem; border:1px solid rgba(4,125,125,0.25);">
+                                                    <img src="{{ image.image.url }}" alt="{{ image.caption }}" class="preview-thumb">
                                                 {% else %}
                                                     <div class="text-muted">No disponible</div>
                                                 {% endif %}
                                                 <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn mt-2">Eliminar bloque</button>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 mb-3">
+                                            <input type="hidden" name="existing_image_sensible_{{ image.id }}" value="0">
+                                            <div class="form-check form-switch d-inline-block">
+                                                <input class="form-check-input" type="checkbox" id="existing_image_sensible_{{ image.id }}" name="existing_image_sensible_{{ image.id }}" value="1" {% if image.sensible %}checked{% endif %}>
+                                                <label class="form-check-label small" for="existing_image_sensible_{{ image.id }}">Sensible</label>
                                             </div>
                                         </div>
                                     </div>
@@ -673,6 +695,16 @@
                                             </div>
                                             <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
                                                 <div class="image-preview w-100"></div>
+                                            </div>
+                                            <div class="col-12 mb-3">
+                                                <div class="form-check form-switch d-inline-block">
+                                                    <input class="form-check-input image-sensible-toggle" type="checkbox" role="switch">
+                                                    <label class="form-check-label">Sensible</label>
+                                                </div>
+                                                <select name="image_sensibles" class="d-none">
+                                                    <option value="0" selected>No</option>
+                                                    <option value="1">Sí</option>
+                                                </select>
                                             </div>
                                         </div>
                                     </div>
@@ -1573,6 +1605,17 @@ function addImageForm() {
     container.appendChild(newForm);
     populateImageTypeSelect(newForm.querySelector('select[name="image_types"]'));
     populateImageAmbienteSelect(newForm.querySelector('select[name="image_ambientes"]'));
+    // Wire the sensible toggle to the hidden select so the server receives a value per image
+    try {
+        const toggle = newForm.querySelector('.image-sensible-toggle');
+        const hiddenSelect = newForm.querySelector('select[name="image_sensibles"]');
+        if (toggle && hiddenSelect) {
+            hiddenSelect.value = toggle.checked ? '1' : '0';
+            toggle.addEventListener('change', function() {
+                hiddenSelect.value = this.checked ? '1' : '0';
+            });
+        }
+    } catch (e) { console.error(e); }
 }
 
 function addVideoForm() {
@@ -1763,7 +1806,7 @@ document.addEventListener('change', function(e) {
                 if (previewDiv) {
                     previewDiv.innerHTML = `
                         <div class="position-relative d-inline-block">
-                            <img src="${ev.target.result}" alt="Previsualización">
+                            <img src="${ev.target.result}" alt="Previsualización" class="preview-thumb">
                             <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn" title="Eliminar" style="position:absolute; top:6px; right:6px;">&times;</button>
                         </div>`;
 
