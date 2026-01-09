@@ -22,6 +22,8 @@
     :root {
         --sidebar-width: 260px;
         --navbar-height: 72px;
+        /* Color acento tomado del fondo por defecto del sidebar (tema verde) */
+        --sidebar-accent: #047d7d;
     }
 
     /* Cabecera en flujo normal (no fija) */
@@ -29,6 +31,27 @@
         position: relative;
         z-index: 2000; /* mantener por encima del sidebar al inicio */
         background: transparent;
+    }
+
+    /* Línea divisoria inferior del header que coincide con el color del sidebar */
+    .navbar-header::after {
+        content: '';
+        position: absolute;
+        /* start after the sidebar so the divider does not cover sidebar area */
+        left: calc(var(--sidebar-width));
+        right: 0;
+        bottom: 0;
+        height: 18px;
+        background: var(--sidebar-accent);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        pointer-events: none;
+    }
+
+    /* On small screens the sidebar becomes full-width, so let the divider span whole width */
+    @media (max-width: 992px) {
+        .navbar-header::after {
+            left: 0;
+        }
     }
 
     .navbar-header .container {

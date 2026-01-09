@@ -15,38 +15,14 @@
     <div class="navbar-header">
         <div class="container">
             <div class="navbar-nav d-flex justify-content-between align-items-center">
-                <!-- Logo/Título -->
+                <!-- Logo a la izquierda -->
                 <div>
-                    <a class="navbar-brand" href="{% url 'properties:list' %}">
-                        <i class="fas fa-home"></i> Janis Platform
+                    <a class="navbar-brand d-flex align-items-center" href="{% url 'properties:list' %}">
+                        <img src="/media/Logo-Ho.png" alt="Logo" style="height:80px; margin-right:12px; margin-top: 10px;margin-bottom: 20px;" />
                     </a>
-                    <small class="text-white-50">Sistema de Gestión de Propiedades</small>
                 </div>
                 
-                <!-- Menú del Usuario -->
-                <div class="dropdown">
-                    <button class="btn btn-light dropdown-toggle" type="button" id="navbarUserDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-user-circle"></i> {{ user.get_full_name|default:user.username }}
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
-                        <li>
-                            <a class="dropdown-item" href="{% url 'users:profile' %}">
-                                <i class="fas fa-user"></i> Mi Perfil
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="{% url 'users:profile_edit' %}">
-                                <i class="fas fa-edit"></i> Editar Perfil
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item" href="{% url 'users:logout' %}">
-                                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+                <!-- Menú de usuario eliminado por petición; se puede reimplementar en otro componente -->
             </div>
         </div>
     </div>

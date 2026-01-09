@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "users",
     "security",
     "whatsapp",
+    "chat",
 ]
 # Facebook Pixel ID (opcional, para campañas)
 import os

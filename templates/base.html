@@ -19,20 +19,31 @@
         }
         
         .navbar-header {
-            background: linear-gradient(135deg, rgba(4, 125, 125, 0.95) 0%, rgba(39, 152, 150, 0.95) 100%);
-            color: #f3fdfd;
-            padding: 1rem 0;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-image: url('/media/header.jpeg');
+            background-size: cover;
+            background-position: center center;
+            color: #ffffff;
+            padding: 0.5rem 0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
         }
-        
+
         .navbar-header .navbar-brand {
-            color: #f3fdfd;
+            color: #ffffff;
             font-weight: 700;
-            font-size: 1.5rem;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
-        
+
+        .navbar-header .brand-logo {
+            height: 48px;
+            width: auto;
+            display: inline-block;
+        }
+
         .navbar-header .navbar-brand:hover {
-            color: #f3fdfd;
+            color: #ffffff;
         }
     </style>
 </head>
@@ -45,7 +56,8 @@
                 <!-- Logo/Título -->
                 <div>
                     <a class="navbar-brand text-decoration-none" href="{% url 'properties:list' %}">
-                        <i class="fas fa-home"></i> Propify
+                        <img src="/media/Logo-Ho.png" alt="Logo" class="brand-logo" />
+                        <span>Propify</span>
                     </a>
                     <small class="text-white-50 d-block">Sistema de Gestión de Propiedades</small>
                 </div>

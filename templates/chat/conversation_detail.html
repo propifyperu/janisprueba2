@@ -1,0 +1,30 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block dashboard_content %}
+<div class="container py-4">
+  <h3>{{ conversation.title|default:'Conversación ' ~ conversation.id }}</h3>
+  <div id="chat-window" style="height:400px; overflow:auto; border:1px solid #ddd; padding:10px; background:#fff">
+    {% for m in messages %}
+      <div class="mb-2"><strong>{{ m.sender_name }}</strong> <small class="text-muted">{{ m.created_at }}</small><div>{{ m.body|linebreaksbr }}</div></div>
+    {% endfor %}
+  </div>
+
+  <form id="chat-form" class="mt-2">
+    <input type="hidden" name="conversation" value="{{ conversation.id }}" />
+    <div class="input-group">
+      <input id="chat-body" class="form-control" name="body" placeholder="Escribe un mensaje...">
+      <button class="btn btn-primary" id="chat-send">Enviar</button>
+    </div>
+  </form>
+</div>
+
+<script src="{% static 'chat/chat_popup.js' %}"></script>
+<script>
+  (function(){
+    const conv = {{ conversation.id }};
+    initChatPopup(conv, '#chat-window', '#chat-form');
+  })();
+</script>
+
+{% endblock %}
