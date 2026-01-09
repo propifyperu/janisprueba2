@@ -108,7 +108,15 @@
                                                 <td class="align-middle">
                                                     {% if v.matched %}<span class="badge bg-success">Coincide</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}
                                                 </td>
-                                                <td class="align-middle">{% if v.contrib is not None %}{{ v.contrib|floatformat:2 }}{% else %}—{% endif %}</td>
+                                                <td class="align-middle">
+                                                    {% if v.contrib is not None and v.max is not None %}
+                                                        {{ v.contrib|floatformat:2 }} / {{ v.max|floatformat:2 }}
+                                                    {% elif v.contrib is not None %}
+                                                        {{ v.contrib|floatformat:2 }}
+                                                    {% else %}
+                                                        —
+                                                    {% endif %}
+                                                </td>
                                             </tr>
                                             {% if v.info %}
                                                 <tr><td colspan="5" class="small text-muted">{{ v.info }}</td></tr>

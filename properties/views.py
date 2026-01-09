@@ -252,6 +252,8 @@ def matching_matches_view(request, pk: int):
 
     # calcular coincidencias
     results = matching_module.get_matches_for_requirement(req, limit=50)
+    # cargar pesos por criterio para mostrar el valor máximo posible por criterio
+    weights = matching_module._load_weights()
 
     # Añadir representación legible del valor de la propiedad para cada criterio
     for r in results:
@@ -307,9 +309,11 @@ def matching_matches_view(request, pk: int):
             # asegurar que `v` sea dict y almacenar la representación
             if isinstance(v, dict):
                 v['prop_value'] = pv
+                # añadir el peso máximo (valor completo) para este criterio
+                v['max'] = weights.get(k, 0)
             else:
                 # si v no es dict, convertir a dict para mantener compatibilidad
-                details[k] = {'contrib': 0, 'matched': False, 'info': '', 'prop_value': pv}
+                details[k] = {'contrib': 0, 'matched': False, 'info': '', 'prop_value': pv, 'max': weights.get(k, 0)}
 
         # Resolver nombre legible de distrito para la fila resumen (evita mostrar ids numéricos)
         pd = getattr(prop, 'district', None)
