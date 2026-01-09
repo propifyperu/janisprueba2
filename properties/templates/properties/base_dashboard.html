@@ -21,18 +21,26 @@
 
     :root {
         --sidebar-width: 260px;
-        --navbar-height: 72px;
+        --navbar-height: 112px;
         /* Color acento tomado del fondo por defecto del sidebar (tema verde) */
         --sidebar-accent: #047d7d;
     }
 
     /* Cabecera en flujo normal (no fija) */
     .navbar-header {
-        position: relative;
-        z-index: 2000; /* mantener por encima del sidebar al inicio */
-        /* usar mismo verde claro que el layout para consistencia */
-        background: rgba(4,125,125,0.06);
-        padding-bottom: 1.5rem; /* espacio adicional debajo del header */
+        /* header fijo en la parte superior del dashboard */
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--navbar-height);
+        z-index: 2000; /* mantener por encima del sidebar */
+        /* usar color sólido para evitar transparencias que permitan que el contenido pase por encima */
+        background-color: #e6f7f6;
+        display: flex;
+        align-items: center;
+        padding: 0 0; /* altura controlada por --navbar-height */
+        overflow: visible;
     }
 
     /* Línea divisoria inferior del header que coincide con el color del sidebar */
@@ -58,7 +66,7 @@
     }
 
     .navbar-header .container {
-        height: auto;
+        height: var(--navbar-height);
         display: flex;
         align-items: center;
     }
@@ -302,6 +310,8 @@
         position: relative;
         overflow: hidden;
         min-height: 0;
+        /* dejar espacio superior para header fijo */
+        padding-top: var(--navbar-height);
     }
 
     .main-content-inner {
