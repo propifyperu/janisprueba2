@@ -30,6 +30,8 @@ def search_users(request):
 
 from django.urls import reverse
 from django.shortcuts import redirect
+from django.db.models import Max
+from django.db.models import Q
 
 
 @login_required
@@ -180,8 +182,46 @@ def compose(request):
         conv.updated_at = timezone.now()
         conv.save()
 
-        return redirect(reverse('chat:conversation_detail', args=[conv.pk]))
+        return redirect(reverse('chat:sent'))
 
     # GET: render form
     users = User.objects.exclude(pk=request.user.pk).order_by('username')[:200]
     return render(request, 'chat/compose.html', {'users': users})
+
+
+@login_required
+def inbox(request):
+    """Muestra hilos donde el usuario es participante y el último mensaje NO fue enviado por él (entradas)."""
+    threads = MailThread.objects.filter(participants=request.user).order_by('-updated_at')
+    inbox_threads = []
+    for t in threads:
+        last = t.messages.order_by('-created_at').first()
+        if last and last.sender_id != request.user.id:
+            inbox_threads.append({'thread': t, 'last': last})
+    # soportar hilo seleccionado via ?selected=<id>
+    selected = request.GET.get('selected')
+    selected_thread = None
+    messages = []
+    if selected:
+        try:
+            sid = int(selected)
+            st = MailThread.objects.filter(participants=request.user, pk=sid).first()
+            if st:
+                selected_thread = st
+                messages = st.messages.select_related('sender').order_by('created_at')
+        except Exception:
+            selected_thread = None
+
+    return render(request, 'chat/inbox.html', {'threads': inbox_threads, 'selected_thread': selected_thread, 'messages': messages})
+
+
+@login_required
+def sent(request):
+    """Muestra hilos con mensajes enviados por el usuario (bandeja de salida)."""
+    threads = MailThread.objects.filter(participants=request.user).order_by('-updated_at')
+    sent_threads = []
+    for t in threads:
+        last = t.messages.order_by('-created_at').first()
+        if last and last.sender_id == request.user.id:
+            sent_threads.append({'thread': t, 'last': last})
+    return render(request, 'chat/sent.html', {'threads': sent_threads})
