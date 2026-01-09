@@ -8,6 +8,26 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+
+@login_required
+def search_users(request):
+    """API simple para buscar usuarios por nombre, apellido o username.
+
+    Query param: `q` (string). Devuelve hasta 30 coincidencias (id, label, email).
+    """
+    q = (request.GET.get('q') or '').strip()
+    out = []
+    if not q:
+        return JsonResponse({'results': out})
+    qs = User.objects.exclude(pk=request.user.pk)
+    # buscar en username, first_name, last_name y email
+    from django.db.models import Q
+    qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(email__icontains=q))[:30]
+    for u in qs:
+        label = (u.get_full_name() or u.username)
+        out.append({'id': u.pk, 'label': label, 'email': u.email})
+    return JsonResponse({'results': out})
+
 from django.urls import reverse
 from django.shortcuts import redirect
 

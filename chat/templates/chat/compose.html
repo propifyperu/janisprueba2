@@ -1,33 +1,99 @@
-{% extends 'properties/base.html' %}
+{% extends 'properties/base_dashboard.html' %}
 {% block title %}Redactar mensaje{% endblock %}
-{% block content %}
-<div class="container my-4">
-  <h3>Redactar mensaje interno</h3>
-  <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <div class="mb-3">
-      <label class="form-label">Para</label>
-      <select name="recipients" class="form-select" multiple required>
-        {% for u in users %}
-          <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} &lt;{{ u.email }}&gt;</option>
-        {% endfor %}
-      </select>
-      <div class="form-text">Mantén presionado Ctrl/Cmd para seleccionar varios destinatarios.</div>
+{% block dashboard_content %}
+<div class="container my-2">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Redactar mensaje interno</h3>
+    <a class="btn btn-secondary" href="{% url 'chat:conversation_list' %}">Volver</a>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label">Para</label>
+          <div>
+            <div class="input-group">
+              <input id="userSearchInput" type="text" class="form-control" placeholder="Buscar por nombre, apellido o email..." autocomplete="off" />
+            </div>
+            <div id="userSearchResults" class="list-group position-absolute" style="z-index:4000; max-height:220px; overflow:auto; display:none; width:100%;"></div>
+            <div id="selectedRecipients" class="mt-2 d-flex flex-wrap gap-2"></div>
+            <div class="form-text">Busca y añade destinatarios; elimina con la X.</div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Asunto</label>
+          <input name="subject" class="form-control" />
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Mensaje</label>
+          <textarea name="body" rows="6" class="form-control"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Adjuntos</label>
+          <input type="file" name="attachments" multiple class="form-control" />
+        </div>
+        <button class="btn btn-primary">Enviar</button>
+        <a class="btn btn-link ms-2" href="{% url 'chat:conversation_list' %}">Cancelar</a>
+      </form>
     </div>
-    <div class="mb-3">
-      <label class="form-label">Asunto</label>
-      <input name="subject" class="form-control" />
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Mensaje</label>
-      <textarea name="body" rows="6" class="form-control"></textarea>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Adjuntos</label>
-      <input type="file" name="attachments" multiple class="form-control" />
-    </div>
-    <button class="btn btn-primary">Enviar</button>
-    <a class="btn btn-secondary ms-2" href="{% url 'chat:conversation_list' %}">Cancelar</a>
-  </form>
+  </div>
 </div>
+<script>
+(()=>{
+  const input = document.getElementById('userSearchInput');
+  const results = document.getElementById('userSearchResults');
+  const selected = document.getElementById('selectedRecipients');
+
+  let timer = null;
+  function clearResults(){ results.innerHTML=''; results.style.display='none'; }
+
+  function renderSelected(){
+    // nothing special: selected contains hidden inputs already
+  }
+
+  function addRecipient(u){
+    // prevent duplicates
+    if (selected.querySelector(`input[value="${u.id}"]`)) return;
+    const token = document.createElement('div');
+    token.className = 'badge bg-primary text-white d-inline-flex align-items-center';
+    token.style.padding = '0.5rem 0.5rem';
+    token.innerHTML = `<span class="me-2">${u.label}</span>`;
+    const btn = document.createElement('button'); btn.type='button'; btn.className='btn-close btn-close-white btn-sm'; btn.style.marginLeft='6px';
+    token.appendChild(btn);
+    const hidden = document.createElement('input'); hidden.type='hidden'; hidden.name='recipients'; hidden.value = u.id;
+    token.appendChild(hidden);
+    btn.addEventListener('click', ()=>{ token.remove(); });
+    selected.appendChild(token);
+  }
+
+  async function doSearch(q){
+    if (!q) { clearResults(); return; }
+    try{
+      const res = await fetch('{% url "chat:search_users" %}?q='+encodeURIComponent(q));
+      if (!res.ok) return;
+      const data = await res.json();
+      results.innerHTML = '';
+      if (!data.results || data.results.length===0){ clearResults(); return; }
+      data.results.forEach(u=>{
+        const a = document.createElement('a');
+        a.className = 'list-group-item list-group-item-action';
+        a.href = '#';
+        a.textContent = `${u.label} <${u.email || ''}>`;
+        a.addEventListener('click', (e)=>{ e.preventDefault(); addRecipient(u); clearResults(); input.value=''; });
+        results.appendChild(a);
+      });
+      results.style.display='block';
+    }catch(e){ console.error(e); }
+  }
+
+  input.addEventListener('input', (e)=>{
+    clearTimeout(timer);
+    const q = e.target.value.trim();
+    timer = setTimeout(()=> doSearch(q), 250);
+  });
+
+  document.addEventListener('click', (e)=>{ if (!results.contains(e.target) && e.target!==input) clearResults(); });
+})();
+</script>
 {% endblock %}
