@@ -16,8 +16,14 @@
   </button>
   <ul class="dropdown-menu dropdown-menu-end p-2 messages-dropdown" aria-labelledby="messagesDropdown" style="width:360px;">
     <li class="dropdown-header d-flex justify-content-between align-items-center">
-      <span>Mensajes</span>
-      <a href="{% url 'chat:compose' %}" class="btn btn-sm btn-outline-primary">Redactar</a>
+      <div>
+        <strong>Mensajes</strong>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'chat:inbox' %}" class="btn btn-sm btn-outline-secondary">Bandeja</a>
+        <a href="{% url 'chat:sent' %}" class="btn btn-sm btn-outline-secondary">Enviados</a>
+        <a href="{% url 'chat:compose' %}" class="btn btn-sm btn-outline-primary">Redactar</a>
+      </div>
     </li>
     <li><div id="messagesPreview" style="max-height:300px; overflow:auto;"></div></li>
     <li><hr class="dropdown-divider"></li>
@@ -44,7 +50,7 @@ async function refreshMessagesBadge() {
     data.preview.forEach(function(p){
       const el = document.createElement('div');
       el.className = 'mb-2';
-      el.innerHTML = `<a href="/chat/c/${p.conversation_id}/" class="d-flex gap-2 align-items-start text-decoration-none text-dark">
+      el.innerHTML = `<a href="/chat/c/${p.conversation_id}/" data-conv="${p.conversation_id}" class="d-flex gap-2 align-items-start text-decoration-none text-dark preview-link">
           <div style="width:42px; height:42px; background:#f1f1f1; border-radius:6px; display:flex; align-items:center; justify-content:center;"><i class="fas fa-user"></i></div>
           <div style="flex:1;">
             <div class="small text-muted">${p.sender} · <small>${new Date(p.created_at).toLocaleString()}</small></div>
@@ -53,6 +59,20 @@ async function refreshMessagesBadge() {
           </div>
         </a>`;
       preview.appendChild(el);
+    });
+    // attach click handlers to preview links to mark as read before navigating
+    preview.querySelectorAll('.preview-link').forEach(function(a){
+      a.addEventListener('click', async function(e){
+        e.preventDefault();
+        const conv = this.dataset.conv;
+        try{
+          await fetch('{% url "chat:mark_read" %}', {method:'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}, body: new URLSearchParams({'conversation': conv})});
+        }catch(err){console.error(err)}
+        // refresh badge after marking
+        await refreshMessagesBadge();
+        // proceed to conversation
+        window.location.href = this.href;
+      });
     });
   } catch(e) {
     console.error(e);

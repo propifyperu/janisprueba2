@@ -108,6 +108,28 @@ def unread_count(request):
 
 
 @login_required
+@csrf_exempt
+def mark_read(request):
+    """Marcar mensajes de una conversación como leídos por el usuario actual.
+
+    POST: conversation (int)
+    """
+    if request.method != 'POST':
+        return HttpResponseBadRequest('POST required')
+    try:
+        conv_id = int(request.POST.get('conversation'))
+    except Exception:
+        return HttpResponseBadRequest('Invalid conversation id')
+    conv = get_object_or_404(MailThread, pk=conv_id)
+    if request.user not in conv.participants.all():
+        return HttpResponseBadRequest('No autorizado')
+    # marcar solo mensajes no enviados por el usuario
+    msgs = Message.objects.filter(conversation=conv).exclude(sender=request.user).filter(is_read=False)
+    updated = msgs.update(is_read=True)
+    return JsonResponse({'ok': True, 'updated': updated})
+
+
+@login_required
 def fetch_messages(request):
     try:
         conv_id = int(request.GET.get('conversation'))
