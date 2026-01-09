@@ -1,30 +1,124 @@
 {% extends 'properties/base_dashboard.html' %}
-{% load static %}
-
+{% block title %}{{ conversation.title|default:'Conversación' }}{% endblock %}
 {% block dashboard_content %}
-<div class="container py-4">
-  <h3>{{ conversation.title|default:'Conversación ' ~ conversation.id }}</h3>
-  <div id="chat-window" style="height:400px; overflow:auto; border:1px solid #ddd; padding:10px; background:#fff">
-    {% for m in messages %}
-      <div class="mb-2"><strong>{{ m.sender_name }}</strong> <small class="text-muted">{{ m.created_at }}</small><div>{{ m.body|linebreaksbr }}</div></div>
-    {% endfor %}
+<div class="container my-3">
+  <div class="mb-3 d-flex justify-content-between align-items-start gap-3">
+    <div>
+      <h2 class="mb-1">{{ conversation.title|default:'Sin asunto' }}</h2>
+      <div class="small text-muted">
+        {% if messages|length > 0 %}
+          De: {{ messages.0.sender_name }}
+        {% endif %}
+        &nbsp;·&nbsp; Para: {% for u in conversation.participants.all %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
+      </div>
+    </div>
+    <div class="text-end">
+      <a class="btn btn-outline-secondary me-2" href="{% url 'chat:inbox' %}">Bandeja</a>
+      <a class="btn btn-outline-secondary me-2" href="{% url 'chat:sent' %}">Enviados</a>
+      <a class="btn btn-primary" id="replyToggleBtn">Responder</a>
+    </div>
   </div>
 
-  <form id="chat-form" class="mt-2">
-    <input type="hidden" name="conversation" value="{{ conversation.id }}" />
-    <div class="input-group">
-      <input id="chat-body" class="form-control" name="body" placeholder="Escribe un mensaje...">
-      <button class="btn btn-primary" id="chat-send">Enviar</button>
+  <div class="row">
+    <div class="col-md-8">
+      <div class="list-group">
+        {% for m in messages %}
+          <div class="list-group-item mb-3 shadow-sm" style="border-radius:8px;">
+            <div class="d-flex align-items-start">
+              <div style="width:56px; height:56px; background:#f1f3f5; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; margin-right:12px;">{{ m.sender_name|slice:":1"|upper }}</div>
+              <div style="flex:1;">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <div class="fw-bold">{{ m.sender_name }}</div>
+                    <div class="small text-muted">{{ m.created_at }}</div>
+                  </div>
+                  <div>
+                    <button class="btn btn-sm btn-outline-secondary reply-btn" data-message-id="{{ m.id }}">Responder</button>
+                  </div>
+                </div>
+                <div class="mt-2">{{ m.body|linebreaksbr }}</div>
+                {% if m.attachments.all %}
+                  <div class="mt-3">
+                    <div class="small text-muted mb-1">Adjuntos:</div>
+                    <ul class="list-unstyled ms-0">
+                      {% for a in m.attachments.all %}
+                        <li><a href="{{ a.file.url }}" target="_blank">{{ a.file.name }}</a></li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="alert alert-light">No hay mensajes en este hilo.</div>
+        {% endfor %}
+      </div>
     </div>
-  </form>
+
+    <div class="col-md-4">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h6 class="card-title">Detalles del hilo</h6>
+          <p class="mb-1"><strong>Asunto:</strong> {{ conversation.title|default:'Sin asunto' }}</p>
+          <p class="mb-1"><strong>Participantes:</strong></p>
+          <ul class="small">
+            {% for u in conversation.participants.all %}
+              <li>{{ u.get_full_name|default:u.username }} &lt;{{ u.email }}&gt;</li>
+            {% endfor %}
+          </ul>
+          <p class="small text-muted">Última actualización: {{ conversation.updated_at }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="replyBox" style="display:none; margin-top:18px;">
+    <div class="card">
+      <div class="card-body">
+        <form id="sendMessageForm" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="conversation" value="{{ conversation.id }}" />
+          <div class="mb-2">
+            <textarea name="body" id="replyBody" rows="6" class="form-control" placeholder="Escribe tu respuesta..."></textarea>
+          </div>
+          <div class="mb-2">
+            <input type="file" name="attachments" multiple />
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary">Enviar</button>
+            <button type="button" class="btn btn-outline-secondary" id="replyCancel">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
 
-<script src="{% static 'chat/chat_popup.js' %}"></script>
 <script>
-  (function(){
-    const conv = {{ conversation.id }};
-    initChatPopup(conv, '#chat-window', '#chat-form');
-  })();
-</script>
+document.getElementById('replyToggleBtn').addEventListener('click', function(){
+  const box = document.getElementById('replyBox');
+  box.style.display = (box.style.display === 'none') ? 'block' : 'none';
+  if (box.style.display === 'block') document.getElementById('replyBody').focus();
+});
+document.querySelectorAll('.reply-btn').forEach(b => b.addEventListener('click', function(){
+  const box = document.getElementById('replyBox');
+  box.style.display = 'block';
+  document.getElementById('replyBody').focus();
+}));
+document.getElementById('replyCancel').addEventListener('click', function(){ document.getElementById('replyBox').style.display='none'; });
 
+document.getElementById('sendMessageForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const form = e.currentTarget;
+  const data = new FormData(form);
+  const res = await fetch('{% url "chat:send_message" %}', {method:'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}, body: data});
+  if (res.ok){
+    location.reload();
+  } else {
+    const txt = await res.text();
+    alert('Error: '+txt);
+  }
+});
+</script>
 {% endblock %}

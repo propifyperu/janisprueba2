@@ -6,7 +6,9 @@
     <div>
       <h2 class="mb-1">{{ conversation.title|default:'Sin asunto' }}</h2>
       <div class="small text-muted">
-        De: {{ messages.0.sender_name if messages|length > 0 else '' }}
+        {% if messages|length > 0 %}
+          De: {{ messages.0.sender_name }}
+        {% endif %}
         &nbsp;·&nbsp; Para: {% for u in conversation.participants.all %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
       </div>
     </div>
