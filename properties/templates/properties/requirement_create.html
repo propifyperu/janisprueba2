@@ -33,7 +33,7 @@
         <div class="col-12 col-xl-11">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <form method="post" enctype="multipart/form-data">
+                    <form id="requirement-form" method="post" enctype="multipart/form-data">
                         {% csrf_token %}
 
                         <!-- Sección: Seleccionar Contacto -->
@@ -699,5 +699,18 @@ document.addEventListener('DOMContentLoaded', function() {
         provSel.addEventListener('change', function(){ loadDistricts(this.value); try{ $("#{{ form.district.id_for_label }}").val(null).trigger('change'); }catch(e){} });
     });
 })();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    try{
+        var reqForm = document.getElementById('requirement-form');
+        if(reqForm){
+            reqForm.addEventListener('submit', function(){
+                try{ showLoadingOverlay('Guardando y buscando coincidencias con el motor...'); }catch(e){}
+                // allow normal submit
+            });
+        }
+    }catch(e){ console.warn('requirement form binding failed', e); }
+});
 </script>
 {% endblock %}

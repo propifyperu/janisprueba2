@@ -1,5 +1,5 @@
 {% extends 'properties/base_dashboard.html' %}
-{% load static %}
+{% load static dict_extras %}
 
 {% block title %}Mis Requerimientos - Janis Platform{% endblock %}
 
@@ -104,6 +104,11 @@
                                     <td>{{ r.created_at|date:"d/m/Y" }}</td>
 
                                     <td>
+                                        {% with m=matches_map|get_item:r.id %}
+                                            {% if m and m.count > 0 %}
+                                                <span class="badge bg-teal me-2">{{ m.count }} matches</span>
+                                            {% endif %}
+                                        {% endwith %}
                                         <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>
                                         <a href="{% url 'properties:requirements_edit' r.id %}" class="btn btn-sm btn-outline-teal ms-1">Editar</a>
                                         <form method="post" action="{% url 'properties:requirements_delete' r.id %}" style="display:inline;" onsubmit="return confirm('¿Confirmas eliminar este requerimiento?');">

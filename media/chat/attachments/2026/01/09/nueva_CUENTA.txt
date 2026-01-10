@@ -1,0 +1,41 @@
+nueva CUENTA 
+
+propifyperusac@hotmail.com
+Propify12345@
+
+
+$env:DB_USER = 'sqladmin@janisdevsql58636'
+$env:DB_PASS = 'Propify12345@'   
+
+
+clave secreta de la app
+
+c3e21a95de6a85a3fea080d2ccb52c55
+
+
+
+$env:DB_PASS = 'Propify12345@'
+$env:DB_USER = 'sqladmin@janisdevsql58636'
+
+
+https://docs.google.com/document/d/1nsQX9-qXmFgvymAnxTi9EtBm-GNHmq4BIcU9G1BbbGs/edit?usp=sharing
+
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+identificador app (app id)
+26727525360169828
+
+clave secreta de la app
+54b53bcaa5a2d78f81872cf123550d47
+
+token de acceso
+EAF70iu7Rc2QBQSsy8Wx4KUsZAMhkobIkRM2hgBStSVs9AB4oZAo95Tg1ZC6Wz4EMC8rwWNRZCu1DJJkt77dx6m9okZBIe94Wab9jha96WEbZCKYT41JKwwM9xX9wrz2MLrbutKLTZBCTgZACoL6JKwSnRpHWAWnXL4FRJ2N1nPScOMozhCDWZCwGZAhSdi5yIcYE7Bfx3JYILZBRsT6vqPnZAkguLDPZAqhpMyVDeJ2pjkIyeYV33VEDGaJPtqU4fak4dsHMZAl1J698SQkGUgzX1KHZABpTYqP
+
+
+
+
+
+
+
+
+quiero hacer una modificacion en role_field_permissions.html solo quiero que haya una columna  y es la de "ver" las demas columnas "editar " elimninalas y que solo funciones esa funcionalidad la de ver

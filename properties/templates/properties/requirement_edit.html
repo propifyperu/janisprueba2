@@ -33,7 +33,7 @@
         <div class="col-12 col-xl-11">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <form method="post" enctype="multipart/form-data">
+                    <form id="requirement-form" method="post" enctype="multipart/form-data">
                         {% csrf_token %}
 
                         <!-- Sección: Datos del cliente -->
@@ -318,5 +318,17 @@
             .catch(e => console.warn('Error al cargar subtipos:', e));
     });
 })();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    try{
+        var reqForm = document.getElementById('requirement-form');
+        if(reqForm){
+            reqForm.addEventListener('submit', function(){
+                try{ showLoadingOverlay('Guardando y buscando coincidencias con el motor...'); }catch(e){}
+            });
+        }
+    }catch(e){ console.warn('requirement edit form binding failed', e); }
+});
 </script>
 {% endblock %}

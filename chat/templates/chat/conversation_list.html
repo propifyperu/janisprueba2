@@ -1,9 +1,9 @@
-{% extends 'properties/base.html' %}
+{% extends 'properties/base_dashboard.html' %}
 {% block title %}Mis mensajes{% endblock %}
-{% block content %}
-<div class="container my-4">
-  <h3>Conversaciones</h3>
-  <div class="mb-3">
+{% block dashboard_content %}
+<div class="container my-2">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Conversaciones</h3>
     <a href="{% url 'chat:compose' %}" class="btn btn-primary">Redactar mensaje</a>
   </div>
   <div class="list-group">
@@ -11,7 +11,7 @@
       <a href="{% url 'chat:conversation_detail' c.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
         <div>
           <div class="fw-semibold">{{ c.title|default:"Conversación" }}</div>
-          <div class="small text-muted">{{ c.participants.all|join:", " }}</div>
+          <div class="small text-muted">{% for u in c.participants.all %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
         </div>
         <div class="small text-muted">{{ c.updated_at }}</div>
       </a>

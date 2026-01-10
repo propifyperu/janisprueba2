@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django import forms
 from .models import CustomUser
+from .models import UserProfile
+from django.contrib import messages
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from security.models import AuthorizedDevice, DeviceStatus
@@ -269,4 +271,28 @@ def profile_view(request):
 
 
 def profile_edit_view(request):
-    return render(request, 'users/profile_edit.html')
+    # Obtener o crear perfil
+    profile = None
+    if request.user.is_authenticated:
+        try:
+            profile = request.user.profile
+        except UserProfile.DoesNotExist:
+            profile = UserProfile.objects.create(user=request.user)
+
+    class ProfileForm(forms.ModelForm):
+        class Meta:
+            model = UserProfile
+            fields = ['avatar', 'bio', 'address', 'date_of_birth', 'email_notifications', 'whatsapp_notifications', 'push_notifications']
+
+    if request.method == 'POST':
+        form = ProfileForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Perfil actualizado correctamente.')
+            return redirect('users:profile')
+        else:
+            messages.error(request, 'Corrija los errores en el formulario.')
+    else:
+        form = ProfileForm(instance=profile)
+
+    return render(request, 'users/profile_edit.html', {'form': form, 'user': request.user, 'profile': profile})

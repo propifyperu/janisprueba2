@@ -54,9 +54,9 @@
     }
 
     .profile-edit-dashboard .avatar-upload {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
         flex-wrap: wrap;
     }
 
@@ -71,6 +71,28 @@
         box-shadow: inset 0 0 0 4px rgba(4, 125, 125, 0.15);
     }
 
+        .profile-edit-dashboard .camera-btn {
+            position: absolute;
+            right: 4px;
+            bottom: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .profile-edit-dashboard .camera-btn:hover {
+            transform: translateY(-2px);
+            background: rgba(0, 0, 0, 0.75);
+        }
+        .avatar-upload input[type=file] {
+            display: none;
+        }
     .profile-edit-dashboard .avatar-frame img {
         width: 104px;
         height: 104px;
@@ -79,6 +101,41 @@
         border: 4px solid #fff;
         box-shadow: 0 12px 24px -16px rgba(4, 125, 125, 0.65);
     }
+
+    .profile-edit-dashboard .avatar-frame { position: relative; }
+    .profile-edit-dashboard .camera-btn {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: -14px;
+        width: 40px;
+        height: 40px;
+        background: #fff;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 18px rgba(4,125,125,0.12);
+        color: var(--teal-primary);
+        cursor: pointer;
+        border: 1px solid rgba(4,125,125,0.12);
+        font-size: 1rem;
+    }
+    .profile-edit-dashboard .camera-btn:hover::after {
+        content: 'Subir foto';
+        position: absolute;
+        bottom: 48px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.75);
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+    /* ocultar el input por defecto, controlarlo vía el label.camera-btn */
+    .avatar-upload input[type=file] { display: none; }
 
     .profile-edit-dashboard .avatar-frame .placeholder {
         font-size: 3.5rem;
@@ -240,12 +297,13 @@
                                 <div>
                                     <h2 class="form-section-title"><i class="fas fa-image me-2"></i>Avatar profesional</h2>
                                     <div class="avatar-upload">
-                                        <div class="avatar-frame">
+                                        <div class="avatar-frame" id="avatarFrame">
                                             {% if form.instance.avatar %}
-                                            <img src="{{ form.instance.avatar.url }}" alt="Avatar actual">
+                                            <img id="avatarImg" src="{{ form.instance.avatar.url }}" alt="Avatar actual">
                                             {% else %}
-                                            <span class="placeholder"><i class="fas fa-user-circle"></i></span>
+                                            <span id="avatarPlaceholder" class="placeholder"><i class="fas fa-user-circle"></i></span>
                                             {% endif %}
+                                            <label for="id_avatar" class="camera-btn" aria-label="Subir foto"><i class="fas fa-camera"></i></label>
                                         </div>
                                         <div class="flex-grow-1">
                                             <label for="id_avatar" class="form-label fw-semibold text-muted">Sube tu fotografía</label>
@@ -357,4 +415,47 @@
         </div>
     </div>
 </div>
+    <script>
+        (function(){
+            const input = document.getElementById('id_avatar');
+            if(!input) return;
+            const avatarFrame = document.getElementById('avatarFrame');
+            const avatarImg = document.getElementById('avatarImg');
+            const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+
+            input.addEventListener('change', function(evt){
+                const file = this.files && this.files[0];
+                if(!file) return;
+                const allowed = ['image/jpeg','image/png','image/gif'];
+                if(allowed.indexOf(file.type) === -1){
+                    alert('Formato no permitido. Usa JPG, PNG o GIF.');
+                    this.value = '';
+                    return;
+                }
+                const max = 5 * 1024 * 1024; // 5MB
+                if(file.size > max){
+                    alert('El archivo supera 5 MB. Elige otro archivo más pequeño.');
+                    this.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e){
+                    if(avatarImg){
+                        avatarImg.src = e.target.result;
+                    } else {
+                        const img = document.createElement('img');
+                        img.id = 'avatarImg';
+                        img.src = e.target.result;
+                        img.alt = 'Avatar';
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.objectFit = 'cover';
+                        avatarFrame.insertBefore(img, avatarFrame.firstChild);
+                        if(avatarPlaceholder) avatarPlaceholder.style.display = 'none';
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        })();
+    </script>
 {% endblock %}

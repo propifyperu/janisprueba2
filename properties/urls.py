@@ -62,5 +62,6 @@ urlpatterns = [
     path('matching/requirement/<int:pk>/matches/', views.matching_matches_view, name='matching_matches'),
     # Servir imágenes almacenadas como blob en la tabla `property_images`
     path('images/blob/<int:pk>/', views.image_blob_view, name='image_blob'),
+    path('search/', views.search_view, name='search'),
     path('', views.PropertyDashboardView.as_view(), name='dashboard_root'),
 ]

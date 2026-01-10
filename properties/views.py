@@ -2,7 +2,7 @@ from .models import Property
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 # Vista para borrar borrador
@@ -16,20 +16,22 @@ def get_visible_fields_for_user(user):
     """
     from users.models import RoleFieldPermission
     
-    visible_fields = {}
-    
-    if user.role:
-        # Obtener permisos configurados para este rol
+
+            # Asignar distritos múltiples si vienen
+    try:
         permissions = RoleFieldPermission.objects.filter(role=user.role).values(
             'field_name', 'can_view', 'can_edit'
         )
-        
+
         for perm in permissions:
             visible_fields[perm['field_name']] = {
                 'can_view': perm['can_view'],
                 'can_edit': perm['can_edit']
             }
-    
+    except Exception:
+        # si hay algún error al leer permisos, devolver el mapa vacío
+        pass
+
     # Si no hay permisos específicos, todos los campos son visibles por defecto
     return visible_fields
 
@@ -48,9 +50,7 @@ def delete_draft_view(request, pk):
         from django.contrib import messages
         messages.error(request, 'No se encontró el borrador o no tienes permiso para borrarlo.')
     return HttpResponseRedirect(reverse('properties:drafts'))
-from django.http import HttpResponse
-from django.http import HttpResponseNotFound
-from django.contrib.auth.decorators import login_required
+
 
 # Vista ULTRA SIMPLE sin templates - SOLO HTML PURO
 def simple_properties_view(request):
@@ -58,17 +58,16 @@ def simple_properties_view(request):
     try:
         properties = Property.objects.filter(is_active=True).order_by('-created_at')
         count = properties.count()
-        
         html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <title>Propiedades</title>
             <style>
-                body {{ font-family: Arial; margin: 20px; }}
-                table {{ border-collapse: collapse; width: 100%; }}
-                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-                th {{ background-color: #047d7d; color: white; }}
+                body { font-family: Arial; margin: 20px; }
+                table { border-collapse: collapse; width: 100%; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #047d7d; color: white; }
             </style>
         </head>
         <body>
@@ -76,7 +75,6 @@ def simple_properties_view(request):
             <table>
                 <tr><th>ID</th><th>Código</th><th>Título</th><th>Precio</th><th>Activa</th></tr>
         """
-        
         for p in properties:
             html += f"""
                 <tr>
@@ -87,13 +85,11 @@ def simple_properties_view(request):
                     <td>{'✓' if p.is_active else '✗'}</td>
                 </tr>
             """
-        
         html += """
             </table>
         </body>
         </html>
         """
-        
         return HttpResponse(html)
     except Exception as e:
         return HttpResponse(f"<h1>Error:</h1><p>{str(e)}</p>", status=500)
@@ -113,6 +109,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView, ListView, CreateView
 from django.db.models import Q
 from .models import Property, PropertyType, PropertyStatus, PropertyOwner, PropertySubtype, Requirement
+from janis_core3.opensearch_client import get_opensearch_client
 from .forms import PropertyOwnerForm, RequirementForm
 from .models import MatchingWeight
 from . import matching as matching_module
@@ -239,6 +236,134 @@ def matching_weights_view(request):
     return render(request, 'properties/matching_weights.html', {
         'weights': weights_list,
         'available_keys': available_keys,
+    })
+
+
+def search_view(request):
+    """Global search view using OpenSearch. Falls back to property dashboard DB search if OpenSearch is not available."""
+    q = request.GET.get('q', '').strip()
+    page = int(request.GET.get('page', '1') or 1)
+    per_page = 20
+    results = []
+    total = 0
+
+    if not q:
+        return render(request, 'properties/search_results.html', {'query': q, 'results': results, 'total': total})
+
+    # Try OpenSearch first (preferred). If it's unreachable or returns 0 hits,
+    # fall back to a DB search that iterates Requirement.notes in Python
+    try:
+        client = get_opensearch_client()
+        index = 'site_search'
+        body = {
+            'from': (page - 1) * per_page,
+            'size': per_page,
+            'query': {
+                'multi_match': {
+                    'query': q,
+                    'fields': ['title^3', 'body']
+                }
+            }
+        }
+        resp = client.search(index=index, body=body)
+        total = resp.get('hits', {}).get('total', {}).get('value', 0) if isinstance(resp.get('hits', {}).get('total', {}), dict) else resp.get('hits', {}).get('total', 0)
+        for hit in resp.get('hits', {}).get('hits', []):
+            src = hit.get('_source', {})
+            results.append({
+                'title': src.get('title') or src.get('url'),
+                'snippet': src.get('snippet') or (src.get('body')[:300] if src.get('body') else ''),
+                'url': src.get('url'),
+                'type': src.get('type', 'page'),
+                'thumbnail': src.get('thumbnail')
+            })
+
+        # If OpenSearch returned nothing, do a DB fallback that checks decrypted notes
+        if total == 0:
+            combined = []
+            # Properties DB search (fast)
+            qs_props = Property.objects.filter(
+                Q(title__icontains=q) |
+                Q(description__icontains=q) |
+                Q(code__icontains=q) |
+                Q(exact_address__icontains=q)
+            ).distinct()[:per_page]
+            for p in qs_props:
+                combined.append({
+                    'title': p.title or p.code,
+                    'snippet': (p.description or '')[:300],
+                    'url': f"{reverse('properties:detail', args=[p.pk])}",
+                    'type': 'property',
+                    'thumbnail': (p.images.first().image.url if p.images.exists() and getattr(p.images.first().image, 'url', None) else None)
+                })
+
+            # Requirements: cannot rely on __icontains for encrypted fields, iterate in Python
+            try:
+                from .models import Requirement
+                req_iter = Requirement.objects.all().iterator()
+                for r in req_iter:
+                    notes = (r.notes or '')
+                    if notes and q.lower() in notes.lower():
+                        combined.append({
+                            'title': f'Requerimiento {r.pk}',
+                            'snippet': notes[:300],
+                            'url': f"{reverse('properties:requirement_detail', args=[r.pk])}",
+                            'type': 'requirement',
+                            'thumbnail': None
+                        })
+                        if len(combined) >= per_page:
+                            break
+            except Exception:
+                # if Requirement model not available, ignore
+                pass
+
+            results = combined
+            total = len(results)
+
+    except Exception:
+        # OpenSearch unreachable — fallback to DB search including iterating Requirement.notes
+        combined = []
+        qs_props = Property.objects.filter(
+            Q(title__icontains=q) |
+            Q(description__icontains=q) |
+            Q(code__icontains=q) |
+            Q(exact_address__icontains=q)
+        ).distinct()[:per_page]
+        for p in qs_props:
+            combined.append({
+                'title': p.title or p.code,
+                'snippet': (p.description or '')[:300],
+                'url': f"{reverse('properties:detail', args=[p.pk])}",
+                'type': 'property',
+                'thumbnail': (p.images.first().image.url if p.images.exists() and getattr(p.images.first().image, 'url', None) else None)
+            })
+
+        try:
+            from .models import Requirement
+            req_iter = Requirement.objects.all().iterator()
+            for r in req_iter:
+                notes = (r.notes or '')
+                if notes and q.lower() in notes.lower():
+                    combined.append({
+                        'title': f'Requerimiento {r.pk}',
+                        'snippet': notes[:300],
+                        'url': f"{reverse('properties:requirement_detail', args=[r.pk])}",
+                        'type': 'requirement',
+                        'thumbnail': None
+                    })
+                    if len(combined) >= per_page:
+                        break
+        except Exception:
+            pass
+
+        results = combined
+        total = len(results)
+
+    return render(request, 'properties/search_results.html', {
+        'query': q,
+        'results': results,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
     })
 
 
@@ -766,7 +891,29 @@ def requirement_create_view(request):
                     'owner_form': owner_form,
                     'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
                 })
-            messages.success(request, 'Requerimiento guardado correctamente.')
+            # Recalcular coincidencias inmediatamente y guardarlas en cache para acceso rápido
+            try:
+                from django.core.cache import cache
+                matches = matching_module.get_matches_for_requirement(req, limit=10)
+                # serializar a estructura simple para cache (no almacenar instancias de modelos)
+                cached = []
+                for m in matches:
+                    prop = m.get('property')
+                    cached.append({
+                        'property_id': getattr(prop, 'id', None),
+                        'score': m.get('score'),
+                        'details': m.get('details')
+                    })
+                cache_key = f'req_matches_{req.pk}'
+                try:
+                    cache.set(cache_key, cached, 60 * 60)  # 1 hora
+                except Exception:
+                    # en algunos entornos de test no hay backend de cache configurado
+                    pass
+                messages.success(request, f'Requerimiento guardado correctamente. Se calcularon {len(cached)} coincidencias.')
+            except Exception:
+                # No romper el flujo principal si el cálculo falla
+                messages.success(request, 'Requerimiento guardado correctamente.')
             return redirect('properties:requirements_my')
     else:
         form = RequirementSimpleForm()
@@ -784,6 +931,26 @@ class MyRequirementsView(LoginRequiredMixin, ListView):
     template_name = 'properties/my_requirements.html'
     context_object_name = 'requirements'
     paginate_by = 12
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Cargar coincidencias cacheadas por requerimiento para mostrar en listado
+        from django.core.cache import cache
+        matches_map = {}
+        for req in context.get('requirements', []):
+            try:
+                cached = cache.get(f'req_matches_{req.pk}')
+            except Exception:
+                cached = None
+            if cached and isinstance(cached, list):
+                matches_map[req.pk] = {
+                    'count': len(cached),
+                    'top_score': cached[0]['score'] if len(cached) > 0 and 'score' in cached[0] else None,
+                }
+            else:
+                matches_map[req.pk] = {'count': 0, 'top_score': None}
+        context['matches_map'] = matches_map
+        return context
 
     def get_queryset(self):
         from django.db import OperationalError
@@ -1118,6 +1285,19 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(
                 Q(created_by=self.request.user) | Q(assigned_agent=self.request.user)
             )
+
+        # Búsqueda general por texto (campo `q`) - busca en título, descripción, código, direcciones, amenities y tags
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            queryset = queryset.filter(
+                Q(title__icontains=q) |
+                Q(description__icontains=q) |
+                Q(code__icontains=q) |
+                Q(exact_address__icontains=q) |
+                Q(real_address__icontains=q) |
+                Q(amenities__icontains=q) |
+                Q(tags__name__icontains=q)
+            ).distinct()
 
         # Filtrar solo por: distrito, tipo de propiedad, forma de pago y rango de precio
         property_type = self.request.GET.get('property_type', '').strip()

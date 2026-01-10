@@ -17,3 +17,4 @@ requests
 django-storages
 azure-storage-blob
 azure-identity
+opensearch-py

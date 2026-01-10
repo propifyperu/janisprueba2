@@ -92,11 +92,13 @@
     .sidebar {
         width: var(--sidebar-width);
         color: var(--color-on-dark);
-        padding: 2.5rem 1.75rem;
+        /* empezar desde el tope de la pantalla y ocupar toda la altura */
+        padding: 0 1.75rem; /* trasladamos el padding superior a .sidebar-inner */
         position: fixed;
         top: 0;
         left: 0;
         height: 100vh;
+        z-index: 3000; /* mostrarse por encima del header */
         overflow: hidden;
         flex-shrink: 0;
         display: flex;
@@ -121,7 +123,8 @@
         overflow-y: auto;
         overflow-x: hidden;
         position: relative;
-        padding-right: 0.75rem;
+        /* conservar espacio interno superior para que el contenido no quede pegado al borde */
+        padding: 2.5rem 0.75rem 0.75rem 0.75rem;
     }
 
     /* Ocultar visualmente la scrollbar pero mantener funcionalidad (rueda del ratón)
@@ -579,26 +582,7 @@ function setupCreatePropertyLink() {
     if (createPropertyLink) {
         createPropertyLink.addEventListener('click', (event) => {
             event.preventDefault();
-
-            // Mostrar un mensaje de carga
-            const loadingOverlay = document.createElement('div');
-            loadingOverlay.className = 'loading-overlay';
-
-            const spinner = document.createElement('div');
-            spinner.className = 'spinner-border text-light';
-            spinner.role = 'status';
-
-            const message = document.createElement('span');
-            message.textContent = 'Cargando...';
-
-            const container = document.createElement('div');
-            container.style.textAlign = 'center';
-            container.appendChild(spinner);
-            container.appendChild(message);
-
-            loadingOverlay.appendChild(container);
-            document.body.appendChild(loadingOverlay);
-
+            showLoadingOverlay('Cargando...');
             // Redirigir después de mostrar el mensaje
             setTimeout(() => {
                 window.location.href = createPropertyLink.href;
@@ -639,6 +623,47 @@ function setupSidebarScrollableIndicator() {
     window.addEventListener('resize', update);
     // calcular inicialmente
     setTimeout(update, 50);
+}
+
+function showLoadingOverlay(message) {
+    try {
+        let overlay = document.getElementById('global-loading-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'global-loading-overlay';
+            overlay.className = 'loading-overlay';
+
+            const container = document.createElement('div');
+            container.style.textAlign = 'center';
+
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner-border text-light';
+            spinner.role = 'status';
+
+            const txt = document.createElement('span');
+            txt.textContent = message || 'Cargando...';
+
+            container.appendChild(spinner);
+            container.appendChild(txt);
+            overlay.appendChild(container);
+            document.body.appendChild(overlay);
+        } else {
+            const span = overlay.querySelector('span');
+            if (span) span.textContent = message || 'Cargando...';
+            overlay.style.display = 'flex';
+        }
+    } catch (e) {
+        console.warn('showLoadingOverlay error', e);
+    }
+}
+
+function hideLoadingOverlay() {
+    try {
+        const overlay = document.getElementById('global-loading-overlay');
+        if (overlay) overlay.style.display = 'none';
+    } catch (e) {
+        // ignore
+    }
 }
 </script>
 {% block dashboard_extra_js %}{% endblock %}

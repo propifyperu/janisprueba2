@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     "django_filters",
     "rest_framework_simplejwt.token_blacklist",
     "prueba",
-    "properties",
+    "properties.apps.PropertiesConfig",
     "users",
     "security",
     "whatsapp",
@@ -85,6 +85,8 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 # Context processor para exponer `profile` en todas las plantillas
                 "users.context_processors.user_profile",
+                # Context processor para notificaciones de matching
+                "properties.context_processors.match_notifications",
             ],
         },
     },
@@ -256,3 +258,6 @@ WHATSAPP_API_BASE_URL = f'https://graph.instagram.com/{WHATSAPP_API_VERSION}'
 
 # Allow cookies/credentials if your API uses session authentication
 CORS_ALLOW_CREDENTIALS = True
+
+# OpenSearch configuration (hosts can be a comma-separated list in env var)
+OPENSEARCH_HOSTS = [h.strip() for h in os.environ.get('OPENSEARCH_HOSTS', 'http://localhost:9200').split(',') if h.strip()]
