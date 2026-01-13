@@ -465,6 +465,38 @@ def legal_documents_list_view(request):
 
 
 @login_required
+def my_uploaded_documents_view(request):
+    """Lista de documentos subidos por el usuario para las propiedades que él creó.
+
+    - Solo muestra documentos cuyo `uploaded_by` es el usuario y cuya propiedad fue creada por el mismo usuario.
+    - Acceso: sólo el propio usuario (y superuser).
+    """
+    from .models import Property, PropertyDocument
+
+    # propiedades creadas por el usuario
+    props = Property.objects.filter(created_by=request.user).order_by('-created_at')
+
+    # documentos subidos por el usuario asociados a esas propiedades
+    docs = PropertyDocument.objects.filter(property__in=props, uploaded_by=request.user).select_related('document_type', 'property').order_by('-uploaded_at')
+
+    # Agrupar documentos por propiedad
+    grouped = {}
+    for d in docs:
+        grouped.setdefault(d.property_id, []).append(d)
+
+    prop_rows = []
+    for p in props:
+        prop_rows.append({
+            'property': p,
+            'documents': grouped.get(p.id, []),
+        })
+
+    return render(request, 'properties/my_uploaded_documents.html', {
+        'prop_rows': prop_rows,
+    })
+
+
+@login_required
 def matching_matches_view(request, pk: int):
     """Mostrar coincidencias calculadas para un `Requirement` concreto."""
     req = get_object_or_404(Requirement, pk=pk)

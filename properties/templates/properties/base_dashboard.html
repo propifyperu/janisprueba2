@@ -441,6 +441,10 @@
                 </div>
             </div>
             <div class="nav-group">
+                {% url 'properties:my_uploaded_documents' as my_uploaded_documents_url %}
+                <a class="nav-link {% if request.path == my_uploaded_documents_url %}active{% endif %}" href="{{ my_uploaded_documents_url }}"><i class="fas fa-folder-open me-2"></i>Mis documentos (subidos)</a>
+            </div>
+            <div class="nav-group">
                 <button class="nav-group-toggle{% if request.path == contacts_list_url or request.path == contacts_create_url %} expanded{% endif %}" type="button" data-target="contactsSubmenu" aria-controls="contactsSubmenu" aria-expanded="{% if request.path == contacts_list_url or request.path == contacts_create_url %}true{% else %}false{% endif %}">
                     <i class="fas fa-address-book"></i>
                     <span>Contactos</span>
