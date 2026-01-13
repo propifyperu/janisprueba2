@@ -15,6 +15,7 @@ def get_visible_fields_for_user(user):
     Retorna un diccionario con {field_name: {'can_view': bool, 'can_edit': bool}}
     """
     from users.models import RoleFieldPermission
+    visible_fields = {}
     
 
             # Asignar distritos múltiples si vienen

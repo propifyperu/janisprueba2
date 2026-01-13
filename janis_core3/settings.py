@@ -116,7 +116,9 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT', '1433'),
         'OPTIONS': {
             'driver': os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
-            'extra_params': os.environ.get('DB_EXTRA_PARAMS', 'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;'),
+            # En desarrollo puede ser necesario relajar la negociación TLS si el servidor
+            # no presenta un certificado válido. Cambiar a Trusted para entorno local.
+            'extra_params': os.environ.get('DB_EXTRA_PARAMS', 'Encrypt=no;TrustServerCertificate=yes;Connection Timeout=60;'),
             'connection_timeout': int(os.environ.get('DB_CONN_TIMEOUT', 60)),
         },
         'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', 0)),
