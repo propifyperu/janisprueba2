@@ -481,6 +481,18 @@
             </div>
 
             <div class="nav-group">
+                {% url 'properties:legal_documents' as legal_documents_url %}
+                <button class="nav-group-toggle{% if 'legal' in request.path or 'documentos' in request.path %} expanded{% endif %}" type="button" data-target="legalSubmenu" aria-controls="legalSubmenu" aria-expanded="{% if 'legal' in request.path or 'documentos' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-gavel"></i>
+                    <span>Área Legal</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'legal' in request.path or 'documentos' in request.path %} show{% endif %}" id="legalSubmenu">
+                    <a class="nav-link {% if request.path == legal_documents_url %}active{% endif %}" href="{{ legal_documents_url }}"><i class="fas fa-file-alt me-2"></i>Lista de Documentos</a>
+                </div>
+            </div>
+
+            <div class="nav-group">
                 {% url 'properties:agenda_calendar' as agenda_calendar_url %}
                 {% url 'properties:event_create' as event_create_url %}
                 <button class="nav-group-toggle{% if 'agenda' in request.path %} expanded{% endif %}" type="button" data-target="agendaSubmenu" aria-controls="agendaSubmenu" aria-expanded="{% if 'agenda' in request.path %}true{% else %}false{% endif %}">

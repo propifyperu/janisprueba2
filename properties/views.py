@@ -369,6 +369,102 @@ def search_view(request):
 
 
 @login_required
+def legal_documents_list_view(request):
+    """Lista dinámica de documentos por propiedad para el área Legal.
+
+    - Columnas dinámicas basadas en DocumentType activos.
+    - Última columna forzada: 'ESTUDIO DE TITULO'.
+    - Columna final: porcentaje de completado por propiedad.
+    - Acceso restringido por departamento.
+    """
+    # permitir solo a departamentos específicos
+    allowed = {
+        'legal',
+        'tecnologias de la informacion',
+        'tecnologías de la información',
+        'gerencia'
+    }
+    dept = ''
+    try:
+        dept = (request.user.department.name or '').strip().lower()
+    except Exception:
+        dept = ''
+    if dept not in allowed and not request.user.is_superuser:
+        return HttpResponse('Forbidden', status=403)
+
+    # Obtener tipos de documentos activos
+    from .models import DocumentType, Property, PropertyDocument
+
+    doc_types = list(DocumentType.objects.filter(is_active=True).order_by('name'))
+
+    # Buscar tipo especial 'ESTUDIO DE TITULO' (case-insensitive)
+    estudio = None
+    for dt in doc_types:
+        if (dt.name or '').strip().lower() in ('estudio de titulo', 'estudio de título', 'estudio de titulo'):
+            estudio = dt
+            break
+
+    ordered_doc_types_no_estudio = [dt for dt in doc_types if dt != estudio]
+    # asegurar que la columna estudio esté al final
+    ordered_doc_types = list(ordered_doc_types_no_estudio)
+    if estudio:
+        ordered_doc_types.append(estudio)
+
+    # Consultar propiedades activas (traer created_by para evitar consultas extra)
+    properties_qs = Property.objects.filter(is_active=True).select_related('owner', 'created_by')[:500]
+    properties = list(properties_qs)
+
+    # Cargar documentos en bloque para las propiedades y tipos relevantes
+    doc_qs = PropertyDocument.objects.filter(property__in=properties, document_type__in=doc_types)
+    # map (property_id -> set(document_type_id))
+    presence = {}
+    for d in doc_qs:
+        presence.setdefault(d.property_id, set()).add(d.document_type_id)
+
+    rows = []
+    # Total de tipos considerados (incluye 'estudio' si está presente)
+    total_types = len(ordered_doc_types)
+    for p in properties:
+        present_count = 0
+        cells_no_estudio = []
+        # celdas para tipos de documento sin estudio
+        for dt in ordered_doc_types_no_estudio:
+            has = (dt.id in presence.get(p.id, set()))
+            if has:
+                present_count += 1
+            cells_no_estudio.append({'doc_type': dt.name, 'present': has})
+
+        # estudio de titulos (si existe en la lista original)
+        estudio_present = False
+        if estudio:
+            estudio_present = (estudio.id in presence.get(p.id, set()))
+            if estudio_present:
+                present_count += 1
+
+        pct = int((present_count / total_types) * 100) if total_types > 0 else 0
+        rows.append({
+            'property': p,
+            'cells': cells_no_estudio,
+            'estudio_present': estudio_present,
+            'completed_pct': pct,
+            'present_count': present_count,
+            'uploader': getattr(p, 'created_by', None),
+        })
+
+    # calcular colspan para la fila vacía: 5 columnas fijas (incluye 'Subido por') + columnas dinámicas (sin estudio) + columna estudio + columna % completado
+    empty_colspan = 5 + len(ordered_doc_types_no_estudio) + 1 + 1
+
+    return render(request, 'properties/legal_documents_list.html', {
+        'doc_types_no_estudio': ordered_doc_types_no_estudio,
+        'ordered_doc_types': ordered_doc_types,
+        'rows': rows,
+        'empty_colspan': empty_colspan,
+        'estudio_name': 'ESTUDIO DE TITULOS',
+        'total_types': total_types,
+    })
+
+
+@login_required
 def matching_matches_view(request, pk: int):
     """Mostrar coincidencias calculadas para un `Requirement` concreto."""
     req = get_object_or_404(Requirement, pk=pk)
