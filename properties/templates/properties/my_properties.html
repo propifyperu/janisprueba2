@@ -92,15 +92,20 @@
                                     <!-- Col 5: Ubicación -->
                                     <td>
                                         <div class="d-flex flex-column text-muted small">
-                                            <span class="text-truncate" style="max-width: 150px;" title="{{ property.department|default:'-' }}">
-                                                <i class="fas fa-map-marker-alt me-1 text-teal opacity-50"></i>{{ property.department|default:"-" }}
+                                            <span class="text-truncate" style="max-width: 150px;" title="{{ property.department_name|default:'-' }}">
+                                                <i class="fas fa-map-marker-alt me-1 text-teal opacity-50"></i>{{ property.department_name|default:"-" }}
                                             </span>
-                                            <span class="text-truncate" style="max-width: 150px;" title="{{ property.province|default:'-' }}">
-                                                <span class="ms-3">{{ property.province|default:"-" }}</span>
+                                            <span class="text-truncate" style="max-width: 150px;" title="{{ property.province_name|default:'-' }}">
+                                                <span class="ms-3">{{ property.province_name|default:"-" }}</span>
                                             </span>
-                                            <span class="text-truncate" style="max-width: 150px;" title="{{ property.district|default:'-' }}">
-                                                <span class="ms-3">{{ property.district|default:"-" }}</span>
+                                            <span class="text-truncate" style="max-width: 150px;" title="{{ property.district_name|default:'-' }}">
+                                                <span class="ms-3">{{ property.district_name|default:"-" }}</span>
                                             </span>
+                                            {% if property.urbanization_name %}
+                                            <span class="text-truncate" style="max-width: 150px;" title="{{ property.urbanization_name }}">
+                                                <span class="ms-3 text-italic">{{ property.urbanization_name }}</span>
+                                            </span>
+                                            {% endif %}
                                         </div>
                                     </td>
 

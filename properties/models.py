@@ -639,6 +639,55 @@ class Property(TitleCaseMixin, models.Model):
     def __str__(self):
         return f"{self.code} - {self.title}"
 
+    @property
+    def department_name(self):
+        """Devuelve el nombre del departamento si el campo es numérico (ID), sino el valor original."""
+        val = self.department
+        if val and val.isdigit():
+            # Evitar error si Department no está definido o no se encuentra
+            try:
+                obj = Department.objects.filter(id=int(val)).first()
+                return obj.name if obj else val
+            except Exception:
+                pass
+        return val or ''
+
+    @property
+    def province_name(self):
+        """Devuelve el nombre de la provincia si el campo es numérico (ID)."""
+        val = self.province
+        if val and val.isdigit():
+            try:
+                obj = Province.objects.filter(id=int(val)).first()
+                return obj.name if obj else val
+            except Exception:
+                pass
+        return val or ''
+
+    @property
+    def district_name(self):
+        """Devuelve el nombre del distrito si el campo es numérico (ID)."""
+        val = self.district
+        if val and val.isdigit():
+            try:
+                obj = District.objects.filter(id=int(val)).first()
+                return obj.name if obj else val
+            except Exception:
+                pass
+        return val or ''
+
+    @property
+    def urbanization_name(self):
+        """Devuelve el nombre de la urbanización si el campo es numérico (ID)."""
+        val = self.urbanization
+        if val and val.isdigit():
+            try:
+                obj = Urbanization.objects.filter(id=int(val)).first()
+                return obj.name if obj else val
+            except Exception:
+                pass
+        return val or ''
+
     def save(self, *args, **kwargs):
         self._apply_title_case()
         # Generar código único si no existe
