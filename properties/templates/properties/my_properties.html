@@ -53,8 +53,9 @@
 
                                     <!-- Col 1: Icon+Info -->
                                     <td class="text-center">
-                                        <div class="d-flex flex-column gap-1 align-items-center">
-                                            <span class="fw-bold text-dark text-wrap" style="max-width: 300px;">{{ property.exact_address|default:property.title }}</span>
+                                        <div class="d-flex flex-column gap-0 align-items-center">
+                                            <span class="text-danger fw-bold small text-uppercase lh-1">{{ property.property_type.name|default:"-" }}</span>
+                                            <span class="fw-bold text-dark text-wrap mb-1" style="max-width: 300px; line-height: 1.2;">{{ property.exact_address|default:property.title }}</span>
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="badge bg-light text-dark border">
                                                     COD: {{ property.codigo_unico_propiedad|default:property.code }}
