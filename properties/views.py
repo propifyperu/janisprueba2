@@ -466,33 +466,81 @@ def legal_documents_list_view(request):
 
 @login_required
 def my_uploaded_documents_view(request):
-    """Lista de documentos subidos por el usuario para las propiedades que él creó.
-
-    - Solo muestra documentos cuyo `uploaded_by` es el usuario y cuya propiedad fue creada por el mismo usuario.
-    - Acceso: sólo el propio usuario (y superuser).
+    """Matriz de documentos (estilo Área Legal) para las propiedades creadas por el usuario actual.
+    
+    Muestra el estado de cumplimiento documental de MIS propiedades.
     """
-    from .models import Property, PropertyDocument
+    from .models import DocumentType, Property, PropertyDocument
 
-    # propiedades creadas por el usuario
-    props = Property.objects.filter(created_by=request.user).order_by('-created_at')
+    # Obtener tipos de documentos activos (mismo orden que en legal)
+    doc_types = list(DocumentType.objects.filter(is_active=True).order_by('name'))
 
-    # documentos subidos por el usuario asociados a esas propiedades
-    docs = PropertyDocument.objects.filter(property__in=props, uploaded_by=request.user).select_related('document_type', 'property').order_by('-uploaded_at')
+    # Identificar columna especial 'ESTUDIO DE TITULO'
+    estudio = None
+    for dt in doc_types:
+        if (dt.name or '').strip().lower() in ('estudio de titulo', 'estudio de título', 'estudio de titulos'):
+            estudio = dt
+            break
 
-    # Agrupar documentos por propiedad
-    grouped = {}
-    for d in docs:
-        grouped.setdefault(d.property_id, []).append(d)
+    ordered_doc_types_no_estudio = [dt for dt in doc_types if dt != estudio]
+    # Lista final para iterar en cabecera si fuera necesario, aunque el template separa estudio
+    ordered_doc_types = list(ordered_doc_types_no_estudio)
+    if estudio:
+        ordered_doc_types.append(estudio)
 
-    prop_rows = []
-    for p in props:
-        prop_rows.append({
+    # Filtrar propiedades DEL USUARIO (Mis Propiedades)
+    properties_qs = Property.objects.filter(is_active=True, created_by=request.user).select_related('owner', 'created_by').order_by('-created_at')
+    properties = list(properties_qs)
+
+    # Cargar documentos existentes para estas propiedades (Matriz de Existencia)
+    # Nota: No filtramos por uploaded_by=user, para mostrar si la propiedad TIENE el documento (completitud),
+    # independientemente de si lo subió él mismo, un admin o legal.
+    doc_qs = PropertyDocument.objects.filter(property__in=properties, document_type__in=doc_types)
+    
+    # Mapear presencia: property_id -> set(document_type_id)
+    presence = {}
+    for d in doc_qs:
+        presence.setdefault(d.property_id, set()).add(d.document_type_id)
+
+    rows = []
+    total_types = len(ordered_doc_types)
+    for p in properties:
+        present_count = 0
+        cells_no_estudio = []
+        
+        # Generar celdas para documentos estándar
+        for dt in ordered_doc_types_no_estudio:
+            has = (dt.id in presence.get(p.id, set()))
+            if has:
+                present_count += 1
+            cells_no_estudio.append({'doc_type': dt.name, 'present': has})
+
+        # Celda para estudio de títulos
+        estudio_present = False
+        if estudio:
+            estudio_present = (estudio.id in presence.get(p.id, set()))
+            if estudio_present:
+                present_count += 1
+
+        pct = int((present_count / total_types) * 100) if total_types > 0 else 0
+        
+        rows.append({
             'property': p,
-            'documents': grouped.get(p.id, []),
+            'cells': cells_no_estudio,
+            'estudio_present': estudio_present,
+            'completed_pct': pct,
+            'uploader': request.user # Para compatibilidad visual si el template lo usa
         })
+    
+    # Calcular colspan para el estado vacío (Codigo + Dir + Prop + Creado + Subido + Docs + Estudio + Pct)
+    empty_colspan = 5 + len(ordered_doc_types_no_estudio) + 1 + 1
 
     return render(request, 'properties/my_uploaded_documents.html', {
-        'prop_rows': prop_rows,
+        'doc_types_no_estudio': ordered_doc_types_no_estudio,
+        'rows': rows,
+        'empty_colspan': empty_colspan,
+        'estudio_name': 'ESTUDIO DE TITULOS',
+        'total_types': total_types,
     })
 
 

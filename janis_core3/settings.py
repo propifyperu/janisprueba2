@@ -117,12 +117,13 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT', '1433'),
         'OPTIONS': {
             'driver': os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
-            # En desarrollo puede ser necesario relajar la negociación TLS si el servidor
-            # no presenta un certificado válido. Cambiar a Trusted para entorno local.
-            'extra_params': os.environ.get('DB_EXTRA_PARAMS', 'Encrypt=no;TrustServerCertificate=yes;Connection Timeout=60;'),
-            'connection_timeout': int(os.environ.get('DB_CONN_TIMEOUT', 60)),
+            'extra_params': os.environ.get('DB_EXTRA_PARAMS', 
+                'Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=60;MARS_Connection=yes;' 
+                if 'database.windows.net' in _db_host 
+                else 'Encrypt=no;TrustServerCertificate=yes;Connection Timeout=60;'
+            ),
         },
-        'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', 0)),
+        'CONN_MAX_AGE': 0, # FORCE NO POOLING for Azure SQL to avoid IMC06/Broken Pipe errors on idle
         'TIME_ZONE': os.environ.get('DB_TIME_ZONE', 'America/Lima'),
     }
 }

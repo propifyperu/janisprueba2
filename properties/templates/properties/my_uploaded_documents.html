@@ -1,52 +1,87 @@
 {% extends 'properties/base_dashboard.html' %}
+{% load tz %}
 
 {% block dashboard_content %}
-<h3 class="mb-3">Mis Documentos — Propiedades Subidas por mí</h3>
+<h3 class="mb-3">Mis Documentos — Matriz de Cumplimiento</h3>
 <div class="card mb-4">
-    <div class="card-body">
-        {% for row in prop_rows %}
-            <h5 class="mt-3">{{ row.property.code }} — {{ row.property.title|default:'(sin título)' }}</h5>
-            {% if row.documents %}
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Tipo</th>
-                                <th>Título / Archivo</th>
-                                <th>Subido</th>
-                                <th>Aprobado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for doc in row.documents %}
-                            <tr>
-                                <td>
-                                    {% if doc.document_type %}
-                                        {{ doc.document_type.name }}
-                                    {% else %}
-                                        —
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if doc.file and doc.file.url %}
-                                        <a href="{{ doc.file.url }}" target="_blank">{{ doc.title|default:doc.file.name }}</a>
-                                    {% else %}
-                                        {{ doc.title|default:'(archivo no disponible)' }}
-                                    {% endif %}
-                                </td>
-                                <td>{{ doc.uploaded_at|localtime|date:"Y-m-d H:i" }}</td>
-                                <td>{% if doc.is_approved %}Si{% else %}No{% endif %}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="text-muted">No has subido documentos para esta propiedad.</p>
-            {% endif %}
-        {% empty %}
-            <p>No tienes propiedades subidas por ti.</p>
-        {% endfor %}
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0 small align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Propiedad / Dirección</th>
+                        <th>Propietario</th>
+                        <th>Creado</th>
+                        {% for dt in doc_types_no_estudio %}
+                        <th class="text-center">{{ dt.name|truncatechars:15 }}</th>
+                        {% endfor %}
+                        <th class="text-center table-warning">{{ estudio_name }}</th>
+                        <th class="text-end pe-3">Avance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td class="ps-3">
+                            <div class="fw-bold text-wrap" style="max-width: 350px;">
+                                {{ row.property.exact_address|default:row.property.title }}
+                            </div>
+                            <small class="text-muted">{{ row.property.code }}</small>
+                        </td>
+                        <td>
+                            <div class="text-truncate" style="max-width: 120px;">
+                                {% if row.property.owner %}
+                                    {{ row.property.owner.full_name }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>{{ row.property.created_at|localtime|date:"d/m/y" }}</td>
+                        
+                        {% for cell in row.cells %}
+                        <td class="text-center">
+                            {% if cell.present %}
+                                <i class="fas fa-check-circle text-success" title="Presente"></i>
+                            {% else %}
+                                <span class="text-muted text-opacity-25">•</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        
+                        <td class="text-center table-warning">
+                            {% if row.estudio_present %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% else %}
+                                <span class="text-muted text-opacity-25">•</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td class="text-end pe-3">
+                            {% if row.completed_pct == 100 %}
+                                <span class="badge bg-success">100%</span>
+                            {% else %}
+                                <div class="d-flex align-items-center justify-content-end gap-2">
+                                    <span class="small">{{ row.completed_pct }}%</span>
+                                    <div class="progress" style="width: 50px; height: 4px;">
+                                        <div class="progress-bar {% if row.completed_pct < 50 %}bg-danger{% elif row.completed_pct < 80 %}bg-warning{% else %}bg-info{% endif %}" 
+                                             role="progressbar" style="width: {{ row.completed_pct }}%"></div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ empty_colspan }}" class="text-center py-4 text-muted">
+                            <i class="fas fa-folder-open fa-2x mb-2 d-block"></i>
+                            No tienes propiedades registradas para verificar documentación.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

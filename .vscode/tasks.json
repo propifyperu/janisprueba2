@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Quick Commit",
+			"type": "shell",
+			"command": "git add . ; git commit -m \"UI: Detalle Propiedad y Matriz Documentos. Fix DB.\"",
+			"isBackground": false,
+			"group": "none"
+		},
+		{
+			"label": "Quick Commit Fixed",
+			"type": "shell",
+			"command": "git add . ; git commit -m \\\"UI: Detalle Propiedad y Matriz Documentos. Fix DB.\\\"",
+			"isBackground": false,
+			"group": "none"
+		}
+	]
+}
