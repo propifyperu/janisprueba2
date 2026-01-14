@@ -848,11 +848,19 @@ class MyPropertiesView(LoginRequiredMixin, ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        return Property.objects.filter(created_by=self.request.user, is_active=True).order_by('-created_at')
+        from django.db.models import Count
+        return Property.objects.filter(
+            created_by=self.request.user, 
+            is_active=True
+        ).annotate(
+            visit_count=Count('property_events')
+        ).order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['property_count'] = context['properties'].count()
+        # Fix for count with pagination (queryset is sliced in context['properties'] usually just page)
+        # but ListView provides paginator
+        context['property_count'] = self.get_queryset().count() 
         return context
 
 
