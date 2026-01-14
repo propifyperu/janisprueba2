@@ -20,7 +20,13 @@
                         <tbody>
                             {% for doc in row.documents %}
                             <tr>
-                                <td>{{ doc.document_type.name if doc.document_type else '—' }}</td>
+                                <td>
+                                    {% if doc.document_type %}
+                                        {{ doc.document_type.name }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if doc.file and doc.file.url %}
                                         <a href="{{ doc.file.url }}" target="_blank">{{ doc.title|default:doc.file.name }}</a>

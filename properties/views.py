@@ -2851,8 +2851,18 @@ def whatsapp_link_delete(request, link_id):
 def leads_list(request, property_id=None):
     """Lista los leads de WhatsApp"""
     from .models import Lead, LeadStatus
-    
+    from .models import WhatsAppConversation
+    from django.db.models import OuterRef, Subquery
+
     leads = Lead.objects.select_related('property', 'whatsapp_link', 'assigned_to', 'status')
+
+    # Anotar último mensaje y su fecha para mostrar en la lista sin N+1
+    last_msg_qs = WhatsAppConversation.objects.filter(lead=OuterRef('pk')).order_by('-created_at')
+    # Anotaciones con nombres que no colisionen con campos del modelo
+    leads = leads.annotate(
+        annotated_last_message=Subquery(last_msg_qs.values('message_body')[:1]),
+        annotated_last_message_at=Subquery(last_msg_qs.values('created_at')[:1])
+    )
     
     if property_id:
         leads = leads.filter(property_id=property_id)
@@ -2994,22 +3004,19 @@ def crm_dashboard(request):
     # Datos para gráficos
     from collections import Counter
     
-    # Por red social
+    # Por red social (mapear FK SocialNetwork.id -> nombre)
+    from .models import SocialNetwork, LeadStatus
     social_networks = Lead.objects.values_list('social_network', flat=True)
     social_counter = Counter(social_networks)
-    social_network_labels = [
-        dict(Lead.SOCIAL_NETWORKS).get(key, key) 
-        for key in social_counter.keys()
-    ]
+    sn_map = {sn.id: sn.name for sn in SocialNetwork.objects.filter(is_active=True)}
+    social_network_labels = [sn_map.get(key, str(key)) for key in social_counter.keys()]
     social_network_data = list(social_counter.values())
     
-    # Por estado
+    # Por estado (mapear FK LeadStatus.id -> nombre)
     statuses = Lead.objects.values_list('status', flat=True)
     status_counter = Counter(statuses)
-    status_labels = [
-        dict(Lead.STATUS_CHOICES).get(key, key) 
-        for key in status_counter.keys()
-    ]
+    status_map = {s.id: s.name for s in LeadStatus.objects.filter()} 
+    status_labels = [status_map.get(key, str(key)) for key in status_counter.keys()]
     status_data = list(status_counter.values())
     
     import json

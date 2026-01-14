@@ -30,7 +30,8 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'clave_para_desarrollo')
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('1', 'true', 'yes')
 
 # Hosts permitidos desde App Setting `ALLOWED_HOSTS` (coma-separados)
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+# Añadir el host de ngrok utilizado en desarrollo para permitir peticiones externas
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,semipeaceful-highhandedly-tyisha.ngrok-free.dev').split(',') if h.strip()]
 # Application definition
 
 INSTALLED_APPS = [
@@ -263,3 +264,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 # OpenSearch configuration (hosts can be a comma-separated list in env var)
 OPENSEARCH_HOSTS = [h.strip() for h in os.environ.get('OPENSEARCH_HOSTS', 'http://localhost:9200').split(',') if h.strip()]
+
+# ============================================================================
+# WHATSAPP DEFAULTS (production-safe overrides)
+# If you want incoming messages without tracking to be assigned to a default
+# property or social network, set these environment variables to the integer
+# primary key of the corresponding DB record. Leave empty to keep current
+# behavior (first()-based fallback).
+WHATSAPP_DEFAULT_PROPERTY_ID = os.environ.get('WHATSAPP_DEFAULT_PROPERTY_ID') or None
+WHATSAPP_DEFAULT_SOCIAL_ID = os.environ.get('WHATSAPP_DEFAULT_SOCIAL_ID') or None

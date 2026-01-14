@@ -5,6 +5,14 @@
 
 {% block content %}
 <div class="container-fluid py-4">
+    <!-- BANNER TEMPORAL: indicar estado del webhook -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info text-center" role="alert">
+                <strong>Prueba:</strong> Webhook Twilio activo (entorno de pruebas).
+            </div>
+        </div>
+    </div>
     <div class="row mb-4">
         <div class="col-md-8">
             <h1 class="mb-2">
@@ -77,6 +85,7 @@
                         <th>Red Social</th>
                         <th>Estado</th>
                         <th>Asignado a</th>
+                        <th>Último Mensaje</th>
                         <th>Primer Mensaje</th>
                         <th>Acciones</th>
                     </tr>
@@ -125,9 +134,12 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <small class="text-muted">
-                                    {{ lead.first_message_at|date:"d/m/Y H:i" }}
+                                <small class="text-muted d-block mb-1">
+                                    {{ lead.annotated_last_message_at|date:"d/m/Y H:i" }}
                                 </small>
+                                <div class="text-truncate" style="max-width:320px;">
+                                    {{ lead.annotated_last_message|default:"(sin mensajes)" }}
+                                </div>
                             </td>
                             <td>
                                 <a href="{% url 'properties:lead_detail' lead.id %}" class="btn btn-sm btn-outline-primary">
