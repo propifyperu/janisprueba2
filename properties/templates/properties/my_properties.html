@@ -34,12 +34,12 @@
                                 <tr>
                                     <th class="text-center py-3 text-teal" style="width: 50px;"><i class="far fa-building fa-lg"></i></th>
                                     <th class="text-center py-3" style="min-width: 250px;">Detalle Propiedad</th>
+                                    <th class="text-center py-3" style="min-width: 150px;">Ubicación</th>
+                                    <th class="text-center py-3">Estado</th>
+                                    <th class="text-center py-3">Precio</th>
                                     <th class="text-center py-3">Vistas Web</th>
                                     <th class="text-center py-3">Visitas</th>
                                     <th class="text-center py-3">Reportes</th>
-                                    <th class="text-center py-3" style="min-width: 150px;">Ubicación</th>
-                                    <th class="text-center py-3">Precio</th>
-                                    <th class="text-center py-3">Estado</th>
                                     <th class="text-center py-3">Acciones</th>
                                 </tr>
                             </thead>
@@ -51,7 +51,7 @@
                                         <i class="fas fa-circle small {% if property.is_active %}text-success{% else %}text-secondary{% endif %}" style="font-size: 8px;"></i>
                                     </td>
 
-                                    <!-- Col 1: Icon+Info -->
+                                    <!-- Col 1: Detalle Propiedad -->
                                     <td class="text-center">
                                         <div class="d-flex flex-column gap-0 align-items-center">
                                             <span class="text-danger fw-bold small text-uppercase lh-1">{{ property.property_type.name|default:"-" }}</span>
@@ -67,30 +67,7 @@
                                         </div>
                                     </td>
                                     
-                                    <!-- Col 2: Vistas Web -->
-                                    <td class="text-center">
-                                        <div class="d-flex flex-column align-items-center">
-                                            <span class="fw-bold fs-5 text-secondary">-</span>
-                                            <small class="text-muted" style="font-size: 0.75rem;">visualizaciones</small>
-                                        </div>
-                                    </td>
-
-                                    <!-- Col 3: Visitas (Eventos) -->
-                                    <td class="text-center">
-                                        <div class="d-flex flex-column align-items-center">
-                                            <span class="fw-bold fs-5 text-teal">{{ property.visit_count }}</span>
-                                            <small class="text-muted" style="font-size: 0.75rem;">agendadas</small>
-                                        </div>
-                                    </td>
-
-                                    <!-- Col 4: Reportes -->
-                                    <td class="text-center">
-                                        <a href="#" class="btn btn-sm btn-outline-secondary border-0 text-nowrap">
-                                            <i class="fas fa-chart-line me-1"></i> Reportes
-                                        </a>
-                                    </td>
-
-                                    <!-- Col 5: Ubicación -->
+                                    <!-- Col 2: Ubicación -->
                                     <td class="text-center">
                                         <div class="d-flex flex-column text-muted small align-items-center">
                                             <span class="text-truncate" style="max-width: 150px;" title="{{ property.department_name|default:'-' }}">
@@ -110,7 +87,14 @@
                                         </div>
                                     </td>
 
-                                    <!-- Col 6: Precio -->
+                                    <!-- Col 3: Estado -->
+                                    <td class="text-center">
+                                        <span class="badge rounded-pill {% if property.is_active %}bg-success bg-opacity-10 text-success{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}">
+                                            {{ property.status.name|default:"Activo" }}
+                                        </span>
+                                    </td>
+
+                                    <!-- Col 4: Precio -->
                                     <td class="text-center">
                                         <div class="d-flex flex-column align-items-center">
                                             <div class="fw-bold text-dark text-nowrap">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
@@ -118,11 +102,27 @@
                                         </div>
                                     </td>
 
-                                    <!-- Col 7: Estado -->
+                                    <!-- Col 5: Vistas Web -->
                                     <td class="text-center">
-                                        <span class="badge rounded-pill {% if property.is_active %}bg-success bg-opacity-10 text-success{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}">
-                                            {{ property.status.name|default:"Activo" }}
-                                        </span>
+                                        <div class="d-flex flex-column align-items-center">
+                                            <span class="fw-bold fs-5 text-secondary">-</span>
+                                            <small class="text-muted" style="font-size: 0.75rem;">visualizaciones</small>
+                                        </div>
+                                    </td>
+
+                                    <!-- Col 6: Visitas -->
+                                    <td class="text-center">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <span class="fw-bold fs-5 text-teal">{{ property.visit_count }}</span>
+                                            <small class="text-muted" style="font-size: 0.75rem;">agendadas</small>
+                                        </div>
+                                    </td>
+
+                                    <!-- Col 7: Reportes -->
+                                    <td class="text-center">
+                                        <a href="#" class="btn btn-sm btn-outline-secondary border-0 text-nowrap">
+                                            <i class="fas fa-chart-line me-1"></i> Reportes
+                                        </a>
                                     </td>
 
                                     <!-- Col 8: Actions -->
