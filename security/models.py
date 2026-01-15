@@ -77,3 +77,24 @@ class UnauthorizedDeviceLoginAttempt(models.Model):
 		who = self.username or (self.user.username if self.user else 'Anon')
 		return f"{who} @ {self.attempted_at:%Y-%m-%d %H:%M} ({self.device_id})"
 
+
+class SecuritySettings(models.Model):
+	"""Configuración global de seguridad."""
+	device_verification_enabled = models.BooleanField(
+		default=True,
+		verbose_name="Verificación de dispositivos activa",
+		help_text="Si se desactiva, los usuarios podrán iniciar sesión desde cualquier dispositivo sin aprobación previa."
+	)
+	
+	class Meta:
+		verbose_name = "Configuración de Seguridad"
+		verbose_name_plural = "Configuraciones de Seguridad"
+
+	def __str__(self):
+		return "Configuración de Seguridad"
+
+	@classmethod
+	def get_settings(cls):
+		obj, created = cls.objects.get_or_create(pk=1)
+		return obj
+

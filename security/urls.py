@@ -10,6 +10,7 @@ urlpatterns = [
     path('verify-device/<int:device_id>/', views.verify_device, name='verify_device_id'),
     path('role-permissions/', views.role_field_permissions_view, name='role_field_permissions'),
     path('api/save-permission/', views.save_role_field_permission, name='save_permission'),
+    path('api/toggle-verification/', views.toggle_device_verification, name='toggle_verification'),
     path('unauthorized-attempts/', views.unauthorized_attempts_list, name='unauthorized_attempts'),
     path('unauthorized-attempts/<int:pk>/approve/', views.approve_attempt, name='unauthorized_attempt_approve'),
 ]

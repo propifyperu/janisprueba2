@@ -196,6 +196,18 @@
 				<div class="text-md-end">
 					<span class="badge-trusted"><i class="fas fa-lock me-2"></i>Solo visible para superadministradores</span>
 					<a href="{% url 'security:unauthorized_attempts' %}" class="btn btn-sm btn-outline-teal mt-2 ms-2">Intentos no autorizados</a>
+					
+					<div class="mt-3 d-flex align-items-center justify-content-end gap-2">
+						<div class="form-check form-switch d-inline-block m-0">
+							<input class="form-check-input" type="checkbox" role="switch" id="verificationToggle" 
+								   {% if is_verification_enabled %}checked{% endif %} 
+								   onchange="toggleVerification(this)"
+								   style="cursor: pointer;">
+							<label class="form-check-label fw-semibold text-muted small" for="verificationToggle">
+								Verificación Activada
+							</label>
+						</div>
+					</div>
 				</div>
 			</div>
 
@@ -342,4 +354,46 @@
 		</div>
 	</div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+	function updateStatus(deviceId, newStatus) {
+		// Existing implementation or placeholder if it wasn't there
+	}
+
+	function toggleVerification(checkbox) {
+		const enabled = checkbox.checked;
+		const label = checkbox.nextElementSibling;
+		
+		// Estado visual temporal
+		label.textContent = enabled ? 'Verificación Activada' : 'Verificación Desactivada';
+		
+		fetch('{% url "security:toggle_verification" %}', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-CSRFToken': '{{ csrf_token }}'
+			},
+			body: JSON.stringify({ enabled: enabled })
+		})
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				// Éxito, mantener estado
+				label.textContent = data.enabled ? 'Verificación Activada' : 'Verificación Desactivada';
+			} else {
+				// Error, revertir cambio visual
+				checkbox.checked = !enabled;
+				label.textContent = !enabled ? 'Verificación Activada' : 'Verificación Desactivada';
+				alert('Error al cambiar configuración: ' + (data.error || 'Desconocido'));
+			}
+		})
+		.catch(err => {
+			console.error(err);
+			checkbox.checked = !enabled;
+			alert('Error de red al intentar cambiar la configuración.');
+		});
+	}
+</script>
 {% endblock %}

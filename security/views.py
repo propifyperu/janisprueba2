@@ -10,9 +10,19 @@ def verify_device(request, device_id=None):
 	"""Vista para que usuarios verifiquen su dispositivo durante el registro"""
 	from django.contrib.auth import login
 	from .models import DeviceStatus
+	from .models import SecuritySettings  # Importar configuración
 	import logging
 	
 	logger = logging.getLogger(__name__)
+
+	# Verificar si la validación de seguridad está habilitada
+	settings = SecuritySettings.get_settings()
+	if not settings.device_verification_enabled:
+		# Si está desactivada, redirigir al dashboard si está autenticado
+		if request.user.is_authenticated:
+			return redirect('/dashboard/')
+		# Si no, redirigir al login
+		return redirect('users:login')
 	
 	# Primero intentar obtener desde URL, luego desde sesión
 	device = None
@@ -88,6 +98,10 @@ def device_list(request):
 	pending_count = AuthorizedDevice.objects.filter(status='pending').count()
 	approved_count = AuthorizedDevice.objects.filter(status='approved').count()
 	blocked_count = AuthorizedDevice.objects.filter(status='blocked').count()
+	
+	from .models import SecuritySettings
+	settings = SecuritySettings.get_settings()
+	
 	paginator = Paginator(devices.order_by('-registered_at'), 10)
 	page_number = request.GET.get('page')
 	page_obj = paginator.get_page(page_number)
@@ -96,6 +110,7 @@ def device_list(request):
 		'pending_count': pending_count,
 		'approved_count': approved_count,
 		'blocked_count': blocked_count,
+		'is_verification_enabled': settings.device_verification_enabled,
 		'is_paginated': page_obj.has_other_pages(),
 		'page_obj': page_obj,
 		'current_status': status,
@@ -296,5 +311,26 @@ def save_role_field_permission(request):
 		return JsonResponse({'success': False, 'error': 'Rol no encontrado'}, status=404)
 	except json.JSONDecodeError:
 		return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+	except Exception as e:
+		return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def toggle_device_verification(request):
+	if request.method != 'POST':
+		return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+	
+	import json
+	try:
+		data = json.loads(request.body)
+		enabled = data.get('enabled', True)
+		
+		from .models import SecuritySettings
+		settings = SecuritySettings.get_settings()
+		settings.device_verification_enabled = enabled
+		settings.save()
+		
+		return JsonResponse({'success': True, 'enabled': enabled})
 	except Exception as e:
 		return JsonResponse({'success': False, 'error': str(e)}, status=500)
