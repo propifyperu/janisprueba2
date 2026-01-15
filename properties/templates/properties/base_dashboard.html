@@ -293,10 +293,34 @@
 
     .nav-submenu .nav-link {
         border: none;
-        padding: 0.5rem 0;
-        font-weight: 500;
-        color: rgba(243, 253, 253, 0.75);
+        padding: 0.25rem 0; /* Un poco más de aire que 0.2rem */
+        font-size: 0.8rem; /* Reducir aún más para asegurar que encaje */
+        font-weight: 400;
+        color: rgba(243, 253, 253, 0.8) !important; /* !important para vencer al estilo global */
         transform: none;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        line-height: normal;
+        white-space: nowrap; /* Forzar una sola línea */
+        overflow: hidden;    /* Ocultar desbordamiento */
+        text-overflow: ellipsis; /* Puntos suspensivos si sigue siendo muy largo */
+    }
+
+    .nav-submenu .nav-link i {
+        width: 20px;
+        min-width: 20px; /* Asegurar que el icono no se encoja */
+        text-align: center;
+        margin-right: 0.4rem;
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+
+    .nav-submenu .nav-link:hover,
+    .nav-submenu .nav-link.active {
+        color: #fff !important;
+        text-decoration: none;
+        transform: translateX(3px);
     }
 
     .nav-submenu .nav-link:hover,
@@ -428,21 +452,22 @@
             {% url 'security:role_field_permissions' as role_permissions_url %}
             {% endif %}
             <div class="nav-group">
-                <button class="nav-group-toggle{% if request.path == properties_list_url or request.path == properties_create_url %} expanded{% endif %}" type="button" data-target="propertiesSubmenu" aria-controls="propertiesSubmenu" aria-expanded="{% if request.path == properties_list_url or request.path == properties_create_url %}true{% else %}false{% endif %}">
+                <button class="nav-group-toggle{% if request.path == properties_list_url or request.path == properties_create_url or request.path == properties_my_url or request.path == properties_drafts_url %} expanded{% endif %}" type="button" data-target="propertiesSubmenu" aria-controls="propertiesSubmenu" aria-expanded="{% if request.path == properties_list_url or request.path == properties_create_url or request.path == properties_my_url or request.path == properties_drafts_url %}true{% else %}false{% endif %}">
                     <i class="fas fa-map-marked-alt"></i>
                     <span>Propiedades</span>
                     <i class="fas fa-chevron-up toggle-icon"></i>
                 </button>
-                <div class="nav-submenu{% if request.path == properties_list_url or request.path == properties_create_url %} show{% endif %}" id="propertiesSubmenu">
+                <div class="nav-submenu{% if request.path == properties_list_url or request.path == properties_create_url or request.path == properties_my_url or request.path == properties_drafts_url %} show{% endif %}" id="propertiesSubmenu">
                     <a class="nav-link {% if request.path == properties_list_url %}active{% endif %}" href="{{ properties_list_url }}"><i class="fas fa-list me-2"></i>Listar propiedades</a>
                     <a class="nav-link {% if request.path == properties_create_url %}active{% endif %}" href="{{ properties_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear propiedad</a>
-                    <a class="nav-link {% if request.path == properties_my_url %}active{% endif %}" href="{{ properties_my_url }}"><i class="fas fa-home me-2"></i>Mis propiedades</a>
                     <a class="nav-link {% if request.path == properties_drafts_url %}active{% endif %}" href="{{ properties_drafts_url }}"><i class="fas fa-file-alt me-2"></i>Mis borradores</a>
+                    <a class="nav-link {% if request.path == properties_my_url %}active{% endif %}" href="{{ properties_my_url }}"><i class="fas fa-home me-2"></i>Mis propiedades</a>
+                    <a class="nav-link {% if request.path == my_uploaded_documents_url %}active{% endif %}" href="{{ my_uploaded_documents_url }}"><i class="fas fa-folder-open me-2"></i>Mis documentos (subidos)</a>
                 </div>
             </div>
             <div class="nav-group">
                 {% url 'properties:my_uploaded_documents' as my_uploaded_documents_url %}
-                <a class="nav-link {% if request.path == my_uploaded_documents_url %}active{% endif %}" href="{{ my_uploaded_documents_url }}"><i class="fas fa-folder-open me-2"></i>Mis documentos (subidos)</a>
+             
             </div>
             <div class="nav-group">
                 <button class="nav-group-toggle{% if request.path == contacts_list_url or request.path == contacts_create_url %} expanded{% endif %}" type="button" data-target="contactsSubmenu" aria-controls="contactsSubmenu" aria-expanded="{% if request.path == contacts_list_url or request.path == contacts_create_url %}true{% else %}false{% endif %}">
