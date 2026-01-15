@@ -117,8 +117,8 @@
                         {% endif %}
                     </div>
                     <div>
-                        <strong class="text-dark d-block">Captador:</strong>
-                        <span class="text-muted">{{ property.created_by.get_full_name|default:property.created_by.username }}</span>
+                        <strong class="text-dark d-block">Responsable:</strong>
+                        <span class="text-muted">{{ property.responsible.get_full_name|default:property.created_by.get_full_name|default:property.created_by.username }}</span>
                     </div>
                 </div>
             </div>

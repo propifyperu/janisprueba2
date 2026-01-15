@@ -10,6 +10,7 @@ Carga de pesos
   - property_type: 5.0
   - district: 5.0
   - currency: 2.0
+  
   - price: 3.0
   - area: 2.0
   - bedrooms: 1.0
