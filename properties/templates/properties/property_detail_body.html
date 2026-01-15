@@ -380,3 +380,38 @@
                          </div>
                      </div>
                  </div>
+
+                 <!-- 7. MATRIZ DE CUMPLIMIENTO DOCUMENTAL -->
+                 <div class="col-12">
+                     <div class="card shadow-sm border">
+                         <div class="card-header bg-white fw-bold text-dark border-bottom-0 py-1 px-2 small">
+                            <i class="fas fa-file-invoice me-2 text-primary"></i>Matriz de Cumplimiento Documental
+                        </div>
+                        <div class="card-body pt-0 px-2 pb-2">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0 align-middle" style="font-size: 0.75rem;">
+                                    <thead class="table-light">
+                                        <tr class="text-center">
+                                            {% for dt in all_document_types %}
+                                                <th style="min-width: 80px;">{{ dt.name }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="text-center">
+                                            {% for dt in all_document_types %}
+                                                <td>
+                                                    {% if dt.id in uploaded_doc_ids %}
+                                                        <i class="fas fa-check-circle text-success fs-6" title="Documento cargado"></i>
+                                                    {% else %}
+                                                        <i class="fas fa-times-circle text-danger opacity-25"></i>
+                                                    {% endif %}
+                                                </td>
+                                            {% endfor %}
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                     </div>
+                 </div>

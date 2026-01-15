@@ -1399,9 +1399,15 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
 
         # documentos relacionados
         try:
-            context['property_documents'] = list(property_obj.documents.all())
+            from .models import DocumentType
+            docs = list(property_obj.documents.all())
+            context['property_documents'] = docs
+            context['uploaded_doc_ids'] = [d.document_type_id for d in docs]
+            context['all_document_types'] = list(DocumentType.objects.filter(is_active=True).order_by('name'))
         except Exception:
             context['property_documents'] = []
+            context['uploaded_doc_ids'] = []
+            context['all_document_types'] = []
 
         # información financiera (si existe) y items simplificados para la plantilla
         try:

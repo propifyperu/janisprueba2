@@ -442,6 +442,7 @@
             {% url 'properties:list' as properties_list_url %}
             {% url 'properties:create' as properties_create_url %}
             {% url 'properties:my_properties' as properties_my_url %}
+            {% url 'properties:my_uploaded_documents' as my_uploaded_documents_url %}
             {% url 'properties:drafts' as properties_drafts_url %}
             {% url 'properties:contact_list' as contacts_list_url %}
             {% url 'properties:contact_create' as contacts_create_url %}
@@ -464,10 +465,6 @@
                     <a class="nav-link {% if request.path == properties_my_url %}active{% endif %}" href="{{ properties_my_url }}"><i class="fas fa-home me-2"></i>Mis propiedades</a>
                     <a class="nav-link {% if request.path == my_uploaded_documents_url %}active{% endif %}" href="{{ my_uploaded_documents_url }}"><i class="fas fa-folder-open me-2"></i>Mis documentos (subidos)</a>
                 </div>
-            </div>
-            <div class="nav-group">
-                {% url 'properties:my_uploaded_documents' as my_uploaded_documents_url %}
-             
             </div>
             <div class="nav-group">
                 <button class="nav-group-toggle{% if request.path == contacts_list_url or request.path == contacts_create_url %} expanded{% endif %}" type="button" data-target="contactsSubmenu" aria-controls="contactsSubmenu" aria-expanded="{% if request.path == contacts_list_url or request.path == contacts_create_url %}true{% else %}false{% endif %}">
