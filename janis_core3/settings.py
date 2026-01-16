@@ -192,6 +192,10 @@ if AZURE_ACCOUNT_NAME:
     # MEDIA_URL remains the base; the storage backend will append SAS tokens
     MEDIA_URL = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
 
+# Optimización para desarrollo: No buscar archivos estáticos en cada carga si estamos en DEBUG
+WHITENOISE_AUTOREFRESH = DEBUG
+WHITENOISE_USE_FINDERS = DEBUG
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
