@@ -8,6 +8,14 @@
         --color-accent: #2ea44f; /* verde principal */
         --color-accent-dark: #258e45; /* hover / oscuro */
     }
+    
+    /* Ajuste para que el contenedor del dashboard ocupe todo el alto sin scroll externo */
+    .dashboard-page .main-content-inner {
+        overflow: hidden !important;
+        display: flex;
+        flex-direction: column;
+    }
+
     .age-warning {
         color: #b91c1c; /* rojo suave */
         background: rgba(185,28,28,0.04);
@@ -31,9 +39,11 @@
     /* Redefinir la estructura para Sidebar de Filtros fixed e Izquierda Scrollable */
     .dashboard-main-container {
         display: flex;
+        /* Aseguramos que ocupe todo el alto disponible restando el navbar */
         height: calc(100vh - var(--navbar-height));
         margin: -2rem -2.5rem -3rem; /* Eliminar el gap del contenedor padre */
         overflow: hidden;
+        background-color: #fff;
     }
 
     .filter-sidebar {
@@ -44,6 +54,8 @@
         display: flex;
         flex-direction: column;
         overflow-y: auto;
+        /* Alargamos el filtro hasta el borde inferior */
+        height: 100%;
         padding: 1.25rem;
         z-index: 100;
     }
@@ -65,8 +77,9 @@
 
     .map-container-main {
         flex-shrink: 0;
-        height: 65vh;
-        min-height: 450px;
+        /* Alargamos el mapa para que ocupe gran parte de la pantalla verticalmente */
+        height: 90vh;
+        min-height: 600px;
         position: relative;
         border-bottom: 2px solid rgba(4, 125, 125, 0.08);
     }
