@@ -70,7 +70,7 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        overflow-y: auto;
+        overflow: hidden;
         background-color: #fdfdfd;
         height: 100%;
     }
@@ -290,6 +290,58 @@
         position: relative;
         flex: 1;
         min-height: 0;
+    }
+
+    /* Estilos para el switcher de vista */
+    .view-switcher {
+        display: flex;
+        background: #f0f4f4;
+        padding: 4px;
+        border-radius: 8px;
+        margin: 1rem 1.25rem 0.5rem;
+        gap: 4px;
+    }
+
+    .view-btn {
+        flex: 1;
+        border: none;
+        background: transparent;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #4a5a5a;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .view-btn.active {
+        background: #fff;
+        color: var(--sidebar-accent);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    /* Manejo de visibilidad de secciones */
+    .view-mode-properties .map-container-main {
+        display: none !important;
+    }
+
+    .view-mode-map .results-section {
+        display: none !important;
+    }
+
+    .view-mode-properties .results-section {
+        display: block !important;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .view-mode-map .map-container-main {
+        flex: 1;
+        height: 100% !important;
     }
 
     #propertyMap {
@@ -628,9 +680,19 @@
 {% endblock %}
 
 {% block dashboard_content %}
-<div class="dashboard-main-container">
+<div class="dashboard-main-container view-mode-map" id="dashboard-container">
     <!-- Sidebar de Filtros: Ocupa toda la altura izquierda -->
     <aside class="filter-sidebar">
+        <!-- Switcher de Vista -->
+        <div class="view-switcher mb-3" style="margin: 0 0 1rem 0;">
+            <button type="button" class="view-btn active" id="btn-view-map" onclick="switchDashboardView('map')">
+                <i class="fas fa-map"></i> Mapa
+            </button>
+            <button type="button" class="view-btn" id="btn-view-list" onclick="switchDashboardView('properties')">
+                <i class="fas fa-list"></i> Propiedades
+            </button>
+        </div>
+
         <form method="get" id="filter-form">
             <div class="filter-actions mb-3">
                 <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter me-2"></i>Aplicar</button>
@@ -945,6 +1007,38 @@
 {% block dashboard_extra_js %}
 {{ property_markers|json_script:"property-markers-json" }}
 <script>
+// Funciones globales para el dashboard
+function switchDashboardView(view) {
+    const container = document.getElementById('dashboard-container');
+    const btnMap = document.getElementById('btn-view-map');
+    const btnList = document.getElementById('btn-view-list');
+
+    if (!container || !btnMap || !btnList) return;
+
+    if (view === 'map') {
+        container.classList.remove('view-mode-properties');
+        container.classList.add('view-mode-map');
+        btnMap.classList.add('active');
+        btnList.classList.remove('active');
+        // Asegurar que Google Maps se ajuste al redimensionar el contenedor
+        if (propertyMap && typeof google !== 'undefined') {
+            google.maps.event.trigger(propertyMap, 'resize');
+        }
+    } else {
+        container.classList.remove('view-mode-map');
+        container.classList.add('view-mode-properties');
+        btnList.classList.add('active');
+        btnMap.classList.remove('active');
+    }
+    // Guardar preferencia
+    localStorage.setItem('dashboardViewPreferred', view);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const savedView = localStorage.getItem('dashboardViewPreferred') || 'map';
+    switchDashboardView(savedView);
+});
+
 const mapConfig = {
     defaultCenter: { lat: -16.409047, lng: -71.537451 },
     defaultZoom: 13,
