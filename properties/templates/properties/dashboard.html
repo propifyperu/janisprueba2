@@ -961,7 +961,13 @@
                                         {% endif %}
                                     </div>
                                     <div class="property-contacts">
-                                        <span><i class="fas fa-user-tie"></i>Propietario: {{ property.owner.full_name }}</span>
+                                        <span><i class="fas fa-user-tie"></i>Propietario: 
+                                            {% if user.is_superuser %}
+                                                {{ property.owner.full_name }}
+                                            {% else %}
+                                                <span style="color: #888; font-style: italic; font-weight: normal;">Vista No Autorizada</span>
+                                            {% endif %}
+                                        </span>
                                         <span><i class="fas fa-user-check"></i>Resp:
                                             {% if property.responsible %}
                                                 {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
