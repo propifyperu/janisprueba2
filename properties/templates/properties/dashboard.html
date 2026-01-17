@@ -1,6 +1,8 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load static %}
 
+{% block body_class %}dashboard-page dashboard-fixed-layout{% endblock %}
+
 {% block title %}Explorar Propiedades - Janis Platform{% endblock %}
 {% block dashboard_extra_css %}
 <style>
@@ -9,13 +11,6 @@
         --color-accent-dark: #258e45; /* hover / oscuro */
     }
     
-    /* Ajuste para que el contenedor del dashboard ocupe todo el alto sin scroll externo */
-    .dashboard-page .main-content-inner {
-        overflow: hidden !important;
-        display: flex;
-        flex-direction: column;
-    }
-
     .age-warning {
         color: #b91c1c; /* rojo suave */
         background: rgba(185,28,28,0.04);
@@ -26,22 +21,13 @@
         margin-top: 0.5rem;
         display: none;
     }
-    /* Asegurar que el contenido principal sea flexible */
-    .main-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        position: relative;
-        overflow-x: hidden;
-        min-height: 0;
-    }
 
     /* Redefinir la estructura para Sidebar de Filtros fixed e Izquierda Scrollable */
     .dashboard-main-container {
         display: flex;
         /* Aseguramos que ocupe todo el alto disponible restando el navbar */
         height: calc(100vh - var(--navbar-height));
-        margin: -2rem -2.5rem -3rem; /* Eliminar el gap del contenedor padre */
+        margin: 0; /* Ya no necesitamos márgenes negativos por el fix en base_dashboard */
         overflow: hidden;
         background-color: #fff;
     }
