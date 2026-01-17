@@ -1,0 +1,114 @@
+<!-- Modal: Crear Tarea -->
+<div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{% url 'tasks:task_create' %}" method="POST" class="modal-content shadow-lg border-0 disable-on-submit">
+            {% csrf_token %}
+            <div class="modal-header bg-dark text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2"></i>Nueva Tarea</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Título de la Tarea</label>
+                    <input type="text" name="title" class="form-control border-2" placeholder="Ej: Llamada de seguimiento" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Descripción</label>
+                    <textarea name="description" class="form-control border-2" rows="3" placeholder="Detalles de lo que hay que hacer..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Color Distintivo</label>
+                    <input type="color" name="color" class="form-control form-control-color border-2" value="#047d7d" style="width: 100%; height: 45px;">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Responsable</label>
+                    <select name="assigned_to" class="form-select border-2">
+                        <option value="">(Sin asignar)</option>
+                        {% for u in users_list %}
+                        <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cerrar</button>
+                <button type="submit" class="btn btn-success px-4 fw-bold" style="background-color: #045a5a; border-color: #045a5a;">Guardar Tarea</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Editar Tarea -->
+<div class="modal fade" id="editTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{% url 'tasks:task_edit' %}" method="POST" class="modal-content shadow-lg border-0 disable-on-submit">
+            {% csrf_token %}
+            <input type="hidden" name="task_id" id="edit_task_id">
+            <div class="modal-header bg-dark text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Editar Tarea</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Título</label>
+                    <input type="text" name="title" id="edit_title" class="form-control border-2" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Descripción</label>
+                    <textarea name="description" id="edit_description" class="form-control border-2" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Color</label>
+                    <input type="color" name="color" id="edit_color" class="form-control form-control-color border-2" style="width: 100%; height: 45px;">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Responsable</label>
+                    <select name="assigned_to" id="edit_assigned_to" class="form-select border-2">
+                        <option value="">(Sin asignar)</option>
+                        {% for u in users_list %}
+                        <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-success px-4 fw-bold" style="background-color: #045a5a; border-color: #045a5a;">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Comentarios / Avance -->
+<div class="modal fade" id="commentsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title fw-bold" id="commentsTitle">Registro de Avance</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form action="{% url 'tasks:task_add_comment' %}" method="POST" class="mb-4 disable-on-submit">
+                    {% csrf_token %}
+                    <input type="hidden" name="task_id" id="comment_task_id">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small text-uppercase">Agregar Nuevo Comentario:</label>
+                        <textarea name="content" class="form-control border-2" rows="2" placeholder="Escribe aquí tu avance..." required></textarea>
+                    </div>
+                    <button class="btn fw-bold w-100 py-2 shadow-sm text-white" type="submit" style="background-color: #045a5a; border-color: #045a5a;">
+                        <i class="fas fa-paper-plane me-2"></i>Publicar Comentario
+                    </button>
+                </form>
+                <hr class="my-4">
+                <div id="comments-list-wrapper" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                    <div id="comments-list">
+                        <!-- Se llenará dinámicamente con JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>

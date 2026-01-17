@@ -1,0 +1,46 @@
+<div class="kanban-card" data-task-id="{{ task.id }}" style="border: 1px solid #ddd; border-top: 1px solid rgba(0,0,0,0.05);">
+    <div class="kanban-card-title-area" style="background-color: {{ task.color }}; padding: 6px 10px; min-height: 42px; border-bottom: 1px solid rgba(0,0,0,0.1); position: relative;">
+        <div class="task-title" style="font-size: 0.85rem; font-weight: 800; color: #fff; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+            {{ task.title }}
+        </div>
+        {% if user.is_superuser %}
+        <div class="card-actions" style="position: absolute; top: 4px; right: 4px; display: flex; gap: 8px;">
+            <div class="edit-pencil" onclick="openEditModal('{{ task.id }}', '{{ task.title|escapejs }}', '{{ task.color }}', '{{ task.assigned_to.id|default:'' }}', '{{ task.description|escapejs }}')" style="cursor: pointer; font-size: 0.75rem; color: rgba(255,255,255,0.8);">
+                <i class="fas fa-pencil-alt"></i>
+            </div>
+            <div class="delete-task" onclick="deleteTask('{{ task.id }}')" style="cursor: pointer; font-size: 0.75rem; color: #ff4d4d;" title="Eliminar tarea">
+                <i class="fas fa-times-circle"></i>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="kanban-card-body" style="padding: 6px 10px; flex: 1; display: flex; align-items: center; background: #fff;">
+        <!-- Avatar a la izquierda y más grande -->
+        <div class="avatar-wrapper" style="margin-right: 12px; flex-shrink: 0;">
+            {% if user.is_superuser and task.assigned_to %}
+                {% if task.assigned_to.profile.avatar %}
+                    <img src="{{ task.assigned_to.profile.avatar.url }}" class="avatar-circle" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid #eee;" title="{{ task.assigned_to }}">
+                {% else %}
+                    <div class="avatar-circle" style="width: 32px; height: 32px; border-radius: 50%; background: {{ task.color }}; color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #eee;" title="{{ task.assigned_to }}">
+                        {{ task.assigned_to.username|slice:":1"|upper }}
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <div style="flex: 1; overflow: hidden;">
+            <div class="task-desc text-muted" style="font-size: 0.75rem; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;">
+                {{ task.description }}
+            </div>
+            <div class="task-date text-muted" style="font-size: 0.65rem; margin-top: 2px;">
+                <i class="far fa-calendar-alt me-1"></i>{{ task.created_at|date:"d/m/Y H:i" }}
+            </div>
+        </div>
+
+        <!-- Comentarios más grandes -->
+        <a href="javascript:void(0)" class="comment-pill" onclick="openCommentsModal('{{ task.id }}', '{{ task.title|escapejs }}')" style="text-decoration: none; font-size: 0.9rem; color: #047d7d; display: flex; align-items: center; gap: 5px; margin-left: 10px; font-weight: bold; flex-shrink: 0;">
+            <i class="far fa-comment-alt"></i>
+            <span>{{ task.comments.count }}</span>
+        </a>
+    </div>
+</div>

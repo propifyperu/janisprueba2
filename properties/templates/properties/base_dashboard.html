@@ -554,6 +554,18 @@
             </div>
 
             <div class="nav-group">
+                {% url 'tasks:kanban_board' as kanban_url %}
+                <button class="nav-group-toggle{% if 'tasks' in request.path %} expanded{% endif %}" type="button" data-target="tasksSubmenu" aria-controls="tasksSubmenu" aria-expanded="{% if 'tasks' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tareas</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'tasks' in request.path %} show{% endif %}" id="tasksSubmenu">
+                    <a class="nav-link {% if request.path == kanban_url %}active{% endif %}" href="{{ kanban_url }}"><i class="fas fa-columns me-2"></i>Tablero Kanban</a>
+                </div>
+            </div>
+
+            <div class="nav-group">
                 <button class="nav-group-toggle{% if 'marketing' in request.path %} expanded{% endif %}" type="button" data-target="marketingSubmenu" aria-controls="marketingSubmenu" aria-expanded="{% if 'marketing' in request.path %}true{% else %}false{% endif %}">
                     <i class="fas fa-bullhorn"></i>
                     <span>Marketing</span>
