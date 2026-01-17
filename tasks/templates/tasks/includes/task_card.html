@@ -4,12 +4,17 @@
             {{ task.title }}
         </div>
         {% if user.is_superuser %}
-        <div class="card-actions" style="position: absolute; top: 4px; right: 4px; display: flex; gap: 8px;">
-            <div class="edit-pencil" onclick="openEditModal('{{ task.id }}', '{{ task.title|escapejs }}', '{{ task.color }}', '{{ task.assigned_to.id|default:'' }}', '{{ task.description|escapejs }}')" style="cursor: pointer; font-size: 0.75rem; color: rgba(255,255,255,0.8);">
+        <div class="card-actions" style="position: absolute; top: 4px; right: 4px; display: flex; gap: 6px; z-index: 10;">
+            <div class="edit-pencil" onclick="openEditModal('{{ task.id }}', '{{ task.title|escapejs }}', '{{ task.color }}', '{{ task.assigned_to.id|default:'' }}', '{{ task.description|escapejs }}')" 
+                 style="cursor: pointer; font-size: 0.9rem; color: #fff; background: rgba(0,0,0,0.25); width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" 
+                 onmouseover="this.style.background='rgba(0,0,0,0.5)'; this.style.transform='scale(1.1)';" onmouseout="this.style.background='rgba(0,0,0,0.25)'; this.style.transform='scale(1)';">
                 <i class="fas fa-pencil-alt"></i>
             </div>
-            <div class="delete-task" onclick="deleteTask('{{ task.id }}')" style="cursor: pointer; font-size: 0.75rem; color: #ff4d4d;" title="Eliminar tarea">
-                <i class="fas fa-times-circle"></i>
+            <div class="delete-task" onclick="deleteTask('{{ task.id }}')" 
+                 style="cursor: pointer; font-size: 0.9rem; color: #fff; background: rgba(220, 53, 69, 0.85); width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
+                 onmouseover="this.style.background='rgb(220, 53, 69)'; this.style.transform='scale(1.1)';" onmouseout="this.style.background='rgba(220, 53, 69, 0.85)'; this.style.transform='scale(1)';"
+                 title="Eliminar tarea">
+                <i class="fas fa-trash-alt"></i>
             </div>
         </div>
         {% endif %}
