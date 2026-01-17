@@ -19,33 +19,54 @@
         </div>
         {% endif %}
     </div>
-    <div class="kanban-card-body" style="padding: 6px 10px; flex: 1; display: flex; align-items: center; background: #fff;">
-        <!-- Avatar a la izquierda y más grande -->
-        <div class="avatar-wrapper" style="margin-right: 12px; flex-shrink: 0;">
-            {% if user.is_superuser and task.assigned_to %}
-                {% if task.assigned_to.profile.avatar %}
-                    <img src="{{ task.assigned_to.profile.avatar.url }}" class="avatar-circle" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid #eee;" title="{{ task.assigned_to }}">
-                {% else %}
-                    <div class="avatar-circle" style="width: 32px; height: 32px; border-radius: 50%; background: {{ task.color }}; color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #eee;" title="{{ task.assigned_to }}">
-                        {{ task.assigned_to.username|slice:":1"|upper }}
+    <div class="kanban-card-body" style="padding: 8px 10px; flex: 1; display: flex; align-items: flex-start; background: #fff; gap: 10px;">
+        <!-- Avatar y Datos de Usuario (Columna Izquierda) -->
+        <div class="user-info-column" style="display: flex; flex-direction: column; align-items: center; width: 85px; flex-shrink: 0; text-align: center; border-right: 1px solid #f0f0f0; padding-right: 5px;">
+            {% if task.assigned_to %}
+                <div class="avatar-wrapper" style="margin-bottom: 4px;">
+                    {% if task.assigned_to.profile.avatar %}
+                        <img src="{{ task.assigned_to.profile.avatar.url }}" class="avatar-circle" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #047d7d;" title="{{ task.assigned_to }}">
+                    {% else %}
+                        <div class="avatar-circle" style="width: 42px; height: 42px; border-radius: 50%; background: {{ task.color }}; color: #fff; font-size: 16px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #eee;" title="{{ task.assigned_to }}">
+                            {{ task.assigned_to.username|slice:":1"|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="user-details" style="line-height: 1.1;">
+                    <div style="font-size: 0.7rem; font-weight: 700; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;" title="{{ task.assigned_to.get_full_name }}">
+                        {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}
                     </div>
-                {% endif %}
+                    <div style="font-size: 0.6rem; color: #666; margin-top: 1px;">
+                        {{ task.assigned_to.department.name|default:"Sin Depto." }}
+                    </div>
+                    <div style="font-size: 0.55rem; color: #047d7d; font-weight: bold; text-transform: uppercase;">
+                        {{ task.assigned_to.role.name|default:"Sin Rol" }}
+                    </div>
+                </div>
+            {% else %}
+                <div class="avatar-circle" style="width: 42px; height: 42px; border-radius: 50%; background: #eee; color: #aaa; font-size: 20px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-user-slash"></i>
+                </div>
+                <div style="font-size: 0.6rem; color: #aaa; margin-top: 4px;">Sin asignar</div>
             {% endif %}
         </div>
 
-        <div style="flex: 1; overflow: hidden;">
-            <div class="task-desc text-muted" style="font-size: 0.75rem; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;">
-                {{ task.description }}
+        <!-- Descripción y Comentarios (Derecha) -->
+        <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+            <div class="task-desc text-muted" style="font-size: 0.75rem; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+                {{ task.description|default:"Sin descripción" }}
             </div>
-            <div class="task-date text-muted" style="font-size: 0.65rem; margin-top: 2px;">
-                <i class="far fa-calendar-alt me-1"></i>{{ task.created_at|date:"d/m/Y H:i" }}
+            
+            <div class="d-flex justify-content-between align-items-center" style="margin-top: auto;">
+                <div class="task-date text-muted" style="font-size: 0.6rem;">
+                    <i class="far fa-calendar-alt me-1"></i>{{ task.created_at|date:"d/m/y H:i" }}
+                </div>
+                
+                <a href="javascript:void(0)" class="comment-pill" onclick="openCommentsModal('{{ task.id }}', '{{ task.title|escapejs }}')" style="text-decoration: none; font-size: 0.85rem; color: #047d7d; display: flex; align-items: center; gap: 4px; font-weight: bold;">
+                    <i class="far fa-comment-alt"></i>
+                    <span>{{ task.comments.count }}</span>
+                </a>
             </div>
         </div>
-
-        <!-- Comentarios más grandes -->
-        <a href="javascript:void(0)" class="comment-pill" onclick="openCommentsModal('{{ task.id }}', '{{ task.title|escapejs }}')" style="text-decoration: none; font-size: 0.9rem; color: #047d7d; display: flex; align-items: center; gap: 5px; margin-left: 10px; font-weight: bold; flex-shrink: 0;">
-            <i class="far fa-comment-alt"></i>
-            <span>{{ task.comments.count }}</span>
-        </a>
     </div>
 </div>
