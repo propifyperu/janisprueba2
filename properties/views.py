@@ -962,7 +962,14 @@ def requirement_create_view(request):
         if form.is_valid():
             data = form.cleaned_data
             req = Requirement()
-            req.created_by = request.user
+            
+            # Reasignación de agente (solo superuser o Call Center)
+            is_call_center = request.user.role and request.user.role.name == 'Call Center'
+            if (request.user.is_superuser or is_call_center) and data.get('assigned_agent'):
+                req.created_by = data.get('assigned_agent')
+            else:
+                req.created_by = request.user
+            
             req.contact = contact_instance  # Asignar el contacto
             
             req.property_type = data.get('property_type')
@@ -1271,7 +1278,14 @@ def event_create_view(request):
         
         if form.is_valid():
             event = form.save(commit=False)
-            event.created_by = request.user
+            
+            # Reasignación de agente (solo superuser o Call Center)
+            is_call_center = request.user.role and request.user.role.name == 'Call Center'
+            if (request.user.is_superuser or is_call_center) and form.cleaned_data.get('created_by'):
+                event.created_by = form.cleaned_data.get('created_by')
+            else:
+                event.created_by = request.user
+            
             event.contact = contact_instance  # Asignar el contacto
             event.save()
             messages.success(request, f'Evento "{event.titulo}" creado exitosamente.')

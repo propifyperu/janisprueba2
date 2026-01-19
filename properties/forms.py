@@ -369,6 +369,7 @@ class RequirementSimpleForm(forms.Form):
     floors = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     garage_spaces = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     notes = forms.CharField(required=False, widget=forms.Textarea(attrs={'class':'form-control','rows':3}))
+    assigned_agent = forms.ModelChoiceField(queryset=None, required=False, label="Agente Asignado", widget=forms.Select(attrs={'class': 'form-select'}))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -390,6 +391,11 @@ class RequirementSimpleForm(forms.Form):
             self.fields['preferred_floors'].queryset = FloorOption.objects.filter(is_active=True).order_by('order', 'name')
             from .models import ZoningOption
             self.fields['zonificacion'].queryset = ZoningOption.objects.filter(is_active=True).order_by('order', 'name')
+            
+            # Cargar usuarios para asignación
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            self.fields['assigned_agent'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
         except OperationalError:
             # Si las tablas no existen (deploy sin migraciones), devolver querysets vacíos para no fallar la carga
             self.fields['property_type'].queryset = PropertyType.objects.none()
@@ -470,7 +476,7 @@ class EventForm(forms.ModelForm):
         from .models import Event
         model = Event
         fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
-                  'detalle', 'property']
+                  'detalle', 'property', 'created_by']
         widgets = {
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
@@ -479,6 +485,7 @@ class EventForm(forms.ModelForm):
             'hora_fin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'detalle': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'property': forms.Select(attrs={'class': 'form-select'}),
+            'created_by': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
             'event_type': 'Tipo de evento',
@@ -488,15 +495,22 @@ class EventForm(forms.ModelForm):
             'hora_fin': 'Hora de término',
             'detalle': 'Detalle de la visita',
             'property': 'Inmueble',
+            'created_by': 'Agente Asignado',
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Cargar solo propiedades activas
         from .models import Property, EventType
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
         self.fields['property'].queryset = Property.objects.filter(is_active=True).order_by('-created_at')
         self.fields['property'].required = False
         self.fields['event_type'].queryset = EventType.objects.filter(is_active=True).order_by('name')
+        
+        # Cargar solo usuarios activos para asignar
+        self.fields['created_by'].queryset = User.objects.filter(is_active=True).order_by('first_name')
+        self.fields['created_by'].required = False
         
     def clean(self):
         cleaned_data = super().clean()

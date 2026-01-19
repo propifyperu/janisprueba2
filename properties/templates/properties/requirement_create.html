@@ -87,6 +87,16 @@
                                     </div>
                                 </div>
                             </div>
+
+                            {% if request.user.is_superuser or request.user.role and request.user.role.name == 'Call Center' %}
+                            <div class="row g-3 mt-3">
+                                <div class="col-12">
+                                    <label class="form-label text-primary fw-bold">Agente Asignado</label>
+                                    {{ form.assigned_agent }}
+                                    <div class="form-text">Puedes reasignar este requerimiento a otro agente.</div>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
 
                         <!-- Sección: Tipo de inmueble -->
@@ -291,8 +301,8 @@
                         <!-- Botón guardar -->
                         <div class="row g-3 mt-2">
                             <div class="col-12 text-end">
-                                <button class="btn btn-teal" type="submit">
-                                    <i class="fas fa-save me-2"></i>Guardar
+                                <button class="btn btn-teal" type="submit" id="submitBtn">
+                                    <i class="fas fa-save me-2"></i><span id="btnText">Guardar</span>
                                 </button>
                             </div>
                         </div>
@@ -708,10 +718,22 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function(){
     try{
         var reqForm = document.getElementById('requirement-form');
+        var submitBtn = document.getElementById('submitBtn');
+        var btnText = document.getElementById('btnText');
+
         if(reqForm){
             reqForm.addEventListener('submit', function(){
                 try{ showLoadingOverlay('Guardando y buscando coincidencias con el motor...'); }catch(e){}
-                // allow normal submit
+                
+                // Deshabilitar botón y mostrar spinner local
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    if (btnText) btnText.textContent = ' Guardando...';
+                    const spinner = document.createElement('span');
+                    spinner.className = 'spinner-border spinner-border-sm me-2';
+                    spinner.setAttribute('role', 'status');
+                    submitBtn.prepend(spinner);
+                }
             });
         }
     }catch(e){ console.warn('requirement form binding failed', e); }
