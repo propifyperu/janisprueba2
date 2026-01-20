@@ -281,26 +281,26 @@
                          <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
                             <i class="fas fa-map-marker-alt me-2"></i>Ubicación
                         </div>
-                        <div class="card-body pt-0 px-2 pb-2">
-                            <div class="row g-2">
+                        <div class="card-body pt-0 px-2 pb-1">
+                            <div class="row g-1">
                                 <div class="col-12">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Dirección Real</label>
+                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Dirección Real</label>
                                     <div class="small text-truncate" title="{{ property.real_address }}">{{ property.real_address|default:"-" }}</div>
                                 </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Departamento</label>
+                                <div class="col-4">
+                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Dep.</label>
                                     <div class="small text-truncate">{{ property.department_name|default:"-" }}</div>
                                 </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Provincia</label>
+                                <div class="col-4">
+                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Prov.</label>
                                     <div class="small text-truncate">{{ property.province_name|default:"-" }}</div>
                                 </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Distrito</label>
+                                <div class="col-4">
+                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Dist.</label>
                                     <div class="small text-truncate">{{ property.district_name|default:"-" }}</div>
                                 </div>
                                 <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Urbanización</label>
+                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Urbanización</label>
                                     <div class="small text-truncate">
                                         {% if is_owner_or_admin %}
                                             {{ property.urbanization_name|default:"-" }}
@@ -309,19 +309,19 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                <div class="col-12">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Coordenadas</label>
-                                    <div class="small text-monospace bg-light rounded px-1 py-0 text-truncate" style="font-size: 0.7rem;">
+                                <div class="col-6">
+                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Coordenadas</label>
+                                    <div class="small text-monospace bg-light rounded px-1 py-0 text-truncate" style="font-size: 0.65rem;">
                                         {% if is_owner_or_admin %}
                                             {{ property.coordinates|default:"-" }}
                                         {% else %}
-                                            <span class="text-muted opacity-50" style="font-size: 0.65rem;">Vista No Autorizada</span>
+                                            <span class="text-muted opacity-50" style="font-size: 0.6rem;">Vista No Autorizada</span>
                                         {% endif %}
                                     </div>
                                 </div>
                                 {% if property.google_maps_url %}
                                 <div class="col-12 text-end">
-                                    <a href="{{ property.google_maps_url }}" target="_blank" class="btn btn-sm btn-link text-success p-0" style="font-size: 0.75rem; text-decoration: none;">
+                                    <a href="{{ property.google_maps_url }}" target="_blank" class="btn btn-sm btn-link text-success p-0" style="font-size: 0.7rem; text-decoration: none;">
                                         <i class="fas fa-external-link-alt me-1"></i>Google Maps
                                     </a>
                                 </div>
