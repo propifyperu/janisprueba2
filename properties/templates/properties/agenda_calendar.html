@@ -537,8 +537,9 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             datesSet: function(dateInfo) {
                 // Cuando el calendario principal cambia de fecha/vista, sincronizar el mini calendario
-                if (miniCalendar) {
-                    miniCalendar.gotoDate(dateInfo.start);
+                // Usamos dateInfo.view.currentStart para evitar el desfase de zonas horarias/bordes de mes
+                if (miniCalendar && dateInfo.view.type === 'dayGridMonth') {
+                    miniCalendar.gotoDate(dateInfo.view.currentStart);
                 }
             },
             height: '100%',
@@ -569,9 +570,14 @@ document.addEventListener('DOMContentLoaded', function() {
         fixedWeekCount: false,
         dateClick: function(info) {
             // Seleccionar fecha en el calendario principal
+            // Desactivamos temporalmente el callback de sincronización inversa para evitar bucles
+            const oldDatesSet = calendar.getOption('datesSet');
+            calendar.setOption('datesSet', null);
+            
             calendar.gotoDate(info.date);
-            // Si no es vista de mes, tal vez cambiar a vista de día? 
-            // Google calendar suele quedarse en la vista actual pero saltar al día.
+            
+            // Restauramos el callback
+            calendar.setOption('datesSet', oldDatesSet);
             
             // Visualmente resaltar el día en el mini calendario
             document.querySelectorAll('.mini-calendar .fc-daygrid-day').forEach(el => {
