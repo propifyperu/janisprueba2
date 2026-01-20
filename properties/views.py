@@ -1226,10 +1226,36 @@ def requirement_delete_view(request, pk):
 @login_required
 def agenda_calendar_view(request):
     """Vista principal del calendario de eventos"""
-    from .models import EventType
+    from .models import EventType, Event
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
     event_types = EventType.objects.filter(is_active=True).order_by('name')
+    
+    # Determinar si el usuario puede ver a otros agentes
+    is_call_center = request.user.role and request.user.role.name == 'Call Center'
+    can_see_all = request.user.is_superuser or is_call_center
+    
+    agents_with_events = []
+    if can_see_all:
+        # Obtener agentes que tienen al menos un evento activo
+        agent_ids = Event.objects.filter(is_active=True).values_list('created_by', flat=True).distinct()
+        agents_with_events = User.objects.filter(id__in=agent_ids).only('id', 'first_name', 'last_name', 'username').order_by('id')
+        
+        # Asignar un color a cada agente (generado determinísticamente)
+        colors = [
+            '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6', 
+            '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
+            '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
+        ]
+        
+        for i, agent in enumerate(agents_with_events):
+            agent.calendar_color = colors[i % len(colors)]
+
     return render(request, 'properties/agenda_calendar.html', {
-        'event_types': event_types
+        'event_types': event_types,
+        'agents_with_events': agents_with_events,
+        'can_see_all': can_see_all
     })
 
 
@@ -1353,21 +1379,46 @@ def api_events_json(request):
     from .models import Event
     from django.http import JsonResponse
     
-    # Si es superusuario, ve todos los eventos, sino solo los suyos
-    if request.user.is_superuser:
-        events = Event.objects.filter(is_active=True).select_related('event_type', 'property', 'created_by')
+    # Si es superusuario o Call Center, puede ver todos los eventos (o filtrar por agente)
+    is_call_center = request.user.role and request.user.role.name == 'Call Center'
+    can_see_all = request.user.is_superuser or is_call_center
+    
+    agent_id = request.GET.get('agent_id')
+    
+    if can_see_all:
+        if agent_id:
+            events = Event.objects.filter(is_active=True, created_by_id=agent_id).select_related('event_type', 'property', 'created_by')
+        else:
+            events = Event.objects.filter(is_active=True).select_related('event_type', 'property', 'created_by')
     else:
         events = Event.objects.filter(is_active=True, created_by=request.user).select_related('event_type', 'property', 'created_by')
     
+    # Colores para agentes
+    colors_list = [
+        '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6', 
+        '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
+        '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
+    ]
+    
+    # Mapeo de IDs a colores para consistencia
+    agent_ids_distinct = sorted(list(Event.objects.filter(is_active=True).values_list('created_by_id', flat=True).distinct()))
+    agent_color_map = {uid: colors_list[i % len(colors_list)] for i, uid in enumerate(agent_ids_distinct)}
+    
     events_data = []
     for event in events:
+        # Si puede ver todo, el color es por agente, sino por tipo de evento
+        if can_see_all:
+            color = agent_color_map.get(event.created_by_id, event.event_type.color)
+        else:
+            color = event.event_type.color
+            
         events_data.append({
             'id': event.id,
             'title': event.titulo,
             'start': f"{event.fecha_evento}T{event.hora_inicio}",
             'end': f"{event.fecha_evento}T{event.hora_fin}",
-            'backgroundColor': event.event_type.color,
-            'borderColor': event.event_type.color,
+            'backgroundColor': color,
+            'borderColor': color,
             'extendedProps': {
                 'code': event.code,
                 'event_type': event.event_type.name,
@@ -1376,10 +1427,10 @@ def api_events_json(request):
                 'property': event.property.exact_address if event.property else '',
                 'property_code': event.property.code if event.property else '',
                 'created_by': event.created_by.get_full_name() if event.created_by else '',
+                'created_by_id': event.created_by.id if event.created_by else None,
             }
         })
     
-    print(f"API Events: Retornando {len(events_data)} eventos para el usuario {request.user.username}")
     return JsonResponse(events_data, safe=False)
 
 
