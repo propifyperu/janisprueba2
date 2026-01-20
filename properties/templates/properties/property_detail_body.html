@@ -121,265 +121,263 @@
              </div>
         </div>
 
-        <!-- COLUMNA CENTRAL: Grid Compacto -->
+        <!-- COLUMNA CENTRAL: Grid Compacto (Dos columnas verticales para evitar huecos por alturas desiguales) -->
         <div class="col-lg-9 col-md-8">
             <div class="row g-2">
                 
-                <!-- 1. INFORMACIÓN BÁSICA -->
+                <!-- Subcolumna Izquierda: Básica, Características, Publicidad -->
                 <div class="col-12 col-md-6">
-                    <div class="card shadow-sm border">
-                        <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
-                            <i class="fas fa-home me-2"></i>Información Básica
-                        </div>
-                        <div class="card-body pt-0 px-2 pb-2">
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Tipo</label>
-                                    <div class="text-truncate small">{{ property.property_type.name|default:"-" }}</div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Subtipo</label>
-                                    <div class="text-truncate small">{{ property.property_subtype.name|default:"-" }}</div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Estado</label>
-                                    <span class="badge bg-light text-dark border small py-0">{{ property.status.name|default:"-" }}</span>
-                                </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Condición</label>
-                                    <div class="text-truncate small">{{ property.condition.name|default:"-" }}</div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Forma de Pago</label>
-                                    <div class="text-truncate small">{{ property.forma_de_pago.name|default:"-" }}</div>
-                                </div>
-                                <div class="col-6">
-                                     <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Mantenimiento</label>
-                                     <div class="small">{% if property.has_maintenance %}Sí{% else %}No{% endif %}</div>
-                                </div>
-                                {% if property.is_project %}
-                                <div class="col-12">
-                                    <div class="alert alert-info py-1 px-2 small mb-0" style="font-size: 0.75rem;">
-                                        <i class="fas fa-building me-1"></i> Proyecto: <strong>{{ property.project_name|default:"-" }}</strong>
+                    <div class="d-flex flex-column gap-2">
+                        <!-- 1. INFORMACIÓN BÁSICA -->
+                        <div class="card shadow-sm border">
+                            <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
+                                <i class="fas fa-home me-2"></i>Información Básica
+                            </div>
+                            <div class="card-body pt-0 px-2 pb-2">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Tipo</label>
+                                        <div class="text-truncate small">{{ property.property_type.name|default:"-" }}</div>
                                     </div>
+                                    <div class="col-6">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Subtipo</label>
+                                        <div class="text-truncate small">{{ property.property_subtype.name|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Estado</label>
+                                        <span class="badge bg-light text-dark border small py-0">{{ property.status.name|default:"-" }}</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Condición</label>
+                                        <div class="text-truncate small">{{ property.condition.name|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Forma de Pago</label>
+                                        <div class="text-truncate small">{{ property.forma_de_pago.name|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                         <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Mantenimiento</label>
+                                         <div class="small">{% if property.has_maintenance %}Sí{% else %}No{% endif %}</div>
+                                    </div>
+                                    {% if property.is_project %}
+                                    <div class="col-12">
+                                        <div class="alert alert-info py-1 px-2 small mb-0" style="font-size: 0.75rem;">
+                                            <i class="fas fa-building me-1"></i> Proyecto: <strong>{{ property.project_name|default:"-" }}</strong>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if property.antiquity_years or property.delivery_date %}
+                                    <div class="col-6">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Antigüedad</label>
+                                        <div class="small">{{ property.antiquity_years|default:"-" }} años</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Entrega</label>
+                                        <div class="small">{{ property.delivery_date|date:"d/m/Y"|default:"-" }}</div>
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                {% endif %}
-                                {% if property.antiquity_years or property.delivery_date %}
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Antigüedad</label>
-                                    <div class="small">{{ property.antiquity_years|default:"-" }} años</div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Entrega</label>
-                                    <div class="small">{{ property.delivery_date|date:"d/m/Y"|default:"-" }}</div>
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
+
+                        <!-- 3. CARACTERÍSTICAS -->
+                         <div class="card shadow-sm border">
+                             <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
+                                <i class="fas fa-ruler-combined me-2"></i>Características
+                            </div>
+                            <div class="card-body pt-0 px-2 pb-1">
+                                <div class="row g-1">
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">A. Terreno</label>
+                                        <div class="small fw-bold">{{ property.land_area|floatformat:0 }} <span class="text-muted" style="font-size: 0.6rem;">{{ property.land_area_unit.symbol }}</span></div>
+                                    </div>
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">A. Const.</label>
+                                        <div class="small fw-bold">{{ property.built_area|floatformat:0 }} <span class="text-muted" style="font-size: 0.6rem;">{{ property.built_area_unit.symbol }}</span></div>
+                                    </div>
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Frentera</label>
+                                        <div class="small">{{ property.front_measure|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Fondo</label>
+                                        <div class="small">{{ property.depth_measure|default:"-" }}</div>
+                                    </div>
+                                    
+                                    <div class="col-12 border-top my-0"></div>
+
+                                    <div class="col-4">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">½ Baños</label>
+                                        <div class="small">{{ property.half_bathrooms }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Pisos</label>
+                                        <div class="small">{{ property.floors }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Garaje</label>
+                                        <div class="small text-truncate">{{ property.garage_type.name|default:"-" }}</div>
+                                    </div>
+
+                                    {% if property.parking_cost > 0 %}
+                                    <div class="col-12">
+                                        <div class="small text-muted fst-italic" style="font-size: 0.75rem;">Cochera: <strong>{{ property.parking_cost }}</strong> (Incl: {{ property.parking_cost_included|yesno:"Sí,No" }})</div>
+                                    </div>
+                                    {% endif %}
+                                    {% if property.zoning %}
+                                    <div class="col-12">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Zonificación</label>
+                                        <div class="small text-truncate">{{ property.zoning }}</div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                             </div>
+                         </div>
+
+                         <!-- 5. PUBLICIDAD -->
+                         <div class="card shadow-sm border">
+                             <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
+                                <i class="fas fa-bullhorn me-2"></i>Publicidad
+                            </div>
+                            <div class="card-body pt-0 px-2 pb-2">
+                                <div class="mb-1">
+                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Título</label>
+                                    <div class="small fw-bold text-truncate">{{ property.title }}</div>
+                                </div>
+                                <div>
+                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Descripción</label>
+                                    <div class="small text-secondary text-truncate" style="max-height: 60px; overflow: hidden;" title="{{ property.description }}">
+                                        {{ property.description|default:"Sin descripción" }}
+                                    </div>
+                                </div>
+                             </div>
+                         </div>
                     </div>
                 </div>
 
-                <!-- 2. NEGOCIACIÓN Y FINANZAS -->
+                <!-- Subcolumna Derecha: Negociación, Ubicación, Servicios -->
                 <div class="col-12 col-md-6">
-                    <div class="card shadow-sm border">
-                        <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
-                            <i class="fas fa-handshake me-2"></i>Negociación y Finanzas
-                        </div>
-                        <div class="card-body pt-0 px-2 pb-1">
-                             <div class="row g-1">
-                                <div class="col-4">
-                                    <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
-                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Com. Inicial</label>
-                                        <span class="fw-bold text-success small">{{ property.initial_commission_percentage|default:"0" }}%</span>
+                    <div class="d-flex flex-column gap-2">
+                        <!-- 2. NEGOCIACIÓN Y FINANZAS -->
+                        <div class="card shadow-sm border">
+                            <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
+                                <i class="fas fa-handshake me-2"></i>Negociación y Finanzas
+                            </div>
+                            <div class="card-body pt-0 px-2 pb-1">
+                                 <div class="row g-1">
+                                    <div class="col-4">
+                                        <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
+                                            <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Com. Inicial</label>
+                                            <span class="fw-bold text-success small">{{ property.initial_commission_percentage|default:"0" }}%</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
-                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Com. Final</label>
-                                        <span class="fw-bold text-success small">{{ property.final_commission_percentage|default:"0" }}%</span>
+                                    <div class="col-4">
+                                        <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
+                                            <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Com. Final</label>
+                                            <span class="fw-bold text-success small">{{ property.final_commission_percentage|default:"0" }}%</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
-                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Cierre</label>
-                                        <span class="fw-bold text-dark small" style="font-size: 0.75rem;">{{ property.currency.symbol }} {{ property.final_amount|floatformat:0|default:"0" }}</span>
+                                    <div class="col-4">
+                                        <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
+                                            <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Cierre</label>
+                                            <span class="fw-bold text-dark small" style="font-size: 0.75rem;">{{ property.currency.symbol }} {{ property.final_amount|floatformat:0|default:"0" }}</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-12 border-top my-0"></div>
-                                <div class="col-6">
-                                     <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Estado Negociación</label>
-                                     <div class="small"><span class="badge bg-warning text-dark py-0">{{ property.negotiation_status.name|default:"-" }}</span></div>
-                                </div>
-                                <div class="col-6">
-                                     <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Tipo de Contrato</label>
-                                     <div class="small fw-bold text-truncate">{{ property.contract_type.name|default:"-" }}</div>
+                                    <div class="col-12 border-top my-0"></div>
+                                    <div class="col-6">
+                                         <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Estado Negociación</label>
+                                         <div class="small"><span class="badge bg-warning text-dark py-0">{{ property.negotiation_status.name|default:"-" }}</span></div>
+                                    </div>
+                                    <div class="col-6">
+                                         <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Tipo de Contrato</label>
+                                         <div class="small fw-bold text-truncate">{{ property.contract_type.name|default:"-" }}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                         <!-- 4. UBICACIÓN -->
+                         <div class="card shadow-sm border">
+                             <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
+                                <i class="fas fa-map-marker-alt me-2"></i>Ubicación
+                            </div>
+                            <div class="card-body pt-0 px-2 pb-1">
+                                <div class="row g-1">
+                                    <div class="col-12">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Dirección Real</label>
+                                        <div class="small text-truncate" title="{{ property.real_address }}">{{ property.real_address|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Dep.</label>
+                                        <div class="small text-truncate">{{ property.department_name|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Prov.</label>
+                                        <div class="small text-truncate">{{ property.province_name|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Dist.</label>
+                                        <div class="small text-truncate">{{ property.district_name|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Urbanización</label>
+                                        <div class="small text-truncate">
+                                            {% if is_owner_or_admin %}
+                                                {{ property.urbanization_name|default:"-" }}
+                                            {% else %}
+                                                <span class="text-muted opacity-50" style="font-size: 0.65rem;">Vista No Autorizada</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Coordenadas</label>
+                                        <div class="small text-monospace bg-light rounded px-1 py-0 text-truncate" style="font-size: 0.65rem;">
+                                            {% if is_owner_or_admin %}
+                                                {{ property.coordinates|default:"-" }}
+                                            {% else %}
+                                                <span class="text-muted opacity-50" style="font-size: 0.6rem;">Vista No Autorizada</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if property.google_maps_url %}
+                                    <div class="col-12 text-end">
+                                        <a href="{{ property.google_maps_url }}" target="_blank" class="btn btn-sm btn-link text-success p-0" style="font-size: 0.7rem; text-decoration: none;">
+                                            <i class="fas fa-external-link-alt me-1"></i>Google Maps
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                             </div>
+                         </div>
+
+                         <!-- 6. SERVICIOS -->
+                         <div class="card shadow-sm border">
+                             <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
+                                <i class="fas fa-wrench me-2"></i>Servicios
+                            </div>
+                            <div class="card-body pt-0 px-2 pb-2">
+                                <div class="row g-2">
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Agua</label>
+                                        <div class="small">{{ property.water_service.name|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Luz</label>
+                                        <div class="small">{{ property.energy_service.name|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Desagüe</label>
+                                        <div class="small">{{ property.drainage_service.name|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Gas</label>
+                                        <div class="small">{{ property.gas_service.name|default:"-" }}</div>
+                                    </div>
+                                </div>
+                             </div>
+                         </div>
                     </div>
                 </div>
-
-                 <!-- 3. CARACTERÍSTICAS -->
-                 <div class="col-12 col-md-6">
-                     <div class="card shadow-sm border">
-                         <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
-                            <i class="fas fa-ruler-combined me-2"></i>Características
-                        </div>
-                        <div class="card-body pt-0 px-2 pb-1">
-                            <div class="row g-1">
-                                <div class="col-3 text-center">
-                                    <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">A. Terreno</label>
-                                    <div class="small fw-bold">{{ property.land_area|floatformat:0 }} <span class="text-muted" style="font-size: 0.6rem;">{{ property.land_area_unit.symbol }}</span></div>
-                                </div>
-                                <div class="col-3 text-center">
-                                    <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">A. Const.</label>
-                                    <div class="small fw-bold">{{ property.built_area|floatformat:0 }} <span class="text-muted" style="font-size: 0.6rem;">{{ property.built_area_unit.symbol }}</span></div>
-                                </div>
-                                <div class="col-3 text-center">
-                                    <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Frentera</label>
-                                    <div class="small">{{ property.front_measure|default:"-" }}</div>
-                                </div>
-                                <div class="col-3 text-center">
-                                    <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Fondo</label>
-                                    <div class="small">{{ property.depth_measure|default:"-" }}</div>
-                                </div>
-                                
-                                <div class="col-12 border-top my-0"></div>
-
-                                <div class="col-4">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">½ Baños</label>
-                                    <div class="small">{{ property.half_bathrooms }}</div>
-                                </div>
-                                <div class="col-4">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Pisos</label>
-                                    <div class="small">{{ property.floors }}</div>
-                                </div>
-                                <div class="col-4">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Garaje</label>
-                                    <div class="small text-truncate">{{ property.garage_type.name|default:"-" }}</div>
-                                </div>
-
-                                {% if property.parking_cost > 0 %}
-                                <div class="col-12">
-                                    <div class="small text-muted fst-italic" style="font-size: 0.75rem;">Cochera: <strong>{{ property.parking_cost }}</strong> (Incl: {{ property.parking_cost_included|yesno:"Sí,No" }})</div>
-                                </div>
-                                {% endif %}
-                                {% if property.zoning %}
-                                <div class="col-12">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Zonificación</label>
-                                    <div class="small text-truncate">{{ property.zoning }}</div>
-                                </div>
-                                {% endif %}
-                            </div>
-                         </div>
-                     </div>
-                 </div>
-
-                 <!-- 4. UBICACIÓN -->
-                 <div class="col-12 col-md-6">
-                     <div class="card shadow-sm border">
-                         <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
-                            <i class="fas fa-map-marker-alt me-2"></i>Ubicación
-                        </div>
-                        <div class="card-body pt-0 px-2 pb-1">
-                            <div class="row g-1">
-                                <div class="col-12">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Dirección Real</label>
-                                    <div class="small text-truncate" title="{{ property.real_address }}">{{ property.real_address|default:"-" }}</div>
-                                </div>
-                                <div class="col-4">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Dep.</label>
-                                    <div class="small text-truncate">{{ property.department_name|default:"-" }}</div>
-                                </div>
-                                <div class="col-4">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Prov.</label>
-                                    <div class="small text-truncate">{{ property.province_name|default:"-" }}</div>
-                                </div>
-                                <div class="col-4">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Dist.</label>
-                                    <div class="small text-truncate">{{ property.district_name|default:"-" }}</div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Urbanización</label>
-                                    <div class="small text-truncate">
-                                        {% if is_owner_or_admin %}
-                                            {{ property.urbanization_name|default:"-" }}
-                                        {% else %}
-                                            <span class="text-muted opacity-50" style="font-size: 0.65rem;">Vista No Autorizada</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.65rem;">Coordenadas</label>
-                                    <div class="small text-monospace bg-light rounded px-1 py-0 text-truncate" style="font-size: 0.65rem;">
-                                        {% if is_owner_or_admin %}
-                                            {{ property.coordinates|default:"-" }}
-                                        {% else %}
-                                            <span class="text-muted opacity-50" style="font-size: 0.6rem;">Vista No Autorizada</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                {% if property.google_maps_url %}
-                                <div class="col-12 text-end">
-                                    <a href="{{ property.google_maps_url }}" target="_blank" class="btn btn-sm btn-link text-success p-0" style="font-size: 0.7rem; text-decoration: none;">
-                                        <i class="fas fa-external-link-alt me-1"></i>Google Maps
-                                    </a>
-                                </div>
-                                {% endif %}
-                            </div>
-                         </div>
-                     </div>
-                 </div>
-
-                 <!-- 5. PUBLICIDAD -->
-                 <div class="col-12 col-md-6">
-                     <div class="card shadow-sm border">
-                         <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
-                            <i class="fas fa-bullhorn me-2"></i>Publicidad
-                        </div>
-                        <div class="card-body pt-0 px-2 pb-2">
-                            <div class="mb-1">
-                                <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Título</label>
-                                <div class="small fw-bold text-truncate">{{ property.title }}</div>
-                            </div>
-                            <div>
-                                <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Descripción</label>
-                                <div class="small text-secondary text-truncate" style="max-height: 60px; overflow: hidden;" title="{{ property.description }}">
-                                    {{ property.description|default:"Sin descripción" }}
-                                </div>
-                            </div>
-                         </div>
-                     </div>
-                 </div>
-
-                 <!-- 6. SERVICIOS -->
-                 <div class="col-12 col-md-6">
-                     <div class="card shadow-sm border">
-                         <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
-                            <i class="fas fa-wrench me-2"></i>Servicios
-                        </div>
-                        <div class="card-body pt-0 px-2 pb-2">
-                            <div class="row g-2">
-                                <div class="col-3 text-center">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Agua</label>
-                                    <div class="small">{{ property.water_service.name|default:"-" }}</div>
-                                </div>
-                                <div class="col-3 text-center">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Luz</label>
-                                    <div class="small">{{ property.energy_service.name|default:"-" }}</div>
-                                </div>
-                                <div class="col-3 text-center">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Desagüe</label>
-                                    <div class="small">{{ property.drainage_service.name|default:"-" }}</div>
-                                </div>
-                                <div class="col-3 text-center">
-                                    <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Gas</label>
-                                    <div class="small">{{ property.gas_service.name|default:"-" }}</div>
-                                </div>
-                            </div>
-                         </div>
-                     </div>
-                 </div>
 
                  <!-- 7. MATRIZ DE CUMPLIMIENTO DOCUMENTAL -->
                  <div class="col-12">
