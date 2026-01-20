@@ -127,7 +127,7 @@
                 
                 <!-- 1. INFORMACIÓN BÁSICA -->
                 <div class="col-12 col-md-6">
-                    <div class="card shadow-sm border h-100">
+                    <div class="card shadow-sm border">
                         <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
                             <i class="fas fa-home me-2"></i>Información Básica
                         </div>
@@ -181,12 +181,12 @@
 
                 <!-- 2. NEGOCIACIÓN Y FINANZAS -->
                 <div class="col-12 col-md-6">
-                    <div class="card shadow-sm border h-100">
+                    <div class="card shadow-sm border">
                         <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
                             <i class="fas fa-handshake me-2"></i>Negociación y Finanzas
                         </div>
-                        <div class="card-body pt-0 px-2 pb-2">
-                             <div class="row g-2">
+                        <div class="card-body pt-0 px-2 pb-1">
+                             <div class="row g-1">
                                 <div class="col-4">
                                     <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
                                         <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Com. Inicial</label>
@@ -205,7 +205,7 @@
                                         <span class="fw-bold text-dark small" style="font-size: 0.75rem;">{{ property.currency.symbol }} {{ property.final_amount|floatformat:0|default:"0" }}</span>
                                     </div>
                                 </div>
-                                <div class="col-12 border-top my-1"></div>
+                                <div class="col-12 border-top my-0"></div>
                                 <div class="col-6">
                                      <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Estado Negociación</label>
                                      <div class="small"><span class="badge bg-warning text-dark py-0">{{ property.negotiation_status.name|default:"-" }}</span></div>
@@ -221,12 +221,12 @@
 
                  <!-- 3. CARACTERÍSTICAS -->
                  <div class="col-12 col-md-6">
-                     <div class="card shadow-sm border h-100">
+                     <div class="card shadow-sm border">
                          <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
                             <i class="fas fa-ruler-combined me-2"></i>Características
                         </div>
-                        <div class="card-body pt-0 px-2 pb-2">
-                            <div class="row g-2">
+                        <div class="card-body pt-0 px-2 pb-1">
+                            <div class="row g-1">
                                 <div class="col-3 text-center">
                                     <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">A. Terreno</label>
                                     <div class="small fw-bold">{{ property.land_area|floatformat:0 }} <span class="text-muted" style="font-size: 0.6rem;">{{ property.land_area_unit.symbol }}</span></div>
@@ -244,7 +244,7 @@
                                     <div class="small">{{ property.depth_measure|default:"-" }}</div>
                                 </div>
                                 
-                                <div class="col-12 border-top my-1"></div>
+                                <div class="col-12 border-top my-0"></div>
 
                                 <div class="col-4">
                                     <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">½ Baños</label>
@@ -277,7 +277,7 @@
 
                  <!-- 4. UBICACIÓN -->
                  <div class="col-12 col-md-6">
-                     <div class="card shadow-sm border h-100">
+                     <div class="card shadow-sm border">
                          <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
                             <i class="fas fa-map-marker-alt me-2"></i>Ubicación
                         </div>
@@ -333,7 +333,7 @@
 
                  <!-- 5. SERVICIOS -->
                  <div class="col-12 col-md-6">
-                     <div class="card shadow-sm border h-100">
+                     <div class="card shadow-sm border">
                          <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
                             <i class="fas fa-wrench me-2"></i>Servicios
                         </div>
@@ -362,7 +362,7 @@
 
                  <!-- 6. PUBLICIDAD -->
                  <div class="col-12 col-md-6">
-                     <div class="card shadow-sm border h-100">
+                     <div class="card shadow-sm border">
                          <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
                             <i class="fas fa-bullhorn me-2"></i>Publicidad
                         </div>
