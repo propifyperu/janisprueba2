@@ -357,6 +357,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ block.super }}
 <script>
 	function updateStatus(deviceId, newStatus) {
 		// Existing implementation or placeholder if it wasn't there

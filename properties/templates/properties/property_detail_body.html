@@ -125,9 +125,9 @@
         <div class="col-lg-9 col-md-8">
             <div class="row g-2">
                 
-                <!-- Subcolumna Izquierda: Básica, Características, Publicidad -->
+                <!-- Subcolumna Izquierda: Básica, Publicidad -->
                 <div class="col-12 col-md-6">
-                    <div class="d-flex flex-column gap-2">
+                    <div class="d-flex flex-column gap-2 h-100">
                         <!-- 1. INFORMACIÓN BÁSICA -->
                         <div class="card shadow-sm border">
                             <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
@@ -180,73 +180,22 @@
                             </div>
                         </div>
 
-                        <!-- 3. CARACTERÍSTICAS -->
-                         <div class="card shadow-sm border">
-                             <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
-                                <i class="fas fa-ruler-combined me-2"></i>Características
-                            </div>
-                            <div class="card-body pt-0 px-2 pb-1">
-                                <div class="row g-1">
-                                    <div class="col-3 text-center">
-                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">A. Terreno</label>
-                                        <div class="small fw-bold">{{ property.land_area|floatformat:0 }} <span class="text-muted" style="font-size: 0.6rem;">{{ property.land_area_unit.symbol }}</span></div>
-                                    </div>
-                                    <div class="col-3 text-center">
-                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">A. Const.</label>
-                                        <div class="small fw-bold">{{ property.built_area|floatformat:0 }} <span class="text-muted" style="font-size: 0.6rem;">{{ property.built_area_unit.symbol }}</span></div>
-                                    </div>
-                                    <div class="col-3 text-center">
-                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Frentera</label>
-                                        <div class="small">{{ property.front_measure|default:"-" }}</div>
-                                    </div>
-                                    <div class="col-3 text-center">
-                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Fondo</label>
-                                        <div class="small">{{ property.depth_measure|default:"-" }}</div>
-                                    </div>
-                                    
-                                    <div class="col-12 border-top my-0"></div>
-
-                                    <div class="col-4">
-                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">½ Baños</label>
-                                        <div class="small">{{ property.half_bathrooms }}</div>
-                                    </div>
-                                    <div class="col-4">
-                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Pisos</label>
-                                        <div class="small">{{ property.floors }}</div>
-                                    </div>
-                                    <div class="col-4">
-                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Garaje</label>
-                                        <div class="small text-truncate">{{ property.garage_type.name|default:"-" }}</div>
-                                    </div>
-
-                                    {% if property.parking_cost > 0 %}
-                                    <div class="col-12">
-                                        <div class="small text-muted fst-italic" style="font-size: 0.75rem;">Cochera: <strong>{{ property.parking_cost }}</strong> (Incl: {{ property.parking_cost_included|yesno:"Sí,No" }})</div>
-                                    </div>
-                                    {% endif %}
-                                    {% if property.zoning %}
-                                    <div class="col-12">
-                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Zonificación</label>
-                                        <div class="small text-truncate">{{ property.zoning }}</div>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                             </div>
-                         </div>
-
                          <!-- 5. PUBLICIDAD -->
-                         <div class="card shadow-sm border">
-                             <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
-                                <i class="fas fa-bullhorn me-2"></i>Publicidad
+                         <div class="card shadow-sm border flex-grow-1">
+                             <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small d-flex justify-content-between align-items-center">
+                                <div><i class="fas fa-bullhorn me-2"></i>Publicidad</div>
+                                <button class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size: 0.65rem;" onclick="copyPropertyDescription(this)">
+                                    <i class="fas fa-copy me-1"></i>Copiar texto
+                                </button>
                             </div>
-                            <div class="card-body pt-0 px-2 pb-2">
+                            <div class="card-body pt-0 px-2 pb-2 d-flex flex-column">
                                 <div class="mb-1">
                                     <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Título</label>
                                     <div class="small fw-bold text-truncate">{{ property.title }}</div>
                                 </div>
-                                <div>
+                                <div class="flex-grow-1 d-flex flex-column">
                                     <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Descripción</label>
-                                    <div class="small text-secondary text-truncate" style="max-height: 60px; overflow: hidden;" title="{{ property.description }}">
+                                    <div id="propertyDescriptionText" class="small text-secondary fw-normal flex-grow-1" style="overflow-y: auto;" title="{{ property.description }}">
                                         {{ property.description|default:"Sin descripción" }}
                                     </div>
                                 </div>
@@ -255,7 +204,7 @@
                     </div>
                 </div>
 
-                <!-- Subcolumna Derecha: Negociación, Ubicación, Servicios -->
+                <!-- Subcolumna Derecha: Negociación, Ubicación, Servicios, Características -->
                 <div class="col-12 col-md-6">
                     <div class="d-flex flex-column gap-2">
                         <!-- 2. NEGOCIACIÓN Y FINANZAS -->
@@ -376,6 +325,60 @@
                                 </div>
                              </div>
                          </div>
+
+                        <!-- 3. CARACTERÍSTICAS -->
+                         <div class="card shadow-sm border">
+                             <div class="card-header bg-white fw-bold text-primary border-bottom-0 py-1 px-2 small">
+                                <i class="fas fa-ruler-combined me-2"></i>Características
+                            </div>
+                            <div class="card-body pt-0 px-2 pb-1">
+                                <div class="row g-1">
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">A. Terreno</label>
+                                        <div class="small fw-bold">{{ property.land_area|floatformat:0 }} <span class="text-muted" style="font-size: 0.6rem;">{{ property.land_area_unit.symbol }}</span></div>
+                                    </div>
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">A. Const.</label>
+                                        <div class="small fw-bold">{{ property.built_area|floatformat:0 }} <span class="text-muted" style="font-size: 0.6rem;">{{ property.built_area_unit.symbol }}</span></div>
+                                    </div>
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Frentera</label>
+                                        <div class="small">{{ property.front_measure|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-3 text-center">
+                                        <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Fondo</label>
+                                        <div class="small">{{ property.depth_measure|default:"-" }}</div>
+                                    </div>
+                                    
+                                    <div class="col-12 border-top my-0"></div>
+
+                                    <div class="col-4">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">½ Baños</label>
+                                        <div class="small">{{ property.half_bathrooms }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Pisos</label>
+                                        <div class="small">{{ property.floors }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Garaje</label>
+                                        <div class="small text-truncate">{{ property.garage_type.name|default:"-" }}</div>
+                                    </div>
+
+                                    {% if property.parking_cost > 0 %}
+                                    <div class="col-12">
+                                        <div class="small text-muted fst-italic" style="font-size: 0.75rem;">Cochera: <strong>{{ property.parking_cost }}</strong> (Incl: {{ property.parking_cost_included|yesno:"Sí,No" }})</div>
+                                    </div>
+                                    {% endif %}
+                                    {% if property.zoning %}
+                                    <div class="col-12">
+                                        <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Zonificación</label>
+                                        <div class="small text-truncate">{{ property.zoning }}</div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                             </div>
+                         </div>
                     </div>
                 </div>
 
@@ -413,3 +416,20 @@
                         </div>
                      </div>
                  </div>
+
+<script>
+function copyPropertyDescription(btn) {
+    const text = document.getElementById('propertyDescriptionText').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check me-1"></i>Copiado';
+        btn.classList.replace('btn-outline-primary', 'btn-success');
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.classList.replace('btn-success', 'btn-outline-primary');
+        }, 2000);
+    }).catch(err => {
+        console.error('Error al copiar: ', err);
+    });
+}
+</script>
