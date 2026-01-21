@@ -16,6 +16,7 @@ urlpatterns = [
     path('crear/', views.create_property_view, name='create'),
     path('mis-propiedades/', views.MyPropertiesView.as_view(), name='my_properties'),
     path('<int:pk>/', views.PropertyDetailView.as_view(), name='detail'),
+    path('<int:pk>/pdf/', views.PropertyPDFView.as_view(), name='generate_pdf'),
     path('borradores/', views.drafts_list_view, name='drafts'),
     path('borradores/<int:pk>/borrar/', views.delete_draft_view, name='delete_draft'),
     path('<int:pk>/timeline/', views.property_timeline_view, name='timeline'),

@@ -19,3 +19,4 @@ azure-storage-blob
 azure-identity
 opensearch-py
 twilio
+xhtml2pdf

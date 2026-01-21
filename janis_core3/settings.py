@@ -119,7 +119,7 @@ DATABASES = {
         'OPTIONS': {
             'driver': os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
             'extra_params': os.environ.get('DB_EXTRA_PARAMS', 
-                'Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=60;MARS_Connection=yes;' 
+                'Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=60;MARS_Connection=no;ConnectRetryCount=3;ConnectRetryInterval=10;' 
                 if 'database.windows.net' in _db_host 
                 else 'Encrypt=no;TrustServerCertificate=yes;Connection Timeout=60;'
             ),

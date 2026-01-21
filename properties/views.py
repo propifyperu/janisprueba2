@@ -1,11 +1,92 @@
 from .models import Property, AgencyConfig
 from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import ListView
+from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, HttpResponseRedirect, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+import os
+from django.conf import settings
+
+def link_callback(uri, rel):
+    """
+    Smarter link_callback to handle local files, Azure blobs, and DB-cached images.
+    """
+    import os
+    import tempfile
+    from django.conf import settings
+    from django.contrib.staticfiles import finders
+    from urllib.parse import unquote
+    
+    # Decodificar URL (espacios, %20, etc)
+    uri = unquote(uri)
+    # Quitar query params (SAS tokens)
+    uri_clean = uri.split('?')[0]
+
+    # CASE 1: Archivos Estáticos
+    static_url = settings.STATIC_URL
+    if static_url and uri_clean.startswith(static_url):
+        search_path = uri_clean[len(static_url):].lstrip('/')
+        path = finders.find(search_path)
+        if path: return os.path.normpath(path)
+
+    # CASE 2: Archivos de Media (Local o Azure)
+    is_media = False
+    blob_path = None
+
+    if uri_clean.startswith(settings.MEDIA_URL):
+        is_media = True
+        blob_path = uri_clean[len(settings.MEDIA_URL):].lstrip('/')
+    elif uri_clean.startswith('/media/'):
+        is_media = True
+        blob_path = uri_clean[len('/media/'):].lstrip('/')
+    elif uri_clean.startswith('/media-proxy/'):
+        is_media = True
+        blob_path = uri_clean[len('/media-proxy/'):].lstrip('/')
+    
+    if is_media and blob_path:
+        # 2a. Intentar localmente
+        path = os.path.join(settings.MEDIA_ROOT, blob_path)
+        if os.path.exists(path):
+            return os.path.normpath(path)
+        
+        # 2b. Intentar desde el Blob de la DB (PropertyImage)
+        # Esto es muy útil en Azure para evitar latencia de descarga
+        try:
+            from .models import PropertyImage
+            # Buscar por coincidencia del nombre en el campo image
+            img_obj = PropertyImage.objects.filter(image__icontains=os.path.basename(blob_path)).first()
+            if img_obj and img_obj.image_blob:
+                suffix = os.path.splitext(blob_path)[1] or '.jpg'
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    tmp.write(img_obj.image_blob)
+                    return tmp.name
+        except Exception:
+            pass
+
+        # 2c. Intentar descarga directa de Azure si está configurado
+        if getattr(settings, 'AZURE_ACCOUNT_NAME', None):
+            try:
+                from janis_core3.media_views import _get_blob_client
+                blob_client = _get_blob_client(blob_path)
+                if blob_client.exists():
+                    suffix = os.path.splitext(blob_path)[1] or '.jpg'
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        tmp.write(blob_client.download_blob().readall())
+                        return tmp.name
+            except Exception:
+                pass
+
+    # CASE 3: URLs Externas
+    if uri.startswith(('http://', 'https://')):
+        return uri
+
+    # Fallback final
+    return os.path.normpath(os.path.join(settings.BASE_DIR, uri_clean.lstrip('/')))
+
 # Vista para borrar borrador
 from django.views.decorators.http import require_POST
 
@@ -1520,6 +1601,67 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
         context['field_permissions'] = get_visible_fields_for_user(self.request.user)
 
         return context
+
+
+class PropertyPDFView(LoginRequiredMixin, DetailView):
+    """Genera un archivo PDF con el resumen profesional de la propiedad."""
+    model = Property
+
+    def get(self, request, *args, **kwargs):
+        property_obj = self.get_object()
+        agency = AgencyConfig.objects.first()
+        
+        # Resolver nombres de ubicación si son IDs (pueden venir como string numérico desde el formulario)
+        from .models import Department, Province, District
+        
+        distrito_nombre = property_obj.district
+        if distrito_nombre and distrito_nombre.isdigit():
+            try:
+                distrito_nombre = District.objects.get(id=int(distrito_nombre)).name
+            except (District.DoesNotExist, ValueError):
+                pass
+        
+        provincia_nombre = property_obj.province
+        if provincia_nombre and provincia_nombre.isdigit():
+            try:
+                provincia_nombre = Province.objects.get(id=int(provincia_nombre)).name
+            except (Province.DoesNotExist, ValueError):
+                pass
+
+        departamento_nombre = property_obj.department
+        if departamento_nombre and departamento_nombre.isdigit():
+            try:
+                departamento_nombre = Department.objects.get(id=int(departamento_nombre)).name
+            except (Department.DoesNotExist, ValueError):
+                pass
+
+        template_path = 'properties/property_pdf.html'
+        context = {
+            'property': property_obj,
+            'distrito_resuelto': distrito_nombre,
+            'provincia_resuelto': provincia_nombre,
+            'departamento_resuelto': departamento_nombre,
+            'agency': agency,
+            'user': request.user,
+        }
+        
+        # Configurar la respuesta como PDF
+        response = HttpResponse(content_type='application/pdf')
+        # Cambiamos a 'inline' para que se abra en el navegador, o 'attachment' para descarga previa
+        filename = f"Resumen_{property_obj.codigo_unico_propiedad or property_obj.code or property_obj.id}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        
+        # Renderizar template
+        template = get_template(template_path)
+        html = template.render(context)
+        
+        # Generar el PDF usando xhtml2pdf
+        pisa_status = pisa.CreatePDF(html, dest=response, link_callback=link_callback)
+        
+        if pisa_status.err:
+            return HttpResponse(f'Error técnico al generar el PDF: {pisa_status.err}', status=500)
+            
+        return response
 
 
 @login_required
