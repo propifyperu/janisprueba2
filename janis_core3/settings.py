@@ -123,6 +123,7 @@ DATABASES = {
                 if 'database.windows.net' in _db_host 
                 else 'Encrypt=no;TrustServerCertificate=yes;Connection Timeout=60;'
             ),
+            'unicode_results': True, # Forzado para evitar SystemError en Azure App Service
         },
         'CONN_MAX_AGE': 0, # FORCE NO POOLING for Azure SQL to avoid IMC06/Broken Pipe errors on idle
         'TIME_ZONE': os.environ.get('DB_TIME_ZONE', 'America/Lima'),
