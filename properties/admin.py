@@ -13,6 +13,7 @@ from .models import (
     # Propiedades
     Property, PropertyOwner, PropertyImage, PropertyVideo, PropertyDocument,
     PropertyFinancialInfo, PropertyRoom, ImageType, VideoType,
+    AgencyConfig,
     # WhatsApp
     PropertyWhatsAppLink, LeadStatus, Lead, WhatsAppConversation, SocialNetwork, WhatsAppNumber, UTMClick,
     # Agenda
@@ -549,4 +550,9 @@ class MatchEventAdmin(admin.ModelAdmin):
     list_display = ('requirement', 'property', 'created_at')
     search_fields = ('requirement__id', 'property__code')
     ordering = ('-created_at',)
+
+
+@admin.register(AgencyConfig)
+class AgencyConfigAdmin(admin.ModelAdmin):
+    list_display = ('nombre_comercial', 'ruc', 'correo_electronico')
 

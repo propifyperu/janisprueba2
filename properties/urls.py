@@ -61,6 +61,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     # Matching
     path('matching/weights/', views.matching_weights_view, name='matching_weights'),
+    path('configuracion/inmobiliaria/', views.agency_config_view, name='agency_config'),
     path('matching/requirement/<int:pk>/matches/', views.matching_matches_view, name='matching_matches'),
     # Servir imágenes almacenadas como blob en la tabla `property_images`
     path('images/blob/<int:pk>/', views.image_blob_view, name='image_blob'),

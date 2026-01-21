@@ -1,4 +1,5 @@
-from .models import Property
+from .models import Property, AgencyConfig
+from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView
 from django.shortcuts import render, get_object_or_404, redirect
@@ -118,6 +119,30 @@ from django.views.decorators.http import require_http_methods
 
 
 @login_required
+def agency_config_view(request):
+    """Vista para configurar los datos de la inmobiliaria."""
+    if not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    
+    config = AgencyConfig.objects.first()
+    if request.method == 'POST':
+        form = AgencyConfigForm(request.POST, request.FILES, instance=config)
+        if form.is_valid():
+            form.save()
+            from django.contrib import messages
+            messages.success(request, 'Datos de la inmobiliaria actualizados correctamente.')
+            return redirect('properties:agency_config')
+    else:
+        form = AgencyConfigForm(instance=config)
+    
+    return render(request, 'properties/agency_config.html', {
+        'form': form,
+        'config': config
+    })
+
+
+@login_required
 @require_http_methods(["GET", "POST"])
 def matching_weights_view(request):
     """Vista para listar y editar los pesos de matching (solo usuarios con permiso)."""
@@ -158,7 +183,6 @@ def matching_weights_view(request):
             except Exception:
                 from django.contrib import messages
                 messages.error(request, 'No fue posible crear el nuevo criterio.')
-        return redirect('properties:matching_weights')
         return redirect('properties:matching_weights')
 
     weights = MatchingWeight.objects.all().order_by('key')

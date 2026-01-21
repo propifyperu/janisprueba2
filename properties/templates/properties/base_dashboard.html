@@ -657,7 +657,8 @@
                     <span>Configuración</span>
                     <i class="fas fa-chevron-up toggle-icon"></i>
                 </button>
-                <div class="nav-submenu{% if request.path == security_device_list_url or request.path == role_permissions_url %} show{% endif %}" id="configSubmenu">
+                <div class="nav-submenu{% if request.path == security_device_list_url or request.path == role_permissions_url or request.path == '/configuracion/inmobiliaria/' %} show{% endif %}" id="configSubmenu">
+                    <a class="nav-link {% if request.path == '/configuracion/inmobiliaria/' %}active{% endif %}" href="{% url 'properties:agency_config' %}"><i class="fas fa-building me-2"></i>Datos Inmobiliaria</a>
                     <a class="nav-link {% if request.path == security_device_list_url %}active{% endif %}" href="{{ security_device_list_url }}"><i class="fas fa-shield-alt me-2"></i>Aprobar dispositivos</a>
                     <a class="nav-link {% if request.path == role_permissions_url %}active{% endif %}" href="{{ role_permissions_url }}"><i class="fas fa-lock me-2"></i>Permisos de campos</a>
                     <a class="nav-link {% if request.path == '/matching/weights/' %}active{% endif %}" href="{% url 'properties:matching_weights' %}"><i class="fas fa-weight-hanging me-2"></i>Matching (Pesos)</a>

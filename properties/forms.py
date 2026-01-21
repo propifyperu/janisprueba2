@@ -8,6 +8,7 @@ from .models import (
     PropertyVideo,
     PropertyRoom,
     PropertyFinancialInfo,
+    AgencyConfig,
 )
 
 
@@ -519,5 +520,26 @@ class EventForm(forms.ModelForm):
         
         if hora_inicio and hora_fin and hora_fin <= hora_inicio:
             raise forms.ValidationError('La hora de término debe ser posterior a la hora de inicio.')
-        
-        return cleaned_data
+
+
+class AgencyConfigForm(forms.ModelForm):
+    class Meta:
+        model = AgencyConfig
+        fields = [
+            'nombre_comercial', 'razon_social', 'ruc', 'direccion',
+            'departamento', 'provincia', 'distrito', 'urbanizacion',
+            'telefono', 'correo_electronico', 'logo'
+        ]
+        widgets = {
+            'nombre_comercial': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Propify Inmobiliaria'}),
+            'razon_social': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Propify S.A.C.'}),
+            'ruc': forms.TextInput(attrs={'class': 'form-control', 'maxlength': '11', 'placeholder': 'Número de RUC'}),
+            'direccion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Av. Principal 123'}),
+            'departamento': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Lima'}),
+            'provincia': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Lima'}),
+            'distrito': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Miraflores'}),
+            'urbanizacion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Urb. Las Flores'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '999 999 999'}),
+            'correo_electronico': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'contacto@inmobiliaria.com'}),
+            'logo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }
