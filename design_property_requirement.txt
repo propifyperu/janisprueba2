@@ -1,0 +1,158 @@
+Diseño y estructura de tablas: Property y Requirement
+
+1) Tabla: properties (modelo: Property)
+- db_table: properties
+- Campos principales:
+  - id: AutoField (PK) -- implícito por Django
+  - code: CharField(max_length=20), unique=True, blank=True, default=''
+  - codigo_unico_propiedad: CharField(max_length=11), unique=True, blank=True, null=True
+  - title: CharField(max_length=255), blank=True, default=''
+  - description: TextField, blank=True, default=''
+
+- Relaciones (FK / M2M):
+  - owner: ForeignKey(PropertyOwner), on_delete=CASCADE, null=True, blank=True, related_name='properties'
+  - property_type: ForeignKey(PropertyType), on_delete=PROTECT, null=True, blank=True
+  - property_subtype: ForeignKey(PropertySubtype), on_delete=PROTECT, null=True, blank=True
+  - status: ForeignKey(PropertyStatus), on_delete=PROTECT, null=True, blank=True
+  - condition: ForeignKey(PropertyCondition), on_delete=SET_NULL, null=True, blank=True
+  - operation_type: ForeignKey(OperationType), on_delete=PROTECT, null=True, blank=True
+  - responsible: ForeignKey(AUTH_USER_MODEL), on_delete=SET_NULL, null=True, blank=True, related_name='responsible_properties'
+  - tags: ManyToManyField(Tag), blank=True
+
+- Precio y finanzas:
+  - price: DecimalField(max_digits=15, decimal_places=2), null=True, blank=True, default=0
+  - currency: ForeignKey(Currency), on_delete=PROTECT, null=True, blank=True
+  - forma_de_pago: ForeignKey(PaymentMethod), on_delete=PROTECT, null=True, blank=True, verbose_name='Forma de Pago'
+  - maintenance_fee: DecimalField(max_digits=10, decimal_places=2), null=True, blank=True
+  - has_maintenance: BooleanField(default=False)
+
+- Características físicas:
+  - floors: PositiveIntegerField(default=1, null=True, blank=True)
+  - bedrooms: PositiveIntegerField(default=0, null=True, blank=True)
+  - bathrooms: PositiveIntegerField(default=0, null=True, blank=True)
+  - half_bathrooms: PositiveIntegerField(default=0, null=True, blank=True)
+  - garage_spaces: PositiveIntegerField(default=0, null=True, blank=True)
+  - garage_type: ForeignKey(GarageType), on_delete=SET_NULL, null=True, blank=True
+  - parking_cost_included: BooleanField(default=False)
+  - parking_cost: DecimalField(max_digits=10, decimal_places=2), null=True, blank=True
+
+- Áreas y medidas:
+  - land_area: DecimalField(max_digits=10, decimal_places=2), null=True, blank=True
+  - land_area_unit: ForeignKey(MeasurementUnit, related_name='land_properties'), null=True, blank=True
+  - built_area: DecimalField(max_digits=10, decimal_places=2), null=True, blank=True
+  - built_area_unit: ForeignKey(MeasurementUnit, related_name='built_properties'), null=True, blank=True
+  - front_measure: DecimalField(max_digits=8, decimal_places=2), null=True, blank=True
+  - depth_measure: DecimalField(max_digits=8, decimal_places=2), null=True, blank=True
+
+- Ubicación (campos tipo texto, compatibilidad con tablas de ubicación para otros modelos):
+  - real_address: TextField, blank=True, null=True
+  - exact_address: CharField(max_length=512), blank=True, null=True
+  - coordinates: CharField(max_length=512), blank=True, null=True
+  - department: CharField(max_length=100), blank=True, null=True
+  - province: CharField(max_length=100), blank=True, null=True
+  - district: CharField(max_length=100), blank=True, null=True
+  - urbanization: CharField(max_length=100), blank=True, null=True
+
+- Servicios (FK a tipos de servicio):
+  - water_service: ForeignKey(WaterServiceType), on_delete=SET_NULL, null=True, blank=True, related_name='water_properties'
+  - energy_service: ForeignKey(EnergyServiceType), on_delete=SET_NULL, null=True, blank=True, related_name='energy_properties'
+  - drainage_service: ForeignKey(DrainageServiceType), on_delete=SET_NULL, null=True, blank=True, related_name='drainage_properties'
+  - gas_service: ForeignKey(GasServiceType), on_delete=SET_NULL, null=True, blank=True, related_name='gas_properties'
+
+- Info adicional y flags:
+  - amenities: TextField, blank=True, null=True
+  - zoning: CharField(max_length=100), blank=True, null=True
+  - is_project: BooleanField(default=False)
+  - project_name: CharField(max_length=200), blank=True, null=True
+  - unit_location: CharField(max_length=20, choices=UNIT_LOCATION_CHOICES), blank=True, null=True
+  - ascensor: CharField(max_length=3, choices=ASCENSOR_CHOICES), null=True, blank=True
+
+- Auditoría y workflow:
+  - created_by: ForeignKey(AUTH_USER_MODEL), on_delete=PROTECT, null=True, blank=True
+  - assigned_agent: ForeignKey(AUTH_USER_MODEL), on_delete=SET_NULL, null=True, blank=True, related_name='assigned_properties'
+  - created_at: DateTimeField(auto_now_add=True)
+  - updated_at: DateTimeField(auto_now=True)
+  - is_active: BooleanField(default=True)
+  - is_draft: BooleanField(default=False)
+  - is_ready_for_sale: BooleanField(default=False)
+
+- Meta y comportamientos:
+  - __str__: "{code} - {title}"
+  - save(): aplica TitleCase y genera `code` y `codigo_unico_propiedad` si faltan
+
+
+2) Tabla: requirements (modelo: Requirement)
+- db_table: requirements
+- Campos principales:
+  - id: AutoField (PK) -- implícito
+
+- Auditoría y contacto:
+  - created_by: ForeignKey(AUTH_USER_MODEL), on_delete=SET_NULL, null=True, blank=True, related_name='requirements_created'
+  - modified_by: ForeignKey(AUTH_USER_MODEL), on_delete=SET_NULL, null=True, blank=True, related_name='requirements_modified'
+  - created_at: DateTimeField(auto_now_add=True)
+  - updated_at: DateTimeField(auto_now=True)
+  - is_active: BooleanField(default=True)
+  - contact: ForeignKey(PropertyOwner), on_delete=SET_NULL, null=True, blank=True, related_name='requirements'
+  - client_name: EncryptedCharField(max_length=256), blank=True, null=True (DEPRECATED)
+  - phone: EncryptedCharField(max_length=80), blank=True, null=True (DEPRECATED)
+
+- Tipos y subtipos:
+  - property_type: ForeignKey(PropertyType), on_delete=PROTECT, null=True, blank=True
+  - property_subtype: ForeignKey(PropertySubtype), on_delete=PROTECT, null=True, blank=True
+
+- Presupuesto:
+  - budget_type: CharField(max_length=20, choices=('approx','range')), default='approx'
+  - budget_approx: DecimalField(max_digits=12, decimal_places=2), null=True, blank=True
+  - budget_min: DecimalField(max_digits=12, decimal_places=2), null=True, blank=True
+  - budget_max: DecimalField(max_digits=12, decimal_places=2), null=True, blank=True
+  - currency: ForeignKey(Currency), on_delete=PROTECT, null=True, blank=True
+
+- Área y frontera:
+  - area_type: CharField(max_length=20, choices=('approx','range'))
+  - land_area_approx: DecimalField(max_digits=12, decimal_places=2), null=True, blank=True
+  - land_area_min: DecimalField(max_digits=12, decimal_places=2), null=True, blank=True
+  - land_area_max: DecimalField(max_digits=12, decimal_places=2), null=True, blank=True
+  - frontera_type: CharField(max_length=20, choices=('approx','range'))
+  - frontera_approx/min/max: DecimalFields similares a land_area
+
+- Pago y estado:
+  - payment_method: ForeignKey(PaymentMethod), on_delete=PROTECT, null=True, blank=True
+  - status: ForeignKey(PropertyStatus), on_delete=SET_NULL, null=True, blank=True
+
+- Ubicación y preferencias:
+  - department: ForeignKey(Department), on_delete=SET_NULL, null=True, blank=True
+  - province: ForeignKey(Province), on_delete=SET_NULL, null=True, blank=True
+  - district: ForeignKey(District), on_delete=SET_NULL, null=True, blank=True
+  - districts: ManyToManyField(District), blank=True, related_name='requirements_multiple'
+  - preferred_floors: ManyToManyField(FloorOption), blank=True, related_name='requirements'
+  - zonificaciones: ManyToManyField(ZoningOption), blank=True, related_name='requirements'
+  - number_of_floors: PositiveSmallIntegerField(choices 1..5), null=True, blank=True
+  - ascensor: CharField(max_length=3, choices ASCENSOR_CHOICES), null=True, blank=True
+
+- Características:
+  - bedrooms: PositiveSmallIntegerField(null=True, blank=True)
+  - bathrooms: PositiveSmallIntegerField(null=True, blank=True)
+  - half_bathrooms: PositiveSmallIntegerField(null=True, blank=True)
+  - floors: PositiveSmallIntegerField(null=True, blank=True)
+  - garage_spaces: PositiveSmallIntegerField(null=True, blank=True)
+
+- Notas y PII:
+  - notes: EncryptedTextField(blank=True, null=True)
+
+- Meta y comportamientos:
+  - __str__: devuelve "Requerimiento {id} {property_type.name}" si aplica
+  - save(): aplica TitleCase (mixin)
+
+
+Observaciones generales:
+- Muchos campos PII usan `EncryptedCharField` / `EncryptedTextField` (ej.: `client_name`, `phone`, `notes`) — esto impide búsquedas directas con operaciones como `__icontains` sobre esos campos.
+- Relaciones a tablas de ubicación existen tanto en `Property` (textuales para compatibilidad) como entidades normalizadas (`Department`, `Province`, `District`) usadas en `Requirement`.
+- `Property` usa `ManyToManyField` `tags` y `Requirement` tiene M2M a `District`, `FloorOption`, `ZoningOption`.
+- Campos booleanos y flags definen workflows (`is_active`, `is_draft`, `is_project`, etc.).
+
+Si deseas, puedo:
+- Exportar esto en formato SQL DDL aproximado.
+- Incluir tipos SQL sugeridos (VARCHAR, DECIMAL, DATETIME, FOREIGN KEY statements).
+- Extraer también detalle de índices y unique_together si lo necesitas.
+
+Archivo generado: design_property_requirement.txt

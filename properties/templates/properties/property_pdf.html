@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 0.8cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.1;
+            font-size: 9pt;
+            margin: 0;
+            padding: 0;
+        }
+        .green-text { color: #047d7d; }
+        .green-bg { background-color: #047d7d; }
+        
+        /* Header section Rediseñado */
+        .header-table {
+            width: 100%;
+            margin-bottom: 5px;
+            padding: 0;
+            border-collapse: collapse;
+        }
+        .user-block, .agency-block {
+            width: 50%;
+            vertical-align: middle;
+        }
+        .photo-cell {
+            width: 85px;
+            padding: 0 12px 0 0;
+        }
+        .circular-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 40px; /* Círculo perfecto */
+            border: 3.5px solid #047d7d;
+        }
+        .details-cell {
+            vertical-align: middle;
+        }
+        .name-text {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #000;
+            margin: 0;
+            line-height: 1.2;
+        }
+        .meta-text {
+            font-size: 8.5pt;
+            color: #444;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .divider-line {
+            height: 4px;
+            background-color: #047d7d;
+            width: 100%;
+            margin: 8px 0 12px 0;
+            font-size: 1px;
+            line-height: 4px;
+        }
+
+        /* Title section */
+        .property-title {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #043737;
+            margin: 5px 0 10px 0;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-info-table {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .main-image-cell {
+            width: 65%;
+            padding-right: 10px;
+        }
+        .main-image {
+            width: 100%;
+            border-radius: 4px;
+        }
+        .specs-cell {
+            width: 35%;
+            background-color: #f4f9f9;
+            border-left: 4px solid #047d7d;
+            padding: 10px;
+            vertical-align: top;
+        }
+        .specs-title {
+            font-weight: bold;
+            color: #047d7d;
+            border-bottom: 1px solid #cce5e5;
+            margin-bottom: 8px;
+            padding-bottom: 3px;
+            font-size: 10pt;
+            text-transform: uppercase;
+        }
+        .spec-item {
+            margin-bottom: 4px;
+            font-size: 8.5pt;
+        }
+        .spec-label {
+            font-weight: bold;
+            color: #333;
+        }
+        .price-tag {
+            font-size: 15pt;
+            font-weight: bold;
+            color: #047d7d;
+            margin-top: 10px;
+        }
+
+        /* Description */
+        .section-title {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #047d7d;
+            border-bottom: 1px solid #e0e0e0;
+            margin-top: 12px;
+            margin-bottom: 6px;
+            padding-bottom: 2px;
+            text-transform: uppercase;
+        }
+        .description-text {
+            text-align: justify;
+            font-size: 9pt;
+            color: #444;
+        }
+
+        /* Gallery */
+        .gallery-table {
+            width: 100%;
+            margin-top: 5px;
+        }
+        .gallery-img {
+            width: 100%;
+            height: 140px;
+            border-radius: 2px;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 7pt;
+            color: #999;
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Encabezado Uniforme y Simétrico -->
+    <table class="header-table">
+        <tr>
+            <!-- Lado Izquierdo: Info Usuario -->
+            <td class="user-block">
+                <table cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td class="photo-cell">
+                            {% if user.profile.avatar %}
+                                <img src="{{ user.profile.avatar.url }}" style="border: 3px solid #047d7d;" class="circular-image">
+                            {% else %}
+                                <div style="width: 80px; height: 80px; border-radius: 40px; border: 3.5px solid #047d7d; background-color: #e6f2f2;"></div>
+                            {% endif %}
+                        </td>
+                        <td class="details-cell">
+                            <div class="name-text">{{ user.get_full_name|upper|default:user.username }}</div>
+                            <div class="meta-text">Celular: {{ user.phone|default:"-" }}</div>
+                            <div class="meta-text">Email: {{ user.email|default:"-" }}</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <!-- Lado Derecho: Info Agencia (Espejo del usuario para mayor pegado a la derecha) -->
+            <td class="agency-block">
+                <table cellpadding="0" cellspacing="0" align="right">
+                    <tr>
+                        <td class="details-cell" style="text-align: right; padding-right: 12px;">
+                            <div class="name-text" style="color: #047d7d;">{{ agency.nombre_comercial|upper }}</div>
+                            <div class="meta-text">RUC: {{ agency.ruc|default:"-" }}</div>
+                            <div class="meta-text">Tel: {{ agency.telefono|default:"-" }}</div>
+                        </td>
+                        <td style="width: 80px; vertical-align: middle;">
+                            {% if agency.logo %}
+                                <img src="{{ agency.logo.url }}" style="width: 80px; height: 80px; border: 3px solid #047d7d;" class="circular-image">
+                            {% else %}
+                                <div style="width: 80px; height: 80px; border-radius: 40px; border: 3.5px solid #047d7d; background-color: #e6f2f2;"></div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 8px 0 12px 0;">
+        <tr><td style="background-color: #047d7d; height: 4px; font-size: 1px;">&nbsp;</td></tr>
+    </table>
+
+    <!-- Título Dinámico -->
+    <div class="property-title">
+        EN {{ property.operation_type.name|upper|default:"VENTA" }} - {{ property.property_type.name|upper|default:"PROPIEDAD" }} EN {{ distrito_resuelto|upper|default:"" }}
+    </div>
+
+    <!-- Foto Principal y Características -->
+    <table class="main-info-table" cellpadding="0" cellspacing="0">
+        <tr>
+            <td class="main-image-cell">
+                {% with first_img=property.images.first %}
+                    {% if first_img and first_img.image %}
+                        <img src="{{ first_img.image.url }}" style="width: 100%;" class="main-image">
+                    {% else %}
+                        <div style="width: 100%; height: 220px; background-color: #f0f0f0; text-align: center; padding-top: 80px; border-radius: 4px;">
+                            Imagen no disponible
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            </td>
+            <td class="specs-cell">
+                <div class="specs-title">Características</div>
+                <div class="spec-item"><span class="spec-label">Dormitorios:</span> {{ property.bedrooms|default:"0" }}</div>
+                <div class="spec-item"><span class="spec-label">Baños:</span> {{ property.bathrooms|default:"0" }}</div>
+                <div class="spec-item"><span class="spec-label">Cocheras:</span> {{ property.garage_spaces|default:"0" }}</div>
+                {% if property.land_area %}
+                    <div class="spec-item"><span class="spec-label">Área Terreno:</span> {{ property.land_area }} m²</div>
+                {% endif %}
+                {% if property.built_area %}
+                    <div class="spec-item"><span class="spec-label">Área Const.:</span> {{ property.built_area }} m²</div>
+                {% endif %}
+                <div class="spec-item"><span class="spec-label">Código:</span> {{ property.codigo_unico_propiedad|default:property.code }}</div>
+                
+                <div class="price-tag">
+                    {{ property.currency.symbol|default:"$" }} {{ property.price|floatformat:2 }}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Descripción -->
+    <div class="section-title">Descripción de la Propiedad</div>
+    <div class="description-text">
+        {{ property.description|default:"No se proporciona una descripción detallada para esta propiedad." }}
+    </div>
+
+    <!-- Ubicación -->
+    {% if property.coordinates or property.exact_address %}
+    <div class="section-title">Ubicación y Referencia</div>
+    <div style="background-color: #f9f9f9; padding: 8px; border-radius: 4px; font-size: 8.5pt;">
+        <strong>Dirección:</strong> {{ property.exact_address|default:distrito_resuelto }}
+        {% if property.coordinates %}
+            <br><strong>GPS:</strong> {{ property.coordinates }}
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Fotos Adicionales -->
+    {% if property.images.count > 1 %}
+    <div class="section-title">Galería Fotográfica</div>
+    <table class="gallery-table" cellpadding="3" cellspacing="0">
+        {% for image in property.images.all %}
+            {% if not forloop.first %}
+                {% cycle 'row-start' 'row-end' as row_pos silent %}
+                {% if row_pos == 'row-start' %}<tr>{% endif %}
+                <td style="width: 50%;">
+                    {% if image.image %}
+                        <img src="{{ image.image.url }}" style="width: 280px; height: 180px;" class="gallery-img">
+                    {% endif %}
+                </td>
+                {% if row_pos == 'row-end' %}</tr>{% endif %}
+            {% endif %}
+        {% endfor %}
+        {% if property.images.all|length|pluralize:"row-start" == 'row-start' and not forloop.first %}
+            <td style="width: 50%;"></td></tr>
+        {% endif %}
+    </table>
+    {% endif %}
+
+    <div class="footer">
+        Este documento es un resumen informativo. Todo los derechos reservados © Propify 2026.
+    </div>
+</body>
+</html>

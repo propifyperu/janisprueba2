@@ -639,6 +639,55 @@ class Property(TitleCaseMixin, models.Model):
     def __str__(self):
         return f"{self.code} - {self.title}"
 
+    @property
+    def department_name(self):
+        """Devuelve el nombre del departamento si el campo es numérico (ID), sino el valor original."""
+        val = self.department
+        if val and val.isdigit():
+            # Evitar error si Department no está definido o no se encuentra
+            try:
+                obj = Department.objects.filter(id=int(val)).first()
+                return obj.name if obj else val
+            except Exception:
+                pass
+        return val or ''
+
+    @property
+    def province_name(self):
+        """Devuelve el nombre de la provincia si el campo es numérico (ID)."""
+        val = self.province
+        if val and val.isdigit():
+            try:
+                obj = Province.objects.filter(id=int(val)).first()
+                return obj.name if obj else val
+            except Exception:
+                pass
+        return val or ''
+
+    @property
+    def district_name(self):
+        """Devuelve el nombre del distrito si el campo es numérico (ID)."""
+        val = self.district
+        if val and val.isdigit():
+            try:
+                obj = District.objects.filter(id=int(val)).first()
+                return obj.name if obj else val
+            except Exception:
+                pass
+        return val or ''
+
+    @property
+    def urbanization_name(self):
+        """Devuelve el nombre de la urbanización si el campo es numérico (ID)."""
+        val = self.urbanization
+        if val and val.isdigit():
+            try:
+                obj = Urbanization.objects.filter(id=int(val)).first()
+                return obj.name if obj else val
+            except Exception:
+                pass
+        return val or ''
+
     def save(self, *args, **kwargs):
         self._apply_title_case()
         # Generar código único si no existe
@@ -1359,6 +1408,35 @@ class Event(TitleCaseMixin, models.Model):
         # Aplicar title case
         self._apply_title_case()
         
+        super().save(*args, **kwargs)
+
+
+class AgencyConfig(TitleCaseMixin, models.Model):
+    """Configuración global de los datos de la inmobiliaria"""
+    nombre_comercial = models.CharField(max_length=255, verbose_name="Nombre Comercial")
+    razon_social = models.CharField(max_length=255, verbose_name="Razón Social")
+    ruc = models.CharField(max_length=11, verbose_name="RUC")
+    direccion = models.CharField(max_length=255, verbose_name="Dirección")
+    departamento = models.CharField(max_length=100, verbose_name="Departamento")
+    provincia = models.CharField(max_length=100, verbose_name="Provincia")
+    distrito = models.CharField(max_length=100, verbose_name="Distrito")
+    urbanizacion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Urbanización")
+    telefono = models.CharField(max_length=20, verbose_name="Teléfono")
+    correo_electronico = models.EmailField(verbose_name="Correo Electrónico")
+    logo = models.ImageField(upload_to='agency/logos/', blank=True, null=True, verbose_name="Logo")
+    
+    title_case_fields = ('nombre_comercial', 'razon_social', 'direccion', 'departamento', 'provincia', 'distrito', 'urbanizacion')
+
+    class Meta:
+        db_table = 'agency_config'
+        verbose_name = "Datos de la Inmobiliaria"
+        verbose_name_plural = "Datos de la Inmobiliaria"
+
+    def __str__(self):
+        return self.nombre_comercial
+    
+    def save(self, *args, **kwargs):
+        self._apply_title_case()
         super().save(*args, **kwargs)
 
 

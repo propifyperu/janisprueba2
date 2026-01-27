@@ -88,15 +88,10 @@
 
                                     <td>
                                         <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>
-                                        <a href="{% url 'properties:requirements_edit' r.id %}" class="btn btn-sm btn-outline-teal ms-1">Editar</a>
-                                        <form method="post" action="{% url 'properties:requirements_delete' r.id %}" style="display:inline;" onsubmit="return confirm('¿Confirmas eliminar este requerimiento?');">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-danger ms-1">Borrar</button>
-                                        </form>
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="7" class="text-center py-4">No hay requerimientos registrados.</td></tr>
+                                <tr><td colspan="8" class="text-center py-4">No hay requerimientos registrados.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>

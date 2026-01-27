@@ -30,7 +30,8 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'clave_para_desarrollo')
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('1', 'true', 'yes')
 
 # Hosts permitidos desde App Setting `ALLOWED_HOSTS` (coma-separados)
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+# Añadir el host de ngrok utilizado en desarrollo para permitir peticiones externas
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,semipeaceful-highhandedly-tyisha.ngrok-free.dev').split(',') if h.strip()]
 # Application definition
 
 INSTALLED_APPS = [
@@ -51,6 +52,7 @@ INSTALLED_APPS = [
     "security",
     "whatsapp",
     "chat",
+    "tasks",
 ]
 # Facebook Pixel ID (opcional, para campañas)
 import os
@@ -116,10 +118,14 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT', '1433'),
         'OPTIONS': {
             'driver': os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
-            'extra_params': os.environ.get('DB_EXTRA_PARAMS', 'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;'),
-            'connection_timeout': int(os.environ.get('DB_CONN_TIMEOUT', 60)),
+            'extra_params': os.environ.get('DB_EXTRA_PARAMS', 
+                'Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=60;MARS_Connection=no;ConnectRetryCount=3;ConnectRetryInterval=10;' 
+                if 'database.windows.net' in _db_host 
+                else 'Encrypt=no;TrustServerCertificate=yes;Connection Timeout=60;'
+            ),
+            'unicode_results': True, # Forzado para evitar SystemError en Azure App Service
         },
-        'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', 0)),
+        'CONN_MAX_AGE': 0, # FORCE NO POOLING for Azure SQL to avoid IMC06/Broken Pipe errors on idle
         'TIME_ZONE': os.environ.get('DB_TIME_ZONE', 'America/Lima'),
     }
 }
@@ -147,7 +153,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "es-pe"
 
 TIME_ZONE = "America/Lima"
 
@@ -187,6 +193,10 @@ if AZURE_ACCOUNT_NAME:
     AZURE_CONTAINER = AZURE_CONTAINER
     # MEDIA_URL remains the base; the storage backend will append SAS tokens
     MEDIA_URL = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
+
+# Optimización para desarrollo: No buscar archivos estáticos en cada carga si estamos en DEBUG
+WHITENOISE_AUTOREFRESH = DEBUG
+WHITENOISE_USE_FINDERS = DEBUG
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -261,3 +271,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 # OpenSearch configuration (hosts can be a comma-separated list in env var)
 OPENSEARCH_HOSTS = [h.strip() for h in os.environ.get('OPENSEARCH_HOSTS', 'http://localhost:9200').split(',') if h.strip()]
+
+# ============================================================================
+# WHATSAPP DEFAULTS (production-safe overrides)
+# If you want incoming messages without tracking to be assigned to a default
+# property or social network, set these environment variables to the integer
+# primary key of the corresponding DB record. Leave empty to keep current
+# behavior (first()-based fallback).
+WHATSAPP_DEFAULT_PROPERTY_ID = os.environ.get('WHATSAPP_DEFAULT_PROPERTY_ID') or None
+WHATSAPP_DEFAULT_SOCIAL_ID = os.environ.get('WHATSAPP_DEFAULT_SOCIAL_ID') or None

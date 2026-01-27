@@ -8,6 +8,7 @@ from .models import (
     PropertyVideo,
     PropertyRoom,
     PropertyFinancialInfo,
+    AgencyConfig,
 )
 
 
@@ -369,6 +370,7 @@ class RequirementSimpleForm(forms.Form):
     floors = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     garage_spaces = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     notes = forms.CharField(required=False, widget=forms.Textarea(attrs={'class':'form-control','rows':3}))
+    assigned_agent = forms.ModelChoiceField(queryset=None, required=False, label="Agente Asignado", widget=forms.Select(attrs={'class': 'form-select'}))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -390,6 +392,11 @@ class RequirementSimpleForm(forms.Form):
             self.fields['preferred_floors'].queryset = FloorOption.objects.filter(is_active=True).order_by('order', 'name')
             from .models import ZoningOption
             self.fields['zonificacion'].queryset = ZoningOption.objects.filter(is_active=True).order_by('order', 'name')
+            
+            # Cargar usuarios para asignación
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            self.fields['assigned_agent'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
         except OperationalError:
             # Si las tablas no existen (deploy sin migraciones), devolver querysets vacíos para no fallar la carga
             self.fields['property_type'].queryset = PropertyType.objects.none()
@@ -470,7 +477,7 @@ class EventForm(forms.ModelForm):
         from .models import Event
         model = Event
         fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
-                  'detalle', 'property']
+                  'detalle', 'property', 'created_by']
         widgets = {
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
@@ -479,6 +486,7 @@ class EventForm(forms.ModelForm):
             'hora_fin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'detalle': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'property': forms.Select(attrs={'class': 'form-select'}),
+            'created_by': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
             'event_type': 'Tipo de evento',
@@ -488,15 +496,22 @@ class EventForm(forms.ModelForm):
             'hora_fin': 'Hora de término',
             'detalle': 'Detalle de la visita',
             'property': 'Inmueble',
+            'created_by': 'Agente Asignado',
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Cargar solo propiedades activas
         from .models import Property, EventType
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
         self.fields['property'].queryset = Property.objects.filter(is_active=True).order_by('-created_at')
         self.fields['property'].required = False
         self.fields['event_type'].queryset = EventType.objects.filter(is_active=True).order_by('name')
+        
+        # Cargar solo usuarios activos para asignar
+        self.fields['created_by'].queryset = User.objects.filter(is_active=True).order_by('first_name')
+        self.fields['created_by'].required = False
         
     def clean(self):
         cleaned_data = super().clean()
@@ -505,5 +520,26 @@ class EventForm(forms.ModelForm):
         
         if hora_inicio and hora_fin and hora_fin <= hora_inicio:
             raise forms.ValidationError('La hora de término debe ser posterior a la hora de inicio.')
-        
-        return cleaned_data
+
+
+class AgencyConfigForm(forms.ModelForm):
+    class Meta:
+        model = AgencyConfig
+        fields = [
+            'nombre_comercial', 'razon_social', 'ruc', 'direccion',
+            'departamento', 'provincia', 'distrito', 'urbanizacion',
+            'telefono', 'correo_electronico', 'logo'
+        ]
+        widgets = {
+            'nombre_comercial': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Propify Inmobiliaria'}),
+            'razon_social': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Propify S.A.C.'}),
+            'ruc': forms.TextInput(attrs={'class': 'form-control', 'maxlength': '11', 'placeholder': 'Número de RUC'}),
+            'direccion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Av. Principal 123'}),
+            'departamento': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Lima'}),
+            'provincia': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Lima'}),
+            'distrito': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Miraflores'}),
+            'urbanizacion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Urb. Las Flores'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '999 999 999'}),
+            'correo_electronico': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'contacto@inmobiliaria.com'}),
+            'logo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }

@@ -50,7 +50,7 @@
                         </div>
                     {% endif %}
                     
-                    <form method="post">
+                    <form method="post" id="eventForm">
                         {% csrf_token %}
                         
                         <!-- Sección: Información del Evento -->
@@ -75,6 +75,17 @@
                                         <div class="text-danger small mt-1">{{ form.titulo.errors }}</div>
                                     {% endif %}
                                 </div>
+                                {% if request.user.is_superuser or request.user.role and request.user.role.name == 'Call Center' %}
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.created_by.id_for_label }}">
+                                        Agente Asignado
+                                    </label>
+                                    {{ form.created_by }}
+                                    {% if form.created_by.errors %}
+                                        <div class="text-danger small mt-1">{{ form.created_by.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                         
@@ -241,8 +252,8 @@
                                 <a href="{% url 'properties:agenda_calendar' %}" class="btn btn-outline-teal me-2">
                                     <i class="fas fa-times me-2"></i>Cancelar
                                 </a>
-                                <button class="btn btn-teal" type="submit">
-                                    <i class="fas fa-save me-2"></i>Guardar Evento
+                                <button class="btn btn-teal" type="submit" id="submitBtn">
+                                    <i class="fas fa-save me-2"></i><span id="btnText">Guardar Evento</span>
                                 </button>
                             </div>
                         </div>
@@ -280,6 +291,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 existingOwnerSelectInput.disabled = false;
                 toggleLink.textContent = 'crea uno nuevo';
             }
+        });
+    }
+
+    // Prevención de doble envío y spinner
+    const eventForm = document.getElementById('eventForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+
+    if (eventForm && submitBtn) {
+        eventForm.addEventListener('submit', function() {
+            submitBtn.disabled = true;
+            if (btnText) {
+                btnText.textContent = ' Guardando...';
+            }
+            // Insertar spinner manual
+            const spinner = document.createElement('span');
+            spinner.className = 'spinner-border spinner-border-sm me-2';
+            spinner.setAttribute('role', 'status');
+            spinner.setAttribute('aria-hidden', 'true');
+            submitBtn.prepend(spinner);
         });
     }
 });

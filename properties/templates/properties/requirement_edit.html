@@ -110,13 +110,17 @@
                         <div class="mb-4">
                             <h5 class="fw-bold mb-3">PRESUPUESTO</h5>
                             <div class="row g-3">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <label class="form-label" for="{{ form.budget_type.id_for_label }}">Tipo</label>
                                     {{ form.budget_type }}
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <label class="form-label" for="{{ form.currency.id_for_label }}">Moneda</label>
                                     {{ form.currency }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.payment_method.id_for_label }}">Forma de pago</label>
+                                    {{ form.payment_method }}
                                 </div>
                             </div>
                             <div class="row g-3 mt-2" id="budget-range-rows">

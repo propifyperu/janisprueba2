@@ -1,6 +1,8 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load static %}
 
+{% block body_class %}dashboard-page dashboard-fixed-layout{% endblock %}
+
 {% block title %}Explorar Propiedades - Janis Platform{% endblock %}
 {% block dashboard_extra_css %}
 <style>
@@ -8,6 +10,7 @@
         --color-accent: #2ea44f; /* verde principal */
         --color-accent-dark: #258e45; /* hover / oscuro */
     }
+    
     .age-warning {
         color: #b91c1c; /* rojo suave */
         background: rgba(185,28,28,0.04);
@@ -18,97 +21,147 @@
         margin-top: 0.5rem;
         display: none;
     }
-    /* Asegurar que el contenido principal sea flexible */
-    .main-content {
+
+    /* Redefinir la estructura para Sidebar de Filtros fixed e Izquierda Scrollable */
+    .dashboard-main-container {
+        display: flex;
+        /* Aseguramos que ocupe todo el alto disponible restando el navbar */
+        height: calc(100vh - var(--navbar-height));
+        margin: 0; /* Ya no necesitamos márgenes negativos por el fix en base_dashboard */
+        overflow: hidden;
+        background-color: #fff;
+    }
+
+    .filter-sidebar {
+        width: 310px;
+        flex-shrink: 0;
+        background: #fff;
+        border-right: 1px solid rgba(4, 125, 125, 0.15);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        /* Alargamos el filtro hasta el borde inferior */
+        height: 100%;
+        padding: 1.25rem;
+        z-index: 100;
+    }
+
+    .filter-sidebar form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .dashboard-view-area {
         flex: 1;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
+        background-color: #fdfdfd;
+        height: 100%;
+    }
+
+    .map-container-main {
+        flex-shrink: 0;
+        /* Alargamos el mapa para que ocupe gran parte de la pantalla verticalmente */
+        height: 90vh;
+        min-height: 600px;
         position: relative;
-        overflow-x: hidden;
-        min-height: 0;
+        border-bottom: 2px solid rgba(4, 125, 125, 0.08);
     }
 
-    .filter-bar {
-        position: relative;
-        z-index: 10;
-        background: #fff;
-        padding: 1.25rem 2rem;
-        box-shadow: 0 12px 30px rgba(4, 125, 125, 0.1);
-        border-bottom: 1px solid rgba(4, 125, 125, 0.14);
-    }
-
-    .filter-bar form {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.25rem;
-        align-items: flex-end;
-    }
-
-    .filter-control {
-        min-width: 200px;
-    }
-
-    .filter-control label {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--color-primary);
-        margin-bottom: 0.3rem;
-        letter-spacing: 0.3px;
-        text-transform: uppercase;
-    }
-
-    .filter-actions {
-        margin-left: auto;
-        display: flex;
-        gap: 0.75rem;
-    }
-    .advanced-filters {
-        display: none;
-        margin-top: 1rem;
+    #propertyMap {
         width: 100%;
-        padding: 1rem;
-        border-radius: 0.75rem;
-        background: #f8faf9;
-        border: 1px solid rgba(4,125,125,0.06);
-        gap: 1rem;
-        box-shadow: 0 8px 20px rgba(4,125,125,0.04);
+        height: 100%;
     }
-    .advanced-filters.show {
+
+    .filter-sidebar .filter-control {
+        min-width: 0;
+        margin-bottom: 0.25rem;
+    }
+
+    .filter-sidebar .filter-control label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+        color: #4a5a5a;
+    }
+
+    .filter-sidebar .form-control, 
+    .filter-sidebar .form-select {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.85rem;
+        border-color: rgba(4, 125, 125, 0.2);
+    }
+
+    .filter-sidebar .filter-actions {
         display: flex;
         flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
     }
-    .advanced-filters .adv-control { min-width: 180px; }
-    .adv-mode-row { display:flex; gap:0.5rem; align-items:center; }
+
+    .filter-sidebar .filter-actions .btn {
+        flex: 1;
+        min-width: 80px;
+        font-size: 0.75rem;
+        padding: 0.4rem;
+    }
 
     .layer-toggle-bar {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 1px solid rgba(4, 125, 125, 0.2);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        background: #f7fbfb;
-        padding: 0.9rem 2rem;
-        border-bottom: 1px solid rgba(4, 125, 125, 0.12);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        flex-direction: column;
+        gap: 0.25rem;
     }
 
     .layer-toggle-title {
-        font-size: 0.85rem;
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--color-secondary-dark);
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .layer-toggle-title i {
-        color: var(--color-primary);
+        font-size: 0.7rem;
+        margin-bottom: 0.25rem;
     }
 
     .layer-toggle-options {
         display: flex;
-        flex-wrap: wrap;
-        gap: 1.25rem;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    #propertyMap {
+        width: 100%;
+        height: 100%;
+        min-height: 500px;
+    }
+
+    .advanced-filters {
+        display: none;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 4px;
+        margin-top: 0.25rem;
+    }
+
+    .advanced-filters.show {
+        display: flex;
+    }
+
+    .adv-control {
+        min-width: 0;
+    }
+
+    /* Ajuste para que la sección de resultados sea scrollable si el top ocupa mucho */
+    .results-section {
+        flex: none;
+        padding: 1.5rem 2rem;
     }
 
     .layer-toggle-options .form-check-input {
@@ -221,19 +274,71 @@
 
     .map-wrapper {
         position: relative;
-        min-height: 420px;
-        flex: none;
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* Estilos para el switcher de vista */
+    .view-switcher {
+        display: flex;
+        background: #f0f4f4;
+        padding: 4px;
+        border-radius: 8px;
+        margin: 1rem 1.25rem 0.5rem;
+        gap: 4px;
+    }
+
+    .view-btn {
+        flex: 1;
+        border: none;
+        background: transparent;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #4a5a5a;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .view-btn.active {
+        background: #fff;
+        color: var(--sidebar-accent);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    /* Manejo de visibilidad de secciones */
+    .view-mode-properties .map-container-main {
+        display: none !important;
+    }
+
+    .view-mode-map .results-section {
+        display: none !important;
+    }
+
+    .view-mode-properties .results-section {
+        display: block !important;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .view-mode-map .map-container-main {
+        flex: 1;
+        height: 100% !important;
     }
 
     #propertyMap {
         width: 100%;
-        height: 60vh;
+        height: 100%;
         min-height: 420px;
     }
 
     .results-section {
         background: linear-gradient(180deg, rgba(4, 125, 125, 0.04) 0%, rgba(39, 152, 150, 0.08) 100%);
-        padding: 2.5rem 2rem 3rem;
+        padding: 1rem 1.25rem;
         border-top: 1px solid rgba(4, 125, 125, 0.12);
         box-shadow: 0 -8px 28px rgba(4, 125, 125, 0.12);
     }
@@ -243,7 +348,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
-        margin-bottom: 1.75rem;
+        margin-bottom: 0.75rem;
     }
 
     .results-header h2 {
@@ -257,29 +362,30 @@
     .property-cards {
         display: flex;
         flex-direction: column;
-        gap: 1.5rem;
+        gap: 0.5rem;
     }
 
     .property-card {
         display: grid;
-        grid-template-columns: minmax(220px, 280px) 1fr;
-        gap: 1.5rem;
+        grid-template-columns: 120px 1fr;
+        gap: 0.75rem;
         align-items: stretch;
         background-color: #fff;
-        border-radius: 1.1rem;
-        padding: 1.5rem;
+        border-radius: 0.6rem;
+        padding: 0.5rem;
         border: 1px solid rgba(4, 125, 125, 0.16);
-        box-shadow: 0 18px 42px rgba(4, 125, 125, 0.12);
+        box-shadow: 0 2px 8px rgba(4, 125, 125, 0.06);
         transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.25s ease;
         cursor: pointer;
         position: relative;
         overflow: hidden;
+        min-height: 120px;
     }
 
     .property-card:hover,
     .property-card.active {
-        transform: translateY(-4px);
-        box-shadow: 0 26px 56px rgba(4, 125, 125, 0.22);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(4, 125, 125, 0.12);
         border-color: rgba(4, 125, 125, 0.4);
         background-color: rgba(243, 253, 253, 0.95);
     }
@@ -305,124 +411,124 @@
     }
 
     .property-card-media {
-        border-radius: 0.95rem;
+        border-radius: 0.4rem;
         overflow: hidden;
         background: linear-gradient(135deg, rgba(4, 125, 125, 0.16), rgba(39, 152, 150, 0.16));
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 120px;
+        height: 120px;
+        transition: transform 0.2s ease;
+        cursor: pointer;
+    }
+
+    .property-card-media:hover {
+        transform: scale(1.05);
+    }
+
+    .property-card-media a {
+        display: block;
+        width: 100%;
+        height: 100%;
     }
 
     .property-card-media img {
         width: 100%;
         height: 100%;
-        min-height: 220px;
         object-fit: cover;
         display: block;
     }
 
     .property-card-placeholder {
         width: 100%;
-        min-height: 220px;
+        height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--color-secondary);
-        font-size: 1.4rem;
+        font-size: 1rem;
     }
 
     .property-card-body {
         display: flex;
         flex-direction: column;
-        gap: 0.85rem;
+        gap: 0.25rem;
+        justify-content: center;
     }
 
     .property-card-top {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
-        gap: 1rem;
+        gap: 0.4rem;
     }
 
     .property-card-top .badge-status {
-        margin-right: 0.5rem;
+        margin-right: 0.2rem;
     }
 
     .status-label {
-        font-size: 0.8rem;
+        font-size: 0.65rem;
         font-weight: 600;
         color: var(--color-secondary-dark);
         background: rgba(39, 152, 150, 0.12);
-        padding: 0.25rem 0.75rem;
+        padding: 0.1rem 0.4rem;
         border-radius: 999px;
     }
 
     .property-title {
         font-weight: 700;
-        font-size: 1.25rem;
+        font-size: 0.95rem;
         color: #16343b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .property-location {
-        /* Aumentado ligeramente para mayor legibilidad junto al icono */
-        font-size: 1.02rem;
+        font-size: 0.8rem;
         color: var(--color-muted);
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.3rem;
     }
 
     /* Línea de ubicación principal (distrito, provincia) mostrada junto al icono */
     .property-location-main {
-        font-size: 1.02rem;
+        font-size: 0.8rem;
         color: #3b5454;
         font-weight: 400;
         margin: 0;
     }
 
-    /* Línea secundaria puede mantenerse para mostrar exact_address si es necesario */
-    .property-location-sub {
-        font-size: 0.95rem;
-        color: #5a6b6b;
-        font-weight: 400;
-        margin-top: 0.15rem;
-    }
-
-    .property-address-doc {
-        font-size: 0.85rem;
-        color: #405b63;
-    }
-
-    .property-address-doc i {
-        color: var(--color-secondary-dark);
-    }
-
     .property-meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.75rem 1.5rem;
-        font-size: 0.85rem;
+        gap: 0.25rem 0.6rem;
+        font-size: 0.7rem;
         color: #16343b;
     }
 
     .property-meta span {
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
-        background: rgba(4, 125, 125, 0.08);
-        border-radius: 999px;
-        padding: 0.35rem 0.65rem;
+        gap: 0.25rem;
+        background: rgba(4, 125, 125, 0.05);
+        border-radius: 3px;
+        padding: 0.1rem 0.35rem;
     }
 
     .property-meta span i {
         color: var(--color-secondary);
+        font-size: 0.65rem;
     }
 
     .property-contacts {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.75rem 1.5rem;
-        font-size: 0.85rem;
+        gap: 0.2rem 0.6rem;
+        font-size: 0.7rem;
         color: var(--color-muted);
         margin-bottom: 0;
     }
@@ -430,39 +536,41 @@
     .property-contacts span {
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
+        gap: 0.25rem;
     }
 
     .property-contacts span i {
         color: var(--color-primary);
+        font-size: 0.65rem;
     }
 
     .property-actions {
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.75rem;
-        margin-top: auto;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.15rem;
+        margin-top: 0;
+        border-left: 1px solid rgba(4, 125, 125, 0.1);
+        padding-left: 0.5rem;
+    }
+
+    .property-actions .btn {
+        padding: 0.15rem 0.45rem;
+        font-size: 0.65rem;
+        width: 100%;
+        text-align: left;
     }
 
     .property-actions .last-update {
         color: var(--color-muted);
-        font-size: 0.78rem;
-    }
-
-    .empty-results {
-        padding: 2rem;
-        text-align: center;
-        background: rgba(4, 125, 125, 0.05);
-        border: 1px dashed rgba(4, 125, 125, 0.3);
-        border-radius: 1rem;
-        color: var(--color-muted);
+        font-size: 0.6rem;
+        white-space: nowrap;
     }
 
     .property-card .price {
         color: var(--color-secondary);
         font-weight: 700;
-        font-size: 1.2rem;
+        font-size: 1rem;
     }
 
     .badge-status {
@@ -470,8 +578,25 @@
         color: var(--color-primary);
         font-weight: 600;
         border-radius: 999px;
-        padding: 0.25rem 0.75rem;
-        font-size: 0.75rem;
+        padding: 0.1rem 0.4rem;
+        font-size: 0.65rem;
+    }
+
+    /* Estilo para el contenedor de la parte inferior para separar info de acciones */
+    .property-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 0.75rem;
+        margin-top: 0.15rem;
+    }
+
+    .property-info-stack {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 0;
     }
 
     .empty-state {
@@ -517,377 +642,410 @@
     }
 
     @media (max-width: 992px) {
-        .filter-bar form {
+        .dashboard-main-container {
             flex-direction: column;
-            align-items: stretch;
+            height: auto;
+            overflow: visible;
         }
 
-        .layer-toggle-bar {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.85rem;
-            padding: 0.9rem 1.5rem;
+        .filter-sidebar {
+            width: 100%;
+            height: auto;
+            border-right: none;
+            border-bottom: 1px solid rgba(4, 125, 125, 0.15);
         }
 
-        .filter-actions {
-            margin-left: 0;
-            justify-content: flex-end;
+        .dashboard-view-area {
+            height: auto;
+            overflow: visible;
         }
 
         #propertyMap {
-            height: 420px;
+            height: 400px;
         }
 
-        .results-section {
-            padding: 2rem 1.5rem 2.5rem;
-        }
-
-        .property-card {
-            grid-template-columns: 1fr;
-        }
-
-        .property-card-media,
-        .property-card-placeholder {
-            min-height: 200px;
+        .layer-toggle-bar {
+            position: relative;
+            top: 0;
+            right: 0;
+            margin: 0.5rem;
+            flex-direction: row;
+            flex-wrap: wrap;
         }
     }
 
     @media (max-width: 576px) {
-        .filter-bar {
-            padding: 1rem 1.25rem;
-        }
-
-        .layer-toggle-bar {
-            padding: 0.85rem 1.25rem;
-        }
-
         .results-section {
-            padding: 1.75rem 1.25rem 2rem;
+            padding: 1rem 0.75rem;
         }
-
         .property-card {
-            padding: 1.25rem;
-            gap: 1rem;
-        }
-
-        .property-title {
-            font-size: 1.1rem;
-        }
-
-        .property-meta {
-            gap: 0.5rem 1rem;
+            padding: 1rem;
         }
     }
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
-        <div class="filter-bar">
-            <form method="get">
-                <div class="filter-control">
-                    <label for="filter-type">Tipo</label>
-                    <select class="form-select" id="filter-type" name="property_type">
-                        <option value="">Todos</option>
-                        {% for ptype in property_types %}
-                            <option value="{{ ptype.id }}" {% if filters.property_type == ptype.id|stringformat:'s' %}selected{% endif %}>{{ ptype.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="filter-control">
-                    <label for="filter-district">Distrito</label>
-                    <select class="form-select" id="filter-district" name="district">
-                        <option value="">Todos</option>
-                        {% for d in districts_list %}
-                            <option value="{{ d.id }}" 
-                                {% if d.id and filters.district == d.id|stringformat:'s' %}selected
-                                {% elif not d.id and filters.district == d.name %}selected
-                                {% endif %}>{{ d.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="filter-control">
-                    <label for="filter-payment">Método de pago</label>
-                    <select class="form-select" id="filter-payment" name="payment_method">
-                        <option value="">Todos</option>
-                        {% for pm in payment_methods %}
-                            <option value="{{ pm.id }}" {% if filters.payment_method == pm.id|stringformat:'s' %}selected{% endif %}>{{ pm.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="filter-control">
-                    <label for="filter-price-min">Precio desde</label>
-                    <input type="number" class="form-control" id="filter-price-min" name="price_min" placeholder="0" value="{{ filters.price_min }}" min="0" step="1000">
-                </div>
-
-                <div class="filter-control">
-                    <label for="filter-price-max">Precio hasta</label>
-                    <input type="number" class="form-control" id="filter-price-max" name="price_max" placeholder="1,000,000" value="{{ filters.price_max }}" min="0" step="1000">
-                </div>
-
-                <div class="filter-actions">
-                    <button type="button" id="toggle-advanced-filters" class="btn btn-outline-secondary"><i class="fas fa-sliders-h me-2"></i>Filtro avanzado</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-filter me-2"></i>Aplicar</button>
-                    <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary">Limpiar</a>
-                </div>
-                
-                <div class="advanced-filters" id="advancedFilters">
-                    <div class="adv-control">
-                        <label class="small">Urbanización</label>
-                        <select name="urbanization" class="form-select">
-                            <option value="">Todas</option>
-                            {% for u in urbanizations_list %}
-                                <option value="{{ u.id }}" {% if filters.urbanization == u.id|stringformat:'s' %}selected{% endif %}>{{ u.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="adv-control">
-                        <label class="small">Habitaciones</label>
-                        <div class="adv-mode-row">
-                            <select name="bedrooms_mode" class="form-select form-select-sm" onchange="toggleBedroomsMode(this.value)">
-                                <option value="">Ninguno</option>
-                                <option value="range" {% if filters.bedrooms_mode == 'range' %}selected{% endif %}>Rango</option>
-                                <option value="approx" {% if filters.bedrooms_mode == 'approx' %}selected{% endif %}>Aproximada</option>
-                            </select>
-                        </div>
-                        <div class="mt-2" id="bedroomsRange" style="display: none;">
-                            <input type="number" name="bedrooms_min" class="form-control mb-1" placeholder="Min" value="{{ filters.bedrooms_min }}">
-                            <input type="number" name="bedrooms_max" class="form-control" placeholder="Max" value="{{ filters.bedrooms_max }}">
-                        </div>
-                        <div class="mt-2" id="bedroomsApprox" style="display: none;">
-                            <input type="number" name="bedrooms_approx" class="form-control" placeholder="Cantidad aproximada" value="{{ filters.bedrooms_approx }}">
-                        </div>
-                    </div>
-
-                    <div class="adv-control">
-                        <label class="small">Baños</label>
-                        <select name="bathrooms_mode" class="form-select form-select-sm" onchange="toggleBathroomsMode(this.value)">
-                            <option value="">Ninguno</option>
-                            <option value="range" {% if filters.bathrooms_mode == 'range' %}selected{% endif %}>Rango</option>
-                            <option value="approx" {% if filters.bathrooms_mode == 'approx' %}selected{% endif %}>Aproximado</option>
-                        </select>
-                        <div class="mt-2" id="bathroomsRange" style="display: none;">
-                            <input type="number" name="bathrooms_min" class="form-control mb-1" placeholder="Min" value="{{ filters.bathrooms_min }}">
-                            <input type="number" name="bathrooms_max" class="form-control" placeholder="Max" value="{{ filters.bathrooms_max }}">
-                        </div>
-                        <div class="mt-2" id="bathroomsApprox" style="display: none;">
-                            <input type="number" name="bathrooms_approx" class="form-control" placeholder="Cantidad aproximada" value="{{ filters.bathrooms_approx }}">
-                        </div>
-                    </div>
-
-                    <div class="adv-control">
-                        <label class="small">Estacionamientos</label>
-                        <select name="garage_mode" class="form-select form-select-sm" onchange="toggleGarageMode(this.value)">
-                            <option value="">Ninguno</option>
-                            <option value="range" {% if filters.garage_mode == 'range' %}selected{% endif %}>Rango</option>
-                            <option value="approx" {% if filters.garage_mode == 'approx' %}selected{% endif %}>Aproximado</option>
-                        </select>
-                        <div class="mt-2" id="garageRange" style="display: none;">
-                            <input type="number" name="garage_min" class="form-control mb-1" placeholder="Min" value="{{ filters.garage_min }}">
-                            <input type="number" name="garage_max" class="form-control" placeholder="Max" value="{{ filters.garage_max }}">
-                        </div>
-                        <div class="mt-2" id="garageApprox" style="display: none;">
-                            <input type="number" name="garage_approx" class="form-control" placeholder="Cantidad aproximada" value="{{ filters.garage_approx }}">
-                        </div>
-                    </div>
-
-                    <div class="adv-control">
-                        <label class="small">Área</label>
-                        <select name="area_field" class="form-select form-select-sm">
-                            <option value="land" {% if filters.area_field == 'land' %}selected{% endif %}>Terreno</option>
-                            <option value="built" {% if filters.area_field == 'built' %}selected{% endif %}>Construida</option>
-                        </select>
-                        <select name="area_mode" class="form-select form-select-sm mt-2" onchange="toggleAreaMode(this.value)">
-                            <option value="">Ninguno</option>
-                            <option value="range" {% if filters.area_mode == 'range' %}selected{% endif %}>Rango</option>
-                            <option value="approx" {% if filters.area_mode == 'approx' %}selected{% endif %}>Aproximado</option>
-                        </select>
-                        <div class="mt-2" id="areaRange" style="display: none;">
-                            <input type="number" step="0.1" name="area_min" class="form-control mb-1" placeholder="Min (m2)" value="{{ filters.area_min }}">
-                            <input type="number" step="0.1" name="area_max" class="form-control" placeholder="Max (m2)" value="{{ filters.area_max }}">
-                        </div>
-                        <div class="mt-2" id="areaApprox" style="display: none;">
-                            <input type="number" step="0.1" name="area_approx" class="form-control" placeholder="Cantidad aproximada (m2)" value="{{ filters.area_approx }}">
-                        </div>
-                    </div>
-
-                    <div class="adv-control">
-                        <label class="small">Estado</label>
-                        <select name="status" id="filter-status" class="form-select">
-                            <option value="">Cualquiera</option>
-                            <option value="antiguedad" {% if filters.status == 'antiguedad' %}selected{% endif %}>Antigüedad</option>
-                            {% for s in statuses %}
-                                {% if s.name|lower != 'antigüedad' and s.name|lower != 'antiguedad' %}
-                                    <option value="{{ s.id }}" {% if filters.status == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-
-                        <div class="mt-2" id="ageControls" style="display: none;">
-                            <select name="age_mode" id="ageMode" class="form-select form-select-sm" onchange="toggleAgeMode(this.value)">
-                                <option value="">Ninguno</option>
-                                <option value="range" {% if filters.age_mode == 'range' %}selected{% endif %}>Rango</option>
-                                <option value="approx" {% if filters.age_mode == 'approx' %}selected{% endif %}>Aproximado</option>
-                            </select>
-                            <div class="mt-2" id="ageRange" style="display: none;">
-                                <input type="number" name="age_min" class="form-control mb-1" placeholder="Min (años)" value="{{ filters.age_min }}">
-                                <input type="number" name="age_max" class="form-control" placeholder="Max (años)" value="{{ filters.age_max }}">
-                            </div>
-                            <div class="mt-2" id="ageApprox" style="display: none;">
-                                <input type="number" name="age_approx" class="form-control" placeholder="Años aproximados" value="{{ filters.age_approx }}">
-                            </div>
-                        <div id="ageWarning" class="age-warning" {% if age_warning %}style="display:block;"{% endif %}>{{ age_warning }}</div>
-                        </div>
-                    </div>
-                </div>
-            </form>
+<div class="dashboard-main-container view-mode-map" id="dashboard-container">
+    <!-- Sidebar de Filtros: Ocupa toda la altura izquierda -->
+    <aside class="filter-sidebar">
+        <!-- Switcher de Vista -->
+        <div class="view-switcher mb-3" style="margin: 0 0 1rem 0;">
+            <button type="button" class="view-btn active" id="btn-view-map" onclick="switchDashboardView('map')">
+                <i class="fas fa-map"></i> Mapa
+            </button>
+            <button type="button" class="view-btn" id="btn-view-list" onclick="switchDashboardView('properties')">
+                <i class="fas fa-list"></i> Propiedades
+            </button>
         </div>
 
-        <div class="layer-toggle-bar">
-            <span class="layer-toggle-title"><i class="fas fa-layer-group"></i>Capas del mapa</span>
-            <div class="layer-toggle-options">
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input layer-toggle-input" type="checkbox" id="layerSchools" data-layer="schools">
-                    <label class="form-check-label" for="layerSchools">Colegios</label>
+        <form method="get" id="filter-form">
+            <div class="filter-actions mb-3">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter me-2"></i>Aplicar</button>
+                <button type="button" id="toggle-advanced-filters" class="btn btn-outline-secondary btn-sm"><i class="fas fa-sliders-h me-2"></i>Filtro avanzado</button>
+                <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary btn-sm">Limpiar</a>
+            </div>
+
+            <div class="filter-control">
+                <label for="filter-type">Tipo de Propiedad</label>
+                <select class="form-select form-select-sm" id="filter-type" name="property_type">
+                    <option value="">Todos</option>
+                    {% for ptype in property_types %}
+                        <option value="{{ ptype.id }}" {% if filters.property_type == ptype.id|stringformat:'s' %}selected{% endif %}>{{ ptype.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control">
+                <label for="filter-district">Distrito</label>
+                <select class="form-select form-select-sm" id="filter-district" name="district">
+                    <option value="">Todos</option>
+                    {% for d in districts_list %}
+                        <option value="{{ d.id }}" 
+                            {% if d.id and filters.district == d.id|stringformat:'s' %}selected
+                            {% elif not d.id and filters.district == d.name %}selected
+                            {% endif %}>{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control">
+                <label for="filter-payment">Método de pago</label>
+                <select class="form-select form-select-sm" id="filter-payment" name="payment_method">
+                    <option value="">Todos</option>
+                    {% for pm in payment_methods %}
+                        <option value="{{ pm.id }}" {% if filters.payment_method == pm.id|stringformat:'s' %}selected{% endif %}>{{ pm.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control row g-1">
+                <div class="col-6">
+                    <label for="filter-price-min">Precio Min</label>
+                    <input type="number" class="form-control form-control-sm" id="filter-price-min" name="price_min" placeholder="0" value="{{ filters.price_min }}" min="0" step="1000">
                 </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input layer-toggle-input" type="checkbox" id="layerHospitals" data-layer="hospitals">
-                    <label class="form-check-label" for="layerHospitals">Hospitales</label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input layer-toggle-input" type="checkbox" id="layerMalls" data-layer="malls">
-                    <label class="form-check-label" for="layerMalls">Centros comerciales</label>
+                <div class="col-6">
+                    <label for="filter-price-max">Precio Max</label>
+                    <input type="number" class="form-control form-control-sm" id="filter-price-max" name="price_max" placeholder="Max" value="{{ filters.price_max }}" min="0" step="1000">
                 </div>
             </div>
-        </div>
 
-        <div class="map-wrapper">
+            <!-- Filtros avanzados integrados en el sidebar -->
+            <div class="advanced-filters" id="advancedFilters">
+                <div class="adv-control">
+                    <label class="small fw-bold">Urbanización</label>
+                    <select name="urbanization" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        {% for u in urbanizations_list %}
+                            <option value="{{ u.id }}" {% if filters.urbanization == u.id|stringformat:'s' %}selected{% endif %}>{{ u.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="adv-control">
+                    <label class="small fw-bold">Habitaciones</label>
+                    <select name="bedrooms_mode" class="form-select form-select-sm mb-1" onchange="toggleBedroomsMode(this.value)">
+                        <option value="">Ninguno</option>
+                        <option value="range" {% if filters.bedrooms_mode == 'range' %}selected{% endif %}>Rango</option>
+                        <option value="approx" {% if filters.bedrooms_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                    </select>
+                    <div id="bedroomsRange" style="display: none;" class="row g-1">
+                        <div class="col-6"><input type="number" name="bedrooms_min" class="form-control form-control-sm" placeholder="Min" value="{{ filters.bedrooms_min }}"></div>
+                        <div class="col-6"><input type="number" name="bedrooms_max" class="form-control form-control-sm" placeholder="Max" value="{{ filters.bedrooms_max }}"></div>
+                    </div>
+                    <div id="bedroomsApprox" style="display: none;">
+                        <input type="number" name="bedrooms_approx" class="form-control form-control-sm" placeholder="Cantidad aprox" value="{{ filters.bedrooms_approx }}">
+                    </div>
+                </div>
+
+                <div class="adv-control">
+                    <label class="small fw-bold">Baños</label>
+                    <select name="bathrooms_mode" class="form-select form-select-sm mb-1" onchange="toggleBathroomsMode(this.value)">
+                        <option value="">Ninguno</option>
+                        <option value="range" {% if filters.bathrooms_mode == 'range' %}selected{% endif %}>Rango</option>
+                        <option value="approx" {% if filters.bathrooms_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                    </select>
+                    <div id="bathroomsRange" style="display: none;" class="row g-1">
+                        <div class="col-6"><input type="number" name="bathrooms_min" class="form-control form-control-sm" placeholder="Min" value="{{ filters.bathrooms_min }}"></div>
+                        <div class="col-6"><input type="number" name="bathrooms_max" class="form-control form-control-sm" placeholder="Max" value="{{ filters.bathrooms_max }}"></div>
+                    </div>
+                    <div id="bathroomsApprox" style="display: none;">
+                        <input type="number" name="bathrooms_approx" class="form-control form-control-sm" placeholder="Cantidad aprox" value="{{ filters.bathrooms_approx }}">
+                    </div>
+                </div>
+
+                <div class="adv-control">
+                    <label class="small fw-bold">Estacionamientos</label>
+                    <select name="garage_mode" class="form-select form-select-sm mb-1" onchange="toggleGarageMode(this.value)">
+                        <option value="">Ninguno</option>
+                        <option value="range" {% if filters.garage_mode == 'range' %}selected{% endif %}>Rango</option>
+                        <option value="approx" {% if filters.garage_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                    </select>
+                    <div id="garageRange" style="display: none;" class="row g-1">
+                        <div class="col-6"><input type="number" name="garage_min" class="form-control form-control-sm" placeholder="Min" value="{{ filters.garage_min }}"></div>
+                        <div class="col-6"><input type="number" name="garage_max" class="form-control form-control-sm" placeholder="Max" value="{{ filters.garage_max }}"></div>
+                    </div>
+                    <div id="garageApprox" style="display: none;">
+                        <input type="number" name="garage_approx" class="form-control form-control-sm" placeholder="Cantidad aprox" value="{{ filters.garage_approx }}">
+                    </div>
+                </div>
+
+                <div class="adv-control">
+                    <label class="small fw-bold">Área</label>
+                    <div class="row g-1 mb-1">
+                        <div class="col-6">
+                            <select name="area_field" class="form-select form-select-sm">
+                                <option value="land" {% if filters.area_field == 'land' %}selected{% endif %}>Terreno</option>
+                                <option value="built" {% if filters.area_field == 'built' %}selected{% endif %}>Const.</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select name="area_mode" class="form-select form-select-sm" onchange="toggleAreaMode(this.value)">
+                                <option value="">Modo</option>
+                                <option value="range" {% if filters.area_mode == 'range' %}selected{% endif %}>Rango</option>
+                                <option value="approx" {% if filters.area_mode == 'approx' %}selected{% endif %}>Aprox.</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="areaRange" style="display: none;" class="row g-1">
+                        <div class="col-6"><input type="number" step="0.1" name="area_min" class="form-control form-control-sm" placeholder="Min m2" value="{{ filters.area_min }}"></div>
+                        <div class="col-6"><input type="number" step="0.1" name="area_max" class="form-control form-control-sm" placeholder="Max m2" value="{{ filters.area_max }}"></div>
+                    </div>
+                    <div id="areaApprox" style="display: none;">
+                        <input type="number" step="0.1" name="area_approx" class="form-control form-control-sm" placeholder="m2 aproximados" value="{{ filters.area_approx }}">
+                    </div>
+                </div>
+
+                <div class="adv-control">
+                    <label class="small fw-bold">Estado</label>
+                    <select name="status" id="filter-status" class="form-select form-select-sm mb-1">
+                        <option value="">Cualquiera</option>
+                        <option value="antiguedad" {% if filters.status == 'antiguedad' %}selected{% endif %}>Antigüedad</option>
+                        {% for s in statuses %}
+                            {% if s.name|lower != 'antigüedad' and s.name|lower != 'antiguedad' %}
+                                <option value="{{ s.id }}" {% if filters.status == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+
+                    <div id="ageControls" style="display: none;">
+                        <select name="age_mode" id="ageMode" class="form-select form-select-sm mb-1" onchange="toggleAgeMode(this.value)">
+                            <option value="">Modo Antig.</option>
+                            <option value="range" {% if filters.age_mode == 'range' %}selected{% endif %}>Rango</option>
+                            <option value="approx" {% if filters.age_mode == 'approx' %}selected{% endif %}>Aprox.</option>
+                        </select>
+                        <div id="ageRange" style="display: none;" class="row g-1">
+                            <div class="col-6"><input type="number" name="age_min" class="form-control form-control-sm" placeholder="Min años" value="{{ filters.age_min }}"></div>
+                            <div class="col-6"><input type="number" name="age_max" class="form-control form-control-sm" placeholder="Max años" value="{{ filters.age_max }}"></div>
+                        </div>
+                        <div id="ageApprox" style="display: none;">
+                            <input type="number" name="age_approx" class="form-control form-control-sm" placeholder="Años aprox" value="{{ filters.age_approx }}">
+                        </div>
+                        <div id="ageWarning" class="age-warning mt-1" {% if age_warning %}style="display:block;"{% endif %}>{{ age_warning }}</div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </aside>
+
+    <!-- Área de Visualización: Mapa y Resultados (scrollable juntos) -->
+    <main class="dashboard-view-area">
+        <!-- Mapa -->
+        <div class="map-container-main">
+            <div class="layer-toggle-bar">
+                <span class="layer-toggle-title fw-bold text-primary"><i class="fas fa-layer-group me-1"></i>CAPAS</span>
+                <div class="layer-toggle-options">
+                    <div class="form-check">
+                        <input class="form-check-input layer-toggle-input" type="checkbox" id="layerSchools" data-layer="schools">
+                        <label class="form-check-label small" for="layerSchools">Colegios</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input layer-toggle-input" type="checkbox" id="layerHospitals" data-layer="hospitals">
+                        <label class="form-check-label small" for="layerHospitals">Hospitales</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input layer-toggle-input" type="checkbox" id="layerMalls" data-layer="malls">
+                        <label class="form-check-label small" for="layerMalls">CC.SS.</label>
+                    </div>
+                </div>
+            </div>
+
             <div id="propertyMap" data-marker-icon="{{ property_marker_icon_url|default:'' }}"></div>
 
             {% if property_count == 0 %}
             <div class="empty-state">
                 <i class="fas fa-map-pin fa-3x text-muted"></i>
-                <h3 class="text-muted">No encontramos propiedades con estos filtros</h3>
-                <p class="text-muted mb-3">Prueba cambiando los criterios o creando una nueva propiedad.</p>
-                <a href="{% url 'properties:create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Registrar propiedad</a>
+                <h3 class="text-muted fs-5">Sin resultados</h3>
+                <p class="text-muted small">Prueba cambiando los filtros</p>
+                <a href="{% url 'properties:create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus me-2"></i>Nueva propiedad</a>
             </div>
             {% endif %}
         </div>
 
+        <!-- Resultados -->
         <div class="results-section">
             <div class="results-header">
                 <h2 class="mb-0 text-uppercase">Resultados</h2>
                 <span class="badge-status">{{ property_count }} propiedades</span>
             </div>
-            {% if property_count == 0 %}
-            <div class="empty-results">
-                <p class="mb-2 fw-semibold">No encontramos propiedades con estos filtros.</p>
-                <p class="mb-3">Ajusta los criterios o crea una nueva propiedad.</p>
-                <a href="{% url 'properties:create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Registrar propiedad</a>
-            </div>
-            {% else %}
-            <div class="property-cards" id="propertyCards">
-                {% for property in properties %}
-                <article class="property-card" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
-                    <div class="property-card-media">
-                        {% with images=property.images.all %}
-                            <!-- DEBUG: Total imágenes: {{ images|length }} -->
-                            {% if images %}
-                                {% with first=images|first %}
-                                    {% if first.image_blob %}
-                                        <img src="{% url 'properties:image_blob' first.id %}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
-                                    {% elif first.image %}
-                                        <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
-                                    {% else %}
-                                        <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
-                                    {% endif %}
-                                {% endwith %}
-                            {% else %}
-                                <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
-                            {% endif %}
-                        {% endwith %}
-                    </div>
-                    <div class="property-card-body">
-                        <div class="property-card-top">
-                            <div class="d-flex align-items-center flex-wrap gap-2">
-                                <span class="badge-status">{{ property.property_type.name }}</span>
-                                <span class="status-label">{{ property.status.name }}</span>
-                            </div>
-                            <div class="text-end">
-                                <div class="price">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
-                                    <small class="text-muted">Dirección: {{ property.real_address }}</small>
-                            </div>
-                        </div>
-                        <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
-                        <p class="property-location mb-0">
-                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
-                            <span class="property-location-main">
-                                {% if property.display_district or property.display_province %}
-                                    {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
-                                {% else %}
-                                    {{ property.real_address|default:'Ubicación no disponible' }}
-                                {% endif %}
-                            </span>
-                        </p>
-                        {# exact_address removed as secondary line to avoid duplication; only show district, province here #}
-                       
-                        <div class="property-meta">
-                            <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
-                            <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
-                            {% if property.land_area and property.land_area_unit %}
-                            <span><i class="fas fa-ruler-combined"></i>{{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
-                            {% endif %}
-                            {% if property.built_area and property.built_area_unit %}
-                            <span><i class="fas fa-drafting-compass"></i>{{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
-                            {% endif %}
-                            {% if property.garage_spaces %}
-                            <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} estacionamiento{% if property.garage_spaces != 1 %}s{% endif %}</span>
-                            {% endif %}
-                            {% if property.has_maintenance and property.maintenance_fee %}
-                            <span><i class="fas fa-tools"></i>Mant. {{ property.currency.symbol }} {{ property.maintenance_fee|floatformat:0 }}</span>
-                            {% endif %}
-                            {% if property.unit_location %}
-                            <span><i class="fas fa-building"></i> {{ property.get_unit_location_display }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="property-contacts">
-                            <span><i class="fas fa-user-tie"></i>Propietario: {{ property.owner.full_name }}</span>
-                            <span><i class="fas fa-user-check"></i>Responsable:
-                                {% if property.responsible %}
-                                    {% with full_name=property.responsible.get_full_name %}
-                                        {% if full_name %}
-                                            {{ full_name }}
+                {% if property_count == 0 %}
+                <div class="empty-results">
+                    <p class="mb-2 fw-semibold">No encontramos propiedades con estos filtros.</p>
+                    <p class="mb-3">Ajusta los criterios o crea una nueva propiedad.</p>
+                    <a href="{% url 'properties:create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Registrar propiedad</a>
+                </div>
+                {% else %}
+                <div class="property-cards" id="propertyCards">
+                    {% for property in properties %}
+                    <article class="property-card" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
+                        <div class="property-card-media">
+                            <a href="{% url 'properties:detail' property.pk %}" title="Ver detalle de {{ property.code }}">
+                            {% with images=property.images.all %}
+                                {% if images %}
+                                    {% with first=images|first %}
+                                        {% if first.image_blob %}
+                                            <img src="{% url 'properties:image_blob' first.id %}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
+                                        {% elif first.image %}
+                                            <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
                                         {% else %}
-                                            {{ property.responsible.username }}
+                                            <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
                                         {% endif %}
                                     {% endwith %}
                                 {% else %}
-                                    Sin asignar
+                                    <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
                                 {% endif %}
-                            </span>
+                            {% endwith %}
+                            </a>
                         </div>
-                        <div class="property-actions">
-                            <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-external-link-alt me-1"></i>Ver detalle</a>
-                            {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
-                                <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary btn-sm ms-2"><i class="fas fa-edit me-1"></i>Editar</a>
-                            {% endif %}
-                            <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info btn-sm ms-2" title="Ver historial de cambios"><i class="fas fa-history me-1"></i>Historial</a>
-                            <span class="last-update">Actualizado el {{ property.updated_at|date:"d/m/Y" }}</span>
+                        <div class="property-card-body">
+                            <div class="property-card-top">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge-status">{{ property.property_type.name }}</span>
+                                    <span class="status-label">{{ property.status.name }}</span>
+                                </div>
+                                <div class="price text-end">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
+                            </div>
+                            
+                            <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
+                            
+                            <p class="property-location mb-0">
+                                <i class="fas fa-map-marker-alt text-primary"></i>
+                                <span class="property-location-main">
+                                    {% if property.display_district or property.display_province %}
+                                        {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
+                                    {% else %}
+                                        {{ property.real_address|default:'Ubicación no disponible' }}
+                                    {% endif %}
+                                </span>
+                            </p>
+
+                            <div class="property-card-footer">
+                                <div class="property-info-stack">
+                                    <div class="property-meta">
+                                        <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
+                                        <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
+                                        {% if property.land_area and property.land_area_unit %}
+                                        <span><i class="fas fa-ruler-combined"></i>{{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
+                                        {% endif %}
+                                        {% if property.built_area and property.built_area_unit %}
+                                        <span><i class="fas fa-drafting-compass"></i>{{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
+                                        {% endif %}
+                                        {% if property.garage_spaces %}
+                                        <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="property-contacts">
+                                        <span><i class="fas fa-user-tie"></i>Propietario: 
+                                            {% if user.is_superuser %}
+                                                {{ property.owner.full_name }}
+                                            {% else %}
+                                                <span style="color: #888; font-style: italic; font-weight: normal;">Vista No Autorizada</span>
+                                            {% endif %}
+                                        </span>
+                                        <span><i class="fas fa-user-check"></i>Resp:
+                                            {% if property.responsible %}
+                                                {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
+                                            {% else %} Sin asignar {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="property-actions">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
+                                        {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
+                                            <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary" title="Editar"><i class="fas fa-edit"></i></a>
+                                        {% endif %}
+                                        <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info" title="Historial"><i class="fas fa-history"></i></a>
+                                    </div>
+                                    <span class="last-update">Act. {{ property.updated_at|date:"d/m/Y" }}</span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </article>
-                {% endfor %}
-            </div>
-            {% endif %}
+                    </article>
+                    {% endfor %}
+                </div>
+                {% endif %}
         </div>
+    </main>
+</div>
 {% endblock %}
 
 {% block dashboard_extra_js %}
 {{ property_markers|json_script:"property-markers-json" }}
 <script>
+// Funciones globales para el dashboard
+function switchDashboardView(view) {
+    const container = document.getElementById('dashboard-container');
+    const btnMap = document.getElementById('btn-view-map');
+    const btnList = document.getElementById('btn-view-list');
+
+    if (!container || !btnMap || !btnList) return;
+
+    if (view === 'map') {
+        container.classList.remove('view-mode-properties');
+        container.classList.add('view-mode-map');
+        btnMap.classList.add('active');
+        btnList.classList.remove('active');
+        // Asegurar que Google Maps se ajuste al redimensionar el contenedor
+        if (propertyMap && typeof google !== 'undefined') {
+            google.maps.event.trigger(propertyMap, 'resize');
+        }
+    } else {
+        container.classList.remove('view-mode-map');
+        container.classList.add('view-mode-properties');
+        btnList.classList.add('active');
+        btnMap.classList.remove('active');
+    }
+    // Guardar preferencia
+    localStorage.setItem('dashboardViewPreferred', view);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const savedView = localStorage.getItem('dashboardViewPreferred') || 'map';
+    switchDashboardView(savedView);
+});
+
 const mapConfig = {
     defaultCenter: { lat: -16.409047, lng: -71.537451 },
     defaultZoom: 13,
@@ -1345,7 +1503,7 @@ function setupCardInteractions() {
 
             const marker = propertyMarkerReferences.get(numericId);
             if (marker) {
-                const mapContainer = document.querySelector('.map-wrapper');
+                const mapContainer = document.querySelector('.map-container-main');
                 if (mapContainer) {
                     mapContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }

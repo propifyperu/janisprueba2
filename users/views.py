@@ -92,8 +92,15 @@ def login_view(request):
             client_ip = request.META.get('REMOTE_ADDR', '')
             device_id = hashlib.sha256(f"{user_agent}{client_ip}".encode()).hexdigest()[:32]
             
-            logger.info(f"[LOGIN] user={user.username}, device_id={device_id[:16]}...")
+            # PASO 0: Verificar configuración global de seguridad
+            from security.models import SecuritySettings
+            security_settings = SecuritySettings.get_settings()
             
+            if not security_settings.device_verification_enabled:
+                logger.info("[LOGIN] Verificación de dispositivos DESACTIVADA globalmente")
+                login(request, user)
+                return redirect(next_url)
+
             # PASO 1: Verificar si el dispositivo ACTUAL está aprobado para este usuario
             approved_device = AuthorizedDevice.objects.filter(
                 user=user,

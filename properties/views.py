@@ -1,10 +1,92 @@
-from .models import Property
+from .models import Property, AgencyConfig
+from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import ListView
+from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, HttpResponseRedirect, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+import os
+from django.conf import settings
+
+def link_callback(uri, rel):
+    """
+    Smarter link_callback to handle local files, Azure blobs, and DB-cached images.
+    """
+    import os
+    import tempfile
+    from django.conf import settings
+    from django.contrib.staticfiles import finders
+    from urllib.parse import unquote
+    
+    # Decodificar URL (espacios, %20, etc)
+    uri = unquote(uri)
+    # Quitar query params (SAS tokens)
+    uri_clean = uri.split('?')[0]
+
+    # CASE 1: Archivos Estáticos
+    static_url = settings.STATIC_URL
+    if static_url and uri_clean.startswith(static_url):
+        search_path = uri_clean[len(static_url):].lstrip('/')
+        path = finders.find(search_path)
+        if path: return os.path.normpath(path)
+
+    # CASE 2: Archivos de Media (Local o Azure)
+    is_media = False
+    blob_path = None
+
+    if uri_clean.startswith(settings.MEDIA_URL):
+        is_media = True
+        blob_path = uri_clean[len(settings.MEDIA_URL):].lstrip('/')
+    elif uri_clean.startswith('/media/'):
+        is_media = True
+        blob_path = uri_clean[len('/media/'):].lstrip('/')
+    elif uri_clean.startswith('/media-proxy/'):
+        is_media = True
+        blob_path = uri_clean[len('/media-proxy/'):].lstrip('/')
+    
+    if is_media and blob_path:
+        # 2a. Intentar localmente
+        path = os.path.join(settings.MEDIA_ROOT, blob_path)
+        if os.path.exists(path):
+            return os.path.normpath(path)
+        
+        # 2b. Intentar desde el Blob de la DB (PropertyImage)
+        # Esto es muy útil en Azure para evitar latencia de descarga
+        try:
+            from .models import PropertyImage
+            # Buscar por coincidencia del nombre en el campo image
+            img_obj = PropertyImage.objects.filter(image__icontains=os.path.basename(blob_path)).first()
+            if img_obj and img_obj.image_blob:
+                suffix = os.path.splitext(blob_path)[1] or '.jpg'
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    tmp.write(img_obj.image_blob)
+                    return tmp.name
+        except Exception:
+            pass
+
+        # 2c. Intentar descarga directa de Azure si está configurado
+        if getattr(settings, 'AZURE_ACCOUNT_NAME', None):
+            try:
+                from janis_core3.media_views import _get_blob_client
+                blob_client = _get_blob_client(blob_path)
+                if blob_client.exists():
+                    suffix = os.path.splitext(blob_path)[1] or '.jpg'
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        tmp.write(blob_client.download_blob().readall())
+                        return tmp.name
+            except Exception:
+                pass
+
+    # CASE 3: URLs Externas
+    if uri.startswith(('http://', 'https://')):
+        return uri
+
+    # Fallback final
+    return os.path.normpath(os.path.join(settings.BASE_DIR, uri_clean.lstrip('/')))
+
 # Vista para borrar borrador
 from django.views.decorators.http import require_POST
 
@@ -15,6 +97,7 @@ def get_visible_fields_for_user(user):
     Retorna un diccionario con {field_name: {'can_view': bool, 'can_edit': bool}}
     """
     from users.models import RoleFieldPermission
+    visible_fields = {}
     
 
             # Asignar distritos múltiples si vienen
@@ -117,6 +200,30 @@ from django.views.decorators.http import require_http_methods
 
 
 @login_required
+def agency_config_view(request):
+    """Vista para configurar los datos de la inmobiliaria."""
+    if not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    
+    config = AgencyConfig.objects.first()
+    if request.method == 'POST':
+        form = AgencyConfigForm(request.POST, request.FILES, instance=config)
+        if form.is_valid():
+            form.save()
+            from django.contrib import messages
+            messages.success(request, 'Datos de la inmobiliaria actualizados correctamente.')
+            return redirect('properties:agency_config')
+    else:
+        form = AgencyConfigForm(instance=config)
+    
+    return render(request, 'properties/agency_config.html', {
+        'form': form,
+        'config': config
+    })
+
+
+@login_required
 @require_http_methods(["GET", "POST"])
 def matching_weights_view(request):
     """Vista para listar y editar los pesos de matching (solo usuarios con permiso)."""
@@ -157,7 +264,6 @@ def matching_weights_view(request):
             except Exception:
                 from django.contrib import messages
                 messages.error(request, 'No fue posible crear el nuevo criterio.')
-        return redirect('properties:matching_weights')
         return redirect('properties:matching_weights')
 
     weights = MatchingWeight.objects.all().order_by('key')
@@ -364,6 +470,182 @@ def search_view(request):
         'total': total,
         'page': page,
         'per_page': per_page,
+    })
+
+
+@login_required
+def legal_documents_list_view(request):
+    """Lista dinámica de documentos por propiedad para el área Legal.
+
+    - Columnas dinámicas basadas en DocumentType activos.
+    - Última columna forzada: 'ESTUDIO DE TITULO'.
+    - Columna final: porcentaje de completado por propiedad.
+    - Acceso restringido por departamento.
+    """
+    # permitir solo a departamentos específicos
+    allowed = {
+        'legal',
+        'tecnologias de la informacion',
+        'tecnologías de la información',
+        'gerencia'
+    }
+    dept = ''
+    try:
+        dept = (request.user.department.name or '').strip().lower()
+    except Exception:
+        dept = ''
+    if dept not in allowed and not request.user.is_superuser:
+        return HttpResponse('Forbidden', status=403)
+
+    # Obtener tipos de documentos activos
+    from .models import DocumentType, Property, PropertyDocument
+
+    doc_types = list(DocumentType.objects.filter(is_active=True).order_by('name'))
+
+    # Buscar tipo especial 'ESTUDIO DE TITULO' (case-insensitive)
+    estudio = None
+    for dt in doc_types:
+        if (dt.name or '').strip().lower() in ('estudio de titulo', 'estudio de título', 'estudio de titulo'):
+            estudio = dt
+            break
+
+    ordered_doc_types_no_estudio = [dt for dt in doc_types if dt != estudio]
+    # asegurar que la columna estudio esté al final
+    ordered_doc_types = list(ordered_doc_types_no_estudio)
+    if estudio:
+        ordered_doc_types.append(estudio)
+
+    # Consultar propiedades activas (traer created_by para evitar consultas extra)
+    properties_qs = Property.objects.filter(is_active=True).select_related('owner', 'created_by')[:500]
+    properties = list(properties_qs)
+
+    # Cargar documentos en bloque para las propiedades y tipos relevantes
+    doc_qs = PropertyDocument.objects.filter(property__in=properties, document_type__in=doc_types)
+    # map (property_id -> set(document_type_id))
+    presence = {}
+    for d in doc_qs:
+        presence.setdefault(d.property_id, set()).add(d.document_type_id)
+
+    rows = []
+    # Total de tipos considerados (incluye 'estudio' si está presente)
+    total_types = len(ordered_doc_types)
+    for p in properties:
+        present_count = 0
+        cells_no_estudio = []
+        # celdas para tipos de documento sin estudio
+        for dt in ordered_doc_types_no_estudio:
+            has = (dt.id in presence.get(p.id, set()))
+            if has:
+                present_count += 1
+            cells_no_estudio.append({'doc_type': dt.name, 'present': has})
+
+        # estudio de titulos (si existe en la lista original)
+        estudio_present = False
+        if estudio:
+            estudio_present = (estudio.id in presence.get(p.id, set()))
+            if estudio_present:
+                present_count += 1
+
+        pct = int((present_count / total_types) * 100) if total_types > 0 else 0
+        rows.append({
+            'property': p,
+            'cells': cells_no_estudio,
+            'estudio_present': estudio_present,
+            'completed_pct': pct,
+            'present_count': present_count,
+            'uploader': getattr(p, 'created_by', None),
+        })
+
+    # calcular colspan para la fila vacía: 5 columnas fijas (incluye 'Subido por') + columnas dinámicas (sin estudio) + columna estudio + columna % completado
+    empty_colspan = 5 + len(ordered_doc_types_no_estudio) + 1 + 1
+
+    return render(request, 'properties/legal_documents_list.html', {
+        'doc_types_no_estudio': ordered_doc_types_no_estudio,
+        'ordered_doc_types': ordered_doc_types,
+        'rows': rows,
+        'empty_colspan': empty_colspan,
+        'estudio_name': 'ESTUDIO DE TITULOS',
+        'total_types': total_types,
+    })
+
+
+@login_required
+def my_uploaded_documents_view(request):
+    """Matriz de documentos (estilo Área Legal) para las propiedades creadas por el usuario actual.
+    
+    Muestra el estado de cumplimiento documental de MIS propiedades.
+    """
+    from .models import DocumentType, Property, PropertyDocument
+
+    # Obtener tipos de documentos activos (mismo orden que en legal)
+    doc_types = list(DocumentType.objects.filter(is_active=True).order_by('name'))
+
+    # Identificar columna especial 'ESTUDIO DE TITULO'
+    estudio = None
+    for dt in doc_types:
+        if (dt.name or '').strip().lower() in ('estudio de titulo', 'estudio de título', 'estudio de titulos'):
+            estudio = dt
+            break
+
+    ordered_doc_types_no_estudio = [dt for dt in doc_types if dt != estudio]
+    # Lista final para iterar en cabecera si fuera necesario, aunque el template separa estudio
+    ordered_doc_types = list(ordered_doc_types_no_estudio)
+    if estudio:
+        ordered_doc_types.append(estudio)
+
+    # Filtrar propiedades DEL USUARIO (Mis Propiedades)
+    properties_qs = Property.objects.filter(is_active=True, created_by=request.user).select_related('owner', 'created_by').order_by('-created_at')
+    properties = list(properties_qs)
+
+    # Cargar documentos existentes para estas propiedades (Matriz de Existencia)
+    # Nota: No filtramos por uploaded_by=user, para mostrar si la propiedad TIENE el documento (completitud),
+    # independientemente de si lo subió él mismo, un admin o legal.
+    doc_qs = PropertyDocument.objects.filter(property__in=properties, document_type__in=doc_types)
+    
+    # Mapear presencia: property_id -> set(document_type_id)
+    presence = {}
+    for d in doc_qs:
+        presence.setdefault(d.property_id, set()).add(d.document_type_id)
+
+    rows = []
+    total_types = len(ordered_doc_types)
+    for p in properties:
+        present_count = 0
+        cells_no_estudio = []
+        
+        # Generar celdas para documentos estándar
+        for dt in ordered_doc_types_no_estudio:
+            has = (dt.id in presence.get(p.id, set()))
+            if has:
+                present_count += 1
+            cells_no_estudio.append({'doc_type': dt.name, 'present': has})
+
+        # Celda para estudio de títulos
+        estudio_present = False
+        if estudio:
+            estudio_present = (estudio.id in presence.get(p.id, set()))
+            if estudio_present:
+                present_count += 1
+
+        pct = int((present_count / total_types) * 100) if total_types > 0 else 0
+        
+        rows.append({
+            'property': p,
+            'cells': cells_no_estudio,
+            'estudio_present': estudio_present,
+            'completed_pct': pct,
+            'uploader': request.user # Para compatibilidad visual si el template lo usa
+        })
+    
+    # Calcular colspan para el estado vacío (Codigo + Dir + Prop + Creado + Subido + Docs + Estudio + Pct)
+    empty_colspan = 5 + len(ordered_doc_types_no_estudio) + 1 + 1
+
+    return render(request, 'properties/my_uploaded_documents.html', {
+        'doc_types_no_estudio': ordered_doc_types_no_estudio,
+        'rows': rows,
+        'empty_colspan': empty_colspan,
+        'estudio_name': 'ESTUDIO DE TITULOS',
+        'total_types': total_types,
     })
 
 
@@ -671,11 +953,19 @@ class MyPropertiesView(LoginRequiredMixin, ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        return Property.objects.filter(created_by=self.request.user, is_active=True).order_by('-created_at')
+        from django.db.models import Count
+        return Property.objects.filter(
+            created_by=self.request.user, 
+            is_active=True
+        ).annotate(
+            visit_count=Count('property_events')
+        ).order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['property_count'] = context['properties'].count()
+        # Fix for count with pagination (queryset is sliced in context['properties'] usually just page)
+        # but ListView provides paginator
+        context['property_count'] = self.get_queryset().count() 
         return context
 
 
@@ -777,7 +1067,14 @@ def requirement_create_view(request):
         if form.is_valid():
             data = form.cleaned_data
             req = Requirement()
-            req.created_by = request.user
+            
+            # Reasignación de agente (solo superuser o Call Center)
+            is_call_center = request.user.role and request.user.role.name == 'Call Center'
+            if (request.user.is_superuser or is_call_center) and data.get('assigned_agent'):
+                req.created_by = data.get('assigned_agent')
+            else:
+                req.created_by = request.user
+            
             req.contact = contact_instance  # Asignar el contacto
             
             req.property_type = data.get('property_type')
@@ -1034,10 +1331,36 @@ def requirement_delete_view(request, pk):
 @login_required
 def agenda_calendar_view(request):
     """Vista principal del calendario de eventos"""
-    from .models import EventType
+    from .models import EventType, Event
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
     event_types = EventType.objects.filter(is_active=True).order_by('name')
+    
+    # Determinar si el usuario puede ver a otros agentes
+    is_call_center = request.user.role and request.user.role.name == 'Call Center'
+    can_see_all = request.user.is_superuser or is_call_center
+    
+    agents_with_events = []
+    if can_see_all:
+        # Obtener agentes que tienen al menos un evento activo
+        agent_ids = Event.objects.filter(is_active=True).values_list('created_by', flat=True).distinct()
+        agents_with_events = User.objects.filter(id__in=agent_ids).only('id', 'first_name', 'last_name', 'username').order_by('id')
+        
+        # Asignar un color a cada agente (generado determinísticamente)
+        colors = [
+            '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6', 
+            '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
+            '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
+        ]
+        
+        for i, agent in enumerate(agents_with_events):
+            agent.calendar_color = colors[i % len(colors)]
+
     return render(request, 'properties/agenda_calendar.html', {
-        'event_types': event_types
+        'event_types': event_types,
+        'agents_with_events': agents_with_events,
+        'can_see_all': can_see_all
     })
 
 
@@ -1086,7 +1409,14 @@ def event_create_view(request):
         
         if form.is_valid():
             event = form.save(commit=False)
-            event.created_by = request.user
+            
+            # Reasignación de agente (solo superuser o Call Center)
+            is_call_center = request.user.role and request.user.role.name == 'Call Center'
+            if (request.user.is_superuser or is_call_center) and form.cleaned_data.get('created_by'):
+                event.created_by = form.cleaned_data.get('created_by')
+            else:
+                event.created_by = request.user
+            
             event.contact = contact_instance  # Asignar el contacto
             event.save()
             messages.success(request, f'Evento "{event.titulo}" creado exitosamente.')
@@ -1154,21 +1484,46 @@ def api_events_json(request):
     from .models import Event
     from django.http import JsonResponse
     
-    # Si es superusuario, ve todos los eventos, sino solo los suyos
-    if request.user.is_superuser:
-        events = Event.objects.filter(is_active=True).select_related('event_type', 'property', 'created_by')
+    # Si es superusuario o Call Center, puede ver todos los eventos (o filtrar por agente)
+    is_call_center = request.user.role and request.user.role.name == 'Call Center'
+    can_see_all = request.user.is_superuser or is_call_center
+    
+    agent_id = request.GET.get('agent_id')
+    
+    if can_see_all:
+        if agent_id:
+            events = Event.objects.filter(is_active=True, created_by_id=agent_id).select_related('event_type', 'property', 'created_by')
+        else:
+            events = Event.objects.filter(is_active=True).select_related('event_type', 'property', 'created_by')
     else:
         events = Event.objects.filter(is_active=True, created_by=request.user).select_related('event_type', 'property', 'created_by')
     
+    # Colores para agentes
+    colors_list = [
+        '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6', 
+        '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
+        '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
+    ]
+    
+    # Mapeo de IDs a colores para consistencia
+    agent_ids_distinct = sorted(list(Event.objects.filter(is_active=True).values_list('created_by_id', flat=True).distinct()))
+    agent_color_map = {uid: colors_list[i % len(colors_list)] for i, uid in enumerate(agent_ids_distinct)}
+    
     events_data = []
     for event in events:
+        # Si puede ver todo, el color es por agente, sino por tipo de evento
+        if can_see_all:
+            color = agent_color_map.get(event.created_by_id, event.event_type.color)
+        else:
+            color = event.event_type.color
+            
         events_data.append({
             'id': event.id,
             'title': event.titulo,
             'start': f"{event.fecha_evento}T{event.hora_inicio}",
             'end': f"{event.fecha_evento}T{event.hora_fin}",
-            'backgroundColor': event.event_type.color,
-            'borderColor': event.event_type.color,
+            'backgroundColor': color,
+            'borderColor': color,
             'extendedProps': {
                 'code': event.code,
                 'event_type': event.event_type.name,
@@ -1177,10 +1532,10 @@ def api_events_json(request):
                 'property': event.property.exact_address if event.property else '',
                 'property_code': event.property.code if event.property else '',
                 'created_by': event.created_by.get_full_name() if event.created_by else '',
+                'created_by_id': event.created_by.id if event.created_by else None,
             }
         })
     
-    print(f"API Events: Retornando {len(events_data)} eventos para el usuario {request.user.username}")
     return JsonResponse(events_data, safe=False)
 
 
@@ -1214,9 +1569,15 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
 
         # documentos relacionados
         try:
-            context['property_documents'] = list(property_obj.documents.all())
+            from .models import DocumentType
+            docs = list(property_obj.documents.all())
+            context['property_documents'] = docs
+            context['uploaded_doc_ids'] = [d.document_type_id for d in docs]
+            context['all_document_types'] = list(DocumentType.objects.filter(is_active=True).order_by('name'))
         except Exception:
             context['property_documents'] = []
+            context['uploaded_doc_ids'] = []
+            context['all_document_types'] = []
 
         # información financiera (si existe) y items simplificados para la plantilla
         try:
@@ -1240,6 +1601,67 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
         context['field_permissions'] = get_visible_fields_for_user(self.request.user)
 
         return context
+
+
+class PropertyPDFView(LoginRequiredMixin, DetailView):
+    """Genera un archivo PDF con el resumen profesional de la propiedad."""
+    model = Property
+
+    def get(self, request, *args, **kwargs):
+        property_obj = self.get_object()
+        agency = AgencyConfig.objects.first()
+        
+        # Resolver nombres de ubicación si son IDs (pueden venir como string numérico desde el formulario)
+        from .models import Department, Province, District
+        
+        distrito_nombre = property_obj.district
+        if distrito_nombre and distrito_nombre.isdigit():
+            try:
+                distrito_nombre = District.objects.get(id=int(distrito_nombre)).name
+            except (District.DoesNotExist, ValueError):
+                pass
+        
+        provincia_nombre = property_obj.province
+        if provincia_nombre and provincia_nombre.isdigit():
+            try:
+                provincia_nombre = Province.objects.get(id=int(provincia_nombre)).name
+            except (Province.DoesNotExist, ValueError):
+                pass
+
+        departamento_nombre = property_obj.department
+        if departamento_nombre and departamento_nombre.isdigit():
+            try:
+                departamento_nombre = Department.objects.get(id=int(departamento_nombre)).name
+            except (Department.DoesNotExist, ValueError):
+                pass
+
+        template_path = 'properties/property_pdf.html'
+        context = {
+            'property': property_obj,
+            'distrito_resuelto': distrito_nombre,
+            'provincia_resuelto': provincia_nombre,
+            'departamento_resuelto': departamento_nombre,
+            'agency': agency,
+            'user': request.user,
+        }
+        
+        # Configurar la respuesta como PDF
+        response = HttpResponse(content_type='application/pdf')
+        # Cambiamos a 'inline' para que se abra en el navegador, o 'attachment' para descarga previa
+        filename = f"Resumen_{property_obj.codigo_unico_propiedad or property_obj.code or property_obj.id}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        
+        # Renderizar template
+        template = get_template(template_path)
+        html = template.render(context)
+        
+        # Generar el PDF usando xhtml2pdf
+        pisa_status = pisa.CreatePDF(html, dest=response, link_callback=link_callback)
+        
+        if pisa_status.err:
+            return HttpResponse(f'Error técnico al generar el PDF: {pisa_status.err}', status=500)
+            
+        return response
 
 
 @login_required
@@ -2722,8 +3144,18 @@ def whatsapp_link_delete(request, link_id):
 def leads_list(request, property_id=None):
     """Lista los leads de WhatsApp"""
     from .models import Lead, LeadStatus
-    
+    from .models import WhatsAppConversation
+    from django.db.models import OuterRef, Subquery
+
     leads = Lead.objects.select_related('property', 'whatsapp_link', 'assigned_to', 'status')
+
+    # Anotar último mensaje y su fecha para mostrar en la lista sin N+1
+    last_msg_qs = WhatsAppConversation.objects.filter(lead=OuterRef('pk')).order_by('-created_at')
+    # Anotaciones con nombres que no colisionen con campos del modelo
+    leads = leads.annotate(
+        annotated_last_message=Subquery(last_msg_qs.values('message_body')[:1]),
+        annotated_last_message_at=Subquery(last_msg_qs.values('created_at')[:1])
+    )
     
     if property_id:
         leads = leads.filter(property_id=property_id)
@@ -2865,22 +3297,19 @@ def crm_dashboard(request):
     # Datos para gráficos
     from collections import Counter
     
-    # Por red social
+    # Por red social (mapear FK SocialNetwork.id -> nombre)
+    from .models import SocialNetwork, LeadStatus
     social_networks = Lead.objects.values_list('social_network', flat=True)
     social_counter = Counter(social_networks)
-    social_network_labels = [
-        dict(Lead.SOCIAL_NETWORKS).get(key, key) 
-        for key in social_counter.keys()
-    ]
+    sn_map = {sn.id: sn.name for sn in SocialNetwork.objects.filter(is_active=True)}
+    social_network_labels = [sn_map.get(key, str(key)) for key in social_counter.keys()]
     social_network_data = list(social_counter.values())
     
-    # Por estado
+    # Por estado (mapear FK LeadStatus.id -> nombre)
     statuses = Lead.objects.values_list('status', flat=True)
     status_counter = Counter(statuses)
-    status_labels = [
-        dict(Lead.STATUS_CHOICES).get(key, key) 
-        for key in status_counter.keys()
-    ]
+    status_map = {s.id: s.name for s in LeadStatus.objects.filter()} 
+    status_labels = [status_map.get(key, str(key)) for key in status_counter.keys()]
     status_data = list(status_counter.values())
     
     import json

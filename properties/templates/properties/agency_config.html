@@ -1,0 +1,144 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Datos de la Inmobiliaria{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h4 mb-0 text-primary fw-bold">
+                    <i class="fas fa-building me-2"></i>Datos de la Inmobiliaria
+                </h1>
+                <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Volver
+                </a>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row g-3">
+                            <!-- Sección Identificación -->
+                            <div class="col-12 border-bottom pb-2 mb-2">
+                                <h6 class="text-uppercase text-muted fw-bold small mb-0">Identificación y Razón Social</h6>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold small">{{ form.nombre_comercial.label }}</label>
+                                {{ form.nombre_comercial }}
+                                {% if form.nombre_comercial.errors %}
+                                <div class="text-danger small">{{ form.nombre_comercial.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">{{ form.ruc.label }}</label>
+                                {{ form.ruc }}
+                                {% if form.ruc.errors %}
+                                <div class="text-danger small">{{ form.ruc.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">{{ form.razon_social.label }}</label>
+                                {{ form.razon_social }}
+                                {% if form.razon_social.errors %}
+                                <div class="text-danger small">{{ form.razon_social.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Sección Ubicación -->
+                            <div class="col-12 border-bottom pb-2 mb-2 mt-4">
+                                <h6 class="text-uppercase text-muted fw-bold small mb-0">Ubicación</h6>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">{{ form.direccion.label }}</label>
+                                {{ form.direccion }}
+                                {% if form.direccion.errors %}
+                                <div class="text-danger small">{{ form.direccion.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">{{ form.departamento.label }}</label>
+                                {{ form.departamento }}
+                                {% if form.departamento.errors %}
+                                <div class="text-danger small">{{ form.departamento.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">{{ form.provincia.label }}</label>
+                                {{ form.provincia }}
+                                {% if form.provincia.errors %}
+                                <div class="text-danger small">{{ form.provincia.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">{{ form.distrito.label }}</label>
+                                {{ form.distrito }}
+                                {% if form.distrito.errors %}
+                                <div class="text-danger small">{{ form.distrito.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">{{ form.urbanizacion.label }}</label>
+                                {{ form.urbanizacion }}
+                                {% if form.urbanizacion.errors %}
+                                <div class="text-danger small">{{ form.urbanizacion.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Sección Contacto -->
+                            <div class="col-12 border-bottom pb-2 mb-2 mt-4">
+                                <h6 class="text-uppercase text-muted fw-bold small mb-0">Contacto</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">{{ form.telefono.label }}</label>
+                                {{ form.telefono }}
+                                {% if form.telefono.errors %}
+                                <div class="text-danger small">{{ form.telefono.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">{{ form.correo_electronico.label }}</label>
+                                {{ form.correo_electronico }}
+                                {% if form.correo_electronico.errors %}
+                                <div class="text-danger small">{{ form.correo_electronico.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Sección Identidad Visual -->
+                            <div class="col-12 border-bottom pb-2 mb-2 mt-4">
+                                <h6 class="text-uppercase text-muted fw-bold small mb-0">Identidad Visual</h6>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold small">{{ form.logo.label }}</label>
+                                <div class="d-flex align-items-center gap-4">
+                                    {% if config.logo %}
+                                    <div class="bg-light p-2 rounded border" style="width: 120px; height: 120px;">
+                                        <img src="{{ config.logo.url }}" class="img-fluid w-100 h-100" style="object-fit: contain;">
+                                    </div>
+                                    {% endif %}
+                                    <div class="flex-grow-1">
+                                        {{ form.logo }}
+                                        {% if form.logo.errors %}
+                                        <div class="text-danger small">{{ form.logo.errors }}</div>
+                                        {% endif %}
+                                        <div class="form-text small">Dimensiones recomendadas: 400x400px o rectangular 800x200px. Formatos: PNG, JPG.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 pt-3 border-top text-end">
+                            <button type="submit" class="btn btn-primary px-4 fw-bold">
+                                <i class="fas fa-save me-2"></i> Guardar Cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

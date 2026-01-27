@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% block title %}Propify - Sistema de Gestión de Propiedades{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
@@ -17,6 +17,8 @@
         :root { --navbar-height: 112px; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            /* Evitar zoom accidental por doble toque o gestos raros en laptops/tablets */
+            touch-action: manipulation;
         }
         
         .navbar-header {
@@ -114,6 +116,26 @@
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Bloquear el zoom accidental con la ruedita del mouse (Ctrl + Scroll)
+        // que ocurre en algunas laptops y con ciertos periféricos.
+        document.addEventListener('wheel', function(event) {
+            if (event.ctrlKey) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+
+        // Opcional: Bloquear atajos de teclado para zoom (Ctrl + / -)
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey && (event.key === '=' || event.key === '-' || event.key === '+' || event.key === '0')) {
+                // Permitimos el zoom si el usuario realmente lo desea, 
+                // pero si quieren el sistema estable, se puede habilitar preventDefault aquí.
+                // Lo dejamos comentado o solo prevenimos si es muy molesto.
+                // event.preventDefault();
+            }
+        });
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>
