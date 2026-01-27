@@ -3,7 +3,7 @@ from .models import CustomUser, Department, Role, UserProfile, RoleFieldPermissi
 
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
-    list_display = ('username', 'email', 'first_name', 'last_name', 'department', 'role', 'is_active', 'is_verified')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'department', 'role', 'is_active', 'is_verified','is_superuser')
     list_filter = ('is_active', 'is_verified', 'is_active_agent', 'department', 'role', 'date_joined')
     search_fields = ('username', 'email', 'first_name', 'last_name', 'phone')
     readonly_fields = ('date_joined', 'last_login')
