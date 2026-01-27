@@ -1,0 +1,1051 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block dashboard_extra_css %}
+<style>
+    #map {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #ddd;
+        border-radius: 0.375rem;
+        margin-top: 1rem;
+    }
+    .map-container {
+        position: relative;
+    }
+    .map-controls {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    .pac-container {
+        z-index: 1050 !important;
+        border-radius: 0.375rem;
+        border: 1px solid #ddd;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    .address-search-container {
+        position: relative;
+    }
+    .search-btn {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+    .coordinates-input {
+        font-family: monospace;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script>
+// Solo el bloque de inicialización del mapa, similar a property_create.html
+var map = window.map || null;
+var marker = window.marker || null;
+var autocomplete = window.autocomplete || null;
+var geocoder = window.geocoder || null;
+
+function initMap() {
+    geocoder = new google.maps.Geocoder();
+    const lima = { lat: -12.046374, lng: -77.042793 };
+    map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 12,
+        center: lima,
+        // permitir zoom con rueda sin Ctrl y evitar el hint molesto
+        gestureHandling: 'greedy',
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true,
+        styles: [
+            { "featureType": "poi.business", "stylers": [{ "visibility": "off" }] },
+            { "featureType": "poi.medical", "stylers": [{ "visibility": "off" }] },
+            { "featureType": "poi.school", "stylers": [{ "visibility": "off" }] },
+            { "featureType": "transit", "stylers": [{ "visibility": "simplified" }] }
+        ]
+    });
+    marker = new google.maps.Marker({
+        position: lima,
+        map: map,
+        draggable: true,
+        title: 'Arrastra para ajustar la ubicación',
+    });
+    const addressInput = document.getElementById('id_exact_address');
+        autocomplete = new google.maps.places.Autocomplete(addressInput, {
+            types: ['(regions)'],
+            componentRestrictions: { country: 'pe' },
+            fields: ['address_components', 'geometry', 'formatted_address', 'name']
+        });
+        try { autocomplete.bindTo('bounds', map); } catch(e) { }
+    autocomplete.addListener('place_changed', function() {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) {
+            alert("No se encontraron detalles para: '" + place.name + "'");
+            return;
+        }
+        map.setCenter(place.geometry.location);
+        map.setZoom(16);
+        marker.setPosition(place.geometry.location);
+        updateCoordinates(place.geometry.location);
+    });
+    marker.addListener('dragend', function() {
+        updateCoordinates(marker.getPosition());
+    });
+    map.addListener('click', function(event) {
+        marker.setPosition(event.latLng);
+        updateCoordinates(event.latLng);
+    });
+    document.getElementById('searchOnMap').addEventListener('click', function() {
+        const address = addressInput.value;
+        if (address) {
+            geocodeAddress(address);
+        } else {
+            alert('Por favor ingresa una dirección primero');
+        }
+    });
+    document.getElementById('getCurrentLocation').addEventListener('click', function() {
+        getCurrentLocation();
+    });
+    const coordsInput = document.getElementById('id_coordinates');
+    if (coordsInput && coordsInput.value) {
+        const coords = coordsInput.value.split(',');
+        if (coords.length === 2) {
+            const lat = parseFloat(coords[0].trim());
+            const lng = parseFloat(coords[1].trim());
+            if (!isNaN(lat) && !isNaN(lng)) {
+                const pos = { lat: lat, lng: lng };
+                marker.setPosition(pos);
+                map.setCenter(pos);
+                map.setZoom(16);
+            }
+        }
+    }
+}
+function updateCoordinates(latLng) {
+    const coordsInput = document.getElementById('id_coordinates');
+    if (coordsInput) {
+        if (typeof latLng.lat === 'function') {
+            coordsInput.value = latLng.lat().toFixed(6) + ', ' + latLng.lng().toFixed(6);
+        } else {
+            coordsInput.value = latLng.lat.toFixed(6) + ', ' + latLng.lng.toFixed(6);
+        }
+    }
+}
+function geocodeAddress(address) {
+    geocoder.geocode({ 'address': address }, function(results, status) {
+        if (status === 'OK') {
+            map.setCenter(results[0].geometry.location);
+            map.setZoom(16);
+            marker.setPosition(results[0].geometry.location);
+            updateCoordinates(results[0].geometry.location);
+        } else {
+            alert('No se pudo encontrar la dirección: ' + status);
+        }
+    });
+}
+function getCurrentLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const pos = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                marker.setPosition(pos);
+                map.setCenter(pos);
+                map.setZoom(16);
+                updateCoordinates(pos);
+            },
+            function(error) {
+                let errorMessage = 'Error al obtener la ubicación actual: ';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage += 'Permiso denegado por el usuario';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage += 'Información de ubicación no disponible';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage += 'Tiempo de espera agotado';
+                        break;
+                    default:
+                        errorMessage += 'Error desconocido';
+                }
+                alert(errorMessage);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            }
+        );
+    } else {
+        alert('Tu navegador no soporta geolocalización');
+    }
+}
+window.gm_authFailure = function() {
+    alert('Error de autenticación con Google Maps. Verifica tu API key.');
+};
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBrL1QF7vTl9zF8FmCUumfRpFJcaYokO7Q&libraries=places&callback=initMap" async defer></script>
+{% endblock %}
+
+{% block title %}Nuevo Contacto - Janis Platform{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-10">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h4 class="mb-0">
+                            <i class="fas fa-user-plus me-2"></i>
+                            Registrar Nuevo Contacto
+                        </h4>
+                    </div>
+                    
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data" id="contactForm">
+                            {% csrf_token %}
+                            
+                            <!-- Información Personal -->
+                            <div class="form-section">
+                                <h5 class="section-title">
+                                    <i class="fas fa-user me-2"></i>Información Personal
+                                </h5>
+
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label required-field">Nombres</label>
+                                        {{ form.first_name }}
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label required-field">Apellido Paterno</label>
+                                        {{ form.last_name }}
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Apellido Materno</label>
+                                        {{ form.maternal_last_name }}
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <label class="form-label required-field">Tipo Documento</label>
+                                        {{ form.document_type }}
+                                    </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label class="form-label required-field">Número Documento</label>
+                                            {{ form.document_number }}
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label class="form-label">Fecha Nacimiento</label>
+                                            {{ form.birth_date }}
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label class="form-label">Género</label>
+                                            {{ form.gender }}
+                                        </div>
+                                </div>
+                            </div>
+
+                            <!-- Información de Contacto -->
+                            <div class="form-section">
+                                <h5 class="section-title">
+                                    <i class="fas fa-address-book me-2"></i>Información de Contacto
+                                </h5>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label required-field">Teléfono Principal</label>
+                                        {{ form.phone }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Teléfono Secundario</label>
+                                        {{ form.secondary_phone }}
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label required-field">Email</label>
+                                        {{ form.email }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Foto</label>
+                                        {{ form.photo }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Información Profesional -->
+                            <div class="form-section">
+                                <h5 class="section-title">
+                                    <i class="fas fa-briefcase me-2"></i>Información Profesional
+                                </h5>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Profesión</label>
+                                        {{ form.profession }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Empresa</label>
+                                        {{ form.company }}
+                                    </div>
+                                </div>
+                            </div>
+
+                           <!-- Dirección -->
+<div class="form-section">
+    <h5 class="section-title">
+        <i class="fas fa-map-marker-alt me-2"></i>Dirección
+    </h5>
+
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label required-field">Departamento</label>
+            {{ form.department }}
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label required-field">Provincia</label>
+            {{ form.province }}
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label required-field">Distrito</label>
+            {{ form.district }}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label">Urbanización</label>
+            {{ form.urbanization }}
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label">Coordenadas</label>
+            <div class="input-group">
+                {{ form.address_coordinates }}
+                <button type="button" class="btn btn-outline-secondary" id="getCurrentLocation" title="Usar mi ubicación actual">
+                    <i class="fas fa-location-arrow"></i>
+                </button>
+            </div>
+            <small class="form-text text-muted">Formato: Latitud, Longitud (se llena automáticamente)</small>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 mb-3">
+            <label class="form-label">Dirección Exacta</label>
+            <div class="address-search-container">
+                <div class="input-group">
+                    {{ form.address_exact }}
+                    <button type="button" class="btn btn-outline-primary search-btn" id="searchOnMap">
+                        <i class="fas fa-search"></i> Buscar en Mapa
+                    </button>
+                </div>
+                <small class="form-text text-muted">Escribe la dirección y usa el autocompletado, o busca en el mapa</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mapa Interactivo -->
+    <div class="row">
+        <div class="col-12 mb-3">
+            <label class="form-label">Seleccionar Ubicación en el Mapa</label>
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="map-controls">
+                    <button type="button" class="btn btn-sm btn-light" id="zoomIn" title="Acercar">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-light mt-1" id="zoomOut" title="Alejar">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+            <small class="form-text text-muted">Haz clic en el mapa o arrastra el marcador para ajustar la ubicación exacta</small>
+        </div>
+    </div>
+</div>
+
+                            <!-- Información Adicional -->
+                            <div class="form-section">
+                                <h5 class="section-title">
+                                    <i class="fas fa-sticky-note me-2"></i>Información Adicional
+                                </h5>
+
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label">Observaciones</label>
+                                        {{ form.observations }}
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label">Etiquetas</label>
+                                        {{ form.tags }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Botones -->
+                            <div class="row mt-4">
+                                <div class="col-12 text-center">
+                                    <a href="{% url 'properties:contact_list' %}" class="btn btn-secondary me-2">
+                                        <i class="fas fa-times me-2"></i>Cancelar
+                                    </a>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save me-2"></i>Guardar Contacto
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <div class="saving-overlay d-none" id="savingOverlay">
+            <div class="text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Guardando...</span>
+                </div>
+                <p class="fw-semibold text-primary mb-0">Guardando contacto, espera un momento...</p>
+            </div>
+        </div>
+
+    {# Bootstrap JS está incluido en base.html; eliminado #}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+            const contactForm = document.getElementById('contactForm');
+            const savingOverlay = document.getElementById('savingOverlay');
+
+        // Agregar clases Bootstrap a los campos
+        const inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            if (!input.classList.contains('form-control') && input.type !== 'checkbox' && input.type !== 'file') {
+                if (input.tagName === 'SELECT') {
+                    input.classList.add('form-select');
+                } else if (input.tagName === 'TEXTAREA') {
+                    input.classList.add('form-control');
+                } else {
+                    input.classList.add('form-control');
+                }
+            }
+        });
+
+        // Lógica para ubicaciones en cascada
+        const departmentSelect = document.getElementById('id_department');
+        const provinceSelect = document.getElementById('id_province');
+        const districtSelect = document.getElementById('id_district');
+        const urbanizationSelect = document.getElementById('id_urbanization');
+
+        // --- Lógica robusta de property_create.html ---
+        function loadProvinces(departmentId) {
+            if (departmentId) {
+                provinceSelect.classList.add('loading');
+                provinceSelect.innerHTML = '<option value="">Cargando provincias...</option>';
+                provinceSelect.disabled = true;
+
+                fetch(`/dashboard/api/provinces/?department_id=${encodeURIComponent(departmentId)}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en la respuesta');
+                        return response.json();
+                    })
+                    .then(data => {
+                        provinceSelect.innerHTML = '<option value="">Seleccione una provincia</option>';
+                        data.forEach(province => {
+                            provinceSelect.innerHTML += `<option value="${province.id}">${province.name}</option>`;
+                        });
+                        provinceSelect.disabled = false;
+                        provinceSelect.classList.remove('loading');
+
+                        districtSelect.innerHTML = '<option value="">Seleccione un distrito</option>';
+                        urbanizationSelect.innerHTML = '<option value="">Seleccione una urbanización</option>';
+                        districtSelect.disabled = true;
+                        urbanizationSelect.disabled = true;
+                    })
+                    .catch(() => {
+                        provinceSelect.innerHTML = '<option value="">Error al cargar provincias</option>';
+                        provinceSelect.disabled = false;
+                        provinceSelect.classList.remove('loading');
+                    });
+            } else {
+                provinceSelect.innerHTML = '<option value="">Seleccione un departamento primero</option>';
+                provinceSelect.disabled = true;
+                districtSelect.disabled = true;
+                urbanizationSelect.disabled = true;
+            }
+        }
+
+        function loadDistricts(provinceId) {
+            if (provinceId) {
+                districtSelect.classList.add('loading');
+                districtSelect.innerHTML = '<option value="">Cargando distritos...</option>';
+                districtSelect.disabled = true;
+
+                fetch(`/dashboard/api/districts/?province_id=${encodeURIComponent(provinceId)}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en la respuesta');
+                        return response.json();
+                    })
+                    .then(data => {
+                        districtSelect.innerHTML = '<option value="">Seleccione un distrito</option>';
+                        data.forEach(district => {
+                            districtSelect.innerHTML += `<option value="${district.id}">${district.name}</option>`;
+                        });
+                        districtSelect.disabled = false;
+                        districtSelect.classList.remove('loading');
+
+                        urbanizationSelect.innerHTML = '<option value="">Seleccione una urbanización</option>';
+                        urbanizationSelect.disabled = true;
+                    })
+                    .catch(() => {
+                        districtSelect.innerHTML = '<option value="">Error al cargar distritos</option>';
+                        districtSelect.disabled = false;
+                        districtSelect.classList.remove('loading');
+                    });
+            } else {
+                districtSelect.innerHTML = '<option value="">Seleccione una provincia primero</option>';
+                districtSelect.disabled = true;
+                urbanizationSelect.disabled = true;
+            }
+        }
+
+        function loadUrbanizations(districtId) {
+            if (districtId) {
+                urbanizationSelect.classList.add('loading');
+                urbanizationSelect.innerHTML = '<option value="">Cargando urbanizaciones...</option>';
+                urbanizationSelect.disabled = true;
+
+                fetch(`/dashboard/api/urbanizations/?district_id=${encodeURIComponent(districtId)}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en la respuesta');
+                        return response.json();
+                    })
+                    .then(data => {
+                        urbanizationSelect.innerHTML = '<option value="">Seleccione una urbanización</option>';
+                        data.forEach(urbanization => {
+                            urbanizationSelect.innerHTML += `<option value="${urbanization.id}">${urbanization.name}</option>`;
+                        });
+                        urbanizationSelect.disabled = false;
+                        urbanizationSelect.classList.remove('loading');
+                    })
+                    .catch(() => {
+                        urbanizationSelect.innerHTML = '<option value="">Error al cargar urbanizaciones</option>';
+                        urbanizationSelect.disabled = false;
+                        urbanizationSelect.classList.remove('loading');
+                    });
+            } else {
+                urbanizationSelect.innerHTML = '<option value="">Seleccione un distrito primero</option>';
+                urbanizationSelect.disabled = true;
+            }
+        }
+
+        // Event listeners para cambios en cascada
+        departmentSelect.addEventListener('change', function() {
+            loadProvinces(this.value);
+            if (this.value) fetchBoundary('department', this.value);
+            else clearBoundaryPolygon();
+        });
+
+        provinceSelect.addEventListener('change', function() {
+            loadDistricts(this.value);
+            if (this.value) fetchBoundary('province', this.value);
+            else {
+                const deptVal = departmentSelect.value;
+                if (deptVal) fetchBoundary('department', deptVal);
+                else clearBoundaryPolygon();
+            }
+        });
+
+        districtSelect.addEventListener('change', function() {
+            loadUrbanizations(this.value);
+            if (this.value) fetchBoundary('district', this.value);
+            else {
+                const provVal = provinceSelect.value;
+                if (provVal) fetchBoundary('province', provVal);
+                else if (departmentSelect.value) fetchBoundary('department', departmentSelect.value);
+                else clearBoundaryPolygon();
+            }
+        });
+
+        // Inicializar estado de los selects
+        if (!departmentSelect.value) {
+            provinceSelect.disabled = true;
+            districtSelect.disabled = true;
+            urbanizationSelect.disabled = true;
+        }
+
+        if (contactForm && savingOverlay) {
+            contactForm.addEventListener('submit', function(event) {
+                if (typeof contactForm.checkValidity === 'function' && !contactForm.checkValidity()) {
+                    event.preventDefault();
+                    contactForm.reportValidity();
+                    return;
+                }
+                if (!savingOverlay.classList.contains('d-none')) {
+                    return;
+                }
+                savingOverlay.classList.remove('d-none');
+                const submitBtn = contactForm.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Guardando...';
+                }
+            });
+        }
+    });
+    </script>
+
+
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBrL1QF7vTl9zF8FmCUumfRpFJcaYokO7Q&libraries=places&callback=initMap" async defer></script>
+
+<script>
+// Variables globales para el mapa
+var map = window.map || null;
+var marker = window.marker || null;
+var autocomplete = window.autocomplete || null;
+var geocoder = window.geocoder || null;
+
+// Inicializar mapa cuando la API esté cargada
+function initMap() {
+    console.log('Inicializando mapa para contacto...');
+    
+    // Configurar geocoder
+    geocoder = new google.maps.Geocoder();
+    
+    // Posición inicial (Lima, Perú)
+    const lima = { lat: -12.046374, lng: -77.042793 };
+    
+    // Crear mapa con estilos limpios
+    map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 12,
+        center: lima,
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true,
+        styles: [
+            {
+                "featureType": "poi.business",
+                "stylers": [{ "visibility": "off" }]
+            },
+            {
+                "featureType": "poi.medical",
+                "stylers": [{ "visibility": "off" }]
+            },
+            {
+                "featureType": "poi.school",
+                "stylers": [{ "visibility": "off" }]
+            },
+            {
+                "featureType": "transit",
+                "stylers": [{ "visibility": "simplified" }]
+            }
+        ]
+    });
+
+    // Crear marcador personalizado
+    marker = new google.maps.Marker({
+        position: lima,
+        map: map,
+        draggable: true,
+        title: 'Arrastra para ajustar la ubicación del contacto',
+        icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 0C12.268 0 6 6.268 6 14C6 24.5 20 40 20 40C20 40 34 24.5 34 14C34 6.268 27.732 0 20 0Z" fill="#4e73df"/>
+                    <circle cx="20" cy="14" r="6" fill="white"/>
+                    <path d="M20 6C16.134 6 13 9.134 13 13C13 16.866 16.134 20 20 20C23.866 20 27 16.866 27 13C27 9.134 23.866 6 20 6Z" fill="#4e73df"/>
+                </svg>
+            `),
+            scaledSize: new google.maps.Size(40, 40),
+            anchor: new google.maps.Point(20, 40)
+        }
+    });
+
+    // Inicializar variables de límite
+    let boundaryPolygon = null;
+
+    function clearBoundaryPolygon() {
+        if (boundaryPolygon) {
+            boundaryPolygon.setMap(null);
+            boundaryPolygon = null;
+        }
+    }
+
+    function drawBoundaryFromGeoJSON(geojson) {
+        clearBoundaryPolygon();
+        if (!geojson) return;
+        let features = [];
+        if (geojson.type === 'FeatureCollection') features = geojson.features || [];
+        else if (geojson.type === 'Feature') features = [geojson];
+        else return;
+
+        const paths = [];
+        const bounds = new google.maps.LatLngBounds();
+
+        features.forEach(feature => {
+            const geom = feature.geometry;
+            if (!geom) return;
+            if (geom.type === 'Polygon') {
+                geom.coordinates.forEach(ring => {
+                    const path = ring.map(coord => ({ lat: coord[1], lng: coord[0] }));
+                    paths.push(path);
+                    path.forEach(p => bounds.extend(p));
+                });
+            } else if (geom.type === 'MultiPolygon') {
+                geom.coordinates.forEach(polygon => {
+                    polygon.forEach(ring => {
+                        const path = ring.map(coord => ({ lat: coord[1], lng: coord[0] }));
+                        paths.push(path);
+                        path.forEach(p => bounds.extend(p));
+                    });
+                });
+            }
+        });
+
+        if (paths.length === 0) return;
+
+        boundaryPolygon = new google.maps.Polygon({
+            paths: paths,
+            strokeColor: '#40E0D0',
+            strokeOpacity: 1,
+            strokeWeight: 2,
+            fillColor: '#40E0D0',
+            fillOpacity: 0.15,
+            clickable: false,
+            zIndex: 1000
+        });
+        boundaryPolygon.setMap(map);
+        map.fitBounds(bounds);
+    }
+
+    function fetchBoundary(level, id) {
+        if (!level || !id) { clearBoundaryPolygon(); return; }
+        const url = `/dashboard/api/boundary/?level=${encodeURIComponent(level)}&id=${encodeURIComponent(id)}`;
+        fetch(url)
+            .then(res => { if (!res.ok) throw new Error('Error cargando límites'); return res.json(); })
+            .then(geojson => drawBoundaryFromGeoJSON(geojson))
+            .catch(err => console.warn('No se pudo cargar límite:', err));
+    }
+
+    // Configurar autocompletado para la dirección
+    const addressInput = document.getElementById('id_address_exact');
+    autocomplete = new google.maps.places.Autocomplete(addressInput, {
+        types: ['address'],
+        componentRestrictions: { country: 'pe' },
+        fields: ['address_components', 'geometry', 'formatted_address', 'name']
+    });
+
+    // Evento cuando se selecciona una dirección del autocompletado
+    autocomplete.addListener('place_changed', function() {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) {
+            console.warn("No se encontraron detalles para: '" + place.name + "'");
+            return;
+        }
+
+        // Mover el mapa a la ubicación seleccionada
+        map.setCenter(place.geometry.location);
+        map.setZoom(16);
+        
+        // Mover el marcador
+        marker.setPosition(place.geometry.location);
+        
+        // Actualizar coordenadas
+        updateCoordinates(place.geometry.location);
+        
+        // Llenar campos de ubicación
+        fillLocationFields(place);
+    });
+
+    // Cuando se arrastra el marcador
+    marker.addListener('dragend', function() {
+        updateCoordinates(marker.getPosition());
+        reverseGeocode(marker.getPosition());
+    });
+
+    // Cuando se hace clic en el mapa
+    map.addListener('click', function(event) {
+        marker.setPosition(event.latLng);
+        updateCoordinates(event.latLng);
+        reverseGeocode(event.latLng);
+    });
+
+    // Botón para buscar en el mapa
+    document.getElementById('searchOnMap').addEventListener('click', function() {
+        const address = addressInput.value;
+        if (address) {
+            geocodeAddress(address);
+        } else {
+            alert('Por favor ingresa una dirección primero');
+        }
+    });
+
+    // Botón para ubicación actual
+    document.getElementById('getCurrentLocation').addEventListener('click', function() {
+        getCurrentLocation();
+    });
+
+    // Controles de zoom
+    document.getElementById('zoomIn').addEventListener('click', function() {
+        map.setZoom(map.getZoom() + 1);
+    });
+
+    document.getElementById('zoomOut').addEventListener('click', function() {
+        map.setZoom(map.getZoom() - 1);
+    });
+
+    // Si ya hay coordenadas, centrar el mapa ahí
+    const coordsInput = document.getElementById('id_address_coordinates');
+    if (coordsInput && coordsInput.value) {
+        const coords = coordsInput.value.split(',');
+        if (coords.length === 2) {
+            const lat = parseFloat(coords[0].trim());
+            const lng = parseFloat(coords[1].trim());
+            if (!isNaN(lat) && !isNaN(lng)) {
+                const pos = { lat: lat, lng: lng };
+                marker.setPosition(pos);
+                map.setCenter(pos);
+                map.setZoom(16);
+            }
+        }
+    }
+    
+    console.log('Mapa para contacto inicializado correctamente');
+}
+
+// Obtener ubicación actual
+function getCurrentLocation() {
+    if (navigator.geolocation) {
+        const button = document.getElementById('getCurrentLocation');
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+        
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const pos = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                marker.setPosition(pos);
+                map.setCenter(pos);
+                map.setZoom(16);
+                updateCoordinates(pos);
+                reverseGeocode(pos);
+                
+                button.innerHTML = originalHtml;
+                button.disabled = false;
+            },
+            function(error) {
+                let errorMessage = 'Error al obtener la ubicación actual: ';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage += 'Permiso denegado por el usuario';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage += 'Información de ubicación no disponible';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage += 'Tiempo de espera agotado';
+                        break;
+                    default:
+                        errorMessage += 'Error desconocido';
+                }
+                alert(errorMessage);
+                
+                button.innerHTML = originalHtml;
+                button.disabled = false;
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 60000
+            }
+        );
+    } else {
+        alert('Tu navegador no soporta geolocalización');
+    }
+}
+
+// Actualizar campo de coordenadas
+function updateCoordinates(latLng) {
+    const coordsInput = document.getElementById('id_address_coordinates');
+    if (coordsInput) {
+        const coordsString = latLng.lat().toFixed(6) + ', ' + latLng.lng().toFixed(6);
+        coordsInput.value = coordsString;
+        
+        // Validar y mostrar feedback visual
+        if (validateCoordinates(coordsString)) {
+            coordsInput.classList.remove('is-invalid');
+            coordsInput.classList.add('is-valid');
+        } else {
+            coordsInput.classList.remove('is-valid');
+            coordsInput.classList.add('is-invalid');
+        }
+    }
+}
+
+// Validar formato de coordenadas
+function validateCoordinates(coords) {
+    const coordRegex = /^-?\d+\.?\d*\s*,\s*-?\d+\.?\d*$/;
+    return coordRegex.test(coords);
+}
+
+// Geocodificar dirección
+function geocodeAddress(address) {
+    const button = document.getElementById('searchOnMap');
+    const originalHtml = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
+    button.disabled = true;
+    
+    geocoder.geocode({ 'address': address }, function(results, status) {
+        if (status === 'OK') {
+            map.setCenter(results[0].geometry.location);
+            map.setZoom(16);
+            marker.setPosition(results[0].geometry.location);
+            updateCoordinates(results[0].geometry.location);
+            fillLocationFields(results[0]);
+        } else {
+            alert('No se pudo encontrar la dirección: ' + status);
+        }
+        
+        button.innerHTML = originalHtml;
+        button.disabled = false;
+    });
+}
+
+// Geocodificación inversa (de coordenadas a dirección)
+function reverseGeocode(latLng) {
+    geocoder.geocode({ 'location': latLng }, function(results, status) {
+        if (status === 'OK' && results[0]) {
+            document.getElementById('id_address_exact').value = results[0].formatted_address;
+            fillLocationFields(results[0]);
+        }
+    });
+}
+
+// Llenar campos de ubicación basado en los datos de Google
+function fillLocationFields(place) {
+    const addressComponents = place.address_components || [];
+    let department = '', province = '', district = '';
+    
+    addressComponents.forEach(component => {
+        const types = component.types;
+        
+        if (types.includes('administrative_area_level_1')) {
+            department = component.long_name;
+        }
+        else if (types.includes('administrative_area_level_2')) {
+            province = component.long_name;
+        }
+        else if (types.includes('sublocality_level_1') || types.includes('administrative_area_level_3')) {
+            district = component.long_name;
+        }
+    });
+    
+    // Llenar selects de ubicación (sin sobrescribir selecciones del usuario)
+    setTimeout(() => {
+        const deptSelect = document.getElementById('id_department');
+        const provSelect = document.getElementById('id_province');
+        const distSelect = document.getElementById('id_district');
+
+        // Si no hay departamento seleccionado y Google ofrece uno, intentar asignarlo
+        if (!deptSelect.value && department) {
+            const deptOption = Array.from(deptSelect.options).find(opt => 
+                opt.text.toLowerCase().includes(department.toLowerCase())
+            );
+            if (deptOption) {
+                deptSelect.value = deptOption.value;
+                deptSelect.dispatchEvent(new Event('change'));
+
+                setTimeout(() => {
+                    // Si no hay provincia seleccionada y Google ofrece una, asignarla
+                    if (!provSelect.value && province) {
+                        const provOption = Array.from(provSelect.options).find(opt => 
+                            opt.text.toLowerCase().includes(province.toLowerCase())
+                        );
+                        if (provOption) {
+                            provSelect.value = provOption.value;
+                            provSelect.dispatchEvent(new Event('change'));
+
+                            setTimeout(() => {
+                                if (!distSelect.value && district) {
+                                    const distOption = Array.from(distSelect.options).find(opt => 
+                                        opt.text.toLowerCase().includes(district.toLowerCase())
+                                    );
+                                    if (distOption) {
+                                        distSelect.value = distOption.value;
+                                    }
+                                }
+                            }, 500);
+                        }
+                    }
+                }, 500);
+            }
+        }
+    }, 100);
+}
+
+// Manejar errores de Google Maps
+window.gm_authFailure = function() {
+    alert('Error de autenticación con Google Maps. Verifica tu API key.');
+    console.error('Google Maps authentication failed');
+};
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    // Si Google Maps no se carga en 10 segundos, mostrar mensaje
+    setTimeout(() => {
+        if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+            console.warn('Google Maps no se cargó correctamente');
+            document.getElementById('map').innerHTML = `
+                <div class="alert alert-warning text-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    No se pudo cargar el mapa. Verifica tu conexión a internet.
+                </div>
+            `;
+        }
+    }, 10000);
+});
+
+
+
+
+// También resaltar distrito cuando se selecciona del dropdown
+districtSelect.addEventListener('change', function() {
+    loadUrbanizations(this.value);
+    
+    // Resaltar el distrito seleccionado (usando la ubicación actual del marcador)
+    if (this.value && marker) {
+        highlightDistrict(marker.getPosition());
+    }
+});
+
+// Mejorar la validación del formulario
+document.getElementById('contactForm').addEventListener('submit', function(e) {
+    const coordsInput = document.getElementById('id_address_coordinates');
+    if (coordsInput && coordsInput.value && !validateCoordinates(coordsInput.value)) {
+        e.preventDefault();
+        alert('Por favor ingresa coordenadas válidas en el formato: Latitud, Longitud');
+        coordsInput.focus();
+        return false;
+    }
+});
+</script>
+{% endblock %}

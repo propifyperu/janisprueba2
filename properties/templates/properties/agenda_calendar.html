@@ -1,0 +1,515 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Agenda - Janis Platform{% endblock %}
+
+{% block dashboard_extra_css %}
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+<style>
+    .agenda-container {
+        display: flex;
+        height: calc(100vh - 100px);
+        gap: 0;
+    }
+    
+    .sidebar-calendar {
+        width: 280px;
+        background: #fff;
+        border-right: 1px solid #e0e0e0;
+        padding: 20px;
+        overflow-y: auto;
+    }
+    
+    .btn-create-event {
+        background: #047D7D;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 24px;
+        font-weight: 500;
+        width: 100%;
+        margin-bottom: 24px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+    }
+    
+    .btn-create-event:hover {
+        background: #279896;
+        box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+    }
+    
+    .mini-calendar {
+        font-size: 13px;
+    }
+    
+    .mini-calendar .fc-toolbar {
+        margin-bottom: 10px;
+    }
+    
+    .mini-calendar .fc-toolbar-title {
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .mini-calendar .fc-button {
+        padding: 2px 6px;
+        font-size: 12px;
+    }
+    
+    .mini-calendar .fc-daygrid-day-number {
+        font-size: 12px;
+    }
+    
+    .main-calendar {
+        flex: 1;
+        padding: 20px;
+        background: #fff;
+        overflow: auto;
+    }
+    
+    #calendar {
+        max-width: 100%;
+        height: 100%;
+    }
+    
+    .fc {
+        height: 100%;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 22px !important;
+        font-weight: 600;
+        color: #202124;
+    }
+    
+    .fc-button {
+        background: #fff !important;
+        color: #3c4043 !important;
+        border: 1px solid #dadce0 !important;
+        border-radius: 4px !important;
+        padding: 6px 12px !important;
+        font-weight: 500 !important;
+        transition: all 0.2s;
+    }
+    
+    .fc-button:hover {
+        background: #f1f3f4 !important;
+        border-color: #dadce0 !important;
+    }
+    
+    .fc-button-active {
+        background: #e8f0fe !important;
+        color: #1967d2 !important;
+    }
+    
+    .fc-event {
+        border-radius: 4px;
+        padding: 2px 4px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .fc-event:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .fc-day-today {
+        background-color: #e8f5e9 !important;
+    }
+    
+    /* Modal de detalles del evento */
+    .event-modal {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.4);
+    }
+    
+    .event-modal-content {
+        background-color: #fff;
+        margin: 5% auto;
+        padding: 0;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12);
+    }
+    
+    .event-modal-header {
+        padding: 24px;
+        border-bottom: 1px solid #e0e0e0;
+        position: relative;
+    }
+    
+    .event-modal-header h5 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 500;
+        color: #202124;
+    }
+    
+    .event-modal-close {
+        position: absolute;
+        right: 16px;
+        top: 16px;
+        font-size: 28px;
+        font-weight: 300;
+        color: #5f6368;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 8px;
+        line-height: 1;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .event-modal-close:hover {
+        background: #f1f3f4;
+    }
+    
+    .event-modal-body {
+        padding: 24px;
+    }
+    
+    .event-detail-row {
+        margin-bottom: 16px;
+        display: flex;
+        gap: 12px;
+    }
+    
+    .event-detail-row i {
+        color: #5f6368;
+        width: 20px;
+        text-align: center;
+        margin-top: 2px;
+    }
+    
+    .event-detail-content {
+        flex: 1;
+    }
+    
+    .event-detail-label {
+        font-size: 12px;
+        color: #5f6368;
+        margin-bottom: 4px;
+    }
+    
+    .event-detail-value {
+        font-size: 14px;
+        color: #202124;
+    }
+    
+    .event-modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+    
+    .btn-modal {
+        padding: 8px 16px;
+        border-radius: 4px;
+        border: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-modal-edit {
+        background: #047D7D;
+        color: white;
+    }
+    
+    .btn-modal-edit:hover {
+        background: #279896;
+    }
+    
+    .btn-modal-delete {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-modal-delete:hover {
+        background: #c82333;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="agenda-container">
+    <!-- Sidebar con mini calendario y botón crear -->
+    <div class="sidebar-calendar">
+        <a href="{% url 'properties:event_create' %}" class="btn-create-event">
+            <i class="fas fa-plus"></i> Crear evento
+        </a>
+        
+        <div id="mini-calendar" class="mini-calendar"></div>
+    </div>
+    
+    <!-- Calendario principal -->
+    <div class="main-calendar">
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<!-- Modal para mostrar detalles del evento -->
+<div id="eventModal" class="event-modal">
+    <div class="event-modal-content">
+        <div class="event-modal-header">
+            <h5 id="modalEventTitle"></h5>
+            <button class="event-modal-close" onclick="closeEventModal()">&times;</button>
+        </div>
+        <div class="event-modal-body">
+            <div class="event-detail-row">
+                <i class="fas fa-tag"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Código</div>
+                    <div class="event-detail-value" id="modalEventCode"></div>
+                </div>
+            </div>
+            <div class="event-detail-row">
+                <i class="fas fa-calendar-day"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Tipo de evento</div>
+                    <div class="event-detail-value" id="modalEventType"></div>
+                </div>
+            </div>
+            <div class="event-detail-row">
+                <i class="fas fa-clock"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Horario</div>
+                    <div class="event-detail-value" id="modalEventTime"></div>
+                </div>
+            </div>
+            <div class="event-detail-row" id="modalInteresadoRow">
+                <i class="fas fa-user"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Interesado</div>
+                    <div class="event-detail-value" id="modalEventInteresado"></div>
+                </div>
+            </div>
+            <div class="event-detail-row" id="modalPropertyRow">
+                <i class="fas fa-home"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Inmueble</div>
+                    <div class="event-detail-value" id="modalEventProperty"></div>
+                </div>
+            </div>
+            <div class="event-detail-row" id="modalDetalleRow">
+                <i class="fas fa-align-left"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Detalle</div>
+                    <div class="event-detail-value" id="modalEventDetalle"></div>
+                </div>
+            </div>
+            <div class="event-detail-row" id="modalCreatedByRow">
+                <i class="fas fa-user-circle"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Creado por</div>
+                    <div class="event-detail-value" id="modalEventCreatedBy"></div>
+                </div>
+            </div>
+        </div>
+        <div class="event-modal-footer">
+            <a href="#" id="btnEditEvent" class="btn-modal btn-modal-edit">
+                <i class="fas fa-edit"></i> Editar
+            </a>
+            <button onclick="deleteEvent()" class="btn-modal btn-modal-delete">
+                <i class="fas fa-trash"></i> Eliminar
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
+<script>
+let calendar;
+let miniCalendar;
+let currentEventId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== Iniciando calendario ===');
+    const calendarEl = document.getElementById('calendar');
+    const miniCalendarEl = document.getElementById('mini-calendar');
+    
+    if (!calendarEl) {
+        console.error('ERROR: No se encontró el elemento #calendar');
+        return;
+    }
+    
+    console.log('Elemento calendario encontrado:', calendarEl);
+    console.log('FullCalendar disponible:', typeof FullCalendar !== 'undefined');
+    
+    // Calendario principal
+    try {
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'es',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            buttonText: {
+                today: 'Hoy',
+                month: 'Mes',
+                week: 'Semana',
+                day: 'Día'
+            },
+            events: function(info, successCallback, failureCallback) {
+                console.log('Solicitando eventos a la API...');
+                const apiUrl = '{% url "properties:api_events" %}';
+                console.log('URL de la API:', apiUrl);
+                
+                fetch(apiUrl)
+                    .then(response => {
+                        console.log('Respuesta recibida. Status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('✅ Eventos cargados exitosamente:', data);
+                        console.log('Total de eventos:', data.length);
+                        successCallback(data);
+                    })
+                    .catch(error => {
+                        console.error('❌ Error al cargar eventos:', error);
+                        failureCallback(error);
+                    });
+            },
+            eventDidMount: function(info) {
+                console.log('Evento montado en el DOM:', info.event.title);
+            },
+            eventClick: function(info) {
+                console.log('Click en evento:', info.event.title);
+                showEventModal(info.event);
+            },
+            loading: function(isLoading) {
+                console.log('Estado de carga:', isLoading ? 'Cargando...' : 'Completado');
+            },
+            height: '100%',
+            nowIndicator: true,
+            editable: false,
+            selectable: false
+        });
+        
+        console.log('Renderizando calendario principal...');
+        calendar.render();
+        console.log('✅ Calendario principal renderizado');
+    } catch (error) {
+        console.error('❌ Error al crear/renderizar el calendario:', error);
+    }
+    
+    // Mini calendario en sidebar
+    miniCalendar = new FullCalendar.Calendar(miniCalendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        headerToolbar: {
+            left: 'prev',
+            center: 'title',
+            right: 'next'
+        },
+        height: 'auto',
+        fixedWeekCount: false,
+        dateClick: function(info) {
+            calendar.gotoDate(info.date);
+        }
+    });
+    
+    miniCalendar.render();
+});
+
+function showEventModal(event) {
+    currentEventId = event.id;
+    const props = event.extendedProps;
+    
+    document.getElementById('modalEventTitle').textContent = event.title;
+    document.getElementById('modalEventCode').textContent = props.code || '';
+    document.getElementById('modalEventType').textContent = props.event_type || '';
+    
+    // Formatear horario
+    const start = new Date(event.start);
+    const end = new Date(event.end);
+    const timeStr = `${start.toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'})}`;
+    document.getElementById('modalEventTime').textContent = timeStr;
+    
+    // Interesado
+    if (props.interesado) {
+        document.getElementById('modalEventInteresado').textContent = props.interesado;
+        document.getElementById('modalInteresadoRow').style.display = 'flex';
+    } else {
+        document.getElementById('modalInteresadoRow').style.display = 'none';
+    }
+    
+    // Inmueble
+    if (props.property) {
+        document.getElementById('modalEventProperty').textContent = `${props.property_code || ''} - ${props.property}`;
+        document.getElementById('modalPropertyRow').style.display = 'flex';
+    } else {
+        document.getElementById('modalPropertyRow').style.display = 'none';
+    }
+    
+    // Detalle
+    if (props.detalle) {
+        document.getElementById('modalEventDetalle').textContent = props.detalle;
+        document.getElementById('modalDetalleRow').style.display = 'flex';
+    } else {
+        document.getElementById('modalDetalleRow').style.display = 'none';
+    }
+    
+    // Creado por
+    if (props.created_by) {
+        document.getElementById('modalEventCreatedBy').textContent = props.created_by;
+        document.getElementById('modalCreatedByRow').style.display = 'flex';
+    } else {
+        document.getElementById('modalCreatedByRow').style.display = 'none';
+    }
+    
+    // URL de edición
+    document.getElementById('btnEditEvent').href = `/dashboard/propiedades/agenda/eventos/${event.id}/editar/`;
+    
+    // Mostrar modal
+    document.getElementById('eventModal').style.display = 'block';
+}
+
+function closeEventModal() {
+    document.getElementById('eventModal').style.display = 'none';
+    currentEventId = null;
+}
+
+function deleteEvent() {
+    if (!currentEventId) return;
+    
+    if (confirm('¿Estás seguro de que deseas eliminar este evento?')) {
+        window.location.href = `/dashboard/propiedades/agenda/eventos/${currentEventId}/borrar/`;
+    }
+}
+
+// Cerrar modal al hacer clic fuera de él
+window.onclick = function(event) {
+    const modal = document.getElementById('eventModal');
+    if (event.target == modal) {
+        closeEventModal();
+    }
+}
+</script>
+{% endblock %}

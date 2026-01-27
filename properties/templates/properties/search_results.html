@@ -1,0 +1,27 @@
+{% extends 'properties/base_dashboard.html' %}
+{% block title %}Buscar: {{ query }}{% endblock %}
+{% block dashboard_content %}
+<div class="container my-4">
+  <h4>Resultados para "{{ query }}" ({{ total }})</h4>
+  <div class="list-group mt-3">
+    {% for r in results %}
+      <a href="{{ r.url }}" class="list-group-item list-group-item-action d-flex align-items-start">
+        <div style="width:72px; height:72px; flex:0 0 72px; margin-right:12px;">
+          {% if r.thumbnail %}
+            <img src="{{ r.thumbnail }}" style="width:72px; height:72px; object-fit:cover; border-radius:6px;" />
+          {% else %}
+            <div style="width:72px; height:72px; background:#eee; display:flex; align-items:center; justify-content:center; border-radius:6px;">No imagen</div>
+          {% endif %}
+        </div>
+        <div>
+          <h5 style="margin:0;">{{ r.title }}</h5>
+          <p class="mb-0 text-muted">{{ r.snippet }}</p>
+          <small class="text-muted">Tipo: {{ r.type }}</small>
+        </div>
+      </a>
+    {% empty %}
+      <div class="alert alert-light">No se encontraron resultados.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

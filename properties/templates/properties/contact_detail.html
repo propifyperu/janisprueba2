@@ -1,0 +1,344 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Detalle del Contacto - Janis Platform{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+	.contact-detail {
+		--contact-primary: #047D7D;
+		--contact-secondary: #279896;
+		--contact-muted: rgba(6, 44, 44, 0.65);
+	}
+
+	.contact-detail .btn-teal {
+		color: #fff;
+		background-color: var(--contact-primary);
+		border-color: var(--contact-primary);
+	}
+
+	.contact-detail .btn-teal:hover,
+	.contact-detail .btn-teal:focus {
+		color: #fff;
+		background-color: #036c6c;
+		border-color: #036c6c;
+	}
+
+	.contact-detail .btn-outline-teal {
+		color: var(--contact-primary);
+		border-color: rgba(4, 125, 125, 0.45);
+		background-color: transparent;
+	}
+
+	.contact-detail .btn-outline-teal:hover,
+	.contact-detail .btn-outline-teal:focus {
+		color: #fff;
+		background-color: var(--contact-primary);
+		border-color: var(--contact-primary);
+	}
+
+	.contact-detail .contact-header {
+		background: linear-gradient(135deg, var(--contact-primary) 0%, var(--contact-secondary) 100%);
+		color: #fff;
+		border-radius: 0.75rem;
+		padding: 2.5rem 2rem;
+		position: relative;
+		overflow: hidden;
+	}
+
+	.contact-detail .contact-header::after {
+		content: '';
+		position: absolute;
+		top: -40%;
+		right: -10%;
+		width: 240px;
+		height: 240px;
+		background: rgba(255, 255, 255, 0.12);
+		border-radius: 50%;
+	}
+
+	.contact-detail .contact-avatar {
+		width: 88px;
+		height: 88px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.18);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 2.2rem;
+		font-weight: 600;
+	}
+
+	.contact-detail .info-card {
+		border: 1px solid rgba(4, 125, 125, 0.12);
+		border-radius: 0.75rem;
+		box-shadow: 0 0.25rem 1.5rem rgba(17, 24, 39, 0.08);
+		background: #fff;
+		overflow: hidden;
+	}
+
+	.contact-detail .section-heading {
+		font-weight: 600;
+		color: var(--contact-primary);
+		border-bottom: 2px solid rgba(4, 125, 125, 0.2);
+		padding-bottom: 0.5rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.contact-detail .icon-pill {
+		color: var(--contact-secondary);
+	}
+
+	.contact-detail .info-label {
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--contact-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.contact-detail .info-value {
+		font-size: 1.05rem;
+		font-weight: 500;
+		color: #173738;
+	}
+
+	.contact-detail .badge-tag {
+		background: rgba(4, 125, 125, 0.12);
+		color: var(--contact-primary);
+		border-radius: 50px;
+		padding: 0.35rem 0.85rem;
+		font-weight: 600;
+		margin-right: 0.35rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.contact-detail #contact-map {
+		width: 100%;
+		height: 320px;
+		border-radius: 0.75rem;
+		border: 1px solid rgba(4, 125, 125, 0.18);
+	}
+
+	.contact-detail .map-card {
+		border: 1px solid rgba(4, 125, 125, 0.12);
+		border-radius: 0.75rem;
+		box-shadow: 0 0.25rem 1.5rem rgba(17, 24, 39, 0.08);
+		background: #fff;
+	}
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4 contact-detail">
+	<div class="row justify-content-center">
+		<div class="col-12 col-xl-11">
+			<div class="d-flex justify-content-between align-items-center mb-4">
+				<a href="{% url 'properties:contact_list' %}" class="btn btn-outline-teal">
+					<i class="fas fa-arrow-left me-2"></i>Volver al listado
+				</a>
+				<div class="btn-group">
+					<a href="{% url 'properties:contact_edit' contact.pk %}" class="btn btn-teal">
+						<i class="fas fa-edit me-2"></i>Editar
+					</a>
+					<a href="mailto:{{ contact.email }}" class="btn btn-outline-teal">
+						<i class="fas fa-envelope me-2"></i>Enviar correo
+					</a>
+					<a href="tel:{{ contact.phone }}" class="btn btn-outline-teal">
+						<i class="fas fa-phone me-2"></i>Llamar
+					</a>
+				</div>
+			</div>
+
+			<div class="contact-header mb-4">
+				<div class="d-flex align-items-center">
+					<div class="contact-avatar me-4">
+						{% if contact.first_name or contact.last_name %}{{ contact.first_name|default:""|slice:":1" }}{{ contact.last_name|default:""|slice:":1" }}{% else %}<i class="fas fa-user"></i>{% endif %}
+					</div>
+					<div>
+						<h2 class="fw-semibold mb-1">{{ contact.full_name }}</h2>
+						<p class="mb-0">{{ contact.document_type }} • {{ contact.identity_document }}</p>
+						<small class="d-block mt-2">Registrado por {{ created_by_user.get_full_name|default:created_by_user.username }} el {{ created_at|date:"d \d\e F \d\e Y" }}</small>
+					</div>
+				</div>
+			</div>
+
+			<div class="row g-4">
+				<div class="col-lg-7">
+					<div class="info-card p-4 mb-4">
+						<h5 class="section-heading"><i class="fas fa-user me-2 icon-pill"></i>Información Personal</h5>
+						<div class="row g-3">
+							<div class="col-md-6">
+								<div class="info-label">Fecha de nacimiento</div>
+								<div class="info-value">{{ contact.birth_date|date:"d/m/Y"|default:"No registrado" }}</div>
+							</div>
+							<div class="col-md-6">
+								<div class="info-label">Género</div>
+								<div class="info-value">{{ contact.get_gender_display|default:"No especificado" }}</div>
+							</div>
+							<div class="col-md-6">
+								<div class="info-label">Profesión</div>
+								<div class="info-value">{{ contact.profession|default:"—" }}</div>
+							</div>
+							<div class="col-md-6">
+								<div class="info-label">Empresa</div>
+								<div class="info-value">{{ contact.company|default:"—" }}</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="info-card p-4">
+						<h5 class="section-heading"><i class="fas fa-map-marker-alt me-2 icon-pill"></i>Dirección</h5>
+						<div class="row g-3">
+							<div class="col-md-6">
+								<div class="info-label">Departamento</div>
+								<div class="info-value">{{ contact.department }}</div>
+							</div>
+							<div class="col-md-6">
+								<div class="info-label">Provincia</div>
+								<div class="info-value">{{ contact.province }}</div>
+							</div>
+							<div class="col-md-6">
+								<div class="info-label">Distrito</div>
+								<div class="info-value">{{ contact.district }}</div>
+							</div>
+							<div class="col-md-6">
+								<div class="info-label">Urbanización</div>
+								<div class="info-value">{{ contact.urbanization|default:"—" }}</div>
+							</div>
+							<div class="col-12">
+								<div class="info-label">Dirección exacta</div>
+								<div class="info-value">{{ contact.address_exact|default:"—" }}</div>
+							</div>
+							<div class="col-md-6">
+								<div class="info-label">Coordenadas</div>
+								<div class="info-value">{{ contact.address_coordinates|default:"—" }}</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-lg-5">
+					<div class="info-card p-4 mb-4">
+						<h5 class="section-heading"><i class="fas fa-address-book me-2 icon-pill"></i>Contacto</h5>
+						<div class="mb-3">
+							<div class="info-label">Teléfono principal</div>
+							<div class="info-value">{{ contact.phone }}</div>
+						</div>
+						{% if contact.secondary_phone %}
+						<div class="mb-3">
+							<div class="info-label">Teléfono secundario</div>
+							<div class="info-value">{{ contact.secondary_phone }}</div>
+						</div>
+						{% endif %}
+						<div class="mb-3">
+							<div class="info-label">Correo electrónico</div>
+							<div class="info-value">{{ contact.email }}</div>
+						</div>
+						<div class="mb-3">
+							<div class="info-label">Observaciones</div>
+							<div class="info-value">{{ contact.observations|default:"Sin observaciones" }}</div>
+						</div>
+						<div>
+							<div class="info-label">Etiquetas</div>
+							<div>
+								{% for tag in contact.tags.all %}
+									<span class="badge-tag">{{ tag.name }}</span>
+								{% empty %}
+									<span class="text-muted">Sin etiquetas</span>
+								{% endfor %}
+							</div>
+						</div>
+					</div>
+
+					<div class="info-card p-4">
+						<h5 class="section-heading"><i class="fas fa-building me-2 icon-pill"></i>Propiedades Asociadas</h5>
+						{% if properties %}
+							<ul class="list-group list-group-flush">
+								{% for property in properties %}
+								<li class="list-group-item d-flex justify-content-between align-items-center">
+									<div>
+										<strong>{{ property.code }}</strong>
+										<div class="small text-muted">{{ property.title|default:"Sin título" }}</div>
+										{% if property.initial_commission_display %}
+										<div class="small text-muted mt-1">
+											<i class="fas fa-percentage me-1"></i>Comisión inicial: {{ property.initial_commission_display }}
+										</div>
+										{% endif %}
+									</div>
+									<a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-teal btn-sm">
+										Ver
+									</a>
+								</li>
+								{% endfor %}
+							</ul>
+						{% else %}
+							<p class="text-muted mb-0">No hay propiedades asociadas a este contacto.</p>
+						{% endif %}
+					</div>
+				</div>
+			</div>
+			<div class="row g-4 mt-1">
+				<div class="col-12">
+					<div class="map-card p-4">
+						<h5 class="section-heading mb-3"><i class="fas fa-map me-2 icon-pill"></i>Ubicación en el mapa</h5>
+						<div id="contact-map"></div>
+						<p class="text-muted small mt-3 mb-0">
+							<i class="fas fa-info-circle me-1"></i>
+							El marcador refleja las coordenadas guardadas para este contacto.
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script>
+function initContactMap() {
+	const mapElement = document.getElementById('contact-map');
+	if (!mapElement || typeof google === 'undefined' || !google.maps) {
+		return;
+	}
+
+	const fallbackLocation = { lat: -12.046374, lng: -77.042793 }; // Lima, Perú
+	const rawCoords = "{{ contact.address_coordinates|default:''|escapejs }}".trim();
+
+	let markerPosition = { ...fallbackLocation };
+	let hasValidCoordinates = false;
+
+	if (rawCoords) {
+		const parts = rawCoords.split(',');
+		if (parts.length === 2) {
+			const lat = parseFloat(parts[0]);
+			const lng = parseFloat(parts[1]);
+			if (Number.isFinite(lat) && Number.isFinite(lng)) {
+				markerPosition = { lat, lng };
+				hasValidCoordinates = true;
+			}
+		}
+	}
+
+	const map = new google.maps.Map(mapElement, {
+		center: markerPosition,
+		zoom: hasValidCoordinates ? 16 : 12,
+		mapTypeControl: false,
+		streetViewControl: false,
+		fullscreenControl: true,
+		zoomControl: true,
+	});
+
+	new google.maps.Marker({
+		position: markerPosition,
+		map,
+		title: hasValidCoordinates ? 'Ubicación del contacto' : 'Ubicación de referencia',
+	});
+}
+
+window.initContactMap = initContactMap;
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBrL1QF7vTl9zF8FmCUumfRpFJcaYokO7Q&callback=initContactMap" async defer></script>
+{% endblock %}
+

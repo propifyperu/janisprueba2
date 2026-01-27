@@ -1,0 +1,331 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}CRM Dashboard - WhatsApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="mb-2">
+                <i class="fas fa-chart-line" style="color: #25D366;"></i>
+                CRM Dashboard
+            </h1>
+            <p class="text-muted">Resumen de actividad y gestión de leads</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'properties:leads_list' %}" class="btn btn-primary">
+                <i class="fas fa-list"></i> Ver Todos los Leads
+            </a>
+        </div>
+    </div>
+
+    <!-- Estadísticas Principales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-left border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total de Propiedades</h6>
+                            <h3 class="mb-0">{{ total_properties }}</h3>
+                        </div>
+                        <div class="text-primary" style="font-size: 2rem; opacity: 0.3;">
+                            <i class="fas fa-home"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-left border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Enlaces Activos</h6>
+                            <h3 class="mb-0">{{ total_links }}</h3>
+                        </div>
+                        <div class="text-success" style="font-size: 2rem; opacity: 0.3;">
+                            <i class="fas fa-link"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-left border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total de Leads</h6>
+                            <h3 class="mb-0">{{ total_leads }}</h3>
+                        </div>
+                        <div class="text-warning" style="font-size: 2rem; opacity: 0.3;">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-left border-danger">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Últimas 24h</h6>
+                            <h3 class="mb-0">{{ recent_leads }}</h3>
+                        </div>
+                        <div class="text-danger" style="font-size: 2rem; opacity: 0.3;">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Leads sin Asignar -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-circle"></i>
+                        Leads Sin Asignar
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <h2 class="text-danger mb-3">{{ unassigned_count }}</h2>
+                    <p class="text-muted mb-3">Leads pendientes de asignación</p>
+                    <a href="{% url 'properties:leads_list' %}?status=new" class="btn btn-danger btn-sm">
+                        <i class="fas fa-arrow-right"></i> Ver Leads
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leads por Estado -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie"></i>
+                        Leads por Estado
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if leads_by_status %}
+                        <div class="list-group list-group-sm">
+                            {% for item in leads_by_status %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        {% if item.status == 'new' %}
+                                            <span class="badge bg-secondary">Nuevo</span>
+                                        {% elif item.status == 'contacted' %}
+                                            <span class="badge bg-info">Contactado</span>
+                                        {% elif item.status == 'qualified' %}
+                                            <span class="badge bg-primary">Calificado</span>
+                                        {% elif item.status == 'negotiating' %}
+                                            <span class="badge bg-warning">Negociando</span>
+                                        {% elif item.status == 'won' %}
+                                            <span class="badge bg-success">Ganado</span>
+                                        {% elif item.status == 'lost' %}
+                                            <span class="badge bg-danger">Perdido</span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="badge bg-light text-dark">{{ item.count }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">Sin datos</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Leads por Red Social -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-share-alt"></i>
+                        Leads por Red Social
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if leads_by_social %}
+                        <div class="list-group list-group-sm">
+                            {% for item in leads_by_social %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        {% if item.social_network == 'facebook' %}
+                                            <i class="fab fa-facebook text-primary"></i> Facebook
+                                        {% elif item.social_network == 'instagram' %}
+                                            <i class="fab fa-instagram text-danger"></i> Instagram
+                                        {% elif item.social_network == 'google' %}
+                                            <i class="fab fa-google text-warning"></i> Google
+                                        {% elif item.social_network == 'website' %}
+                                            <i class="fas fa-globe text-info"></i> Website
+                                        {% else %}
+                                            {{ item.social_network }}
+                                        {% endif %}
+                                    </span>
+                                    <span class="badge bg-light text-dark">{{ item.count }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">Sin datos</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Propiedades Más Activas -->
+    {% if top_properties %}
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="fas fa-star"></i>
+                            Propiedades Más Activas
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Propiedad</th>
+                                        <th>Leads</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for prop in top_properties %}
+                                        <tr>
+                                            <td><strong>{{ prop.code }}</strong></td>
+                                            <td>{{ prop.title }}</td>
+                                            <td>
+                                                <span class="badge bg-primary">{{ prop.lead_count }}</span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'properties:leads_list_by_property' prop.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i> Ver
+                                                </a>
+                                                <a href="{% url 'properties:whatsapp_links' prop.id %}" class="btn btn-sm btn-outline-success">
+                                                    <i class="fas fa-link"></i> Enlaces
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Últimos Leads -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock"></i>
+                        Últimos Leads
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if latest_leads %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Teléfono</th>
+                                        <th>Propiedad</th>
+                                        <th>Red Social</th>
+                                        <th>Estado</th>
+                                        <th>Asignado a</th>
+                                        <th>Fecha</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lead in latest_leads %}
+                                        <tr>
+                                            <td><strong>{{ lead.phone_number }}</strong></td>
+                                            <td>
+                                                <a href="{% url 'properties:detail' lead.property.id %}">
+                                                    {{ lead.property.code }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                {% if lead.social_network == 'facebook' %}
+                                                    <span class="badge bg-primary">Facebook</span>
+                                                {% elif lead.social_network == 'instagram' %}
+                                                    <span class="badge bg-danger">Instagram</span>
+                                                {% elif lead.social_network == 'google' %}
+                                                    <span class="badge bg-warning">Google</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ lead.get_social_network_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if lead.status == 'new' %}
+                                                    <span class="badge bg-secondary">Nuevo</span>
+                                                {% elif lead.status == 'contacted' %}
+                                                    <span class="badge bg-info">Contactado</span>
+                                                {% elif lead.status == 'qualified' %}
+                                                    <span class="badge bg-primary">Calificado</span>
+                                                {% elif lead.status == 'negotiating' %}
+                                                    <span class="badge bg-warning">Negociando</span>
+                                                {% elif lead.status == 'won' %}
+                                                    <span class="badge bg-success">Ganado</span>
+                                                {% elif lead.status == 'lost' %}
+                                                    <span class="badge bg-danger">Perdido</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if lead.assigned_to %}
+                                                    {{ lead.assigned_to.first_name }}
+                                                {% else %}
+                                                    <em class="text-muted">Sin asignar</em>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    {{ lead.created_at|date:"d/m/Y H:i" }}
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'properties:lead_detail' lead.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <p><i class="fas fa-inbox" style="font-size: 2rem; opacity: 0.3;"></i></p>
+                            <p>No hay leads aún</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

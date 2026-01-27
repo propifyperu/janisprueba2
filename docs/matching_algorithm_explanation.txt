@@ -1,0 +1,145 @@
+Algoritmo de matching — descripción técnica
+
+Resumen
+- El motor es de dos fases:
+  1) Fase A (filtro duro): exclusión de propiedades que no cumplen condiciones obligatorias del requerimiento (ej. tipo de propiedad, distrito(s), forma de pago, estado).
+  2) Fase B (scoring ponderado): para las propiedades restantes se calcula una puntuación ponderada usando pesos configurables (`MatchingWeight`).
+
+Carga de pesos
+- Los pesos se cargan desde la tabla `matching_weights`. Si faltan claves, se usan valores por defecto:
+  - property_type: 5.0
+  - district: 5.0
+  - currency: 2.0
+  - price: 3.0
+  - area: 2.0
+  - bedrooms: 1.0
+
+Fase A — hard_filter(requirement, queryset)
+- Aplica filtros excluyentes:
+  - Si `requirement.property_type` está definido, filtra por `Property.property_type`.
+  - Si `requirement.district` o `requirement.districts` existe, filtra `Property.district` por esos valores.
+  - Si `requirement.payment_method`, filtra por `Property.forma_de_pago`.
+  - Si `requirement.status`, filtra por `Property.status`.
+ - Resultado: conjunto reducido de propiedades que pasan estas restricciones.
+
+Nota importante: el campo `payment_method` del `Requirement` se trata como filtro
+excluyente en la Fase A; las propiedades cuyo `forma_de_pago` no coincida con
+`requirement.payment_method` se descartan antes del scoring. La comprobación está
+implementada en el código en [properties/matching.py](properties/matching.py#L58-L59).
+
+Fase B — score_property(requirement, prop, weights)
+- Para cada criterio se obtiene una contribución (contrib_i) entre 0 y w_i, donde w_i es el peso del criterio.
+- Se suman las contribuciones y se normaliza al rango 0..100.
+
+Notación y fórmulas
+- Pesos: w_i para criterio i.
+- Contribución por criterio i: contrib_i ∈ [0, w_i].
+- Suma ponderada: S = Σ contrib_i
+- Peso total: W = Σ w_i
+- Score normalizado (0..100):
+  $\text{score} = \frac{S}{W} \times 100$
+
+Proximidad para valores numéricos (precio, área)
+- Se usa la función `_proximity_score(value, a, b)` que devuelve prox ∈ [0,1].
+- Definición (conceptual):
+  - Si $a$ y $b$ son ambos None → prox = 1
+  - Si solo $b$ existe: prox = 1 si value ≤ b; si value > b: prox = max(0, 1 - (value - b)/( |b| + 1 ) )
+  - Si solo $a$ existe: simétrico (si value ≥ a → 1 ; si value < a penaliza)
+  - Si $a≤value≤b$ → prox = 1
+  - Si value fuera del rango → prox = max(0, 1 - distancia_relativa )
+
+  En forma compacta para fuera del rango (por ejemplo, value > b):
+  $\text{prox} = \max\left(0, 1 - \dfrac{value - b}{|b| + 1}\right)$
+
+- Para presupuesto aproximado (a=b=target) se calcula la proximidad respecto al target.
+
+Contribución de precio/área:
+- contrib_price = w_price * prox_price
+- contrib_area = w_area * prox_area
+- El criterio se considera "matched" si prox ≈ 1 (implementación usa umbral 0.99).
+
+Coincidencia en campos discretos (tipo, distrito, moneda)
+- Para `property_type` y `currency`: coincidencia exacta por id => contrib = w si coincide, 0 si no.
+- Para `district`: dado que `Property.district` en la base puede ser:
+  - FK (ideal): `prop.district_id` disponible → comparar por id con `requirement.district_id` o con la lista `requirement.districts`
+  - Campo texto o id guardado como string: se intenta analizar:
+    1) Si `prop.district` es un string numérico → se parsea a int y se compara por id con el requerimiento.
+    2) Si no es numérico → se compara por nombre normalizado (minúsculas, trim) con `requirement.district.name` o los nombres en `requirement.districts`.
+- Si coincide por id o por nombre, contrib = w_district; además `info` indica `id_match` o `name_match`.
+
+Ajuste de pesos (aprendizaje simple)
+- Método `record_positive_match(requirement, prop, metadata)`:
+  - Crea un `MatchEvent`.
+  - Para cada criterio calcula `matched` y ajusta el peso:
+    - Si coincide: delta = +0.05
+    - Si no coincide: delta = -0.01
+  - Parámetros numéricos (price/area) ajustan en función de la proximidad `prox`:
+    - price: delta = 0.05 * prox - 0.01 * (1 - prox)
+    - area: delta = 0.03 * prox - 0.005 * (1 - prox)
+  - Se aplica: $w_{new} = \max(0.1, w + \Delta)$ (mínimo 0.1 para evitar pesos nulos)
+
+Ejemplo numérico detallado
+- Pesos (por defecto):
+  - w_property_type = 5.0
+  - w_district = 5.0
+  - w_price = 3.0
+  - w_area = 2.0
+  - w_bedrooms = 1.0
+  => W = 16.0
+
+- Requerimiento R:
+  - property_type = Departamento
+  - districts = [Cayma, Cerro Colorado]
+  - presupuesto range: a = 100000, b = 150000
+  - land_area_approx = None (no aplica)
+  - bedrooms = 2
+
+- Propiedad P:
+  - property_type = Departamento (coincide)
+  - district guardado en BD como string '3' (id 3 corresponde a 'Cayma')
+  - price = 170000
+  - land_area = 80
+  - bedrooms = 2
+
+Paso a paso:
+1) property_type: coincide → contrib = 5.0
+2) district: `prop.district` es '3' (string numérico). Se resuelve District id=3 → corresponde a 'Cayma' (presente en requirement.districts) → contrib = 5.0
+3) price: prox = _proximity_score(170000, 100000, 150000)
+   - value > b → prox = max(0, 1 - (170000 - 150000)/(150000 + 1))
+   - prox ≈ 1 - 20000/150001 ≈ 1 - 0.13333 = 0.86667
+   - contrib_price = 3.0 * 0.86667 ≈ 2.600
+4) area: requirement no pide land_area (o no aplica), supongamos prox_area = 1 → contrib_area = 2.0 * 1 = 2.0
+5) bedrooms: iguales (2 vs 2) → contrib_bedrooms = 1.0 (aquí la implementación usa contrib = w si diff==0)
+
+Suma de contribuciones: S ≈ 5 + 5 + 2.6 + 2 + 1 = 15.6
+Score normalizado: score = (15.6 / 16.0) * 100 ≈ 97.5
+
+Resultado: P es una coincidencia muy alta (~97.5).
+
+Dónde está el código
+- `properties/matching.py` — implementa `_load_weights`, `hard_filter`, `_proximity_score`, `score_property`, `get_matches_for_requirement`, `record_positive_match`.
+- `properties/views.py` — `matching_matches_view` usa `get_matches_for_requirement`, transforma `details` para presentación y resuelve `prop_value` y `district_display` para evitar mostrar ids numéricos.
+- `properties/templates/properties/matching_matches.html` — tabla comparativa que muestra por criterio el `valor del requerimiento`, `valor de la propiedad`, `coincide` y `contribución`.
+
+Cómo probar rápidamente (Django shell)
+1) Abrir shell:
+   ```bash
+   python manage.py shell
+   ```
+2) Ejecutar ejemplo:
+   ```python
+   from properties.models import Requirement
+   from properties import matching
+   r = Requirement.objects.get(pk=5)  # ajustar id
+   matches = matching.get_matches_for_requirement(r, limit=5)
+   for m in matches:
+       print(m['property'].id, m['score'])
+       print(m['details'])
+   ```
+
+Notas y recomendaciones
+- Ideal: normalizar la columna `Property.district` a FK (migración) para evitar ambigüedades y facilitar comparaciones eficientes.
+- Los umbrales (por ejemplo prox >= 0.99) y deltas de aprendizaje (+0.05 / -0.01) son heurísticos; afínalos con datos reales.
+- Para producción, considerar un algoritmo estadístico o ML que ajuste pesos con más robustez y registre métricas de rendimiento (precision, recall) sobre eventos.
+
+Fin del documento.

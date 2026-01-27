@@ -1,0 +1,401 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Mi Perfil{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .profile-dashboard {
+        --teal-primary: #047D7D;
+        --teal-secondary: #279896;
+        --teal-muted: rgba(6, 44, 44, 0.6);
+    }
+
+    .profile-dashboard .text-teal {
+        color: var(--teal-primary) !important;
+    }
+
+    .profile-dashboard .letter-spacing {
+        letter-spacing: 0.18em;
+    }
+
+    .profile-dashboard .profile-header-card {
+        background: linear-gradient(120deg, rgba(4, 125, 125, 0.15) 0%, rgba(39, 152, 150, 0.25) 100%);
+        border-radius: 1rem;
+        border: 1px solid rgba(4, 125, 125, 0.18);
+        padding: 2rem 2.5rem;
+        box-shadow: 0 1.75rem 3.5rem -2rem rgba(4, 125, 125, 0.45);
+    }
+
+    .profile-dashboard .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(150deg, var(--teal-primary) 0%, var(--teal-secondary) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 3rem;
+        font-weight: 700;
+        position: relative;
+        box-shadow: 0 15px 35px -20px rgba(4, 125, 125, 0.85);
+    }
+
+    .profile-dashboard .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 4px solid #f8fdfd;
+    }
+
+    .profile-dashboard .profile-card {
+        background: #fff;
+        border-radius: 1rem;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        box-shadow: 0 1.5rem 3rem -2rem rgba(4, 125, 125, 0.35);
+    }
+
+    .profile-dashboard .profile-card .card-body {
+        padding: 2rem;
+    }
+
+    .profile-dashboard .section-title {
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--teal-muted);
+        margin-bottom: 0.75rem;
+    }
+
+    .profile-dashboard .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+
+    .profile-dashboard .info-item {
+        padding: 1.15rem;
+        border-radius: 0.85rem;
+        background: rgba(4, 125, 125, 0.05);
+        border: 1px solid rgba(4, 125, 125, 0.12);
+    }
+
+    .profile-dashboard .info-label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--teal-muted);
+        margin-bottom: 0.35rem;
+    }
+
+    .profile-dashboard .info-value {
+        font-weight: 600;
+        color: #073438;
+        font-size: 1rem;
+    }
+
+    .profile-dashboard .profile-actions .btn {
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.85rem;
+    }
+
+    .profile-dashboard .btn-teal {
+        background-color: var(--teal-primary);
+        border-color: var(--teal-primary);
+        color: #fff;
+    }
+
+    .profile-dashboard .btn-teal:hover {
+        background-color: #036c6c;
+        border-color: #036c6c;
+        color: #fff;
+    }
+
+    .profile-dashboard .btn-outline-teal {
+        border-color: rgba(4, 125, 125, 0.4);
+        color: var(--teal-primary);
+        font-weight: 600;
+    }
+
+    .profile-dashboard .btn-outline-teal:hover {
+        background-color: var(--teal-primary);
+        border-color: var(--teal-primary);
+        color: #fff;
+    }
+
+    .profile-dashboard .status-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.4rem 0.85rem;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .profile-dashboard .status-chip.success {
+        background: rgba(4, 125, 125, 0.18);
+        color: var(--teal-primary);
+    }
+
+    .profile-dashboard .status-chip.warning {
+        background: rgba(252, 186, 3, 0.22);
+        color: #8a5b02;
+    }
+
+    .profile-dashboard .status-chip.danger {
+        background: rgba(220, 53, 69, 0.18);
+        color: #8a1020;
+    }
+
+    .profile-dashboard .status-chip.neutral {
+        background: rgba(6, 44, 44, 0.15);
+        color: var(--teal-muted);
+    }
+
+    .profile-dashboard .timeline {
+        border-top: 1px dashed rgba(4, 125, 125, 0.12);
+        padding-top: 1.5rem;
+        margin-top: 1.5rem;
+        font-size: 0.9rem;
+        color: var(--teal-muted);
+    }
+
+    .profile-dashboard .activity-card {
+        background: linear-gradient(155deg, rgba(4, 125, 125, 0.16) 0%, rgba(39, 152, 150, 0.2) 100%);
+        border: 1px solid rgba(4, 125, 125, 0.2);
+        box-shadow: 0 1.5rem 3rem -2rem rgba(4, 125, 125, 0.45);
+    }
+
+    .profile-dashboard .list-group-item {
+        border: none;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(7, 52, 56, 0.08);
+    }
+
+    .profile-dashboard .list-group-item:last-child {
+        border-bottom: none;
+    }
+
+    .profile-dashboard .recent-properties .property-price {
+        font-weight: 600;
+        color: var(--teal-primary);
+    }
+
+    .profile-dashboard .notification-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.85rem;
+        border-radius: 999px;
+        font-weight: 600;
+        background: rgba(4, 125, 125, 0.08);
+        color: var(--teal-primary);
+    }
+
+    @media (max-width: 992px) {
+        .profile-dashboard .profile-header-card {
+            text-align: center;
+        }
+
+        .profile-dashboard .profile-header-card .d-flex {
+            flex-direction: column;
+            align-items: center !important;
+            text-align: center;
+        }
+
+        .profile-dashboard .profile-avatar {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4 profile-dashboard">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-11 d-flex flex-column gap-4">
+            <div class="profile-header-card">
+                <div class="d-flex flex-wrap align-items-center gap-4">
+                    <div class="profile-avatar">
+                        {% if profile.avatar %}
+                        <img src="{{ profile.avatar.url }}" alt="Avatar de {{ user.get_full_name|default:user.username }}">
+                        {% else %}
+                        <span>{{ user.get_full_name|default:user.username|slice:":1"|upper }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1">
+                        <p class="text-muted text-uppercase small mb-1 fw-semibold letter-spacing">Perfil profesional</p>
+                        <h1 class="h3 fw-bold mb-1 text-teal">{{ user.get_full_name|default:user.username }}</h1>
+                        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                            <span class="status-chip success"><i class="fas fa-id-badge"></i>{{ role_info }}</span>
+                            {% if user.commission_rate %}
+                            <span class="status-chip neutral"><i class="fas fa-percent"></i>{{ user.commission_rate }}% comisión</span>
+                            {% endif %}
+                            {% if user.is_verified %}
+                            <span class="status-chip success"><i class="fas fa-check-circle"></i>Verificado</span>
+                            {% else %}
+                            <span class="status-chip warning"><i class="fas fa-exclamation-circle"></i>Pendiente de verificación</span>
+                            {% endif %}
+                            {% if user.is_active %}
+                            <span class="status-chip success"><i class="fas fa-signal"></i>Activo</span>
+                            {% else %}
+                            <span class="status-chip danger"><i class="fas fa-ban"></i>Inactivo</span>
+                            {% endif %}
+                        </div>
+                        <p class="mb-0 text-muted">Departamento: {{ department_info }}</p>
+                    </div>
+                    <div class="profile-actions d-flex flex-column gap-2">
+                        <a href="{% url 'users:profile_edit' %}" class="btn btn-teal">
+                            <i class="fas fa-edit me-2"></i>Editar perfil
+                        </a>
+                        <a href="{% url 'properties:dashboard_root' %}" class="btn btn-outline-teal">
+                            <i class="fas fa-arrow-left me-2"></i>Volver al panel
+                        </a>
+                    </div>
+                    <div class="mt-2">
+                        <form method="post" id="theme-form">
+                            {% csrf_token %}
+                            <label class="form-label small text-muted">Apariencia</label>
+                            <select name="theme" id="id_theme" class="form-select form-select-sm" onchange="document.getElementById('theme-form').submit()">
+                                <option value="green" {% if profile.theme == 'green' %}selected{% endif %}>Verde (predeterminado)</option>
+                                <option value="black" {% if profile.theme == 'black' %}selected{% endif %}>Negro</option>
+                            </select>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="profile-card">
+                        <div class="card-body">
+                            <h2 class="section-title">Información general</h2>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-label">Nombre completo</span>
+                                    <span class="info-value">{{ user.get_full_name|default:"No completado" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Correo corporativo</span>
+                                    <span class="info-value">{{ user.email }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Teléfono</span>
+                                    <span class="info-value">{{ user.phone|default:"No completado" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Departamento asignado</span>
+                                    <span class="info-value">{{ department_info }}</span>
+                                </div>
+                            </div>
+
+                            {% if profile.bio %}
+                            <div class="mb-4">
+                                <h3 class="section-title">Biografía</h3>
+                                <p class="mb-0 text-muted">{{ profile.bio }}</p>
+                            </div>
+                            {% endif %}
+
+                            {% if profile.address or profile.date_of_birth %}
+                            <div class="row g-3 mb-4">
+                                {% if profile.address %}
+                                <div class="col-md-6">
+                                    <div class="info-item">
+                                        <span class="info-label">Dirección</span>
+                                        <p class="mb-0 info-value">{{ profile.address }}</p>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if profile.date_of_birth %}
+                                <div class="col-md-6">
+                                    <div class="info-item">
+                                        <span class="info-label">Fecha de nacimiento</span>
+                                        <span class="info-value">{{ profile.date_of_birth|date:"d/m/Y" }}</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <div class="mb-4">
+                                <h3 class="section-title">Preferencias de notificaciones</h3>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <span class="notification-pill"><i class="fas fa-envelope"></i>Email: {% if profile.email_notifications %}Activo{% else %}Desactivado{% endif %}</span>
+                                    <span class="notification-pill"><i class="fab fa-whatsapp"></i>WhatsApp: {% if profile.whatsapp_notifications %}Activo{% else %}Desactivado{% endif %}</span>
+                                    <span class="notification-pill"><i class="fas fa-bell"></i>Push: {% if profile.push_notifications %}Activo{% else %}Desactivado{% endif %}</span>
+                                </div>
+                            </div>
+
+                            <div class="timeline">
+                                <i class="fas fa-history me-2"></i>Miembro desde {{ profile.created_at|date:"d/m/Y H:i" }} · Última actualización {{ profile.updated_at|date:"d/m/Y H:i" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 d-flex flex-column gap-4">
+                    <div class="profile-card activity-card text-white">
+                        <div class="card-body">
+                            <h2 class="section-title text-white-50">Actividad</h2>
+                            {% if user.role.code_name == 'agent' %}
+                            <div class="mb-3">
+                                <p class="mb-1 text-white-50">Propiedades creadas</p>
+                                <h3 class="mb-0 fw-bold">{{ recent_properties|length }}</h3>
+                            </div>
+                            {% endif %}
+                            <div class="mb-3">
+                                <p class="mb-1 text-white-50">Estado de verificación</p>
+                                {% if user.is_verified %}
+                                <span class="status-chip success"><i class="fas fa-check"></i>Verificado</span>
+                                {% else %}
+                                <span class="status-chip warning"><i class="fas fa-times"></i>No verificado</span>
+                                {% endif %}
+                            </div>
+                            <div class="mb-0">
+                                <p class="mb-1 text-white-50">Estado de cuenta</p>
+                                {% if user.is_active %}
+                                <span class="status-chip success"><i class="fas fa-signal"></i>Activo</span>
+                                {% else %}
+                                <span class="status-chip danger"><i class="fas fa-ban"></i>Inactivo</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if user.role.code_name == 'agent' and recent_properties %}
+                    <div class="profile-card recent-properties">
+                        <div class="card-body">
+                            <h2 class="section-title">Propiedades recientes</h2>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% for property in recent_properties %}
+                            <a href="{% url 'properties:detail' property.pk %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <strong>{{ property.code }}</strong>
+                                    <small class="text-muted">{{ property.created_at|date:"d/m/Y" }}</small>
+                                </div>
+                                <p class="mb-1 text-muted">{{ property.title|truncatewords:8 }}</p>
+                                <small class="property-price">S/. {{ property.price|floatformat:2 }}</small>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        <div class="card-body pt-0">
+                            <a href="{% url 'properties:list' %}" class="btn btn-outline-teal w-100">
+                                Ver todas las propiedades
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -6,3 +6,15 @@ cryptography
 django-encrypted-model-fields
 django-encrypted-files
 Pillow
+
+djangorestframework
+django-cors-headers
+django-filter
+djangorestframework-simplejwt
+
+python-dotenv
+requests
+django-storages
+azure-storage-blob
+azure-identity
+opensearch-py

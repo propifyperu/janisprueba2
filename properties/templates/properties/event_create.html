@@ -1,0 +1,287 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Crear Evento - Janis Platform{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .permissions-page {
+        --primary-color: #047D7D;
+        --secondary-color: #279896;
+    }
+    .form-label {
+        font-weight: 500;
+    }
+    .btn-teal {
+        background-color: var(--primary-color, #047D7D) !important;
+        border-color: var(--primary-color, #047D7D) !important;
+        color: #fff !important;
+    }
+    .btn-teal:hover {
+        background-color: var(--secondary-color, #279896) !important;
+        border-color: var(--secondary-color, #279896) !important;
+    }
+    .btn-outline-teal {
+        background-color: #fff !important;
+        border-color: var(--primary-color, #047D7D) !important;
+        color: var(--primary-color, #047D7D) !important;
+    }
+    .btn-outline-teal:hover {
+        background-color: var(--primary-color, #047D7D) !important;
+        color: #fff !important;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-calendar-plus me-2"></i>Crear Nuevo Evento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Sección: Información del Evento -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3 text-muted">INFORMACIÓN DEL EVENTO</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.event_type.id_for_label }}">
+                                        Tipo de evento <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.event_type }}
+                                    {% if form.event_type.errors %}
+                                        <div class="text-danger small mt-1">{{ form.event_type.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.titulo.id_for_label }}">
+                                        Título <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.titulo }}
+                                    {% if form.titulo.errors %}
+                                        <div class="text-danger small mt-1">{{ form.titulo.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sección: Fecha y Hora -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3 text-muted">FECHA Y HORA</h6>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.fecha_evento.id_for_label }}">
+                                        Fecha del evento <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.fecha_evento }}
+                                    {% if form.fecha_evento.errors %}
+                                        <div class="text-danger small mt-1">{{ form.fecha_evento.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.hora_inicio.id_for_label }}">
+                                        Hora de inicio <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.hora_inicio }}
+                                    {% if form.hora_inicio.errors %}
+                                        <div class="text-danger small mt-1">{{ form.hora_inicio.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.hora_fin.id_for_label }}">
+                                        Hora de término <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.hora_fin }}
+                                    {% if form.hora_fin.errors %}
+                                        <div class="text-danger small mt-1">{{ form.hora_fin.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sección: Contacto -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3 text-muted">CONTACTO</h6>
+                            
+                            <!-- Alerta con enlace para crear contacto nuevo -->
+                            <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <div>
+                                    Selecciona un contacto existente o 
+                                    <a href="#" id="toggleNewOwnerForm" class="alert-link fw-bold">crea uno nuevo</a>
+                                </div>
+                            </div>
+                            
+                            <!-- Selector de contacto existente -->
+                            <div id="existingOwnerSelect" class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label" for="existing_owner">
+                                        Seleccionar contacto existente <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" id="existing_owner" name="existing_owner">
+                                        <option value="">-- Selecciona un contacto --</option>
+                                        {% for owner in contactos_existentes %}
+                                            <option value="{{ owner.id }}">
+                                                {{ owner.full_name }}
+                                                {% if owner.display_phone %}({{ owner.display_phone }}){% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Formulario para crear nuevo contacto (oculto por defecto) -->
+                            <div id="newOwnerForm" style="display: none;">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="{{ owner_form.first_name.id_for_label }}">
+                                            Nombre(s) <span class="text-danger">*</span>
+                                        </label>
+                                        {{ owner_form.first_name }}
+                                        {% if owner_form.first_name.errors %}
+                                            <div class="text-danger small mt-1">{{ owner_form.first_name.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="{{ owner_form.last_name.id_for_label }}">
+                                            Apellido Paterno <span class="text-danger">*</span>
+                                        </label>
+                                        {{ owner_form.last_name }}
+                                        {% if owner_form.last_name.errors %}
+                                            <div class="text-danger small mt-1">{{ owner_form.last_name.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="{{ owner_form.maternal_last_name.id_for_label }}">
+                                            Apellido Materno
+                                        </label>
+                                        {{ owner_form.maternal_last_name }}
+                                        {% if owner_form.maternal_last_name.errors %}
+                                            <div class="text-danger small mt-1">{{ owner_form.maternal_last_name.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="row g-3 mt-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="{{ owner_form.phone.id_for_label }}">
+                                            Teléfono <span class="text-danger">*</span>
+                                        </label>
+                                        {{ owner_form.phone }}
+                                        {% if owner_form.phone.errors %}
+                                            <div class="text-danger small mt-1">{{ owner_form.phone.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="{{ owner_form.email.id_for_label }}">
+                                            Email
+                                        </label>
+                                        {{ owner_form.email }}
+                                        {% if owner_form.email.errors %}
+                                            <div class="text-danger small mt-1">{{ owner_form.email.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sección: Detalles -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3 text-muted">DETALLES</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.property.id_for_label }}">
+                                        Inmueble
+                                    </label>
+                                    {# Renderizamos manualmente el select para mostrar `exact_address` en lugar del __str__/código #}
+                                    <select class="form-select" id="{{ form.property.id_for_label }}" name="{{ form.property.html_name }}">
+                                        {% if form.property.field.empty_label %}
+                                            <option value="">{{ form.property.field.empty_label }}</option>
+                                        {% else %}
+                                            <option value="">-- Selecciona un inmueble --</option>
+                                        {% endif %}
+                                        {% for p in form.property.field.queryset %}
+                                            <option value="{{ p.pk }}"{% if form.property.value|stringformat:'s' == p.pk|stringformat:'s' %} selected{% endif %}>{{ p.exact_address }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if form.property.errors %}
+                                        <div class="text-danger small mt-1">{{ form.property.errors }}</div>
+                                    {% endif %}
+                                    <small class="text-muted">Opcional: selecciona el inmueble relacionado</small>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2">
+                                <div class="col-12">
+                                    <label class="form-label" for="{{ form.detalle.id_for_label }}">
+                                        Detalle de la visita
+                                    </label>
+                                    {{ form.detalle }}
+                                    {% if form.detalle.errors %}
+                                        <div class="text-danger small mt-1">{{ form.detalle.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Botones -->
+                        <div class="row g-3 mt-3">
+                            <div class="col-12 text-end">
+                                <a href="{% url 'properties:agenda_calendar' %}" class="btn btn-outline-teal me-2">
+                                    <i class="fas fa-times me-2"></i>Cancelar
+                                </a>
+                                <button class="btn btn-teal" type="submit">
+                                    <i class="fas fa-save me-2"></i>Guardar Evento
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleLink = document.getElementById('toggleNewOwnerForm');
+    const newOwnerForm = document.getElementById('newOwnerForm');
+    const existingOwnerSelect = document.getElementById('existingOwnerSelect');
+    const existingOwnerSelectInput = document.getElementById('existing_owner');
+    
+    if (toggleLink && newOwnerForm && existingOwnerSelect) {
+        toggleLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            if (newOwnerForm.style.display === 'none') {
+                // Mostrar formulario de nuevo contacto
+                newOwnerForm.style.display = 'block';
+                existingOwnerSelect.style.display = 'none';
+                existingOwnerSelectInput.value = ''; // Limpiar selección
+                existingOwnerSelectInput.disabled = true;
+                toggleLink.textContent = 'selecciona uno existente';
+            } else {
+                // Mostrar selector de contacto existente
+                newOwnerForm.style.display = 'none';
+                existingOwnerSelect.style.display = 'block';
+                existingOwnerSelectInput.disabled = false;
+                toggleLink.textContent = 'crea uno nuevo';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

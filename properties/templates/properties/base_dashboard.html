@@ -1,0 +1,670 @@
+{% extends 'properties/base.html' %}
+{% load static %}
+
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    /* Navbar fijo y sidebar fijo: el scroll será SOLO del contenido principal */
+    body.dashboard-page {
+    }
+
+    body.dashboard-page main {
+        flex: 1;
+        min-height: 0;
+    }
+
+    body.dashboard-page footer {
+        display: none;
+    }
+
+    :root {
+        --sidebar-width: 260px;
+        --navbar-height: 112px;
+        /* Color acento tomado del fondo por defecto del sidebar (tema verde) */
+        --sidebar-accent: #047d7d;
+    }
+
+    /* Cabecera en flujo normal (no fija) */
+    .navbar-header {
+        /* header fijo en la parte superior del dashboard */
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--navbar-height);
+        z-index: 2000; /* mantener por encima del sidebar */
+        /* usar color sólido para evitar transparencias que permitan que el contenido pase por encima */
+        background-color: #e6f7f6;
+        display: flex;
+        align-items: center;
+        padding: 0 0; /* altura controlada por --navbar-height */
+        overflow: visible;
+    }
+
+    /* Línea divisoria inferior del header que coincide con el color del sidebar */
+    .navbar-header::after {
+        content: '';
+        position: absolute;
+        /* start after the sidebar so the divider does not cover sidebar area */
+        left: calc(var(--sidebar-width));
+        right: 0;
+        bottom: 0;
+        height: 18px;
+        background: var(--sidebar-accent);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        pointer-events: none;
+        z-index: -1; /* colocar el divisor visual por detrás (no sobre los dropdowns) */
+    }
+
+    /* On small screens the sidebar becomes full-width, so let the divider span whole width */
+    @media (max-width: 992px) {
+        .navbar-header::after {
+            left: 0;
+        }
+    }
+
+    .navbar-header .container {
+        height: var(--navbar-height);
+        display: flex;
+        align-items: center;
+    }
+
+    html, body {
+        height: 100%;
+    }
+
+    main {
+        padding: 0;
+    }
+
+    .properties-layout {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        height: 100%;
+        background: linear-gradient(180deg, rgba(4, 125, 125, 0.04) 0%, rgba(39, 152, 150, 0.04) 60%, #f5f9fa 100%);
+        align-items: stretch;
+        overflow: hidden;
+    }
+
+    .sidebar {
+        width: var(--sidebar-width);
+        color: var(--color-on-dark);
+        /* empezar desde el tope de la pantalla y ocupar toda la altura */
+        padding: 0 1.75rem; /* trasladamos el padding superior a .sidebar-inner */
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 3000; /* mostrarse por encima del header */
+        overflow: hidden;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Temas para la barra lateral - por usuario */
+    .sidebar.theme-green {
+        background: #047d7d !important;
+        box-shadow: 8px 0 24px rgba(4, 125, 125, 0.22);
+    }
+
+    .sidebar.theme-black {
+        background: #000 !important;
+        box-shadow: 8px 0 24px rgba(0, 0, 0, 0.32);
+    }
+
+    .sidebar-inner {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        position: relative;
+        /* conservar espacio interno superior para que el contenido no quede pegado al borde */
+        padding: 2.5rem 0.75rem 0.75rem 0.75rem;
+    }
+
+    /* Ocultar visualmente la scrollbar pero mantener funcionalidad (rueda del ratón)
+       - IE/Edge: -ms-overflow-style: none
+       - Firefox: scrollbar-width: none
+       - WebKit: set width/height a 0 para ocultar el track/thumb
+    */
+    .sidebar-inner {
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+        scrollbar-color: transparent transparent;
+    }
+
+    .sidebar-inner::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        background: transparent;
+    }
+
+    /* Mantener el área scrollable con inercia en móviles */
+    .sidebar-inner {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .sidebar::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at top right, rgba(82, 183, 181, 0.28), transparent),
+                    radial-gradient(circle at bottom left, rgba(39, 152, 150, 0.18), transparent);
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    /* Indicador sutil para mostrar que el sidebar es desplazable
+       Se muestra solo cuando el contenedor tiene overflow (vía clase .scrollable) */
+    .sidebar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 18px;
+        pointer-events: none;
+        display: none;
+        transition: opacity 0.18s ease;
+    }
+
+    .sidebar.scrollable::before {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Gradiente para tema verde */
+    .sidebar.theme-green.scrollable::before {
+        background: linear-gradient(to left, rgba(0,0,0,0.12), rgba(0,0,0,0.04) 40%, transparent 100%);
+    }
+
+    /* Gradiente para tema negro (alto contraste, más sutil) */
+    .sidebar.theme-black.scrollable::before {
+        background: linear-gradient(to left, rgba(255,255,255,0.06), rgba(255,255,255,0.03) 40%, transparent 100%);
+    }
+
+    /* Evitar overlay verde cuando el tema es negro */
+    .sidebar.theme-black::after {
+        background: none !important;
+        opacity: 1;
+    }
+
+    /* Scrollbar thumb para tema negro */
+    .sidebar.theme-black .sidebar-inner::-webkit-scrollbar-thumb {
+        background-color: rgba(255,255,255,0.12);
+        border-radius: 999px;
+        border: 2px solid rgba(0,0,0,0.2);
+    }
+
+    .sidebar.theme-green .nav-link,
+    .sidebar.theme-black .nav-link,
+    .sidebar .nav-link {
+        color: rgba(243, 253, 253, 0.95);
+        font-weight: 600;
+        letter-spacing: 0.25px;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        transition: color 0.2s ease, transform 0.2s ease;
+        position: relative;
+        z-index: 1;
+    }
+
+    .sidebar .nav-link i {
+        width: 22px;
+    }
+
+    .sidebar .nav-link,
+    .sidebar .nav-link:hover,
+    .sidebar .nav-link.active,
+    .sidebar .nav-link:focus,
+    .sidebar .nav-link:visited,
+    .sidebar .nav-link:active {
+        color: #fff !important;
+        background: none !important;
+        text-shadow: none !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        transform: translateX(6px);
+    }
+
+    .sidebar .nav {
+        padding-right: 0.5rem; /* separar del scrollbar */
+    }
+
+    .nav-group {
+        margin-bottom: 0.75rem;
+    }
+
+    .nav-group-toggle {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: transparent;
+        border: none;
+        color: rgba(243, 253, 253, 0.85);
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        text-align: left;
+        cursor: pointer;
+        position: relative;
+        z-index: 1;
+        transition: color 0.2s ease;
+    }
+
+    .nav-group-toggle i:first-child {
+        width: 22px;
+    }
+
+    .nav-group-toggle:hover,
+    .nav-group-toggle:focus {
+        color: var(--color-on-dark);
+    }
+
+    .nav-group-toggle .toggle-icon {
+        margin-left: auto;
+        transition: transform 0.2s ease;
+    }
+
+    .nav-group-toggle.expanded .toggle-icon {
+        transform: rotate(180deg);
+    }
+
+    .nav-submenu {
+        display: none;
+        flex-direction: column;
+        padding-left: 1.5rem;
+        border-left: 2px solid rgba(243, 253, 253, 0.15);
+        margin-bottom: 0.75rem;
+        gap: 0.35rem;
+    }
+
+    .nav-submenu.show {
+        display: flex;
+    }
+
+    .nav-submenu .nav-link {
+        border: none;
+        padding: 0.5rem 0;
+        font-weight: 500;
+        color: rgba(243, 253, 253, 0.75);
+        transform: none;
+    }
+
+    .nav-submenu .nav-link:hover,
+    .nav-submenu .nav-link.active {
+        color: var(--color-on-dark);
+        transform: none;
+    }
+
+    .main-content {
+        margin-left: var(--sidebar-width);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+        min-height: 0;
+        /* dejar espacio superior para header fijo */
+        padding-top: var(--navbar-height);
+    }
+
+    .main-content-inner {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 2rem 2.5rem 3rem;
+        min-height: 0;
+        overflow: auto; /* el scroll solo afecta el contenido interno */
+    }
+
+    .dashboard-messages {
+        position: sticky;
+        top: 1.5rem;
+        margin-left: auto;
+        max-width: 420px;
+        z-index: 2000;
+    }
+
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .btn-primary:hover,
+    .btn-primary:focus {
+        background-color: var(--color-primary-dark);
+        border-color: var(--color-primary-dark);
+    }
+
+    .btn-outline-primary {
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .btn-outline-primary:hover,
+    .btn-outline-primary:focus {
+        color: #fff;
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .text-primary {
+        color: var(--color-primary) !important;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--color-secondary);
+        box-shadow: 0 0 0 0.2rem rgba(4, 125, 125, 0.15);
+    }
+
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    .loading-overlay .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+    .loading-overlay span {
+        color: #fff;
+        margin-top: 1rem;
+        font-size: 1.2rem;
+        text-align: center;
+    }
+
+    @media (max-width: 992px) {
+        .properties-layout {
+            flex-direction: column;
+        }
+
+        .sidebar {
+            width: 100%;
+            border-radius: 0 0 1.5rem 1.5rem;
+        }
+    }
+</style>
+{% block dashboard_extra_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="properties-layout">
+    <aside class="sidebar {% if request.user.is_authenticated and profile %}theme-{{ profile.theme|default:'green' }}{% else %}theme-green{% endif %}">
+        <div class="sidebar-inner">
+            <div class="mb-5 position-relative">
+                {% block sidebar_header %}
+                <h2 class="h5 fw-bold text-white mb-1">Menú Principal</h2>
+                <p class="text-white-50 mb-0">Gestiona tus recursos de manera rápida</p>
+                {% endblock %}
+            </div>
+            <nav class="nav flex-column position-relative">
+            {% url 'properties:list' as properties_list_url %}
+            {% url 'properties:create' as properties_create_url %}
+            {% url 'properties:my_properties' as properties_my_url %}
+            {% url 'properties:drafts' as properties_drafts_url %}
+            {% url 'properties:contact_list' as contacts_list_url %}
+            {% url 'properties:contact_create' as contacts_create_url %}
+            {% url 'properties:leads_list' as leads_list_url %}
+            {% url 'users:profile' as profile_url %}
+            {% if request.user.is_superuser %}
+            {% url 'security:device_list' as security_device_list_url %}
+            {% url 'security:role_field_permissions' as role_permissions_url %}
+            {% endif %}
+            <div class="nav-group">
+                <button class="nav-group-toggle{% if request.path == properties_list_url or request.path == properties_create_url %} expanded{% endif %}" type="button" data-target="propertiesSubmenu" aria-controls="propertiesSubmenu" aria-expanded="{% if request.path == properties_list_url or request.path == properties_create_url %}true{% else %}false{% endif %}">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>Propiedades</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if request.path == properties_list_url or request.path == properties_create_url %} show{% endif %}" id="propertiesSubmenu">
+                    <a class="nav-link {% if request.path == properties_list_url %}active{% endif %}" href="{{ properties_list_url }}"><i class="fas fa-list me-2"></i>Listar propiedades</a>
+                    <a class="nav-link {% if request.path == properties_create_url %}active{% endif %}" href="{{ properties_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear propiedad</a>
+                    <a class="nav-link {% if request.path == properties_my_url %}active{% endif %}" href="{{ properties_my_url }}"><i class="fas fa-home me-2"></i>Mis propiedades</a>
+                    <a class="nav-link {% if request.path == properties_drafts_url %}active{% endif %}" href="{{ properties_drafts_url }}"><i class="fas fa-file-alt me-2"></i>Mis borradores</a>
+                </div>
+            </div>
+            <div class="nav-group">
+                <button class="nav-group-toggle{% if request.path == contacts_list_url or request.path == contacts_create_url %} expanded{% endif %}" type="button" data-target="contactsSubmenu" aria-controls="contactsSubmenu" aria-expanded="{% if request.path == contacts_list_url or request.path == contacts_create_url %}true{% else %}false{% endif %}">
+                    <i class="fas fa-address-book"></i>
+                    <span>Contactos</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if request.path == contacts_list_url or request.path == contacts_create_url %} show{% endif %}" id="contactsSubmenu">
+                    <a class="nav-link {% if request.path == contacts_list_url %}active{% endif %}" href="{{ contacts_list_url }}"><i class="fas fa-list me-2"></i>Listar contactos</a>
+                    <a class="nav-link {% if request.path == contacts_create_url %}active{% endif %}" href="{{ contacts_create_url }}"><i class="fas fa-user-plus me-2"></i>Crear contacto</a>
+                </div>
+            </div>
+
+            <div class="nav-group">
+                <button class="nav-group-toggle{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} expanded{% endif %}" type="button" data-target="crmSubmenu" aria-controls="crmSubmenu" aria-expanded="{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-whatsapp"></i>
+                    <span>CRM WhatsApp</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} show{% endif %}" id="crmSubmenu">
+                    <a class="nav-link {% if 'crm' in request.path %}active{% endif %}" href="{% url 'properties:crm_dashboard' %}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
+                    <a class="nav-link {% if 'leads' in request.path and 'whatsapp' not in request.path %}active{% endif %}" href="{{ leads_list_url }}"><i class="fas fa-user-tie me-2"></i>Mis Leads</a>
+                </div>
+            </div>
+
+            <div class="nav-group">
+                {% url 'properties:requirements_list' as requirements_list_url %}
+                {% url 'properties:requirements_create' as requirements_create_url %}
+                {% url 'properties:requirements_my' as requirements_my_url %}
+                <button class="nav-group-toggle{% if 'requerimientos' in request.path %} expanded{% endif %}" type="button" data-target="requirementsSubmenu" aria-controls="requirementsSubmenu" aria-expanded="{% if 'requerimientos' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Requerimientos</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'requerimientos' in request.path %} show{% endif %}" id="requirementsSubmenu">
+                    <a class="nav-link {% if request.path == requirements_list_url %}active{% endif %}" href="{{ requirements_list_url }}"><i class="fas fa-list me-2"></i>Lista de requerimientos</a>
+                    <a class="nav-link {% if request.path == requirements_create_url %}active{% endif %}" href="{{ requirements_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear requerimiento</a>
+                    <a class="nav-link {% if request.path == requirements_my_url %}active{% endif %}" href="{{ requirements_my_url }}"><i class="fas fa-user me-2"></i>Mis requerimientos</a>
+                </div>
+            </div>
+
+            <div class="nav-group">
+                {% url 'properties:agenda_calendar' as agenda_calendar_url %}
+                {% url 'properties:event_create' as event_create_url %}
+                <button class="nav-group-toggle{% if 'agenda' in request.path %} expanded{% endif %}" type="button" data-target="agendaSubmenu" aria-controls="agendaSubmenu" aria-expanded="{% if 'agenda' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Agenda</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'agenda' in request.path %} show{% endif %}" id="agendaSubmenu">
+                    <a class="nav-link {% if request.path == agenda_calendar_url %}active{% endif %}" href="{{ agenda_calendar_url }}"><i class="fas fa-calendar me-2"></i>Calendario</a>
+                    <a class="nav-link {% if request.path == event_create_url %}active{% endif %}" href="{{ event_create_url }}"><i class="fas fa-calendar-plus me-2"></i>Crear visita</a>
+                </div>
+            </div>
+
+            <div class="nav-group">
+                <button class="nav-group-toggle{% if 'marketing' in request.path %} expanded{% endif %}" type="button" data-target="marketingSubmenu" aria-controls="marketingSubmenu" aria-expanded="{% if 'marketing' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-bullhorn"></i>
+                    <span>Marketing</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'marketing' in request.path %} show{% endif %}" id="marketingSubmenu">
+                    <a class="nav-link {% if 'marketing' in request.path %}active{% endif %}" href="{% url 'properties:marketing_properties_list' %}"><i class="fas fa-link me-2"></i>Gestión de UTMs</a>
+                </div>
+            </div>
+
+            <a class="nav-link {% if request.path == profile_url %}active{% endif %}" href="{{ profile_url }}"><i class="fas fa-user-circle me-2"></i>Mi Perfil</a>
+            {% if request.user.is_superuser %}
+            <div class="nav-group">
+                <button class="nav-group-toggle{% if request.path == security_device_list_url or request.path == role_permissions_url %} expanded{% endif %}" type="button" data-target="configSubmenu" aria-controls="configSubmenu" aria-expanded="{% if request.path == security_device_list_url or request.path == role_permissions_url %}true{% else %}false{% endif %}">
+                    <i class="fas fa-cog"></i>
+                    <span>Configuración</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if request.path == security_device_list_url or request.path == role_permissions_url %} show{% endif %}" id="configSubmenu">
+                    <a class="nav-link {% if request.path == security_device_list_url %}active{% endif %}" href="{{ security_device_list_url }}"><i class="fas fa-shield-alt me-2"></i>Aprobar dispositivos</a>
+                    <a class="nav-link {% if request.path == role_permissions_url %}active{% endif %}" href="{{ role_permissions_url }}"><i class="fas fa-lock me-2"></i>Permisos de campos</a>
+                    <a class="nav-link {% if request.path == '/matching/weights/' %}active{% endif %}" href="{% url 'properties:matching_weights' %}"><i class="fas fa-weight-hanging me-2"></i>Matching (Pesos)</a>
+                </div>
+            </div>
+            {% endif %}
+            <a href="{% url 'users:logout' %}" class="nav-link"><i class="fas fa-sign-out-alt me-2"></i>Cerrar sesión</a>
+            </nav>
+            {% if property_count|default_if_none:'' != '' %}
+            <div class="mt-4 pt-3 border-top" style="border-top-color: rgba(255,255,255,0.1) !important;">
+                <p class="text-white-50 small mb-2">Propiedades activas</p>
+                <div class="h4 fw-bold text-white mb-0">{{ property_count }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </aside>
+
+    <section class="main-content">
+        <div class="main-content-inner">
+            {% if messages %}
+            <div class="dashboard-messages">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} shadow-sm mb-2 fade show">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% block dashboard_content %}{% endblock %}
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+function setupSidebarMenus() {
+    document.querySelectorAll('.nav-group-toggle').forEach((toggle) => {
+        if (toggle.dataset.bound === 'true') {
+            return;
+        }
+
+        const targetId = toggle.getAttribute('data-target');
+        const submenu = document.getElementById(targetId);
+        if (!submenu) {
+            return;
+        }
+
+        const isExpanded = toggle.classList.contains('expanded') || submenu.classList.contains('show');
+        toggle.classList.toggle('expanded', isExpanded);
+        submenu.classList.toggle('show', isExpanded);
+        toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+
+        toggle.addEventListener('click', () => {
+            const expanded = toggle.classList.toggle('expanded');
+            submenu.classList.toggle('show', expanded);
+            toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        });
+
+        toggle.dataset.bound = 'true';
+    });
+}
+
+function setupCreatePropertyLink() {
+    const createPropertyLink = document.querySelector('a[href="{{ properties_create_url }}"]');
+    if (createPropertyLink) {
+        createPropertyLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            showLoadingOverlay('Cargando...');
+            // Redirigir después de mostrar el mensaje
+            setTimeout(() => {
+                window.location.href = createPropertyLink.href;
+            }, 500);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupSidebarMenus();
+    setupCreatePropertyLink();
+    setupSidebarScrollableIndicator();
+});
+document.addEventListener('htmx:afterSwap', setupSidebarMenus);
+document.addEventListener('htmx:afterSwap', setupSidebarScrollableIndicator);
+
+function setupSidebarScrollableIndicator() {
+    const aside = document.querySelector('.sidebar');
+    if (!aside) return;
+    const inner = aside.querySelector('.sidebar-inner');
+    if (!inner) return;
+
+    function update() {
+        if (inner.scrollHeight > inner.clientHeight) {
+            aside.classList.add('scrollable');
+        } else {
+            aside.classList.remove('scrollable');
+        }
+        // marcar si está en el fondo (opcional, puede usarse para ajustar la opacidad)
+        if (inner.scrollTop + inner.clientHeight >= inner.scrollHeight - 1) {
+            aside.classList.add('at-bottom');
+        } else {
+            aside.classList.remove('at-bottom');
+        }
+    }
+
+    inner.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    // calcular inicialmente
+    setTimeout(update, 50);
+}
+
+function showLoadingOverlay(message) {
+    try {
+        let overlay = document.getElementById('global-loading-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'global-loading-overlay';
+            overlay.className = 'loading-overlay';
+
+            const container = document.createElement('div');
+            container.style.textAlign = 'center';
+
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner-border text-light';
+            spinner.role = 'status';
+
+            const txt = document.createElement('span');
+            txt.textContent = message || 'Cargando...';
+
+            container.appendChild(spinner);
+            container.appendChild(txt);
+            overlay.appendChild(container);
+            document.body.appendChild(overlay);
+        } else {
+            const span = overlay.querySelector('span');
+            if (span) span.textContent = message || 'Cargando...';
+            overlay.style.display = 'flex';
+        }
+    } catch (e) {
+        console.warn('showLoadingOverlay error', e);
+    }
+}
+
+function hideLoadingOverlay() {
+    try {
+        const overlay = document.getElementById('global-loading-overlay');
+        if (overlay) overlay.style.display = 'none';
+    } catch (e) {
+        // ignore
+    }
+}
+</script>
+{% block dashboard_extra_js %}{% endblock %}
+{% endblock %}

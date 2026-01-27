@@ -1,0 +1,17 @@
+{% extends 'properties/base_dashboard.html' %}
+
+{% block dashboard_content %}
+<div class="container py-4">
+  <h3>Conversaciones</h3>
+  <ul class="list-group">
+    {% for c in conversations %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <a href="{% url 'chat:conversation_detail' c.id %}">{{ c.title|default:"Conversación " }}{{ c.id }}</a>
+        <small class="text-muted">{{ c.updated_at }}</small>
+      </li>
+    {% empty %}
+      <li class="list-group-item">No hay conversaciones.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

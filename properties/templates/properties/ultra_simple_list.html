@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propiedades - Vista Simple</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #047d7d;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th {
+            background-color: #047d7d;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+        td {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f0f0f0;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        .badge-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .badge-inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Propiedades - Vista Ultra Simple</h1>
+        
+        {% if error %}
+            <div class="error">
+                <strong>Error:</strong> {{ error }}
+            </div>
+        {% endif %}
+        
+        {% if count > 0 %}
+            <div class="success">
+                Total de propiedades: <strong>{{ count }}</strong>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Código</th>
+                        <th>Título</th>
+                        <th>Propietario</th>
+                        <th>Precio</th>
+                        <th>Activa</th>
+                        <th>Creado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for property in properties %}
+                    <tr>
+                        <td>{{ property.id }}</td>
+                        <td><strong>{{ property.code }}</strong></td>
+                        <td>{{ property.title|default:"Sin título" }}</td>
+                        <td>
+                            {% if property.owner %}
+                                {{ property.owner.first_name }} {{ property.owner.last_name }}
+                            {% else %}
+                                <em>Sin propietario</em>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if property.currency and property.price %}
+                                {{ property.currency.symbol|default:"$" }} {{ property.price }}
+                            {% else %}
+                                <em>Sin precio</em>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if property.is_active %}
+                                <span class="badge badge-active">✓ Activa</span>
+                            {% else %}
+                                <span class="badge badge-inactive">✗ Inactiva</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ property.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <h3>No hay propiedades en la base de datos</h3>
+                <p>Crea tu primera propiedad para verla aquí.</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

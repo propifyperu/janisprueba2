@@ -1,0 +1,461 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Editar Perfil{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .profile-edit-dashboard {
+        --teal-primary: #047D7D;
+        --teal-secondary: #279896;
+        --teal-muted: rgba(6, 44, 44, 0.6);
+    }
+
+    .profile-edit-dashboard .text-teal {
+        color: var(--teal-primary) !important;
+    }
+
+    .profile-edit-dashboard .letter-spacing {
+        letter-spacing: 0.18em;
+    }
+
+    .profile-edit-dashboard .edit-header-card {
+        background: linear-gradient(120deg, rgba(4, 125, 125, 0.12) 0%, rgba(39, 152, 150, 0.2) 100%);
+        border: 1px solid rgba(4, 125, 125, 0.16);
+        border-radius: 1rem;
+        padding: 1.75rem 2.25rem;
+        box-shadow: 0 1.5rem 3rem -2rem rgba(4, 125, 125, 0.4);
+    }
+
+    .profile-edit-dashboard .profile-card {
+        background: #fff;
+        border-radius: 1rem;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        box-shadow: 0 1.5rem 3rem -2rem rgba(4, 125, 125, 0.32);
+    }
+
+    .profile-edit-dashboard .profile-card .card-body {
+        padding: 2rem;
+    }
+
+    .profile-edit-dashboard .form-section-title {
+        font-size: 0.85rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--teal-muted);
+        margin-bottom: 1rem;
+    }
+
+    .profile-edit-dashboard .divider {
+        height: 1px;
+        margin: 2rem 0;
+        background: linear-gradient(90deg, rgba(4, 125, 125, 0.08) 0%, rgba(39, 152, 150, 0.16) 100%);
+    }
+
+    .profile-edit-dashboard .avatar-upload {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+        flex-wrap: wrap;
+    }
+
+    .profile-edit-dashboard .avatar-frame {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: rgba(4, 125, 125, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 0 0 4px rgba(4, 125, 125, 0.15);
+    }
+
+        .profile-edit-dashboard .camera-btn {
+            position: absolute;
+            right: 4px;
+            bottom: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .profile-edit-dashboard .camera-btn:hover {
+            transform: translateY(-2px);
+            background: rgba(0, 0, 0, 0.75);
+        }
+        .avatar-upload input[type=file] {
+            display: none;
+        }
+    .profile-edit-dashboard .avatar-frame img {
+        width: 104px;
+        height: 104px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 4px solid #fff;
+        box-shadow: 0 12px 24px -16px rgba(4, 125, 125, 0.65);
+    }
+
+    .profile-edit-dashboard .avatar-frame { position: relative; }
+    .profile-edit-dashboard .camera-btn {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: -14px;
+        width: 40px;
+        height: 40px;
+        background: #fff;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 18px rgba(4,125,125,0.12);
+        color: var(--teal-primary);
+        cursor: pointer;
+        border: 1px solid rgba(4,125,125,0.12);
+        font-size: 1rem;
+    }
+    .profile-edit-dashboard .camera-btn:hover::after {
+        content: 'Subir foto';
+        position: absolute;
+        bottom: 48px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.75);
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+    /* ocultar el input por defecto, controlarlo vía el label.camera-btn */
+    .avatar-upload input[type=file] { display: none; }
+
+    .profile-edit-dashboard .avatar-frame .placeholder {
+        font-size: 3.5rem;
+        color: rgba(4, 125, 125, 0.35);
+    }
+
+    .profile-edit-dashboard .btn-teal {
+        background-color: var(--teal-primary);
+        border-color: var(--teal-primary);
+        color: #fff;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.85rem;
+    }
+
+    .profile-edit-dashboard .btn-teal:hover,
+    .profile-edit-dashboard .btn-teal:focus {
+        background-color: #036c6c;
+        border-color: #036c6c;
+        color: #fff;
+    }
+
+    .profile-edit-dashboard .btn-outline-teal {
+        border-color: rgba(4, 125, 125, 0.4);
+        color: var(--teal-primary);
+        font-weight: 600;
+        border-radius: 0.85rem;
+    }
+
+    .profile-edit-dashboard .btn-outline-teal:hover,
+    .profile-edit-dashboard .btn-outline-teal:focus {
+        background-color: var(--teal-primary);
+        border-color: var(--teal-primary);
+        color: #fff;
+    }
+
+    .profile-edit-dashboard .form-control,
+    .profile-edit-dashboard .form-select {
+        border-radius: 0.75rem;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        padding: 0.65rem 1rem;
+    }
+
+    .profile-edit-dashboard .form-control:focus,
+    .profile-edit-dashboard .form-select:focus {
+        border-color: rgba(4, 125, 125, 0.45);
+        box-shadow: 0 0 0 0.2rem rgba(4, 125, 125, 0.15);
+    }
+
+    .profile-edit-dashboard .form-check-input:checked {
+        background-color: var(--teal-primary);
+        border-color: var(--teal-primary);
+    }
+
+    .profile-edit-dashboard .info-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1rem;
+        border-radius: 999px;
+        background: rgba(4, 125, 125, 0.08);
+        color: var(--teal-primary);
+        font-weight: 600;
+    }
+
+    .profile-edit-dashboard .account-card {
+        border-radius: 1rem;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        box-shadow: 0 1.25rem 3rem -2rem rgba(4, 125, 125, 0.3);
+    }
+
+    .profile-edit-dashboard .account-card .card-header {
+        background: linear-gradient(140deg, rgba(4, 125, 125, 0.8) 0%, rgba(39, 152, 150, 0.85) 100%);
+    }
+
+    .profile-edit-dashboard .meta-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--teal-muted);
+        font-weight: 600;
+    }
+
+    .profile-edit-dashboard .meta-value {
+        font-weight: 600;
+        color: #073438;
+    }
+
+    .profile-edit-dashboard .alert-danger {
+        border-radius: 0.85rem;
+        border: none;
+        box-shadow: 0 1rem 2.5rem -1.5rem rgba(200, 35, 51, 0.35);
+    }
+
+    .profile-edit-dashboard .form-check-label {
+        cursor: pointer;
+        font-weight: 600;
+        color: #073438;
+    }
+
+    .profile-edit-dashboard .form-text {
+        color: var(--teal-muted);
+    }
+
+    @media (max-width: 992px) {
+        .profile-edit-dashboard .edit-header-card {
+            text-align: center;
+        }
+
+        .profile-edit-dashboard .edit-header-card .d-flex {
+            flex-direction: column;
+            align-items: center !important;
+            gap: 1.5rem;
+        }
+
+        .profile-edit-dashboard .avatar-upload {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4 profile-edit-dashboard">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10 d-flex flex-column gap-4">
+            <div class="edit-header-card">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div>
+                        <p class="letter-spacing text-muted text-uppercase fw-semibold mb-2">Actualiza tu información</p>
+                        <h1 class="h4 fw-bold text-teal mb-1"><i class="fas fa-user-edit me-2"></i>Editar perfil</h1>
+                        <p class="mb-0 text-muted">Mantén tu perfil al día para potenciar la experiencia en la plataforma.</p>
+                    </div>
+                    <div class="d-flex flex-column flex-sm-row gap-2">
+                        <a href="{% url 'users:profile' %}" class="btn btn-outline-teal">
+                            <i class="fas fa-user me-2"></i>Ver perfil
+                        </a>
+                        <a href="{% url 'properties:dashboard_root' %}" class="btn btn-outline-teal">
+                            <i class="fas fa-arrow-left me-2"></i>Volver al panel
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="profile-card">
+                        <div class="card-body">
+                            <form method="post" enctype="multipart/form-data" novalidate class="d-flex flex-column gap-4">
+                                {% csrf_token %}
+
+                                {% if form.non_field_errors %}
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    {{ form.non_field_errors }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                                {% endif %}
+
+                                <div>
+                                    <h2 class="form-section-title"><i class="fas fa-image me-2"></i>Avatar profesional</h2>
+                                    <div class="avatar-upload">
+                                        <div class="avatar-frame" id="avatarFrame">
+                                            {% if form.instance.avatar %}
+                                            <img id="avatarImg" src="{{ form.instance.avatar.url }}" alt="Avatar actual">
+                                            {% else %}
+                                            <span id="avatarPlaceholder" class="placeholder"><i class="fas fa-user-circle"></i></span>
+                                            {% endif %}
+                                            <label for="id_avatar" class="camera-btn" aria-label="Subir foto"><i class="fas fa-camera"></i></label>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <label for="id_avatar" class="form-label fw-semibold text-muted">Sube tu fotografía</label>
+                                            {{ form.avatar }}
+                                            {% if form.avatar.errors %}
+                                            <div class="invalid-feedback d-block">{{ form.avatar.errors }}</div>
+                                            {% endif %}
+                                            <div class="form-text">Formatos permitidos: JPG, PNG, GIF · Máximo 5 MB</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="divider"></div>
+
+                                <div>
+                                    <h2 class="form-section-title"><i class="fas fa-user me-2"></i>Información personal</h2>
+                                    <div class="d-flex flex-column gap-3">
+                                        <div>
+                                            <label for="id_bio" class="form-label fw-semibold text-muted">Biografía</label>
+                                            {{ form.bio }}
+                                            {% if form.bio.errors %}
+                                            <div class="invalid-feedback d-block">{{ form.bio.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label for="id_address" class="form-label fw-semibold text-muted">Dirección</label>
+                                                {{ form.address }}
+                                                {% if form.address.errors %}
+                                                <div class="invalid-feedback d-block">{{ form.address.errors }}</div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="id_date_of_birth" class="form-label fw-semibold text-muted">Fecha de nacimiento</label>
+                                                {{ form.date_of_birth }}
+                                                {% if form.date_of_birth.errors %}
+                                                <div class="invalid-feedback d-block">{{ form.date_of_birth.errors }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="divider"></div>
+
+                                <div>
+                                    <h2 class="form-section-title"><i class="fas fa-bell me-2"></i>Preferencias de notificación</h2>
+                                    <div class="d-flex flex-column gap-3">
+                                        <div class="form-check form-switch">
+                                            {{ form.email_notifications }}
+                                            <label class="form-check-label" for="id_email_notifications"><i class="fas fa-envelope me-2"></i>Recibir notificaciones por email</label>
+                                            <div class="form-text">Actualizaciones clave sobre tus propiedades y contactos llegarán a tu bandeja.</div>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            {{ form.whatsapp_notifications }}
+                                            <label class="form-check-label" for="id_whatsapp_notifications"><i class="fab fa-whatsapp me-2"></i>Recibir notificaciones por WhatsApp</label>
+                                            <div class="form-text">Te enviaremos alertas al número asociado a tu cuenta.</div>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            {{ form.push_notifications }}
+                                            <label class="form-check-label" for="id_push_notifications"><i class="fas fa-bell me-2"></i>Recibir notificaciones push</label>
+                                            <div class="form-text">Mantente informado directamente desde el panel de Janis.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-2 justify-content-end">
+                                    <button type="submit" class="btn btn-teal">
+                                        <i class="fas fa-save me-2"></i>Guardar cambios
+                                    </button>
+                                    <a href="{% url 'users:profile' %}" class="btn btn-outline-teal">
+                                        <i class="fas fa-times me-2"></i>Cancelar
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="account-card card">
+                        <div class="card-header text-white">
+                            <h2 class="mb-0 h6 text-uppercase">Información de la cuenta</h2>
+                        </div>
+                        <div class="card-body d-flex flex-column gap-3">
+                            <div>
+                                <span class="meta-label">Nombre de usuario</span>
+                                <p class="meta-value mb-0">{{ user.username }}</p>
+                            </div>
+                            <div>
+                                <span class="meta-label">Correo registrado</span>
+                                <p class="meta-value mb-0">{{ user.email }}</p>
+                            </div>
+                            <div>
+                                <span class="meta-label">Miembro desde</span>
+                                <p class="meta-value mb-0">{{ user.date_joined|date:"d/m/Y H:i" }}</p>
+                            </div>
+                            <div>
+                                <span class="meta-label">Último acceso</span>
+                                <p class="meta-value mb-0">{{ user.last_login|date:"d/m/Y H:i" }}</p>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="info-chip"><i class="fas fa-shield-alt"></i>Datos protegidos</span>
+                                <span class="info-chip"><i class="fas fa-lock"></i>Sesiones seguras</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    <script>
+        (function(){
+            const input = document.getElementById('id_avatar');
+            if(!input) return;
+            const avatarFrame = document.getElementById('avatarFrame');
+            const avatarImg = document.getElementById('avatarImg');
+            const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+
+            input.addEventListener('change', function(evt){
+                const file = this.files && this.files[0];
+                if(!file) return;
+                const allowed = ['image/jpeg','image/png','image/gif'];
+                if(allowed.indexOf(file.type) === -1){
+                    alert('Formato no permitido. Usa JPG, PNG o GIF.');
+                    this.value = '';
+                    return;
+                }
+                const max = 5 * 1024 * 1024; // 5MB
+                if(file.size > max){
+                    alert('El archivo supera 5 MB. Elige otro archivo más pequeño.');
+                    this.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e){
+                    if(avatarImg){
+                        avatarImg.src = e.target.result;
+                    } else {
+                        const img = document.createElement('img');
+                        img.id = 'avatarImg';
+                        img.src = e.target.result;
+                        img.alt = 'Avatar';
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.objectFit = 'cover';
+                        avatarFrame.insertBefore(img, avatarFrame.firstChild);
+                        if(avatarPlaceholder) avatarPlaceholder.style.display = 'none';
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        })();
+    </script>
+{% endblock %}

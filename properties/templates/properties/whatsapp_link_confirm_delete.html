@@ -1,0 +1,60 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Eliminar Enlace WhatsApp{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card border-danger shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                    </div>
+                    
+                    <h4 class="mb-3">¿Eliminar este enlace?</h4>
+                    
+                    <div class="alert alert-light border mb-4">
+                        <p class="mb-2"><strong>{{ link.link_name }}</strong></p>
+                        <p class="mb-2 small text-muted">
+                            <i class="fas fa-share-alt"></i> 
+                            {% if link.social_network == 'facebook' %}
+                                <span class="badge bg-primary">Facebook</span>
+                            {% elif link.social_network == 'instagram' %}
+                                <span class="badge bg-danger">Instagram</span>
+                            {% elif link.social_network == 'google' %}
+                                <span class="badge bg-warning">Google</span>
+                            {% elif link.social_network == 'website' %}
+                                <span class="badge bg-info">Website</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ link.get_social_network_display }}</span>
+                            {% endif %}
+                        </p>
+                        <p class="mb-0 small">
+                            <strong>ID:</strong> {{ link.unique_identifier }}
+                        </p>
+                    </div>
+                    
+                    <div class="alert alert-warning" role="alert">
+                        <strong><i class="fas fa-info-circle"></i> Atención:</strong>
+                        <p class="mb-0 mt-2">Si eliminas este enlace, los leads asociados seguirán existiendo pero no podrás generar nuevos leads con este enlace.</p>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-center">
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Sí, Eliminar
+                            </button>
+                        </form>
+                        <a href="{% url 'properties:whatsapp_links' link.property.id %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

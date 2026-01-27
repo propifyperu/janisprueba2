@@ -1,0 +1,716 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Crear Requerimiento - Janis Platform{% endblock %}
+
+{% block dashboard_extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Usar color de la barra lateral directamente como fallback
+       (algunas plantillas no envuelven con .permissions-page) */
+    .permissions-page {
+        --primary-color: #047D7D;
+        --secondary-color: #279896;
+    }
+    .form-label {
+        font-weight: 500;
+    }
+    .btn-teal {
+        background-color: var(--primary-color, #047D7D) !important;
+        border-color: var(--primary-color, #047D7D) !important;
+        color: #fff !important;
+    }
+    .btn-teal:hover {
+        background-color: var(--secondary-color, #279896) !important;
+        border-color: var(--secondary-color, #279896) !important;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form id="requirement-form" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Sección: Seleccionar Contacto -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">DATOS DEL CLIENTE</h5>
+                            
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Selecciona un contacto existente de tu base de datos o 
+                                <a href="#" id="showOwnerForm" class="alert-link">crea uno nuevo</a>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Contacto Existente</label>
+                                    <select class="form-select" name="existing_owner" id="existingOwner">
+                                        <option value="">-- Seleccionar contacto --</option>
+                                        {% for contacto in contactos_existentes %}
+                                            <option value="{{ contacto.id }}">{{ contacto.full_name }}{% if contacto.display_phone %} ({{ contacto.display_phone }}){% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Formulario para nuevo contacto (oculto inicialmente) -->
+                            <div id="newOwnerForm" style="display: none;">
+                                <h6 class="text-primary mb-3 mt-3">Información del Nuevo Contacto</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Nombres</label>
+                                        {{ owner_form.first_name }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Apellido Paterno</label>
+                                        {{ owner_form.last_name }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Apellido Materno</label>
+                                        {{ owner_form.maternal_last_name }}
+                                    </div>
+                                </div>
+
+                                <div class="row g-3 mt-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Teléfono</label>
+                                        {{ owner_form.phone }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email</label>
+                                        {{ owner_form.email }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección: Tipo de inmueble -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">TIPO DE INMUEBLE</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.property_type.id_for_label }}">Tipo</label>
+                                    {{ form.property_type }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.property_subtype.id_for_label }}">Subtipo</label>
+                                    {{ form.property_subtype }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.area_type.id_for_label }}">Área terreno - Tipo</label>
+                                    {{ form.area_type }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="area-range-rows">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.land_area_min.id_for_label }}">Mínimo (m²)</label>
+                                    {{ form.land_area_min }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.land_area_max.id_for_label }}">Máximo (m²)</label>
+                                    {{ form.land_area_max }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="area-approx-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.land_area_approx.id_for_label }}">Área aproximada (m²)</label>
+                                    {{ form.land_area_approx }}
+                                </div>
+                            </div>
+                            <!-- FRENTERA: modo (aproximada / rango) -->
+                            <div class="row g-3 mt-2" id="frontera-mode-row" style="display:none;">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="id_frontera_mode">FRENTERA - Tipo</label>
+                                    <select class="form-select" name="frontera_mode" id="id_frontera_mode">
+                                        <option value="">-- Seleccionar --</option>
+                                        <option value="approx">Aproximada</option>
+                                    </select>
+                                    <div class="form-text small text-muted mt-1">Selecciona si deseas una medida aproximada o un rango.</div>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="frontera-range-rows" style="display:none;">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="id_frontera_min">Mínimo (m)</label>
+                                    <input type="text" name="frontera_min" id="id_frontera_min" class="form-control" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="id_frontera_max">Máximo (m)</label>
+                                    <input type="text" name="frontera_max" id="id_frontera_max" class="form-control" />
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="frontera-approx-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="id_frontera_approx">Frontera aproximada (m)</label>
+                                    <input type="text" name="frontera_approx" id="id_frontera_approx" class="form-control" />
+                                </div>
+                            </div>
+                            <!-- Preferencia de pisos: mostrar sólo cuando se haya seleccionado Departamento -->
+                            <div class="row g-3 mt-2" id="preferred-floors-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.preferred_floors.id_for_label }}">Pisos preferidos</label>
+                                    {{ form.preferred_floors }}
+                                    <div class="form-text small text-muted mt-1">Selecciona uno o varios pisos (Ctrl/Cmd + clic).</div>
+                                </div>
+                            </div>
+                            <!-- Zonificación: mostrar sólo cuando el Tipo seleccionado sea Terreno -->
+                            <div class="row g-3 mt-2" id="zonificacion-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.zonificacion.id_for_label }}">Zonificación</label>
+                                    {{ form.zonificacion }}
+                                    <div class="form-text small text-muted mt-1">Selecciona una o más zonificaciones aplicables.</div>
+                                </div>
+                            </div>
+                            <!-- Ascensor: mostrar sólo cuando el Tipo seleccionado sea Departamento -->
+                            <div class="row g-3 mt-2" id="ascensor-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="id_ascensor">Ascensor</label>
+                                    <select class="form-select" name="ascensor" id="id_ascensor">
+                                        <option value="">-- Seleccionar --</option>
+                                        <option value="yes">Sí</option>
+                                        <option value="no">No</option>
+                                    </select>
+                                    <div class="form-text small text-muted mt-1">Indica si se requiere ascensor (aplicable para departamentos).</div>
+                                </div>
+                            </div>
+                            <!-- Cantidad de pisos (solo para Tipo = Casa) -->
+                            <div class="row g-3 mt-2" id="number-of-floors-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.number_of_floors.id_for_label }}">Cantidad de pisos</label>
+                                    {{ form.number_of_floors }}
+                                    <div class="form-text small text-muted mt-1">Selecciona la cantidad de pisos (aplicable para casas).</div>
+                                </div>
+                            </div>
+                            <!-- PARAMETROS: cantidad de pisos (select único 1-7) -->
+                            <div class="row g-3 mt-2" id="parametros-pisos-row">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="id_parametros_cantidad_pisos">PARAMETROS (cantidad de pisos)</label>
+                                    <select class="form-select" name="parametros_cantidad_pisos" id="id_parametros_cantidad_pisos">
+                                        <option value="">-- Seleccionar --</option>
+                                        <option value="1">1 piso</option>
+                                        <option value="2">2 pisos</option>
+                                        <option value="3">3 pisos</option>
+                                        <option value="4">4 pisos</option>
+                                        <option value="5">5 pisos</option>
+                                        <option value="6">6 pisos</option>
+                                        <option value="7">7 pisos</option>
+                                    </select>
+                                    <div class="form-text small text-muted mt-1">Selecciona una sola opción.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección: Ubicación -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">UBICACIÓN</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.department.id_for_label }}">Departamento</label>
+                                    {{ form.department }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.province.id_for_label }}">Provincia</label>
+                                    {{ form.province }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.district.id_for_label }}">Distrito(s)</label>
+                                    {{ form.district }}
+                                    <div class="form-text small text-muted mt-1">Puedes seleccionar varios distritos (Ctrl/Cmd + clic o usar la caja de búsqueda).</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección: Presupuesto -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">PRESUPUESTO</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_type.id_for_label }}">Tipo</label>
+                                    {{ form.budget_type }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.currency.id_for_label }}">Moneda</label>
+                                    {{ form.currency }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="budget-range-rows">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_min.id_for_label }}">Mínimo</label>
+                                    {{ form.budget_min }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_max.id_for_label }}">Máximo</label>
+                                    {{ form.budget_max }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="budget-approx-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Presupuesto aproximado</label>
+                                    {{ form.budget_approx }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección: Características -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">CARACTERÍSTICAS</h5>
+                            <div class="row g-3" id="caracteristicas-fields">
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.bedrooms.id_for_label }}">Habitaciones</label>
+                                    {{ form.bedrooms }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.bathrooms.id_for_label }}">Baños</label>
+                                    {{ form.bathrooms }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.half_bathrooms.id_for_label }}">Medios baños</label>
+                                    {{ form.half_bathrooms }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.garage_spaces.id_for_label }}">Cochera</label>
+                                    {{ form.garage_spaces }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2">
+                                <div class="col-12">
+                                    <label class="form-label" for="{{ form.notes.id_for_label }}">Observaciones</label>
+                                    {{ form.notes }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botón guardar -->
+                        <div class="row g-3 mt-2">
+                            <div class="col-12 text-end">
+                                <button class="btn btn-teal" type="submit">
+                                    <i class="fas fa-save me-2"></i>Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+/* Toggle para mostrar/ocultar formulario de nuevo contacto */
+document.addEventListener('DOMContentLoaded', function() {
+    const showOwnerFormLink = document.getElementById('showOwnerForm');
+    const newOwnerForm = document.getElementById('newOwnerForm');
+    const existingOwner = document.getElementById('existingOwner');
+
+    if (showOwnerFormLink && newOwnerForm && existingOwner) {
+        showOwnerFormLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            newOwnerForm.style.display = newOwnerForm.style.display === 'none' ? 'block' : 'none';
+            if (newOwnerForm.style.display === 'block') {
+                existingOwner.value = '';
+                existingOwner.disabled = true;
+            } else {
+                existingOwner.disabled = false;
+            }
+        });
+
+        existingOwner.addEventListener('change', function() {
+            if (this.value) {
+                newOwnerForm.style.display = 'none';
+            }
+        });
+    }
+});
+
+/* Área tipo toggle */
+(function(){
+    function toggleArea() {
+        const at = document.getElementById("{{ form.area_type.id_for_label }}");
+        const approxRow = document.getElementById('area-approx-row');
+        const rangeRows  = document.getElementById('area-range-rows');
+        if(!at) return;
+        const val = at.value || '';
+        if(val === 'approx'){
+            if(approxRow) approxRow.style.display = '';
+            if(rangeRows)  rangeRows.style.display  = 'none';
+        } else {
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows)  rangeRows.style.display  = '';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleArea();
+        const at = document.getElementById("{{ form.area_type.id_for_label }}");
+        if(at) at.addEventListener('change', toggleArea);
+    });
+})();
+
+/* FRENTERA tipo toggle */
+(function(){
+    function toggleFrontera(){
+        const fm = document.getElementById('id_frontera_mode');
+        const approxRow = document.getElementById('frontera-approx-row');
+        const rangeRows  = document.getElementById('frontera-range-rows');
+        if(!fm) return;
+        const val = fm.value || '';
+        if(val === 'approx'){
+            if(approxRow) approxRow.style.display = '';
+            if(rangeRows)  rangeRows.style.display  = 'none';
+        } else if(val === 'range'){
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows)  rangeRows.style.display  = '';
+        } else {
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows)  rangeRows.style.display  = 'none';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleFrontera();
+        const fm = document.getElementById('id_frontera_mode');
+        if(fm) fm.addEventListener('change', toggleFrontera);
+    });
+})();
+
+/* Presupuesto tipo toggle */
+(function(){
+    function toggleBudget() {
+        const bt = document.getElementById("{{ form.budget_type.id_for_label }}");
+        const approxRow = document.getElementById('budget-approx-row');
+        const rangeRows  = document.getElementById('budget-range-rows');
+        if(!bt) return;
+        const val = bt.value || '';
+        if(val === 'approx'){
+            if(approxRow) approxRow.style.display = '';
+            if(rangeRows)  rangeRows.style.display  = 'none';
+        } else {
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows)  rangeRows.style.display  = '';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleBudget();
+        const bt = document.getElementById("{{ form.budget_type.id_for_label }}");
+        if(bt) bt.addEventListener('change', toggleBudget);
+    });
+})();
+
+/* Ocultar características si es Terreno */
+(function(){
+    function toggleCaracteristicas() {
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const caracFields = document.getElementById('caracteristicas-fields');
+        if(!typeSelect || !caracFields) return;
+        
+        const selectedText = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+        
+        // Ocultar solo los campos de habitaciones, baños, etc. si es terreno
+        if(selectedText.includes('terreno')){
+            caracFields.style.display = 'none';
+        } else {
+            caracFields.style.display = '';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleCaracteristicas();
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        if(typeSelect) typeSelect.addEventListener('change', toggleCaracteristicas);
+    });
+})();
+
+/* Select2 distritos */
+(function(){
+    try{
+        document.addEventListener('DOMContentLoaded', function(){
+            const $ = window.jQuery;
+            if(!$) return;
+            const sel = $('#{{ form.district.id_for_label }}');
+            if(sel.length){
+                sel.select2({
+                    placeholder: 'Selecciona distritos',
+                    width: '100%',
+                    allowClear: true
+                });
+            }
+            // select2 para preferred_floors
+            const floorsSel = $('#{{ form.preferred_floors.id_for_label }}');
+            if(floorsSel.length){
+                floorsSel.select2({
+                    placeholder: 'Selecciona pisos',
+                    width: '100%',
+                    allowClear: true
+                });
+            }
+            // select2 para zonificacion
+            const zonSel = $('#{{ form.zonificacion.id_for_label }}');
+            if(zonSel.length){
+                zonSel.select2({
+                    placeholder: 'Selecciona zonificación',
+                    width: '100%',
+                    allowClear: true
+                });
+            }
+        });
+    }catch(e){
+        console.warn('Select2 init failed', e);
+    }
+})();
+
+/* Mostrar campo 'preferred_floors' sólo si hay department seleccionado */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const dept = document.getElementById('{{ form.department.id_for_label }}');
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const floorsRow = document.getElementById('preferred-floors-row');
+        const ascRow = document.getElementById('ascensor-row');
+        if(!floorsRow) return;
+
+        function isTypeDepartamento(){
+            try{
+                const txt = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+                return txt.includes('departamento') || txt.includes('departamentos');
+            }catch(e){
+                return false;
+            }
+        }
+
+        function toggleFloors(){
+            const hasDept = dept && dept.value && dept.value !== '';
+            const typeIsDept = typeSelect && isTypeDepartamento();
+            if(hasDept || typeIsDept){
+                floorsRow.style.display = '';
+            } else {
+                floorsRow.style.display = 'none';
+                // limpiar selección cuando se oculta
+                try{ $("#{{ form.preferred_floors.id_for_label }}").val(null).trigger('change'); }catch(e){}
+            }
+
+            // Mostrar ascensor SÓLO cuando el tipo seleccionado sea Departamento (no por tener departamento en ubicación)
+            if(ascRow){
+                if(typeIsDept){
+                    ascRow.style.display = '';
+                } else {
+                    ascRow.style.display = 'none';
+                    try{ document.getElementById('id_ascensor').selectedIndex = 0; }catch(e){}
+                }
+            }
+            // Mostrar zonificacion SÓLO cuando el tipo seleccionado sea Terreno
+            const zonRow = document.getElementById('zonificacion-row');
+            try{
+                const selectedText = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+                if(zonRow){
+                    if(selectedText.includes('terreno')){
+                        zonRow.style.display = '';
+                    } else {
+                        zonRow.style.display = 'none';
+                        try{ $("#{{ form.zonificacion.id_for_label }}").val(null).trigger('change'); }catch(e){}
+                    }
+                }
+                // Mostrar PARAMETROS (cantidad de pisos) sólo para Terreno
+                const parametrosRow = document.getElementById('parametros-pisos-row');
+                try{
+                    if(parametrosRow){
+                        if(selectedText.includes('terreno')){
+                            parametrosRow.style.display = '';
+                        } else {
+                            parametrosRow.style.display = 'none';
+                            try{ document.getElementById('id_parametros_cantidad_pisos').selectedIndex = 0; }catch(e){}
+                        }
+                    }
+                }catch(e){}
+
+                // Mostrar FRENTERA sólo para Terreno (modo aproximada por defecto)
+                try{
+                    const fronteraModeRow = document.getElementById('frontera-mode-row');
+                    const fronteraApproxRow = document.getElementById('frontera-approx-row');
+                    const fronteraRangeRows = document.getElementById('frontera-range-rows');
+                    if(fronteraModeRow){
+                        if(selectedText.includes('terreno')){
+                            fronteraModeRow.style.display = '';
+                            // forzar modo aproximada y mostrar su input
+                            try{ const fm = document.getElementById('id_frontera_mode'); if(fm){ fm.value = 'approx'; } }catch(e){}
+                            if(fronteraApproxRow) fronteraApproxRow.style.display = '';
+                            if(fronteraRangeRows) fronteraRangeRows.style.display = 'none';
+                        } else {
+                            fronteraModeRow.style.display = 'none';
+                            if(fronteraApproxRow) fronteraApproxRow.style.display = 'none';
+                            if(fronteraRangeRows) fronteraRangeRows.style.display = 'none';
+                            try{ const fm = document.getElementById('id_frontera_mode'); if(fm){ fm.selectedIndex = 0; } }catch(e){}
+                        }
+                    }
+                }catch(e){}
+            }catch(e){}
+        }
+
+        toggleFloors();
+        if(dept) dept.addEventListener('change', toggleFloors);
+        if(typeSelect) typeSelect.addEventListener('change', toggleFloors);
+    });
+})();
+
+/* Mostrar campo 'number_of_floors' sólo si el tipo es Casa */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const nofRow = document.getElementById('number-of-floors-row');
+        if(!nofRow || !typeSelect) return;
+
+        function isTypeCasa(){
+            try{
+                const txt = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+                return txt.includes('casa') || txt.includes('casas');
+            }catch(e){
+                return false;
+            }
+        }
+
+        function toggleNof(){
+            if(isTypeCasa()){
+                nofRow.style.display = '';
+            } else {
+                nofRow.style.display = 'none';
+                try{ document.getElementById('{{ form.number_of_floors.id_for_label }}').selectedIndex = 0; }catch(e){}
+            }
+        }
+
+        toggleNof();
+        typeSelect.addEventListener('change', toggleNof);
+    });
+})();
+
+/* Cascada Tipo -> Subtipo  (ÚNICO Y FUNCIONAL) */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const typeSelect    = document.getElementById('{{ form.property_type.id_for_label }}');
+        const subtypeSelect = document.getElementById('{{ form.property_subtype.id_for_label }}');
+        if (!typeSelect || !subtypeSelect) return;
+
+        // Usar la URL del endpoint nombrado y pedir subtipos filtrados por type
+        const subtypesUrl = "{% url 'properties:api_property_subtypes' %}";
+        function loadSubtypesFor(typeId){
+            subtypeSelect.innerHTML = '<option value="">---------</option>';
+            if(!typeId) return;
+            fetch(subtypesUrl + '?property_type_id=' + encodeURIComponent(typeId))
+                .then(res => res.json())
+                    .then(data => {
+                        const list = Array.isArray(data) ? data : (data && data.subtypes ? data.subtypes : []);
+                        list.forEach(sub => {
+                            const opt = document.createElement('option');
+                            opt.value = sub.id;
+                            opt.textContent = sub.name;
+                            subtypeSelect.appendChild(opt);
+                        });
+                    })
+                .catch(err => console.error('Error al cargar subtipos:', err));
+        }
+
+        // Inicializar según el valor actual
+        loadSubtypesFor(typeSelect.value);
+        typeSelect.addEventListener('change', function(){
+            // limpiar subtipo seleccionado al cambiar tipo
+            subtypeSelect.value = '';
+            loadSubtypesFor(typeSelect.value);
+        });
+    });
+})();
+
+/* Cascada Departamento -> Provincia -> Distrito(s) */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const deptSel = document.getElementById('{{ form.department.id_for_label }}');
+        const provSel = document.getElementById('{{ form.province.id_for_label }}');
+        const distSel = document.getElementById('{{ form.district.id_for_label }}');
+        if(!deptSel || !provSel || !distSel) return;
+
+        const provincesUrl = "{% url 'properties:api_provinces' %}";
+        const districtsUrl = "{% url 'properties:api_districts' %}";
+
+        function clearSelect(sel, placeholder, multiple){
+            if(!sel) return;
+            if(multiple){
+                // mantener como select multiple: vaciar opciones
+                sel.innerHTML = '';
+            } else {
+                sel.innerHTML = `<option value="">${placeholder}</option>`;
+            }
+        }
+
+        function loadProvinces(departmentId){
+            clearSelect(provSel, 'Seleccione una provincia', false);
+            clearSelect(distSel, 'Seleccione una provincia primero', true);
+            if(!departmentId){ provSel.disabled = true; distSel.disabled = true; return; }
+            provSel.disabled = true;
+            fetch(provincesUrl + '?department_id=' + encodeURIComponent(departmentId))
+                .then(r => r.json())
+                .then(data => {
+                    provSel.innerHTML = '<option value="">Seleccione una provincia</option>';
+                    data.forEach(p => {
+                        const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name; provSel.appendChild(opt);
+                    });
+                    provSel.disabled = false;
+                    // limpiar distritos
+                    clearSelect(distSel, 'Seleccione una provincia primero', true);
+                    distSel.disabled = true;
+                })
+                .catch(err => {
+                    console.error('Error cargando provincias:', err);
+                    provSel.disabled = false;
+                });
+        }
+
+        function loadDistricts(provinceId){
+            clearSelect(distSel, 'Seleccione un distrito', true);
+            if(!provinceId){ distSel.disabled = true; return; }
+            distSel.disabled = true;
+            fetch(districtsUrl + '?province_id=' + encodeURIComponent(provinceId))
+                .then(r => r.json())
+                .then(data => {
+                    // si es select multiple, crear múltiples opciones
+                    distSel.innerHTML = '';
+                    // Añadir placeholder como opción deshabilitada si no es múltiple
+                    if(!distSel.multiple){ distSel.innerHTML = '<option value="">Seleccione un distrito</option>'; }
+                    data.forEach(d => {
+                        const opt = document.createElement('option'); opt.value = d.id; opt.textContent = d.name; distSel.appendChild(opt);
+                    });
+                    distSel.disabled = false;
+                })
+                .catch(err => {
+                    console.error('Error cargando distritos:', err);
+                    distSel.disabled = false;
+                });
+        }
+
+        // inicializar según valores actuales (si los hay)
+        if(deptSel.value){ loadProvinces(deptSel.value); }
+        if(provSel.value){ loadDistricts(provSel.value); }
+
+        deptSel.addEventListener('change', function(){
+            loadProvinces(this.value);
+            // limpiar selección múltiple de distritos
+            try{ $("#{{ form.district.id_for_label }}").val(null).trigger('change'); }catch(e){}
+        });
+        provSel.addEventListener('change', function(){ loadDistricts(this.value); try{ $("#{{ form.district.id_for_label }}").val(null).trigger('change'); }catch(e){} });
+    });
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    try{
+        var reqForm = document.getElementById('requirement-form');
+        if(reqForm){
+            reqForm.addEventListener('submit', function(){
+                try{ showLoadingOverlay('Guardando y buscando coincidencias con el motor...'); }catch(e){}
+                // allow normal submit
+            });
+        }
+    }catch(e){ console.warn('requirement form binding failed', e); }
+});
+</script>
+{% endblock %}

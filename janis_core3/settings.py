@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,13 +26,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'clave_para_desarrollo')
 
-DEBUG = True
+# DEBUG desde variable de entorno (False por defecto en producción)
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = [
-    'janis-core2-app.azurewebsites.net',
-    'localhost',
-    '127.0.0.1',
-]
+# Hosts permitidos desde App Setting `ALLOWED_HOSTS` (coma-separados)
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 # Application definition
 
 INSTALLED_APPS = [
@@ -38,14 +40,27 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Third-party apps
+    "rest_framework",
+    "corsheaders",
+    "django_filters",
+    "rest_framework_simplejwt.token_blacklist",
     "prueba",
-    "properties",
+    "properties.apps.PropertiesConfig",
     "users",
+    "security",
+    "whatsapp",
+    "chat",
 ]
+# Facebook Pixel ID (opcional, para campañas)
+import os
+FACEBOOK_PIXEL_ID = os.environ.get('FACEBOOK_PIXEL_ID', '')
 AUTH_USER_MODEL = 'users.CustomUser'
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # CORS middleware should be placed as high as possible
+    "corsheaders.middleware.CorsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -53,6 +68,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    
 ]
 
 ROOT_URLCONF = "janis_core3.urls"
@@ -60,13 +76,17 @@ ROOT_URLCONF = "janis_core3.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # Context processor para exponer `profile` en todas las plantillas
+                "users.context_processors.user_profile",
+                # Context processor para notificaciones de matching
+                "properties.context_processors.match_notifications",
             ],
         },
     },
@@ -78,21 +98,29 @@ WSGI_APPLICATION = "janis_core3.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Normalizar DB user/host antes de definir el diccionario DATABASES
+_db_user = os.environ.get('DB_USER', 'sqladmin') or 'sqladmin'
+_db_host = os.environ.get('DB_HOST', 'janis-server.database.windows.net')
+_server_short = _db_host.split('.')[0] if _db_host else _db_host
+if '@' not in _db_user and _server_short:
+    _db_user = f"{_db_user}@{_server_short}"
+
 DATABASES = {
     'default': {
-        'ENGINE': 'mssql',
-        'NAME': 'propify_db',
-        'USER': 'adminpropify',
-        'PASSWORD': 'Propify12345@',
-        'HOST': 'propify.database.windows.net',
-        'PORT': '1433',
+        # Leer credenciales desde variables de entorno para producción
+        'ENGINE': os.environ.get('DB_ENGINE', 'mssql'),
+        'NAME': os.environ.get('DB_NAME', 'dbpropify'),
+        'USER': _db_user,
+        'PASSWORD': os.environ.get('DB_PASS', os.environ.get('DB_PASSWORD', '')),
+        'HOST': _db_host,
+        'PORT': os.environ.get('DB_PORT', '1433'),
         'OPTIONS': {
-            'driver': 'ODBC Driver 18 for SQL Server',
-            'extra_params': 'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;',
-            'connection_timeout': 60,
+            'driver': os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
+            'extra_params': os.environ.get('DB_EXTRA_PARAMS', 'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;'),
+            'connection_timeout': int(os.environ.get('DB_CONN_TIMEOUT', 60)),
         },
-        'CONN_MAX_AGE': 0,
-        'TIME_ZONE': 'UTC',
+        'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', 0)),
+        'TIME_ZONE': os.environ.get('DB_TIME_ZONE', 'America/Lima'),
     }
 }
 
@@ -121,7 +149,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "America/Lima"
 
 USE_I18N = True
 
@@ -129,15 +157,107 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://localhost').split(',') if o.strip()
+]
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Media files (User uploads)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# Optional Azure Blob storage for media files.
+# If AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY are provided in the environment,
+# the project will use django-storages Azure backend so both local and remote
+# deployments can share the same media container.
+AZURE_ACCOUNT_NAME = os.environ.get('AZURE_ACCOUNT_NAME')
+AZURE_ACCOUNT_KEY = os.environ.get('AZURE_ACCOUNT_KEY')
+AZURE_CONTAINER = os.environ.get('AZURE_CONTAINER', 'media')
+
+if AZURE_ACCOUNT_NAME:
+    # Use Managed Identity / Azure backend that stores blobs and returns proxy URLs
+    DEFAULT_FILE_STORAGE = 'janis_core3.storage_backends.AzureManagedIdentityStorage'
+    # django-storages / backend settings
+    AZURE_ACCOUNT_NAME = AZURE_ACCOUNT_NAME
+    AZURE_ACCOUNT_KEY = AZURE_ACCOUNT_KEY
+    AZURE_CONTAINER = AZURE_CONTAINER
+    # MEDIA_URL remains the base; the storage backend will append SAS tokens
+    MEDIA_URL = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-FIELD_ENCRYPTION_KEY = 'Qk9vQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2g='
+FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', 'Qk9vQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2h2d2ZpQ2ZpQ2g=')
 LOGIN_URL = '/users/login/'
+
+# Django REST Framework basic add (customize as needed)
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ),
+    # Throttling removed to allow unrestricted access per request
+}
+
+# SimpleJWT configuration: short-lived access tokens and rotating refresh tokens
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# Production security recommendations (set these in production environment):
+# SECURE_SSL_REDIRECT = True
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True
+# SECURE_HSTS_SECONDS = 3600
+# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+# SECURE_HSTS_PRELOAD = True
+
+# CORS settings - allow the production web origin and localhost for development.
+# For mobile native apps using Retrofit this is not strictly necessary, but
+# android emulators or embedded webviews may require correct origins.
+CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:8000').split(',') if o.strip()
+]
+
+# If you prefer to allow all origins during development, set the following to True
+# CORS_ALLOW_ALL_ORIGINS = True
+
+
+# ============================================================================
+# CONFIGURACIÓN WHATSAPP BUSINESS API
+# ============================================================================
+WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID')
+WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID')
+WHATSAPP_ACCESS_TOKEN = os.environ.get('WHATSAPP_ACCESS_TOKEN')
+WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN')
+WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v18.0')
+WHATSAPP_API_BASE_URL = f'https://graph.instagram.com/{WHATSAPP_API_VERSION}'
+
+# Allow cookies/credentials if your API uses session authentication
+CORS_ALLOW_CREDENTIALS = True
+
+# OpenSearch configuration (hosts can be a comma-separated list in env var)
+OPENSEARCH_HOSTS = [h.strip() for h in os.environ.get('OPENSEARCH_HOSTS', 'http://localhost:9200').split(',') if h.strip()]

@@ -1,0 +1,73 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-10 col-xl-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h1 class="h5 mb-0"><i class="fas fa-weight-hanging me-2"></i>Pesos de Matching</h1>
+                <a href="{% url 'properties:list' %}" class="btn btn-outline-teal">Volver</a>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <div class="alert alert-info small mb-0">
+                        <strong>Nota:</strong> El campo <em>payment_method</em> en los requerimientos se
+                        trata como un filtro <em>excluyente</em> en la fase inicial del motor de matching.
+                        Las propiedades cuya <em>forma_de_pago</em> no coincida con el requerimiento serán
+                        descartadas antes del cálculo de puntuación. Más detalles en
+                        <a href="/docs/matching_algorithm_explanation.txt" target="_blank">docs/matching_algorithm_explanation.txt</a>.
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <p class="small text-muted">Ajusta los pesos por criterio. Valores mayores indican mayor importancia.</p>
+                        <div class="row">
+                        {% for w in weights %}
+                            <div class="col-6 mb-3">
+                                <label class="form-label">{{ w.label }}</label>
+                                <input class="form-control" type="number" step="0.01" name="weight_{{ w.key }}" value="{{ w.weight }}" />
+                            </div>
+                        {% empty %}
+                            <div class="col-12">No hay pesos configurados.</div>
+                        {% endfor %}
+                        </div>
+
+                        {% if request.user.is_superuser %}
+                        <hr />
+                        <div class="mb-3">
+                            <h6 class="mb-2">Crear nuevo criterio (solo superuser)</h6>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-auto">
+                                    {% if available_keys %}
+                                    <select name="new_key" class="form-select">
+                                        <option value="">Seleccionar clave...</option>
+                                        {% for key,label in available_keys %}
+                                            <option value="{{ key }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% else %}
+                                    <input name="new_key" class="form-control" placeholder="No hay claves predeterminadas — ingresa clave personalizada" />
+                                    {% endif %}
+                                </div>
+                                <div class="col-auto">
+                                    <input name="new_weight" class="form-control" type="number" step="0.01" placeholder="Peso inicial" />
+                                </div>
+                                <div class="col-auto">
+                                    <span class="small text-muted">Enviar junto con "Guardar" para crear el criterio.</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer text-end">
+                        <button class="btn btn-teal" type="submit">Guardar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,31 +1,1637 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Janis Platform</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">Janis Platform</a>
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Explorar Propiedades - Janis Platform{% endblock %}
+{% block dashboard_extra_css %}
+<style>
+    :root {
+        --color-accent: #2ea44f; /* verde principal */
+        --color-accent-dark: #258e45; /* hover / oscuro */
+    }
+    .age-warning {
+        color: #b91c1c; /* rojo suave */
+        background: rgba(185,28,28,0.04);
+        border-left: 3px solid #b91c1c;
+        padding: 6px 10px;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+        display: none;
+    }
+    /* Asegurar que el contenido principal sea flexible */
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow-x: hidden;
+        min-height: 0;
+    }
+
+    .filter-bar {
+        position: relative;
+        z-index: 10;
+        background: #fff;
+        padding: 1.25rem 2rem;
+        box-shadow: 0 12px 30px rgba(4, 125, 125, 0.1);
+        border-bottom: 1px solid rgba(4, 125, 125, 0.14);
+    }
+
+    .filter-bar form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+        align-items: flex-end;
+    }
+
+    .filter-control {
+        min-width: 200px;
+    }
+
+    .filter-control label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--color-primary);
+        margin-bottom: 0.3rem;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }
+
+    .filter-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 0.75rem;
+    }
+    .advanced-filters {
+        display: none;
+        margin-top: 1rem;
+        width: 100%;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        background: #f8faf9;
+        border: 1px solid rgba(4,125,125,0.06);
+        gap: 1rem;
+        box-shadow: 0 8px 20px rgba(4,125,125,0.04);
+    }
+    .advanced-filters.show {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    .advanced-filters .adv-control { min-width: 180px; }
+    .adv-mode-row { display:flex; gap:0.5rem; align-items:center; }
+
+    .layer-toggle-bar {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        background: #f7fbfb;
+        padding: 0.9rem 2rem;
+        border-bottom: 1px solid rgba(4, 125, 125, 0.12);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+
+    .layer-toggle-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-secondary-dark);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .layer-toggle-title i {
+        color: var(--color-primary);
+    }
+
+    .layer-toggle-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+    }
+
+    .layer-toggle-options .form-check-input {
+        border-color: rgba(4, 125, 125, 0.5);
+        cursor: pointer;
+    }
+
+    .layer-toggle-options .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    /* Mejorar visibilidad del check en navegadores modernos y agregar foco */
+    .layer-toggle-options .form-check-input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--color-primary);
+    }
+
+    .layer-toggle-options .form-check-input:checked {
+        background-color: var(--color-primary) !important;
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 0 0 0.15rem rgba(4,125,125,0.12);
+    }
+
+    .layer-toggle-options .form-check-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(4,125,125,0.18);
+    }
+
+    /* Mostrar un checkbox personalizado y observable (usa la etiqueta como contenedor) */
+    .layer-toggle-options .form-check {
+        position: relative;
+        padding-left: 28px;
+    }
+
+    .layer-toggle-options .form-check-input {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        opacity: 0; /* mantener accesible pero oculto */
+        cursor: pointer;
+    }
+
+    .layer-toggle-options .form-check-input + .form-check-label {
+        position: relative;
+        cursor: pointer;
+        padding-left: 4px; /* espacio ya reservado por .form-check */
+    }
+
+    .layer-toggle-options .form-check-input + .form-check-label::before {
+        content: '';
+        position: absolute;
+        left: -28px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(4,125,125,0.5);
+        border-radius: 4px;
+        background: #fff;
+        box-sizing: border-box;
+    }
+
+    .layer-toggle-options .form-check-input:checked + .form-check-label::before {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .layer-toggle-options .form-check-input:checked + .form-check-label::after {
+        content: '\2713';
+        position: absolute;
+        left: -23px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #fff;
+        font-weight: 700;
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    .layer-toggle-options .form-check-input:focus + .form-check-label::before {
+        box-shadow: 0 0 0 0.18rem rgba(4,125,125,0.16);
+    }
+
+    /* Colorizar las etiquetas de cada capa según su color de marcador */
+    .layer-toggle-options input.layer-toggle-input[data-layer="schools"] + .form-check-label {
+        color: #1e88e5;
+        font-weight: 700;
+    }
+
+    .layer-toggle-options input.layer-toggle-input[data-layer="hospitals"] + .form-check-label {
+        color: #d81b60;
+        font-weight: 700;
+    }
+
+    .layer-toggle-options input.layer-toggle-input[data-layer="malls"] + .form-check-label {
+        color: #8e24aa;
+        font-weight: 700;
+    }
+
+    .layer-toggle-options .form-check-label {
+        cursor: pointer;
+        font-weight: 600;
+        color: #16343b;
+    }
+
+    .map-wrapper {
+        position: relative;
+        min-height: 420px;
+        flex: none;
+    }
+
+    #propertyMap {
+        width: 100%;
+        height: 60vh;
+        min-height: 420px;
+    }
+
+    .results-section {
+        background: linear-gradient(180deg, rgba(4, 125, 125, 0.04) 0%, rgba(39, 152, 150, 0.08) 100%);
+        padding: 2.5rem 2rem 3rem;
+        border-top: 1px solid rgba(4, 125, 125, 0.12);
+        box-shadow: 0 -8px 28px rgba(4, 125, 125, 0.12);
+    }
+
+    .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .results-header h2 {
+        font-size: 1.1rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--color-secondary-dark);
+        margin-bottom: 0;
+    }
+
+    .property-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .property-card {
+        display: grid;
+        grid-template-columns: minmax(220px, 280px) 1fr;
+        gap: 1.5rem;
+        align-items: stretch;
+        background-color: #fff;
+        border-radius: 1.1rem;
+        padding: 1.5rem;
+        border: 1px solid rgba(4, 125, 125, 0.16);
+        box-shadow: 0 18px 42px rgba(4, 125, 125, 0.12);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.25s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .property-card:hover,
+    .property-card.active {
+        transform: translateY(-4px);
+        box-shadow: 0 26px 56px rgba(4, 125, 125, 0.22);
+        border-color: rgba(4, 125, 125, 0.4);
+        background-color: rgba(243, 253, 253, 0.95);
+    }
+
+    .property-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(135deg, rgba(82, 183, 181, 0.2) 0%, rgba(39, 152, 150, 0) 70%);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .property-card:hover::before,
+    .property-card.active::before {
+        opacity: 1;
+    }
+
+    .property-card > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .property-card-media {
+        border-radius: 0.95rem;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(4, 125, 125, 0.16), rgba(39, 152, 150, 0.16));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .property-card-media img {
+        width: 100%;
+        height: 100%;
+        min-height: 220px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .property-card-placeholder {
+        width: 100%;
+        min-height: 220px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-secondary);
+        font-size: 1.4rem;
+    }
+
+    .property-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .property-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .property-card-top .badge-status {
+        margin-right: 0.5rem;
+    }
+
+    .status-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--color-secondary-dark);
+        background: rgba(39, 152, 150, 0.12);
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+    }
+
+    .property-title {
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: #16343b;
+    }
+
+    .property-location {
+        /* Aumentado ligeramente para mayor legibilidad junto al icono */
+        font-size: 1.02rem;
+        color: var(--color-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Línea de ubicación principal (distrito, provincia) mostrada junto al icono */
+    .property-location-main {
+        font-size: 1.02rem;
+        color: #3b5454;
+        font-weight: 400;
+        margin: 0;
+    }
+
+    /* Línea secundaria puede mantenerse para mostrar exact_address si es necesario */
+    .property-location-sub {
+        font-size: 0.95rem;
+        color: #5a6b6b;
+        font-weight: 400;
+        margin-top: 0.15rem;
+    }
+
+    .property-address-doc {
+        font-size: 0.85rem;
+        color: #405b63;
+    }
+
+    .property-address-doc i {
+        color: var(--color-secondary-dark);
+    }
+
+    .property-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.5rem;
+        font-size: 0.85rem;
+        color: #16343b;
+    }
+
+    .property-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: rgba(4, 125, 125, 0.08);
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+    }
+
+    .property-meta span i {
+        color: var(--color-secondary);
+    }
+
+    .property-contacts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.5rem;
+        font-size: 0.85rem;
+        color: var(--color-muted);
+        margin-bottom: 0;
+    }
+
+    .property-contacts span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .property-contacts span i {
+        color: var(--color-primary);
+    }
+
+    .property-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: auto;
+    }
+
+    .property-actions .last-update {
+        color: var(--color-muted);
+        font-size: 0.78rem;
+    }
+
+    .empty-results {
+        padding: 2rem;
+        text-align: center;
+        background: rgba(4, 125, 125, 0.05);
+        border: 1px dashed rgba(4, 125, 125, 0.3);
+        border-radius: 1rem;
+        color: var(--color-muted);
+    }
+
+    .property-card .price {
+        color: var(--color-secondary);
+        font-weight: 700;
+        font-size: 1.2rem;
+    }
+
+    .badge-status {
+        background: rgba(4, 125, 125, 0.12);
+        color: var(--color-primary);
+        font-weight: 600;
+        border-radius: 999px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+    }
+
+    .empty-state {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background: rgba(4, 125, 125, 0.08);
+        text-align: center;
+    }
+
+    .filter-actions .btn-outline-secondary {
+        color: #047d7d;
+        border-color: #047d7d;
+        background-color: rgba(4, 125, 125, 0.1);
+        font-weight: 600;
+    }
+
+    .filter-actions .btn-outline-secondary:hover,
+    .filter-actions .btn-outline-secondary:focus {
+        background-color: #047d7d;
+        border-color: #047d7d;
+        color: #ffffff;
+    }
+
+    /* Hacer visible el botón de aplicar filtros usando variable CSS */
+    .filter-actions .btn.btn-primary {
+        background-color: var(--color-accent);
+        border-color: var(--color-accent);
+        color: #ffffff;
+        font-weight: 700;
+        box-shadow: 0 6px 18px rgba(46,164,79,0.12);
+    }
+
+    .filter-actions .btn.btn-primary:hover,
+    .filter-actions .btn.btn-primary:focus {
+        background-color: var(--color-accent-dark);
+        border-color: var(--color-accent-dark);
+        color: #ffffff;
+    }
+
+    @media (max-width: 992px) {
+        .filter-bar form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .layer-toggle-bar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.85rem;
+            padding: 0.9rem 1.5rem;
+        }
+
+        .filter-actions {
+            margin-left: 0;
+            justify-content: flex-end;
+        }
+
+        #propertyMap {
+            height: 420px;
+        }
+
+        .results-section {
+            padding: 2rem 1.5rem 2.5rem;
+        }
+
+        .property-card {
+            grid-template-columns: 1fr;
+        }
+
+        .property-card-media,
+        .property-card-placeholder {
+            min-height: 200px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .filter-bar {
+            padding: 1rem 1.25rem;
+        }
+
+        .layer-toggle-bar {
+            padding: 0.85rem 1.25rem;
+        }
+
+        .results-section {
+            padding: 1.75rem 1.25rem 2rem;
+        }
+
+        .property-card {
+            padding: 1.25rem;
+            gap: 1rem;
+        }
+
+        .property-title {
+            font-size: 1.1rem;
+        }
+
+        .property-meta {
+            gap: 0.5rem 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+        <div class="filter-bar">
+            <form method="get">
+                <div class="filter-control">
+                    <label for="filter-type">Tipo</label>
+                    <select class="form-select" id="filter-type" name="property_type">
+                        <option value="">Todos</option>
+                        {% for ptype in property_types %}
+                            <option value="{{ ptype.id }}" {% if filters.property_type == ptype.id|stringformat:'s' %}selected{% endif %}>{{ ptype.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-control">
+                    <label for="filter-district">Distrito</label>
+                    <select class="form-select" id="filter-district" name="district">
+                        <option value="">Todos</option>
+                        {% for d in districts_list %}
+                            <option value="{{ d.id }}" 
+                                {% if d.id and filters.district == d.id|stringformat:'s' %}selected
+                                {% elif not d.id and filters.district == d.name %}selected
+                                {% endif %}>{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-control">
+                    <label for="filter-payment">Método de pago</label>
+                    <select class="form-select" id="filter-payment" name="payment_method">
+                        <option value="">Todos</option>
+                        {% for pm in payment_methods %}
+                            <option value="{{ pm.id }}" {% if filters.payment_method == pm.id|stringformat:'s' %}selected{% endif %}>{{ pm.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-control">
+                    <label for="filter-price-min">Precio desde</label>
+                    <input type="number" class="form-control" id="filter-price-min" name="price_min" placeholder="0" value="{{ filters.price_min }}" min="0" step="1000">
+                </div>
+
+                <div class="filter-control">
+                    <label for="filter-price-max">Precio hasta</label>
+                    <input type="number" class="form-control" id="filter-price-max" name="price_max" placeholder="1,000,000" value="{{ filters.price_max }}" min="0" step="1000">
+                </div>
+
+                <div class="filter-actions">
+                    <button type="button" id="toggle-advanced-filters" class="btn btn-outline-secondary"><i class="fas fa-sliders-h me-2"></i>Filtro avanzado</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-filter me-2"></i>Aplicar</button>
+                    <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+                
+                <div class="advanced-filters" id="advancedFilters">
+                    <div class="adv-control">
+                        <label class="small">Urbanización</label>
+                        <select name="urbanization" class="form-select">
+                            <option value="">Todas</option>
+                            {% for u in urbanizations_list %}
+                                <option value="{{ u.id }}" {% if filters.urbanization == u.id|stringformat:'s' %}selected{% endif %}>{{ u.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Habitaciones</label>
+                        <div class="adv-mode-row">
+                            <select name="bedrooms_mode" class="form-select form-select-sm" onchange="toggleBedroomsMode(this.value)">
+                                <option value="">Ninguno</option>
+                                <option value="range" {% if filters.bedrooms_mode == 'range' %}selected{% endif %}>Rango</option>
+                                <option value="approx" {% if filters.bedrooms_mode == 'approx' %}selected{% endif %}>Aproximada</option>
+                            </select>
+                        </div>
+                        <div class="mt-2" id="bedroomsRange" style="display: none;">
+                            <input type="number" name="bedrooms_min" class="form-control mb-1" placeholder="Min" value="{{ filters.bedrooms_min }}">
+                            <input type="number" name="bedrooms_max" class="form-control" placeholder="Max" value="{{ filters.bedrooms_max }}">
+                        </div>
+                        <div class="mt-2" id="bedroomsApprox" style="display: none;">
+                            <input type="number" name="bedrooms_approx" class="form-control" placeholder="Cantidad aproximada" value="{{ filters.bedrooms_approx }}">
+                        </div>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Baños</label>
+                        <select name="bathrooms_mode" class="form-select form-select-sm" onchange="toggleBathroomsMode(this.value)">
+                            <option value="">Ninguno</option>
+                            <option value="range" {% if filters.bathrooms_mode == 'range' %}selected{% endif %}>Rango</option>
+                            <option value="approx" {% if filters.bathrooms_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                        </select>
+                        <div class="mt-2" id="bathroomsRange" style="display: none;">
+                            <input type="number" name="bathrooms_min" class="form-control mb-1" placeholder="Min" value="{{ filters.bathrooms_min }}">
+                            <input type="number" name="bathrooms_max" class="form-control" placeholder="Max" value="{{ filters.bathrooms_max }}">
+                        </div>
+                        <div class="mt-2" id="bathroomsApprox" style="display: none;">
+                            <input type="number" name="bathrooms_approx" class="form-control" placeholder="Cantidad aproximada" value="{{ filters.bathrooms_approx }}">
+                        </div>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Estacionamientos</label>
+                        <select name="garage_mode" class="form-select form-select-sm" onchange="toggleGarageMode(this.value)">
+                            <option value="">Ninguno</option>
+                            <option value="range" {% if filters.garage_mode == 'range' %}selected{% endif %}>Rango</option>
+                            <option value="approx" {% if filters.garage_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                        </select>
+                        <div class="mt-2" id="garageRange" style="display: none;">
+                            <input type="number" name="garage_min" class="form-control mb-1" placeholder="Min" value="{{ filters.garage_min }}">
+                            <input type="number" name="garage_max" class="form-control" placeholder="Max" value="{{ filters.garage_max }}">
+                        </div>
+                        <div class="mt-2" id="garageApprox" style="display: none;">
+                            <input type="number" name="garage_approx" class="form-control" placeholder="Cantidad aproximada" value="{{ filters.garage_approx }}">
+                        </div>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Área</label>
+                        <select name="area_field" class="form-select form-select-sm">
+                            <option value="land" {% if filters.area_field == 'land' %}selected{% endif %}>Terreno</option>
+                            <option value="built" {% if filters.area_field == 'built' %}selected{% endif %}>Construida</option>
+                        </select>
+                        <select name="area_mode" class="form-select form-select-sm mt-2" onchange="toggleAreaMode(this.value)">
+                            <option value="">Ninguno</option>
+                            <option value="range" {% if filters.area_mode == 'range' %}selected{% endif %}>Rango</option>
+                            <option value="approx" {% if filters.area_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                        </select>
+                        <div class="mt-2" id="areaRange" style="display: none;">
+                            <input type="number" step="0.1" name="area_min" class="form-control mb-1" placeholder="Min (m2)" value="{{ filters.area_min }}">
+                            <input type="number" step="0.1" name="area_max" class="form-control" placeholder="Max (m2)" value="{{ filters.area_max }}">
+                        </div>
+                        <div class="mt-2" id="areaApprox" style="display: none;">
+                            <input type="number" step="0.1" name="area_approx" class="form-control" placeholder="Cantidad aproximada (m2)" value="{{ filters.area_approx }}">
+                        </div>
+                    </div>
+
+                    <div class="adv-control">
+                        <label class="small">Estado</label>
+                        <select name="status" id="filter-status" class="form-select">
+                            <option value="">Cualquiera</option>
+                            <option value="antiguedad" {% if filters.status == 'antiguedad' %}selected{% endif %}>Antigüedad</option>
+                            {% for s in statuses %}
+                                {% if s.name|lower != 'antigüedad' and s.name|lower != 'antiguedad' %}
+                                    <option value="{{ s.id }}" {% if filters.status == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+
+                        <div class="mt-2" id="ageControls" style="display: none;">
+                            <select name="age_mode" id="ageMode" class="form-select form-select-sm" onchange="toggleAgeMode(this.value)">
+                                <option value="">Ninguno</option>
+                                <option value="range" {% if filters.age_mode == 'range' %}selected{% endif %}>Rango</option>
+                                <option value="approx" {% if filters.age_mode == 'approx' %}selected{% endif %}>Aproximado</option>
+                            </select>
+                            <div class="mt-2" id="ageRange" style="display: none;">
+                                <input type="number" name="age_min" class="form-control mb-1" placeholder="Min (años)" value="{{ filters.age_min }}">
+                                <input type="number" name="age_max" class="form-control" placeholder="Max (años)" value="{{ filters.age_max }}">
+                            </div>
+                            <div class="mt-2" id="ageApprox" style="display: none;">
+                                <input type="number" name="age_approx" class="form-control" placeholder="Años aproximados" value="{{ filters.age_approx }}">
+                            </div>
+                        <div id="ageWarning" class="age-warning" {% if age_warning %}style="display:block;"{% endif %}>{{ age_warning }}</div>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
-    </nav>
-    <div class="container mt-5">
-        <div class="row">
-            <div class="col-12">
-                <h1 class="mb-4">Bienvenido al Dashboard Principal</h1>
-                <p class="lead">Aquí podrás gestionar todas tus propiedades y usuarios.</p>
+
+        <div class="layer-toggle-bar">
+            <span class="layer-toggle-title"><i class="fas fa-layer-group"></i>Capas del mapa</span>
+            <div class="layer-toggle-options">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input layer-toggle-input" type="checkbox" id="layerSchools" data-layer="schools">
+                    <label class="form-check-label" for="layerSchools">Colegios</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input layer-toggle-input" type="checkbox" id="layerHospitals" data-layer="hospitals">
+                    <label class="form-check-label" for="layerHospitals">Hospitales</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input layer-toggle-input" type="checkbox" id="layerMalls" data-layer="malls">
+                    <label class="form-check-label" for="layerMalls">Centros comerciales</label>
+                </div>
             </div>
         </div>
-        <!-- Aquí puedes agregar más contenido del dashboard -->
-        <a href="/users/logout/" class="btn btn-danger mb-4">Cerrar sesión</a>
-        {% if test_message %}
-        <div class="alert alert-success mt-4">
-            {{ test_message }}
+
+        <div class="map-wrapper">
+            <div id="propertyMap" data-marker-icon="{{ property_marker_icon_url|default:'' }}"></div>
+
+            {% if property_count == 0 %}
+            <div class="empty-state">
+                <i class="fas fa-map-pin fa-3x text-muted"></i>
+                <h3 class="text-muted">No encontramos propiedades con estos filtros</h3>
+                <p class="text-muted mb-3">Prueba cambiando los criterios o creando una nueva propiedad.</p>
+                <a href="{% url 'properties:create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Registrar propiedad</a>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
-    </div>
-</body>
-</html>
+
+        <div class="results-section">
+            <div class="results-header">
+                <h2 class="mb-0 text-uppercase">Resultados</h2>
+                <span class="badge-status">{{ property_count }} propiedades</span>
+            </div>
+            {% if property_count == 0 %}
+            <div class="empty-results">
+                <p class="mb-2 fw-semibold">No encontramos propiedades con estos filtros.</p>
+                <p class="mb-3">Ajusta los criterios o crea una nueva propiedad.</p>
+                <a href="{% url 'properties:create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Registrar propiedad</a>
+            </div>
+            {% else %}
+            <div class="property-cards" id="propertyCards">
+                {% for property in properties %}
+                <article class="property-card" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
+                    <div class="property-card-media">
+                        {% with images=property.images.all %}
+                            <!-- DEBUG: Total imágenes: {{ images|length }} -->
+                            {% if images %}
+                                {% with first=images|first %}
+                                    {% if first.image_blob %}
+                                        <img src="{% url 'properties:image_blob' first.id %}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
+                                    {% elif first.image %}
+                                        <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
+                                    {% else %}
+                                        <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
+                                    {% endif %}
+                                {% endwith %}
+                            {% else %}
+                                <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="property-card-body">
+                        <div class="property-card-top">
+                            <div class="d-flex align-items-center flex-wrap gap-2">
+                                <span class="badge-status">{{ property.property_type.name }}</span>
+                                <span class="status-label">{{ property.status.name }}</span>
+                            </div>
+                            <div class="text-end">
+                                <div class="price">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
+                                    <small class="text-muted">Dirección: {{ property.real_address }}</small>
+                            </div>
+                        </div>
+                        <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
+                        <p class="property-location mb-0">
+                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                            <span class="property-location-main">
+                                {% if property.display_district or property.display_province %}
+                                    {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
+                                {% else %}
+                                    {{ property.real_address|default:'Ubicación no disponible' }}
+                                {% endif %}
+                            </span>
+                        </p>
+                        {# exact_address removed as secondary line to avoid duplication; only show district, province here #}
+                       
+                        <div class="property-meta">
+                            <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
+                            <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
+                            {% if property.land_area and property.land_area_unit %}
+                            <span><i class="fas fa-ruler-combined"></i>{{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
+                            {% endif %}
+                            {% if property.built_area and property.built_area_unit %}
+                            <span><i class="fas fa-drafting-compass"></i>{{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
+                            {% endif %}
+                            {% if property.garage_spaces %}
+                            <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} estacionamiento{% if property.garage_spaces != 1 %}s{% endif %}</span>
+                            {% endif %}
+                            {% if property.has_maintenance and property.maintenance_fee %}
+                            <span><i class="fas fa-tools"></i>Mant. {{ property.currency.symbol }} {{ property.maintenance_fee|floatformat:0 }}</span>
+                            {% endif %}
+                            {% if property.unit_location %}
+                            <span><i class="fas fa-building"></i> {{ property.get_unit_location_display }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="property-contacts">
+                            <span><i class="fas fa-user-tie"></i>Propietario: {{ property.owner.full_name }}</span>
+                            <span><i class="fas fa-user-check"></i>Responsable:
+                                {% if property.responsible %}
+                                    {% with full_name=property.responsible.get_full_name %}
+                                        {% if full_name %}
+                                            {{ full_name }}
+                                        {% else %}
+                                            {{ property.responsible.username }}
+                                        {% endif %}
+                                    {% endwith %}
+                                {% else %}
+                                    Sin asignar
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="property-actions">
+                            <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-external-link-alt me-1"></i>Ver detalle</a>
+                            {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
+                                <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary btn-sm ms-2"><i class="fas fa-edit me-1"></i>Editar</a>
+                            {% endif %}
+                            <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info btn-sm ms-2" title="Ver historial de cambios"><i class="fas fa-history me-1"></i>Historial</a>
+                            <span class="last-update">Actualizado el {{ property.updated_at|date:"d/m/Y" }}</span>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+{{ property_markers|json_script:"property-markers-json" }}
+<script>
+const mapConfig = {
+    defaultCenter: { lat: -16.409047, lng: -71.537451 },
+    defaultZoom: 13,
+    poiRadius: 4000
+};
+
+const layerDefinitions = {
+    schools: { type: 'school', color: '#1e88e5' },
+    hospitals: { type: 'hospital', color: '#d81b60' },
+    malls: { type: 'shopping_mall', color: '#8e24aa' }
+};
+
+// Advanced filters UI helpers
+function toggleAdvancedFilters() {
+    const adv = document.getElementById('advancedFilters');
+    if (!adv) return;
+    adv.classList.toggle('show');
+}
+
+function toggleBedroomsMode(mode) {
+    document.getElementById('bedroomsRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('bedroomsApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+function toggleBathroomsMode(mode) {
+    document.getElementById('bathroomsRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('bathroomsApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+function toggleGarageMode(mode) {
+    document.getElementById('garageRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('garageApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+function toggleAreaMode(mode) {
+    document.getElementById('areaRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('areaApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('toggle-advanced-filters');
+    if (btn) btn.addEventListener('click', toggleAdvancedFilters);
+
+    // Inicializar visibilidad segun filtros actuales
+    try {
+        toggleBedroomsMode('{{ filters.bedrooms_mode }}');
+        toggleBathroomsMode('{{ filters.bathrooms_mode }}');
+        toggleGarageMode('{{ filters.garage_mode }}');
+        toggleAreaMode('{{ filters.area_mode }}');
+        // Si alguno de los advanced filters tiene valor, mostrar el panel
+        const advHas = ['{{ filters.urbanization }}','{{ filters.bedrooms_mode }}','{{ filters.bedrooms_min }}','{{ filters.bedrooms_max }}','{{ filters.bedrooms_approx }}','{{ filters.bathrooms_mode }}','{{ filters.garage_mode }}','{{ filters.area_mode }}','{{ filters.status }}','{{ filters.age_mode }}','{{ filters.age_min }}','{{ filters.age_max }}','{{ filters.age_approx }}'].some(v => v && v.trim && v.trim() !== '');
+        if (advHas) {
+            const adv = document.getElementById('advancedFilters'); if (adv) adv.classList.add('show');
+        }
+    } catch (e) {
+        // ignore template rendering issues
+    }
+});
+
+// Age mode toggles and status->age visibility
+function toggleAgeMode(mode) {
+    document.getElementById('ageRange').style.display = mode === 'range' ? 'block' : 'none';
+    document.getElementById('ageApprox').style.display = mode === 'approx' ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const statusSelect = document.getElementById('filter-status');
+    function updateAgeVisibility() {
+        const ageCtr = document.getElementById('ageControls');
+        if (!statusSelect) return;
+        if (statusSelect.value === 'antiguedad') {
+            ageCtr.style.display = 'block';
+        } else {
+            ageCtr.style.display = 'none';
+        }
+    }
+    if (statusSelect) {
+        statusSelect.addEventListener('change', updateAgeVisibility);
+        updateAgeVisibility();
+        toggleAgeMode('{{ filters.age_mode }}');
+    }
+
+    // Funcionalidad para actualizar la advertencia de antiguedad en vivo
+    function updateAgeWarning() {
+        const warningEl = document.getElementById('ageWarning');
+        if (!warningEl) return;
+        const status = statusSelect ? statusSelect.value : '';
+        if (status !== 'antiguedad') {
+            warningEl.style.display = 'none';
+            warningEl.textContent = '';
+            return;
+        }
+        const ageMode = document.getElementById('ageMode') ? document.getElementById('ageMode').value : '';
+        let msg = '';
+        if (ageMode === 'range') {
+            const amin = document.querySelector('input[name="age_min"]').value || '';
+            const amax = document.querySelector('input[name="age_max"]').value || '';
+            if (amin && amax) msg = `Buscando propiedades entre ${amin} y ${amax} años.`;
+            else if (amin) msg = `Buscando propiedades desde ${amin} años.`;
+            else if (amax) msg = `Buscando propiedades de hasta ${amax} años.`;
+        } else if (ageMode === 'approx') {
+            const a = document.querySelector('input[name="age_approx"]').value || '';
+            if (a) msg = `Buscando propiedades con antigüedad ≈ ${a} años (±1 año).`;
+        }
+        if (msg) {
+            warningEl.textContent = msg;
+            warningEl.style.display = 'block';
+        } else {
+            // si no hay valores, mostrar la advertencia server-side si existe (ya impresa)
+            if (!warningEl.textContent) {
+                warningEl.style.display = 'none';
+            }
+        }
+    }
+
+    // Adjuntar listeners para actualizar en vivo
+    const ageMinEl = document.querySelector('input[name="age_min"]');
+    const ageMaxEl = document.querySelector('input[name="age_max"]');
+    const ageApproxEl = document.querySelector('input[name="age_approx"]');
+    if (ageMinEl) ageMinEl.addEventListener('input', updateAgeWarning);
+    if (ageMaxEl) ageMaxEl.addEventListener('input', updateAgeWarning);
+    if (ageApproxEl) ageApproxEl.addEventListener('input', updateAgeWarning);
+    if (document.getElementById('ageMode')) document.getElementById('ageMode').addEventListener('change', updateAgeWarning);
+    if (statusSelect) statusSelect.addEventListener('change', updateAgeWarning);
+
+    // Cascada: al cambiar distrito, cargar urbanizaciones via API (reusa endpoint existente)
+    const districtSelect = document.getElementById('filter-district');
+    const urbanizationSelect = document.querySelector('select[name="urbanization"]');
+    if (districtSelect && urbanizationSelect) {
+        districtSelect.addEventListener('change', function() {
+            const districtId = this.value;
+            if (!districtId) {
+                urbanizationSelect.innerHTML = '<option value="">Seleccione un distrito primero</option>';
+                urbanizationSelect.disabled = true;
+                return;
+            }
+            urbanizationSelect.disabled = true;
+            urbanizationSelect.innerHTML = '<option value="">Cargando urbanizaciones...</option>';
+            fetch("{% url 'properties:api_urbanizations' %}?district_id=" + encodeURIComponent(districtId))
+                .then(r => { if(!r.ok) throw new Error('reload'); return r.json(); })
+                .then(data => {
+                    urbanizationSelect.innerHTML = '<option value="">Todas</option>';
+                    data.forEach(u => {
+                        const opt = document.createElement('option');
+                        opt.value = u.id;
+                        opt.textContent = u.name;
+                        urbanizationSelect.appendChild(opt);
+                    });
+                    urbanizationSelect.disabled = false;
+                })
+                .catch(() => {
+                    urbanizationSelect.innerHTML = '<option value="">Error</option>';
+                    urbanizationSelect.disabled = true;
+                });
+        });
+    }
+});
+
+// Cache for generated SVG icons per layer
+const poiIconCache = {};
+
+function buildPoiSvgIcon(label, color) {
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="28" fill="${color}" />
+      <text x="32" y="38" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#ffffff" text-anchor="middle" font-weight="700">${label}</text>
+    </svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function getPoiIconUrl(layerKey) {
+    if (poiIconCache[layerKey]) return poiIconCache[layerKey];
+    const cfg = layerDefinitions[layerKey];
+    if (!cfg) return null;
+    const labelMap = { schools: 'E', hospitals: 'H', malls: 'C' };
+    const label = cfg.iconLabel || labelMap[layerKey] || '';
+    const url = buildPoiSvgIcon(label, cfg.color);
+    poiIconCache[layerKey] = url;
+    return url;
+}
+
+
+let propertyMap;
+let placesService;
+let sharedInfoWindow;
+
+const layerState = {
+    schools: { markers: [], isLoading: false, requestId: 0 },
+    hospitals: { markers: [], isLoading: false, requestId: 0 },
+    malls: { markers: [], isLoading: false, requestId: 0 }
+};
+
+const propertyMarkersData = JSON.parse(document.getElementById('property-markers-json')?.textContent || '[]');
+const propertyMarkerReferences = new Map();
+const propertyDataById = new Map();
+let customPropertyMarkerIconUrl = '';
+let activePropertyId = null;
+
+function validateCustomMarkerIcon(url) {
+    return new Promise(resolve => {
+        if (!url) {
+            resolve('');
+            return;
+        }
+
+        const image = new Image();
+        image.onload = () => resolve(url);
+        image.onerror = () => resolve('');
+        image.src = url;
+    });
+}
+
+function buildDefaultMarkerIcon(color) {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path fill='${color}' d='M32 4c-12.7 0-23 9.8-23 22 0 9.8 6.1 18.3 14.2 27.7 3 3.5 6.2 7 8.9 10.5a1.8 1.8 0 0 0 2.8 0c2.7-3.5 5.9-7 8.9-10.5C48.9 44.3 55 35.8 55 26c0-12.2-10.3-22-23-22z'/><circle fill='#ffffff' fill-opacity='0.9' cx='32' cy='26' r='9'/></svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function getPropertyMarkerIcon(isActive = false) {
+    if (customPropertyMarkerIconUrl) {
+        const size = isActive ? 56 : 48;
+        return {
+            url: customPropertyMarkerIconUrl,
+            scaledSize: new google.maps.Size(size, size),
+            origin: new google.maps.Point(0, 0),
+            anchor: new google.maps.Point(size / 2, size - 8)
+        };
+    }
+
+    const color = isActive ? '#047d7d' : '#5ab0ae';
+    return {
+        url: buildDefaultMarkerIcon(color),
+        scaledSize: new google.maps.Size(46, 60),
+        origin: new google.maps.Point(0, 0),
+        anchor: new google.maps.Point(23, 56)
+    };
+}
+
+function emphasizePropertyMarkers(activeId) {
+    propertyMarkerReferences.forEach((marker, id) => {
+        const isActive = Number(id) === Number(activeId);
+        marker.setIcon(getPropertyMarkerIcon(isActive));
+        marker.setZIndex(isActive ? 320 : 180);
+    });
+}
+
+function highlightPropertyCard(propertyId) {
+    const cards = document.querySelectorAll('.property-card');
+    cards.forEach(card => {
+        const isActive = Number(card.dataset.propertyId) === Number(propertyId);
+        card.classList.toggle('active', isActive);
+    });
+}
+
+function openPropertyInfo(property, marker) {
+    if (!sharedInfoWindow) {
+        sharedInfoWindow = new google.maps.InfoWindow();
+    }
+
+    const container = document.createElement('div');
+    container.style.width = '300px';
+    container.style.maxHeight = '400px';
+    container.style.padding = '0.2rem 0.2rem';
+    container.style.overflow = 'hidden';
+    container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    container.style.margin = '0';
+    container.style.cursor = 'pointer';
+    
+    // Hacer clickeable todo el contenedor
+    container.addEventListener('click', () => {
+        if (property.url) {
+            window.location.href = property.url;
+        }
+    });
+
+    if (property.thumbnail) {
+        const image = document.createElement('img');
+        image.src = property.thumbnail;
+        image.alt = property.title || property.code || 'Propiedad';
+        image.style.width = '100%';
+        image.style.height = '100px';
+        image.style.objectFit = 'cover';
+        image.style.borderRadius = '0.5rem';
+        image.style.marginBottom = '0.3rem';
+        image.style.display = 'block';
+        image.style.margin = '0 0 0.3rem 0';
+        image.style.pointerEvents = 'none';
+        container.appendChild(image);
+    }
+
+    const title = document.createElement('h3');
+    title.style.fontSize = '0.95rem';
+    title.style.fontWeight = '700';
+    title.style.margin = '0 0 0.2rem 0';
+    title.style.color = '#16343b';
+    title.style.wordWrap = 'break-word';
+    title.style.lineHeight = '1.2';
+    title.style.pointerEvents = 'none';
+    title.textContent = property.real_address || property.code || 'Propiedad sin dirección';
+    container.appendChild(title);
+
+    if (property.price) {
+        const price = document.createElement('div');
+        price.style.color = '#047d7d';
+        price.style.fontWeight = '700';
+        price.style.marginBottom = '0.2rem';
+        price.style.margin = '0 0 0.2rem 0';
+        price.style.fontSize = '0.9rem';
+        price.style.pointerEvents = 'none';
+        price.textContent = property.price;
+        container.appendChild(price);
+    }
+
+    if (property.owner) {
+        const owner = document.createElement('p');
+        owner.style.margin = '0 0 0.15rem 0';
+        owner.style.color = '#3c5466';
+        owner.style.fontSize = '0.7rem';
+        owner.style.wordWrap = 'break-word';
+        owner.style.lineHeight = '1.3';
+        owner.style.pointerEvents = 'none';
+        owner.textContent = `Prop: ${property.owner}`;
+        container.appendChild(owner);
+    }
+
+    if (property.url) {
+        const link = document.createElement('a');
+        link.href = property.url;
+        link.textContent = 'Ver detalle';
+        link.className = 'btn btn-primary btn-sm';
+        link.style.borderRadius = '4px';
+        link.style.padding = '0.25rem 0.8rem';
+        link.style.fontWeight = '600';
+        link.style.fontSize = '0.75rem';
+        link.style.display = 'block';
+        link.style.textAlign = 'center';
+        link.style.marginTop = '0.15rem';
+        link.style.margin = '0.15rem 0 0 0';
+        link.target = '_blank';
+        container.appendChild(link);
+    }
+
+    sharedInfoWindow.setContent(container);
+    sharedInfoWindow.open({ map: propertyMap, anchor: marker });
+}
+
+function setActiveProperty(propertyId, options = {}) {
+    const numericId = Number(propertyId);
+    if (!Number.isFinite(numericId)) {
+        return;
+    }
+
+    const settings = Object.assign({ panToMarker: true, openInfo: true }, options);
+    activePropertyId = numericId;
+
+    highlightPropertyCard(numericId);
+    emphasizePropertyMarkers(numericId);
+
+    const marker = propertyMarkerReferences.get(numericId);
+    const property = propertyDataById.get(numericId);
+
+    if (marker && property) {
+        if (settings.panToMarker) {
+            propertyMap.panTo(marker.getPosition());
+        }
+        if (settings.openInfo) {
+            openPropertyInfo(property, marker);
+        }
+    }
+}
+
+function renderPropertyMarkers() {
+    propertyMarkerReferences.forEach(marker => marker.setMap(null));
+    propertyMarkerReferences.clear();
+    propertyDataById.clear();
+    activePropertyId = null;
+
+    const bounds = new google.maps.LatLngBounds();
+    let hasMarkers = false;
+
+    propertyMarkersData.forEach(property => {
+        const numericId = Number(property.id);
+        if (!Number.isFinite(numericId)) {
+            return;
+        }
+
+        propertyDataById.set(numericId, property);
+
+        if (typeof property.lat !== 'number' || typeof property.lng !== 'number') {
+            return;
+        }
+
+        const position = new google.maps.LatLng(property.lat, property.lng);
+        const marker = new google.maps.Marker({
+            map: propertyMap,
+            position,
+            title: property.title || property.code || 'Propiedad',
+            icon: getPropertyMarkerIcon(false),
+            zIndex: 180
+        });
+
+        marker.addListener('click', () => {
+            setActiveProperty(numericId, { panToMarker: true, openInfo: true });
+        });
+
+        propertyMarkerReferences.set(numericId, marker);
+        bounds.extend(position);
+        hasMarkers = true;
+    });
+
+    if (hasMarkers) {
+        propertyMap.fitBounds(bounds);
+        google.maps.event.addListenerOnce(propertyMap, 'bounds_changed', () => {
+            if (propertyMap.getZoom() > mapConfig.defaultZoom) {
+                propertyMap.setZoom(mapConfig.defaultZoom);
+            }
+        });
+    } else {
+        propertyMap.setCenter(mapConfig.defaultCenter);
+        propertyMap.setZoom(mapConfig.defaultZoom);
+    }
+}
+
+function setupCardInteractions() {
+    const cards = document.querySelectorAll('.property-card');
+    cards.forEach(card => {
+        const numericId = Number(card.dataset.propertyId);
+        if (!Number.isFinite(numericId)) {
+            return;
+        }
+
+        card.addEventListener('mouseenter', () => {
+            const marker = propertyMarkerReferences.get(numericId);
+            if (marker && numericId !== activePropertyId) {
+                marker.setIcon(getPropertyMarkerIcon(true));
+                marker.setZIndex(260);
+            }
+        });
+
+        card.addEventListener('mouseleave', () => {
+            const marker = propertyMarkerReferences.get(numericId);
+            if (!marker) {
+                return;
+            }
+            const isActive = numericId === activePropertyId;
+            marker.setIcon(getPropertyMarkerIcon(isActive));
+            marker.setZIndex(isActive ? 320 : 180);
+        });
+
+        card.addEventListener('click', (event) => {
+            if (event.target.closest('a')) {
+                return;
+            }
+
+            setActiveProperty(numericId, { panToMarker: true, openInfo: true });
+
+            const marker = propertyMarkerReferences.get(numericId);
+            if (marker) {
+                const mapContainer = document.querySelector('.map-wrapper');
+                if (mapContainer) {
+                    mapContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        });
+    });
+}
+
+function clearPoiLayer(layerKey) {
+    const state = layerState[layerKey];
+    if (!state) {
+        return;
+    }
+    // cancel any in-flight requests for this layer to avoid late callbacks
+    state.requestId = (state.requestId || 0) + 1;
+    state.markers.forEach(marker => marker.setMap(null));
+    state.markers = [];
+    state.isLoading = false;
+}
+
+function openPoiInfo(marker, place) {
+    if (!sharedInfoWindow) {
+        sharedInfoWindow = new google.maps.InfoWindow();
+    }
+
+    const container = document.createElement('div');
+    container.style.minWidth = '200px';
+    container.style.padding = '0.5rem 0.25rem';
+
+    const title = document.createElement('h3');
+    title.style.fontSize = '1rem';
+    title.style.fontWeight = '700';
+    title.style.marginBottom = '0.35rem';
+    title.style.color = '#16343b';
+    title.textContent = place.name || 'Sin nombre';
+
+    const address = document.createElement('p');
+    address.style.margin = '0';
+    address.style.color = '#3c5466';
+    address.style.fontSize = '0.85rem';
+    address.textContent = place.vicinity || place.formatted_address || 'Dirección no disponible';
+
+    container.appendChild(title);
+    container.appendChild(address);
+
+    sharedInfoWindow.setContent(container);
+    sharedInfoWindow.open({ map: propertyMap, anchor: marker });
+}
+
+function createPoiMarker(place, layerKey) {
+    const config = layerDefinitions[layerKey];
+    if (!config || !place.geometry || !place.geometry.location) {
+        return null;
+    }
+
+    // Use a colored circular symbol for POI markers, larger and with white stroke
+    // Use a small circular symbol for POI markers so they don't obscure properties
+    const markerIcon = {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 5,
+        fillColor: config.color,
+        fillOpacity: 0.9,
+        strokeColor: '#ffffff',
+        strokeWeight: 1
+    };
+
+    const marker = new google.maps.Marker({
+        map: propertyMap,
+        position: place.geometry.location,
+        title: place.name || '',
+        icon: markerIcon,
+        zIndex: 160, // below property markers (which use ~180)
+        optimized: true
+    });
+
+    marker.addListener('click', () => openPoiInfo(marker, place));
+    return marker;
+}
+
+function loadPoiLayer(layerKey) {
+    const config = layerDefinitions[layerKey];
+    const state = layerState[layerKey];
+    if (!config || !state || !propertyMap || !placesService) {
+        return;
+    }
+
+    clearPoiLayer(layerKey);
+    state.isLoading = true;
+
+    // increment requestId to identify this specific load operation
+    state.requestId = (state.requestId || 0) + 1;
+    const thisRequestId = state.requestId;
+
+    const request = {
+        location: propertyMap.getCenter(),
+        radius: mapConfig.poiRadius,
+        type: config.type
+    };
+
+    const handleResults = (results, status, pagination) => {
+        // ignore results if a newer request was started or the layer was cleared
+        if (state.requestId !== thisRequestId) {
+            return;
+        }
+
+        if (status === google.maps.places.PlacesServiceStatus.OK && Array.isArray(results)) {
+            results.forEach(result => {
+                const marker = createPoiMarker(result, layerKey);
+                if (marker) {
+                    state.markers.push(marker);
+                }
+            });
+            if (pagination && pagination.hasNextPage) {
+                window.setTimeout(() => pagination.nextPage(), 180);
+                return;
+            }
+        }
+        // only clear loading flag if still the active request
+        if (state.requestId === thisRequestId) {
+            state.isLoading = false;
+        }
+    };
+
+    placesService.nearbySearch(request, handleResults);
+}
+
+function toggleLayer(event) {
+    const checkbox = event.target;
+    const layerKey = checkbox.dataset.layer;
+    if (!layerDefinitions[layerKey]) {
+        return;
+    }
+
+    if (checkbox.checked) {
+        loadPoiLayer(layerKey);
+    } else {
+        clearPoiLayer(layerKey);
+    }
+}
+
+function registerLayerControls() {
+    const toggles = document.querySelectorAll('.layer-toggle-input');
+    toggles.forEach(toggle => {
+        // Evitar que el click en el checkbox burbujee y afecte al mapa
+        toggle.addEventListener('click', (e) => { e.stopPropagation(); });
+        toggle.addEventListener('keydown', (e) => { e.stopPropagation(); });
+        toggle.addEventListener('change', toggleLayer);
+    });
+}
+
+function initPropertyMap() {
+    const mapElement = document.getElementById('propertyMap');
+    if (!mapElement) {
+        return;
+    }
+
+    customPropertyMarkerIconUrl = (mapElement.dataset.markerIcon || '').trim();
+
+    propertyMap = new google.maps.Map(mapElement, {
+        center: mapConfig.defaultCenter,
+        zoom: mapConfig.defaultZoom,
+        streetViewControl: false,
+        fullscreenControl: false,
+        mapTypeControl: false,
+        gestureHandling: 'greedy',
+        styles: [
+            { elementType: 'geometry', stylers: [{ color: '#e9f2ef' }] },
+            { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+            { elementType: 'labels.text.fill', stylers: [{ color: '#4f5d63' }] },
+            { elementType: 'labels.text.stroke', stylers: [{ color: '#e9f2ef' }] },
+            { featureType: 'administrative', stylers: [{ visibility: 'off' }] },
+            { featureType: 'landscape', stylers: [{ color: '#e9f2ef' }] },
+            { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+            { featureType: 'poi.park', elementType: 'geometry.fill', stylers: [{ color: '#b8dcbc' }] },
+            { featureType: 'poi.park', elementType: 'geometry.stroke', stylers: [{ color: '#9ec9a3' }, { weight: 0.5 }] },
+            { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: '#ffffff' }] },
+            { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#c8d8d4' }] },
+            { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#4f5d63' }] },
+            { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+            { featureType: 'water', elementType: 'geometry.fill', stylers: [{ color: '#c7e4f2' }] }
+        ]
+    });
+
+    placesService = new google.maps.places.PlacesService(propertyMap);
+    sharedInfoWindow = new google.maps.InfoWindow();
+
+    validateCustomMarkerIcon(customPropertyMarkerIconUrl).then(validUrl => {
+        customPropertyMarkerIconUrl = validUrl;
+        renderPropertyMarkers();
+        setupCardInteractions();
+        registerLayerControls();
+
+        document.querySelectorAll('.layer-toggle-input:checked').forEach(input => {
+            if (input.dataset.layer) {
+                loadPoiLayer(input.dataset.layer);
+            }
+        });
+    });
+}
+
+window.initPropertyMap = initPropertyMap;
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBrL1QF7vTl9zF8FmCUumfRpFJcaYokO7Q&libraries=places&callback=initPropertyMap" async defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const logoutUrl = "{% url 'users:logout' %}";
+
+    const lockHistory = () => {
+        try {
+            history.pushState({ preserved: true }, document.title, window.location.href);
+        } catch (error) {
+            // history.pushState might fail in older browsers; ignore and continue
+        }
+    };
+
+    lockHistory();
+
+    window.addEventListener('popstate', function onPopState() {
+        const confirmExit = window.confirm('¿Deseas salir del sistema y cerrar tu sesión?');
+        if (confirmExit) {
+            window.location.href = logoutUrl;
+            return;
+        }
+        lockHistory();
+    });
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Eliminar cualquier overlay existente al cargar la página
+    const existingOverlay = document.querySelector('.loading-overlay');
+    if (existingOverlay) {
+        existingOverlay.remove();
+    }
+
+    const createPropertyLink = document.querySelector("a[href='{% url 'properties:create' %}']");
+    if (createPropertyLink) {
+        createPropertyLink.addEventListener('click', function(event) {
+            event.preventDefault();
+
+            // Crear y mostrar el overlay de carga
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.className = 'loading-overlay';
+
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner-border text-light';
+            spinner.role = 'status';
+
+            const message = document.createElement('span');
+            message.textContent = 'Cargando...';
+
+            const container = document.createElement('div');
+            container.style.textAlign = 'center';
+            container.appendChild(spinner);
+            container.appendChild(message);
+
+            loadingOverlay.appendChild(container);
+            document.body.appendChild(loadingOverlay);
+
+            // Redirigir después de un breve retraso
+            setTimeout(() => {
+                window.location.href = createPropertyLink.href;
+            }, 500);
+
+            // Evitar que el overlay reaparezca al usar el botón Back
+            window.history.pushState({ noOverlay: true }, '', window.location.href);
+        });
+    }
+
+    // Manejar el evento popstate para evitar que el overlay reaparezca
+    window.addEventListener('popstate', function(event) {
+        const overlay = document.querySelector('.loading-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    });
+
+    // Manejar el evento pageshow para eliminar el overlay si la página se carga desde la caché
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) { // Detecta si la página se cargó desde la caché
+            const overlay = document.querySelector('.loading-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,373 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Contactos - Janis Platform{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .contacts-dashboard {
+        --teal-primary: #047D7D;
+        --teal-secondary: #279896;
+        --teal-muted: rgba(6, 44, 44, 0.65);
+    }
+
+    .contacts-dashboard .page-header-card {
+        background: linear-gradient(120deg, rgba(4, 125, 125, 0.12) 0%, rgba(39, 152, 150, 0.18) 100%);
+        border: 1px solid rgba(4, 125, 125, 0.15);
+        border-radius: 0.85rem;
+        padding: 1.75rem;
+        box-shadow: 0 1.5rem 3rem -1.5rem rgba(4, 125, 125, 0.35);
+    }
+
+    .contacts-dashboard .btn-teal {
+        background-color: var(--teal-primary);
+        border-color: var(--teal-primary);
+        color: #fff;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    .contacts-dashboard .btn-teal:hover,
+    .contacts-dashboard .btn-teal:focus {
+        background-color: #036c6c;
+        border-color: #036c6c;
+        color: #fff;
+    }
+
+    .contacts-dashboard .btn-outline-teal {
+        color: var(--teal-primary);
+        border-color: rgba(4, 125, 125, 0.45);
+        font-weight: 600;
+    }
+
+    .contacts-dashboard .btn-outline-teal:hover,
+    .contacts-dashboard .btn-outline-teal:focus {
+        background-color: var(--teal-primary);
+        border-color: var(--teal-primary);
+        color: #fff;
+    }
+
+    .contacts-dashboard .stats-card {
+        border-radius: 0.85rem;
+        padding: 1.5rem;
+        background: #fff;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        box-shadow: 0 1.25rem 3rem -1.5rem rgba(4, 125, 125, 0.28);
+    }
+
+    .contacts-dashboard .stats-card h3 {
+        font-weight: 700;
+        color: var(--teal-primary);
+    }
+
+    .contacts-dashboard .stats-card small {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--teal-muted);
+        font-weight: 600;
+    }
+
+    .contacts-dashboard .filters-card {
+        border-radius: 0.85rem;
+        border: 1px solid rgba(4, 125, 125, 0.12);
+        box-shadow: 0 1rem 2.5rem -1.5rem rgba(4, 125, 125, 0.25);
+    }
+
+    .contacts-dashboard .contact-card {
+        border-radius: 1rem;
+        border: 1px solid rgba(4, 125, 125, 0.14);
+        box-shadow: 0 1.25rem 3rem -1.5rem rgba(4, 125, 125, 0.28);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        background: #fff;
+    }
+
+    .contacts-dashboard .contact-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 1.5rem 3.5rem -1.4rem rgba(4, 125, 125, 0.33);
+    }
+
+    .contacts-dashboard .contact-card .contact-avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: linear-gradient(140deg, var(--teal-primary) 0%, var(--teal-secondary) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        color: #fff;
+        font-weight: 700;
+    }
+
+    .contacts-dashboard .contact-card .card-body {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 1.5rem;
+    }
+
+    .contacts-dashboard .contact-card .card-body .contact-summary {
+        flex: 1;
+    }
+
+    .contacts-dashboard .contact-card .contact-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .contacts-dashboard .contact-card .contact-meta .meta-item {
+        padding: 0.75rem 1rem;
+        border-radius: 0.65rem;
+        background: rgba(4, 125, 125, 0.06);
+        border: 1px solid rgba(4, 125, 125, 0.08);
+    }
+
+    .contacts-dashboard .contact-card .meta-label {
+        display: block;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--teal-muted);
+        font-weight: 600;
+        margin-bottom: 0.3rem;
+    }
+
+    .contacts-dashboard .contact-card .meta-value {
+        font-weight: 600;
+        color: #113638;
+    }
+
+    .contacts-dashboard .badge-tag {
+        background: rgba(4, 125, 125, 0.12);
+        color: var(--teal-primary);
+        border-radius: 999px;
+        font-weight: 600;
+        padding: 0.35rem 0.85rem;
+        margin-right: 0.35rem;
+    }
+
+    .contacts-dashboard .contact-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .contacts-dashboard .contact-actions .btn {
+        flex: 1;
+        min-width: 140px;
+        font-weight: 600;
+    }
+
+    .contacts-dashboard .pagination .page-link {
+        color: var(--teal-primary);
+        border-radius: 999px;
+        margin: 0 0.2rem;
+    }
+
+    .contacts-dashboard .pagination .page-item.active .page-link {
+        background-color: var(--teal-primary);
+        border-color: var(--teal-primary);
+        color: #fff;
+    }
+
+    @media (max-width: 992px) {
+        .contacts-dashboard .contact-card .card-body {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .contacts-dashboard .contact-card .contact-avatar {
+            margin-bottom: 0.5rem;
+            width: 60px;
+            height: 60px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4 contacts-dashboard">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+            <div class="page-header-card mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div>
+                    <h1 class="h3 mb-2 text-teal fw-semibold"><i class="fas fa-users me-2"></i>Contactos</h1>
+                    <p class="mb-0 text-muted">Gestiona la red de propietarios y prospectos de manera centralizada.</p>
+                </div>
+                <a href="{% url 'properties:contact_create' %}" class="btn btn-teal">
+                    <i class="fas fa-plus me-2"></i>Nuevo contacto
+                </a>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-lg-3">
+                    <div class="stats-card">
+                        <h3 class="mb-1">{{ contacts.count }}</h3>
+                        <small>Total contactos</small>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <div class="stats-card">
+                        <h3 class="mb-1">{{ contacts.count }}</h3>
+                        <small>Activos</small>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <div class="stats-card">
+                        <h3 class="mb-1">0</h3>
+                        <small>Con propiedades</small>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <div class="stats-card">
+                        <h3 class="mb-1">0</h3>
+                        <small>Ingresos recientes</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card filters-card mb-4">
+                <div class="card-body">
+                    <form class="row gy-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold text-muted text-uppercase small">Buscar</label>
+                            <input type="text" class="form-control" placeholder="Nombre, email o teléfono" name="search">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold text-muted text-uppercase small">Tipo de documento</label>
+                            <select class="form-select" name="document_type">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold text-muted text-uppercase small">Profesión</label>
+                            <select class="form-select" name="profession">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-grid">
+                            <button class="btn btn-outline-teal" type="submit">
+                                <i class="fas fa-filter me-2"></i>Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="d-flex flex-column gap-4">
+                {% for contact in contacts %}
+                <div class="contact-card">
+                    <div class="card-body">
+                        <div class="contact-avatar">
+                            {{ contact.first_name|default:""|slice:":1" }}{{ contact.last_name|default:""|slice:":1" }}
+                        </div>
+                        <div class="contact-summary">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                <div>
+                                    <h4 class="fw-semibold mb-1">{{ contact.full_name }}</h4>
+                                    <p class="text-muted mb-2">
+                                        <i class="fas fa-id-card me-2 text-teal"></i>
+                                        {{ contact.document_type }}: {{ contact.identity_document }}
+                                    </p>
+                                    <p class="text-muted mb-0 small">
+                                        <i class="fas fa-calendar me-2"></i>
+                                        Creado {{ contact.created_at|date:"d/m/Y" }}
+                                    </p>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    {% for tag in contact.tags.all %}
+                                    <span class="badge-tag">{{ tag.name }}</span>
+                                    {% empty %}
+                                    <span class="text-muted small">Sin etiquetas</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="contact-meta">
+                                <div class="meta-item">
+                                    <span class="meta-label">Teléfono principal</span>
+                                    <span class="meta-value">{{ contact.phone }}</span>
+                                </div>
+                                {% if contact.secondary_phone %}
+                                <div class="meta-item">
+                                    <span class="meta-label">Teléfono secundario</span>
+                                    <span class="meta-value">{{ contact.secondary_phone }}</span>
+                                </div>
+                                {% endif %}
+                                <div class="meta-item">
+                                    <span class="meta-label">Correo electrónico</span>
+                                    <span class="meta-value">{{ contact.email }}</span>
+                                </div>
+                                {% if contact.company %}
+                                <div class="meta-item">
+                                    <span class="meta-label">Empresa</span>
+                                    <span class="meta-value">{{ contact.company }}</span>
+                                </div>
+                                {% endif %}
+                                {% if contact.profession %}
+                                <div class="meta-item">
+                                    <span class="meta-label">Profesión</span>
+                                    <span class="meta-value">{{ contact.profession }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="contact-actions">
+                                <a href="{% url 'properties:contact_detail' contact.pk %}" class="btn btn-outline-teal">
+                                    <i class="fas fa-eye me-2"></i>Ver detalle
+                                </a>
+                                <a href="{% url 'properties:contact_edit' contact.pk %}" class="btn btn-outline-teal">
+                                    <i class="fas fa-edit me-2"></i>Editar
+                                </a>
+                                <a href="tel:{{ contact.phone }}" class="btn btn-outline-teal">
+                                    <i class="fas fa-phone me-2"></i>Llamar
+                                </a>
+                                <a href="mailto:{{ contact.email }}" class="btn btn-outline-teal">
+                                    <i class="fas fa-envelope me-2"></i>Enviar correo
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="contact-card text-center py-5">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No hay contactos registrados</h4>
+                        <p class="text-muted">Comienza agregando tu primer contacto.</p>
+                        <a href="{% url 'properties:contact_create' %}" class="btn btn-teal">
+                            <i class="fas fa-plus me-2"></i>Crear primer contacto
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if is_paginated %}
+            <nav class="mt-4" aria-label="Paginación de contactos">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                    </li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

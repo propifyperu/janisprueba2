@@ -1,0 +1,334 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Editar Requerimiento - Janis Platform{% endblock %}
+
+{% block dashboard_extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Usar color de la barra lateral directamente como fallback
+       (algunas plantillas no envuelven con .permissions-page) */
+    .permissions-page {
+        --primary-color: #047D7D;
+        --secondary-color: #279896;
+    }
+    .form-label {
+        font-weight: 500;
+    }
+    .btn-teal {
+        background-color: var(--primary-color, #047D7D) !important;
+        border-color: var(--primary-color, #047D7D) !important;
+        color: #fff !important;
+    }
+    .btn-teal:hover {
+        background-color: var(--secondary-color, #279896) !important;
+        border-color: var(--secondary-color, #279896) !important;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form id="requirement-form" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Sección: Datos del cliente -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">DATOS DEL CLIENTE</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.client_name.id_for_label }}">Nombre del cliente</label>
+                                    {{ form.client_name }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.phone.id_for_label }}">Teléfono</label>
+                                    {{ form.phone }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección: Tipo de inmueble -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">TIPO DE INMUEBLE</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.property_type.id_for_label }}">Tipo</label>
+                                    {{ form.property_type }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.property_subtype.id_for_label }}">Subtipo</label>
+                                    {{ form.property_subtype }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.area_type.id_for_label }}">Área terreno - Tipo</label>
+                                    {{ form.area_type }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="area-range-rows">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.land_area_min.id_for_label }}">Mínimo (m²)</label>
+                                    {{ form.land_area_min }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.land_area_max.id_for_label }}">Máximo (m²)</label>
+                                    {{ form.land_area_max }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="area-approx-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.land_area_approx.id_for_label }}">Área aproximada (m²)</label>
+                                    {{ form.land_area_approx }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección: Ubicación -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">UBICACIÓN</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.department.id_for_label }}">Departamento</label>
+                                    {{ form.department }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.province.id_for_label }}">Provincia</label>
+                                    {{ form.province }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="{{ form.district.id_for_label }}">Distrito(s)</label>
+                                    <div class="small text-muted mb-1">Puedes seleccionar varios distritos (Ctrl/Cmd + clic o usar la caja de búsqueda).</div>
+                                    {{ form.district }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección: Presupuesto -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">PRESUPUESTO</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_type.id_for_label }}">Tipo</label>
+                                    {{ form.budget_type }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.currency.id_for_label }}">Moneda</label>
+                                    {{ form.currency }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="budget-range-rows">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_min.id_for_label }}">Mínimo</label>
+                                    {{ form.budget_min }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_max.id_for_label }}">Máximo</label>
+                                    {{ form.budget_max }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="budget-approx-row" style="display:none;">
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Presupuesto aproximado</label>
+                                    {{ form.budget_approx }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección: Características -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">CARACTERÍSTICAS</h5>
+                            <div class="row g-3" id="caracteristicas-fields">
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.bedrooms.id_for_label }}">Habitaciones</label>
+                                    {{ form.bedrooms }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.bathrooms.id_for_label }}">Baños</label>
+                                    {{ form.bathrooms }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.half_bathrooms.id_for_label }}">Medios baños</label>
+                                    {{ form.half_bathrooms }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="{{ form.garage_spaces.id_for_label }}">Cochera</label>
+                                    {{ form.garage_spaces }}
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2">
+                                <div class="col-12">
+                                    <label class="form-label" for="{{ form.notes.id_for_label }}">Observaciones</label>
+                                    {{ form.notes }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botón guardar -->
+                        <div class="row g-3 mt-2">
+                            <div class="col-12 text-end">
+                                <button class="btn btn-teal" type="submit">
+                                    <i class="fas fa-save me-2"></i>Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+/* Área tipo toggle */
+(function(){
+    function toggleArea() {
+        const at = document.getElementById("{{ form.area_type.id_for_label }}");
+        const approxRow = document.getElementById('area-approx-row');
+        const rangeRows = document.getElementById('area-range-rows');
+        if(!at) return;
+        const val = at.value || '';
+        if(val === 'approx'){
+            if(approxRow) approxRow.style.display = '';
+            if(rangeRows) rangeRows.style.display = 'none';
+        } else {
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows) rangeRows.style.display = '';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleArea();
+        const at = document.getElementById("{{ form.area_type.id_for_label }}");
+        if(at) at.addEventListener('change', toggleArea);
+    });
+})();
+
+/* Presupuesto tipo toggle */
+(function(){
+    function toggleBudget() {
+        const bt = document.getElementById("{{ form.budget_type.id_for_label }}");
+        const approxRow = document.getElementById('budget-approx-row');
+        const rangeRows  = document.getElementById('budget-range-rows');
+        if(!bt) return;
+        const val = bt.value || '';
+        if(val === 'approx'){
+            if(approxRow) approxRow.style.display = '';
+            if(rangeRows)  rangeRows.style.display  = 'none';
+        } else {
+            if(approxRow) approxRow.style.display = 'none';
+            if(rangeRows)  rangeRows.style.display  = '';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleBudget();
+        const bt = document.getElementById("{{ form.budget_type.id_for_label }}");
+        if(bt) bt.addEventListener('change', toggleBudget);
+    });
+})();
+
+/* Ocultar características si es Terreno */
+(function(){
+    function toggleCaracteristicas() {
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const caracFields = document.getElementById('caracteristicas-fields');
+        if(!typeSelect || !caracFields) return;
+        
+        const selectedText = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+        
+        // Ocultar solo los campos de habitaciones, baños, etc. si es terreno
+        if(selectedText.includes('terreno')){
+            caracFields.style.display = 'none';
+        } else {
+            caracFields.style.display = '';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        toggleCaracteristicas();
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        if(typeSelect) typeSelect.addEventListener('change', toggleCaracteristicas);
+    });
+})();
+
+/* Select2 distritos */
+(function(){
+    try{
+        document.addEventListener('DOMContentLoaded', function(){
+            const $ = window.jQuery;
+            if(!$) return;
+            const sel = $('#{{ form.district.id_for_label }}');
+            if(sel.length){
+                sel.select2({
+                    placeholder: 'Selecciona distritos',
+                    width: '100%',
+                    allowClear: true
+                });
+            }
+        });
+    }catch(e){
+        console.warn('Select2 init failed', e);
+    }
+})();
+
+/* Cascada Tipo -> Subtipo */
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
+        const subtypeSelect = document.getElementById('{{ form.property_subtype.id_for_label }}');
+        
+        if(!typeSelect || !subtypeSelect) return;
+
+        const selectedSubtypeId = subtypeSelect.value; // Guardar el valor actual
+
+        // Cargar todos los subtipos desde el API
+        fetch('/dashboard/propiedades/api/property-subtypes/')
+            .then(r => r.json())
+            .then(allSubtypes => {
+                
+                function filterSubtypes() {
+                    const selectedTypeId = typeSelect.value;
+                    
+                    // Limpiar el select de subtipos
+                    subtypeSelect.innerHTML = '<option value="">---------</option>';
+                    
+                    if(!selectedTypeId) return;
+                    
+                    // Filtrar y agregar solo los subtipos que corresponden al tipo seleccionado
+                    allSubtypes.forEach(subtype => {
+                        if(subtype.property_type == selectedTypeId) {
+                            const option = document.createElement('option');
+                            option.value = subtype.id;
+                            option.text = subtype.name; // Solo el nombre, sin el tipo
+                            if(subtype.id == selectedSubtypeId) {
+                                option.selected = true;
+                            }
+                            subtypeSelect.appendChild(option);
+                        }
+                    });
+                }
+
+                filterSubtypes();
+                typeSelect.addEventListener('change', filterSubtypes);
+            })
+            .catch(e => console.warn('Error al cargar subtipos:', e));
+    });
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    try{
+        var reqForm = document.getElementById('requirement-form');
+        if(reqForm){
+            reqForm.addEventListener('submit', function(){
+                try{ showLoadingOverlay('Guardando y buscando coincidencias con el motor...'); }catch(e){}
+            });
+        }
+    }catch(e){ console.warn('requirement edit form binding failed', e); }
+});
+</script>
+{% endblock %}

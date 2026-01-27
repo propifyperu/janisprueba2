@@ -16,11 +16,36 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+from .api_views import revoke_refresh_token
 from django.views.generic import RedirectView
+from django.conf import settings
+from django.conf.urls.static import static
+from .media_views import media_proxy
+from django.urls import re_path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path('users/', include('users.urls')),
-    path('dashboard/', include('properties.urls')),
+    path('users/', include(('users.urls', 'users'), namespace='users')),
+    path('dashboard/', include(('properties.urls', 'properties'), namespace='properties')),
     path('', RedirectView.as_view(url='/users/login/', permanent=False)),
+    path('security/', include(('security.urls', 'security'), namespace='security')),
+    path('whatsapp/', include(('whatsapp.urls', 'whatsapp'), namespace='whatsapp')),
+        path('chat/', include('chat.urls', namespace='chat')),
+    # JWT token endpoints for mobile clients
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/revoke/', revoke_refresh_token, name='token_revoke'),
+]
+
+# Servir archivos de media en desarrollo
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Proxy media route for private Azure blobs (always enabled)
+urlpatterns += [
+    re_path(r'^media-proxy/(?P<path>.*)$', media_proxy, name='media_proxy'),
 ]

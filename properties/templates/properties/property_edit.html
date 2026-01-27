@@ -1,0 +1,1971 @@
+{% extends 'properties/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Editar Propiedad - Janis{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .form-section {
+        border: 1px solid #e3e6f0;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        background: #fff;
+        margin-bottom: 2rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+
+    .section-title {
+        color: var(--color-secondary-dark);
+        border-bottom: 2px solid rgba(4, 125, 125, 0.3);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #5a5c69;
+        margin-bottom: 0.5rem;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #e74a3b;
+    }
+
+    #map {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #ddd;
+        border-radius: 0.375rem;
+    }
+
+    .address-help {
+        font-size: 0.875rem;
+        color: #0f3f47;
+        margin-top: 0.25rem;
+        padding: 0.5rem;
+        background-color: rgba(4, 125, 125, 0.08);
+        border-left: 4px solid var(--color-primary);
+        border-radius: 0.25rem;
+    }
+
+    .saving-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.85);
+        z-index: 2050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .room-table th {
+        background: rgba(4, 125, 125, 0.08);
+    }
+
+    .room-table td,
+    .room-table th {
+        vertical-align: middle;
+    }
+
+    .image-preview {
+        min-height: 160px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .image-preview img,
+    .image-preview .preview-thumb {
+        width: 140px;
+        height: 140px;
+        object-fit: cover;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(4, 125, 125, 0.25);
+        display: block;
+    }
+    .image-preview .form-check {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        margin-top: 0.25rem;
+    }
+    .image-preview .small {
+        text-align: center;
+    }
+
+    .video-preview {
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .video-preview video {
+        max-width: 220px;
+        max-height: 180px;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(4, 125, 125, 0.25);
+    }
+
+    /* Layout profesional para la sección Características */
+    .form-section .feature-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .form-section .feature-item {
+        flex: 1 1 30%;
+        min-width: 180px;
+    }
+
+    .form-section .feature-item .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .form-section .feature-item .form-control,
+    .form-section .feature-item select {
+        width: 100%;
+        padding: 0.55rem 0.75rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(58,59,69,0.08);
+        background: #fbfcfd;
+    }
+
+    @media (max-width: 767px) {
+        .form-section .feature-item {
+            flex: 1 1 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <a href="{% url 'properties:detail' form.instance.pk %}" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="fas fa-arrow-left me-1"></i>Volver al detalle
+            </a>
+            <a href="{% url 'properties:list' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-list me-1"></i>Listado de propiedades
+            </a>
+        </div>
+        <div class="text-end">
+            <p class="text-muted mb-1">Código interno: <strong>{{ form.instance.code }}</strong></p>
+            {% if form.instance.codigo_unico_propiedad %}
+            <p class="text-muted mb-0">Código único propiedad: <strong>{{ form.instance.codigo_unico_propiedad }}</strong></p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-3 order-xl-2 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Propietario</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-1">{{ form.instance.owner.first_name }} {{ form.instance.owner.last_name }}</h6>
+                    <p class="text-muted small mb-3">Documento: {{ form.instance.owner.document_number|default:'N/A' }}</p>
+
+                    <div class="mb-2">
+                        <span class="text-muted d-block small">Teléfono</span>
+                        <span class="fw-semibold">{{ form.instance.owner.phone|default:'N/A' }}</span>
+                    </div>
+                    {% if form.instance.owner.secondary_phone %}
+                    <div class="mb-2">
+                        <span class="text-muted d-block small">Teléfono secundario</span>
+                        <span class="fw-semibold">{{ form.instance.owner.secondary_phone }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="mb-2">
+                        <span class="text-muted d-block small">Correo</span>
+                        <a href="mailto:{{ form.instance.owner.email }}" class="fw-semibold">{{ form.instance.owner.email|default:'N/A' }}</a>
+                    </div>
+                    <hr>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'properties:contact_detail' form.instance.owner.pk %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye me-1"></i>Ver contacto
+                        </a>
+                        <a href="{% url 'properties:contact_edit' form.instance.owner.pk %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-user-edit me-1"></i>Editar contacto
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-9 order-xl-1">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Editar Propiedad
+                    </h4>
+                    <p class="mb-0 mt-1 small opacity-75">Actualiza la información comercial de la propiedad.</p>
+                </div>
+                <div class="card-body">
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <form method="POST" enctype="multipart/form-data" id="propertyForm">
+                        {% csrf_token %}
+                        <!-- Indica al servidor que use el propietario existente si no se editan campos del propietario -->
+                        <input type="hidden" name="existing_owner" value="{{ form.instance.owner.pk }}" />
+
+                        <!-- Información básica -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-home me-2"></i>Información Básica
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Responsable de la propiedad</label>
+                                    {{ form.responsible }}
+                                    {{ form.responsible.errors }}
+                                </div>
+                            </div>
+
+                            <div class="row" id="unitLocationRow" style="display:none;">
+                                <div class="col-md-4 mb-3" id="unitLocationWrapper">
+                                    <label class="form-label">Ubicación en edificio</label>
+                                    {{ form.unit_location }}
+                                    {{ form.unit_location.errors }}
+                                    <small class="form-text text-muted">Solo visible cuando el tipo es Departamento.</small>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Tipo</label>
+                                    {{ form.property_type }}
+                                    {{ form.property_type.errors }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Subtipo</label>
+                                    {{ form.property_subtype }}
+                                    {{ form.property_subtype.errors }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Estado</label>
+                                    {{ form.status }}
+                                    {{ form.status.errors }}
+                                    <div id="antiquityFields" class="mt-3 d-none">
+                                        <label class="form-label required-field">Años de antigüedad</label>
+                                        {{ form.antiquity_years }}
+                                        {{ form.antiquity_years.errors }}
+                                        <small class="form-text text-muted">Requerido si el estado corresponde a propiedades usadas.</small>
+                                    </div>
+                                    <div id="deliveryFields" class="mt-3 d-none">
+                                        <label class="form-label required-field">Fecha estimada de entrega</label>
+                                        {{ form.delivery_date }}
+                                        {{ form.delivery_date.errors }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label required-field">Condición</label>
+                                    {{ form.condition }}
+                                    {{ form.condition.errors }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Forma de Pago</label>
+                                    {{ form.forma_de_pago }}
+                                    {{ form.forma_de_pago.errors }}
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Precio</label>
+                                    {{ form.price }}
+                                    {{ form.price.errors }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Moneda</label>
+                                    {{ form.currency }}
+                                    {{ form.currency.errors }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <div class="form-check form-switch mt-4">
+                                        {{ form.has_maintenance }}
+                                        <label class="form-check-label">Incluye mantenimiento</label>
+                                    </div>
+                                    {{ form.has_maintenance.errors }}
+                                </div>
+                            </div>
+                            <!-- parking fields moved to Características -->
+                        </div>
+
+                        <!-- Información financiera -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-handshake me-2"></i>Negociación y Finanzas
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Comisión inicial (%)</label>
+                                    {{ financial_form.initial_commission_percentage }}
+                                    {{ financial_form.initial_commission_percentage.errors }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Comisión final (%)</label>
+                                    {{ financial_form.final_commission_percentage }}
+                                    {{ financial_form.final_commission_percentage.errors }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Monto final negociado</label>
+                                    {{ financial_form.final_amount }}
+                                    {{ financial_form.final_amount.errors }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Estado de negociación</label>
+                                    {{ financial_form.negotiation_status }}
+                                    {{ financial_form.negotiation_status.errors }}
+                                </div>
+                            </div>
+
+                            <p class="text-muted small mb-0">Solo se mostrarán los valores completados en el detalle de la propiedad.</p>
+                        </div>
+
+                        <!-- Publicidad -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-bullhorn me-2"></i>Publicidad y Redes
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Título descriptivo</label>
+                                    {{ form.title }}
+                                    {{ form.title.errors }}
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Descripción detallada</label>
+                                    {{ form.description }}
+                                    {{ form.description.errors }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Características -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-ruler-combined me-2"></i>Características
+                            </h5>
+
+                            <div class="feature-row mb-3">
+                                <div class="feature-item">
+                                    <label class="form-label">Dormitorios</label>
+                                    {{ form.bedrooms }}
+                                    {{ form.bedrooms.errors }}
+                                </div>
+                                <div class="feature-item">
+                                    <label class="form-label">Baños</label>
+                                    {{ form.bathrooms }}
+                                    {{ form.bathrooms.errors }}
+                                </div>
+                                <div class="feature-item">
+                                    <label class="form-label">Medios baños</label>
+                                    {{ form.half_bathrooms }}
+                                    {{ form.half_bathrooms.errors }}
+                                </div>
+                            </div>
+
+                            <div class="feature-row mb-3">
+                                <div class="feature-item">
+                                    <label class="form-label">Pisos</label>
+                                    {{ form.floors }}
+                                    {{ form.floors.errors }}
+                                </div>
+                                <div class="feature-item">
+                                    <label class="form-label">Estacionamientos</label>
+                                    {{ form.garage_spaces }}
+                                    {{ form.garage_spaces.errors }}
+                                </div>
+                                <div class="feature-item">
+                                    <label class="form-label">Tipo garaje</label>
+                                    {{ form.garage_type }}
+                                    {{ form.garage_type.errors }}
+                                </div>
+                            </div>
+
+                            <div class="feature-row mb-3">
+                                <div class="feature-item">
+                                    <div class="form-check form-switch mt-2">
+                                        {{ form.parking_cost_included }}
+                                        <label class="form-check-label">Estacionamiento incluido</label>
+                                    </div>
+                                </div>
+                                <div class="feature-item">
+                                    <label class="form-label">Costo de Estacionamiento</label>
+                                    {{ form.parking_cost }}
+                                    {{ form.parking_cost.errors }}
+                                </div>
+                            </div>
+
+                            <div class="feature-row mb-3">
+                                <div class="feature-item">
+                                    <label class="form-label">Área terreno</label>
+                                    {{ form.land_area }}
+                                    {{ form.land_area.errors }}
+                                </div>
+                                <div class="feature-item">
+                                    <label class="form-label">Unidad</label>
+                                    {{ form.land_area_unit }}
+                                    {{ form.land_area_unit.errors }}
+                                </div>
+                                <div class="feature-item">
+                                    <label class="form-label">Área construida</label>
+                                    {{ form.built_area }}
+                                    {{ form.built_area.errors }}
+                                </div>
+                                <div class="feature-item">
+                                    <label class="form-label">Unidad</label>
+                                    {{ form.built_area_unit }}
+                                    {{ form.built_area_unit.errors }}
+                                </div>
+                            </div>
+
+                            <div class="feature-row">
+                                <div class="feature-item">
+                                    <label class="form-label">Frente (m)</label>
+                                    {{ form.front_measure }}
+                                    {{ form.front_measure.errors }}
+                                </div>
+                                <div class="feature-item">
+                                    <label class="form-label">Profundidad (m)</label>
+                                    {{ form.depth_measure }}
+                                    {{ form.depth_measure.errors }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Servicios -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-wrench me-2"></i>Servicios Públicos
+                            </h5>
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Actualiza el tipo de conexión disponible para cada servicio.
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Agua</label>
+                                    {{ form.water_service }}
+                                    {{ form.water_service.errors }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Energía eléctrica</label>
+                                    {{ form.energy_service }}
+                                    {{ form.energy_service.errors }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Drenaje</label>
+                                    {{ form.drainage_service }}
+                                    {{ form.drainage_service.errors }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Gas</label>
+                                    {{ form.gas_service }}
+                                    {{ form.gas_service.errors }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ubicación -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-map-marker-alt me-2"></i>Ubicación
+                            </h5>
+
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <label class="form-label">Dirección real (documentos)</label>
+                                    {{ form.real_address }}
+                                    {{ form.real_address.errors }}
+                                    <div class="address-help">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Usa la dirección exacta que figura en escrituras y documentos notariales.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-lg-6">
+                                    <label class="form-label">Dirección para mapa</label>
+                                    {{ form.exact_address }}
+                                    {{ form.exact_address.errors }}
+                                </div>
+                                <div class="col-lg-6">
+                                    <label class="form-label">Coordenadas (lat, long)</label>
+                                    {{ form.coordinates }}
+                                    {{ form.coordinates.errors }}
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Departamento</label>
+                                    <select class="form-select" name="department" id="id_department"
+                                            data-selected="{{ selected_department_id }}"
+                                            data-selected-name="{{ selected_department_name }}">
+                                        <option value="">-- Seleccionar departamento --</option>
+                                        {% for dept in departments %}
+                                        <option value="{{ dept.id }}" {% if dept.id|stringformat:'s' == selected_department_id|stringformat:'s' or dept.name == selected_department_name %}selected{% endif %}>{{ dept.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Provincia</label>
+                                    <select class="form-select" name="province" id="id_province"
+                                            data-selected="{{ selected_province_id }}"
+                                            data-selected-name="{{ selected_province_name }}">
+                                        <option value="">{% if selected_province_name %}{{ selected_province_name }}{% else %}-- Seleccionar provincia --{% endif %}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Distrito</label>
+                                    <select class="form-select" name="district" id="id_district"
+                                            data-selected="{{ selected_district_id }}"
+                                            data-selected-name="{{ selected_district_name }}">
+                                        <option value="">{% if selected_district_name %}{{ selected_district_name }}{% else %}-- Seleccionar distrito --{% endif %}</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row mb-4">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Urbanización</label>
+                                    <select class="form-select" name="urbanization" id="id_urbanization"
+                                            data-selected="{{ selected_urbanization_id }}"
+                                            data-selected-name="{{ selected_urbanization_name }}">
+                                        <option value="">{% if selected_urbanization_name %}{{ selected_urbanization_name }}{% else %}-- Seleccionar urbanización --{% endif %}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="d-flex gap-2 align-items-end">
+                                        <button type="button" class="btn btn-outline-primary" id="searchOnMap">
+                                            <i class="fas fa-search-location me-1"></i>Buscar en mapa
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="getCurrentLocation">
+                                            <i class="fas fa-crosshairs me-1"></i>Usar mi ubicación
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div id="map"></div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Amenidades</label>
+                                    {{ form.amenities }}
+                                    {{ form.amenities.errors }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Zonificación</label>
+                                    {{ form.zoning }}
+                                    {{ form.zoning.errors }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Etiquetas</label>
+                                    {{ form.tags }}
+                                    {{ form.tags.errors }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Multimedia -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-photo-video me-2"></i>Multimedia
+                            </h5>
+
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="text-primary mb-0">Imágenes</h6>
+                                    <small class="text-muted">La primera imagen válida se marcará como principal automáticamente.</small>
+                                </div>
+
+                                <!-- Imágenes Existentes (editable) -->
+                                {% for image in form.instance.images.all %}
+                                <div class="dynamic-form-item existing-image-item">
+                                    <input type="hidden" name="existing_image_ids" value="{{ image.id }}">
+                                    <div class="row g-3">
+                                        <div class="col-xl-5 col-lg-6">
+                                            <label class="form-label">Archivo (reemplazar si desea)</label>
+                                            <input type="file" name="images" class="form-control" accept="image/*">
+                                            <div class="small text-muted mt-1">Archivo actual: 
+                                                {% if image.image_blob %}
+                                                    <a href="{% url 'properties:image_blob' image.id %}" target="_blank">ver</a>
+                                                {% elif image.image %}
+                                                    <a href="{{ image.image.url }}" target="_blank">ver</a>
+                                                {% else %}
+                                                    (no disponible)
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 col-lg-2">
+                                            <label class="form-label">Tipo</label>
+                                            <select name="image_types" class="form-select" data-selected="{% if image.image_type %}{{ image.image_type.id }}{% endif %}"></select>
+                                        </div>
+                                        <div class="col-md-3 col-lg-2">
+                                            <label class="form-label">Ambiente</label>
+                                            <select name="image_ambientes" class="form-select" data-selected="{% if image.image_ambiente %}{{ image.image_ambiente.id }}{% endif %}"></select>
+                                        </div>
+                                        <div class="col-md-2 col-lg-2">
+                                            <label class="form-label">Orden</label>
+                                            <input type="number" name="image_orders" class="form-control" min="1" value="{{ image.order|default:forloop.counter }}">
+                                        </div>
+                                        <div class="col-lg-8 col-md-12">
+                                            <label class="form-label">Descripción</label>
+                                            <input type="text" name="image_captions" class="form-control" value="{{ image.caption }}" placeholder="Descripción de la imagen">
+                                        </div>
+                                        <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
+                                            <div class="image-preview w-100 text-center">
+                                                {% if image.image_blob %}
+                                                    <img src="{% url 'properties:image_blob' image.id %}" alt="{{ image.caption }}" class="preview-thumb">
+                                                {% elif image.image %}
+                                                    <img src="{{ image.image.url }}" alt="{{ image.caption }}" class="preview-thumb">
+                                                {% else %}
+                                                    <div class="text-muted">No disponible</div>
+                                                {% endif %}
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn mt-2">Eliminar bloque</button>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 mb-3">
+                                            <input type="hidden" name="existing_image_sensible_{{ image.id }}" value="0">
+                                            <div class="form-check form-switch d-inline-block">
+                                                <input class="form-check-input" type="checkbox" id="existing_image_sensible_{{ image.id }}" name="existing_image_sensible_{{ image.id }}" value="1" {% if image.sensible %}checked{% endif %}>
+                                                <label class="form-check-label small" for="existing_image_sensible_{{ image.id }}">Sensible</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+
+                                <div id="image-forms">
+                                    <div class="dynamic-form-item">
+                                        <div class="row g-3">
+                                            <div class="col-xl-5 col-lg-6">
+                                                <label class="form-label">Archivo</label>
+                                                <input type="file" name="images" class="form-control" accept="image/*">
+                                            </div>
+                                            <div class="col-md-3 col-lg-2">
+                                                <label class="form-label">Tipo</label>
+                                                <select name="image_types" class="form-select"></select>
+                                            </div>
+                                            <div class="col-md-3 col-lg-2">
+                                                <label class="form-label">Ambiente</label>
+                                                <select name="image_ambientes" class="form-select"></select>
+                                            </div>
+                                            <div class="col-md-2 col-lg-2">
+                                                <label class="form-label">Orden</label>
+                                                <input type="number" name="image_orders" class="form-control" min="1" value="1">
+                                            </div>
+                                            <div class="col-lg-8 col-md-12">
+                                                <label class="form-label">Descripción</label>
+                                                <input type="text" name="image_captions" class="form-control" placeholder="Descripción de la imagen">
+                                            </div>
+                                            <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
+                                                <div class="image-preview w-100"></div>
+                                            </div>
+                                            <div class="col-12 mb-3">
+                                                <div class="form-check form-switch d-inline-block">
+                                                    <input class="form-check-input image-sensible-toggle" type="checkbox" role="switch">
+                                                    <label class="form-check-label">Sensible</label>
+                                                </div>
+                                                <select name="image_sensibles" class="d-none">
+                                                    <option value="0" selected>No</option>
+                                                    <option value="1">Sí</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addImageForm()">
+                                    <i class="fas fa-plus me-1"></i>Agregar otra imagen
+                                </button>
+                            </div>
+
+                            <div>
+                                <h6 class="text-primary">Videos</h6>
+
+                                <!-- Videos Existentes (editable) -->
+                                {% for video in form.instance.videos.all %}
+                                <div class="dynamic-form-item existing-video-item">
+                                    <input type="hidden" name="existing_video_ids" value="{{ video.id }}">
+                                    <div class="row g-3">
+                                        <div class="col-xl-5 col-lg-6">
+                                            <label class="form-label">Archivo (reemplazar si desea)</label>
+                                            <input type="file" name="videos" class="form-control" accept="video/mp4,video/webm,video/ogg">
+                                            <div class="small text-muted mt-1">Archivo actual: <a href="{{ video.video.url }}" target="_blank">ver</a></div>
+                                        </div>
+                                        <div class="col-md-3 col-lg-2">
+                                            <label class="form-label">Tipo</label>
+                                            <select name="video_types" class="form-select" data-selected="{% if video.video_type %}{{ video.video_type.id }}{% endif %}"></select>
+                                        </div>
+                                        <div class="col-md-4 col-lg-4">
+                                            <label class="form-label">Título</label>
+                                            <input type="text" name="video_titles" class="form-control" value="{{ video.title }}" placeholder="Título del video">
+                                        </div>
+                                        <div class="col-lg-8 col-md-12">
+                                            <label class="form-label">Descripción</label>
+                                            <textarea name="video_descriptions" class="form-control" rows="2" placeholder="Descripción opcional">{{ video.description }}</textarea>
+                                        </div>
+                                        <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
+                                            <div class="video-preview w-100 text-center">
+                                                <video controls preload="metadata" style="max-width:220px; max-height:160px; border-radius:0.5rem; border:1px solid rgba(4,125,125,0.25);">
+                                                    <source src="{{ video.video.url }}" type="video/mp4">
+                                                </video>
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn mt-2">Eliminar bloque</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+
+                                <div id="video-forms">
+                                    <div class="dynamic-form-item">
+                                        <div class="row g-3">
+                                            <div class="col-xl-5 col-lg-6">
+                                                <label class="form-label">Archivo</label>
+                                                <input type="file" name="videos" class="form-control" accept="video/mp4,video/webm,video/ogg">
+                                            </div>
+                                            <div class="col-md-3 col-lg-2">
+                                                <label class="form-label">Tipo</label>
+                                                <select name="video_types" class="form-select"></select>
+                                            </div>
+                                            <div class="col-md-4 col-lg-4">
+                                                <label class="form-label">Título</label>
+                                                <input type="text" name="video_titles" class="form-control" placeholder="Título del video">
+                                            </div>
+                                            <div class="col-lg-8 col-md-12">
+                                                <label class="form-label">Descripción</label>
+                                                <textarea name="video_descriptions" class="form-control" rows="2" placeholder="Descripción opcional"></textarea>
+                                            </div>
+                                            <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
+                                                <div class="video-preview w-100 text-center"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addVideoForm()">
+                                    <i class="fas fa-plus me-1"></i>Agregar video
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Documentos y Ambientes -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-file-alt me-2"></i>Documentos y Ambientes
+                            </h5>
+
+                            <div class="mb-4">
+                                <h6 class="text-primary">Documentos Legales</h6>
+
+                                <!-- Documentos Existentes (editable) -->
+                                {% for doc in form.instance.documents.all %}
+                                <div class="dynamic-form-item existing-document-item">
+                                    <input type="hidden" name="existing_document_ids" value="{{ doc.id }}">
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Archivo (reemplazar si desea)</label>
+                                            <input type="file" name="documents" class="form-control" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                                            <div class="small text-muted mt-1">Archivo actual: <a href="{{ doc.file.url }}" target="_blank">ver</a></div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Tipo de Documento</label>
+                                            <select name="document_types" class="form-select" data-selected="{% if doc.document_type %}{{ doc.document_type.id }}{% endif %}"></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Título</label>
+                                            <input type="text" name="document_titles" class="form-control" value="{{ doc.title }}" placeholder="Título del documento">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label">Descripción</label>
+                                            <textarea name="document_descriptions" class="form-control" rows="2" placeholder="Notas u observaciones">{{ doc.description }}</textarea>
+                                        </div>
+                                        <div class="col-12 mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn">Eliminar bloque</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+
+                                <div id="document-forms">
+                                    <div class="dynamic-form-item">
+                                        <div class="row g-3 align-items-end">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Archivo</label>
+                                                <input type="file" name="documents" class="form-control" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Tipo de Documento</label>
+                                                <select name="document_types" class="form-select"></select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Título</label>
+                                                <input type="text" name="document_titles" class="form-control" placeholder="Título del documento">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Descripción</label>
+                                                <textarea name="document_descriptions" class="form-control" rows="2" placeholder="Notas u observaciones"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addDocumentForm()">
+                                    <i class="fas fa-plus me-1"></i>Agregar documento
+                                </button>
+                            </div>
+
+                            <div>
+                                <h6 class="text-primary">Ambientes</h6>
+                                <div id="room-forms">
+                                    <div class="dynamic-form-item">
+                                        <div class="row g-3">
+                                            <div class="col-md-3">
+                                                <label class="form-label">Nivel</label>
+                                                <select name="room_levels" class="form-select">
+                                                    <option value="">Seleccionar nivel</option>
+                                                    {% for level in level_types %}
+                                                    <option value="{{ level.id }}">{{ level.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Ambiente</label>
+                                                <select name="room_types" class="form-select">
+                                                    <option value="">Seleccionar ambiente</option>
+                                                    {% for room in room_types %}
+                                                    <option value="{{ room.id }}">{{ room.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Tipo de Piso</label>
+                                                <select name="room_floor_types" class="form-select">
+                                                    <option value="">Seleccionar tipo de piso</option>
+                                                    {% for floor in floor_types %}
+                                                    <option value="{{ floor.id }}">{{ floor.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Nombre</label>
+                                                <input type="text" name="room_names" class="form-control" placeholder="Nombre del ambiente">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Ancho (m)</label>
+                                                <input type="number" step="0.01" name="room_widths" class="form-control" min="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Largo (m)</label>
+                                                <input type="number" step="0.01" name="room_lengths" class="form-control" min="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Área (m²)</label>
+                                                <input type="number" step="0.01" name="room_areas" class="form-control" min="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Orden</label>
+                                                <input type="number" name="room_orders" class="form-control" min="1" value="1">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Descripción</label>
+                                                <textarea name="room_descriptions" class="form-control" rows="2" placeholder="Detalles adicionales del ambiente"></textarea>
+                                            </div>
+                                            <div class="col-12 d-flex justify-content-end">
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRoomForm(this)">
+                                                    <i class="fas fa-trash me-1"></i>Eliminar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addRoomForm()">
+                                    <i class="fas fa-plus me-1"></i>Agregar ambiente
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary" style="background-color: #047d7d; border-color: #047d7d; color: #fff;">
+                                <i class="fas fa-save me-2"></i>Guardar cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ambientes -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Ambientes registrados</h5>
+        </div>
+        <div class="card-body">
+            {% if rooms %}
+            <div class="table-responsive">
+                <table class="table table-striped room-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Orden</th>
+                            <th>Nivel</th>
+                            <th>Tipo</th>
+                            <th>Nombre</th>
+                            <th>Dimensiones</th>
+                            <th>Piso</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for room in rooms %}
+                        <tr>
+                            <td>{{ room.order }}</td>
+                            <td>{% if room.level %}{{ room.level.name }}{% else %}N/A{% endif %}</td>
+                            <td>{% if room.room_type %}{{ room.room_type.name }}{% else %}N/A{% endif %}</td>
+                            <td>{{ room.name|default:'N/A' }}</td>
+                            <td>
+                                {% if room.width and room.length %}
+                                    {{ room.width }}m x {{ room.length }}m
+                                {% elif room.area %}
+                                    {{ room.area }} m²
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>{% if room.floor_type %}{{ room.floor_type.name }}{% else %}N/A{% endif %}</td>
+                            <td>{{ room.description|default:'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="media-empty-state">
+                <i class="fas fa-door-open fa-2x mb-2"></i>
+                <p class="mb-0">Aún no se han registrado ambientes.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="saving-overlay d-none" id="savingOverlay">
+    <div class="text-center">
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Guardando...</span>
+        </div>
+        <p class="fw-semibold text-primary mb-0">Guardando cambios, espera un momento...</p>
+    </div>
+</div>
+</div>
+
+{% endblock %}
+
+{% block dashboard_extra_js %}
+{{ statuses_data|json_script:"statusMetadata" }}
+<script>
+let map;
+let marker;
+let autocomplete;
+let geocoder;
+
+function initMap() {
+    geocoder = new google.maps.Geocoder();
+    const defaultCenter = { lat: -12.046374, lng: -77.042793 };
+
+    map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 12,
+        center: defaultCenter,
+        // permitir zoom con rueda sin necesidad de Ctrl y evitar el hint molesto
+        gestureHandling: 'greedy',
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true,
+        styles: [
+            { "featureType": "poi.business", "stylers": [{ "visibility": "off" }] },
+            { "featureType": "poi.medical", "stylers": [{ "visibility": "off" }] },
+            { "featureType": "poi.school", "stylers": [{ "visibility": "off" }] },
+            { "featureType": "transit", "stylers": [{ "visibility": "simplified" }] }
+        ]
+    });
+
+    marker = new google.maps.Marker({
+        position: defaultCenter,
+        map: map,
+        draggable: true,
+        title: 'Arrastra para ajustar la ubicación',
+        icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 0C12.268 0 6 6.268 6 14C6 24.5 20 40 20 40C20 40 34 24.5 34 14C34 6.268 27.732 0 20 0Z" fill="#047d7d"/>
+                    <circle cx="20" cy="14" r="6" fill="white"/>
+                </svg>
+            `),
+            scaledSize: new google.maps.Size(40, 40),
+            anchor: new google.maps.Point(20, 40)
+        }
+    });
+
+    const addressInput = document.getElementById('id_exact_address');
+    autocomplete = new google.maps.places.Autocomplete(addressInput, {
+        types: ['(regions)'],
+        componentRestrictions: { country: 'pe' },
+        fields: ['address_components', 'geometry', 'formatted_address', 'name']
+    });
+    try { autocomplete.bindTo('bounds', map); } catch(e) { }
+
+    // Prevenir que Enter en el campo de dirección envíe el formulario
+    addressInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+        }
+    });
+
+    autocomplete.addListener('place_changed', function() {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) {
+            alert("No se encontraron detalles para: '" + place.name + "'");
+            return;
+        }
+
+        map.setCenter(place.geometry.location);
+        map.setZoom(16);
+        marker.setPosition(place.geometry.location);
+        updateCoordinates(place.geometry.location);
+        fillLocationFields(place);
+    });
+
+    marker.addListener('dragend', function() {
+        updateCoordinates(marker.getPosition());
+        reverseGeocode(marker.getPosition());
+    });
+
+    map.addListener('click', function(event) {
+        marker.setPosition(event.latLng);
+        updateCoordinates(event.latLng);
+        reverseGeocode(event.latLng);
+    });
+
+    document.getElementById('searchOnMap').addEventListener('click', function() {
+        const address = addressInput.value;
+        if (address) {
+            geocodeAddress(address);
+        } else {
+            alert('Ingresa una dirección para buscar en el mapa.');
+        }
+    });
+
+    document.getElementById('getCurrentLocation').addEventListener('click', function() {
+        getCurrentLocation();
+    });
+
+    const coordsInput = document.getElementById('id_coordinates');
+    if (coordsInput && coordsInput.value) {
+        const coords = coordsInput.value.split(',');
+        if (coords.length === 2) {
+            const lat = parseFloat(coords[0].trim());
+            const lng = parseFloat(coords[1].trim());
+            if (!isNaN(lat) && !isNaN(lng)) {
+                const position = { lat: lat, lng: lng };
+                marker.setPosition(position);
+                map.setCenter(position);
+                map.setZoom(16);
+            }
+        }
+    }
+}
+
+function getCurrentLocation() {
+    if (!navigator.geolocation) {
+        alert('Tu navegador no soporta geolocalización.');
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(function(position) {
+        const pos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+        };
+        marker.setPosition(pos);
+        map.setCenter(pos);
+        map.setZoom(16);
+        updateCoordinates(pos);
+        reverseGeocode(pos);
+    }, function(error) {
+        let message = 'Error al obtener la ubicación actual: ';
+        switch (error.code) {
+            case error.PERMISSION_DENIED:
+                message += 'Permiso denegado por el usuario.';
+                break;
+            case error.POSITION_UNAVAILABLE:
+                message += 'Información de ubicación no disponible.';
+                break;
+            case error.TIMEOUT:
+                message += 'Tiempo de espera agotado.';
+                break;
+            default:
+                message += 'Error desconocido.';
+        }
+        alert(message);
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+}
+
+function updateCoordinates(latLng) {
+    const coordsInput = document.getElementById('id_coordinates');
+    if (!coordsInput) {
+        return;
+    }
+
+    if (typeof latLng.lat === 'function') {
+        coordsInput.value = latLng.lat().toFixed(6) + ', ' + latLng.lng().toFixed(6);
+    } else {
+        coordsInput.value = latLng.lat.toFixed(6) + ', ' + latLng.lng.toFixed(6);
+    }
+}
+
+function geocodeAddress(address) {
+    geocoder.geocode({ address: address }, function(results, status) {
+        if (status === 'OK' && results[0]) {
+            map.setCenter(results[0].geometry.location);
+            map.setZoom(16);
+            marker.setPosition(results[0].geometry.location);
+            updateCoordinates(results[0].geometry.location);
+            fillLocationFields(results[0]);
+        } else {
+            alert('No se pudo encontrar la dirección proporcionada.');
+        }
+    });
+}
+
+function reverseGeocode(latLng) {
+    geocoder.geocode({ location: latLng }, function(results, status) {
+        if (status === 'OK' && results[0]) {
+            const addressInput = document.getElementById('id_exact_address');
+            if (addressInput) {
+                addressInput.value = results[0].formatted_address;
+            }
+        }
+    });
+}
+
+function fillLocationFields(place) {
+    const departmentSelect = document.getElementById('id_department');
+    const provinceSelect = document.getElementById('id_province');
+    const districtSelect = document.getElementById('id_district');
+
+    if (!departmentSelect || departmentSelect.value) {
+        return;
+    }
+
+    let departmentName = '';
+    let provinceName = '';
+    let districtName = '';
+
+    (place.address_components || []).forEach(component => {
+        if (!component.types) {
+            return;
+        }
+        if (component.types.includes('administrative_area_level_1')) {
+            departmentName = component.long_name;
+        } else if (component.types.includes('administrative_area_level_2')) {
+            provinceName = component.long_name;
+        } else if (component.types.includes('sublocality_level_1') || component.types.includes('administrative_area_level_3')) {
+            districtName = component.long_name;
+        }
+    });
+
+    if (departmentName) {
+        const deptOption = Array.from(departmentSelect.options).find(opt => opt.text.toLowerCase().includes(departmentName.toLowerCase()));
+        if (deptOption) {
+            departmentSelect.value = deptOption.value;
+            departmentSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    if (provinceName) {
+        provinceSelect.dataset.selectedName = provinceName;
+    }
+    if (districtName) {
+        districtSelect.dataset.selectedName = districtName;
+    }
+}
+
+function setupStatusSection() {
+    const statusSelect = document.getElementById('id_status');
+    const antiquityRow = document.getElementById('antiquityFields');
+    const deliveryRow = document.getElementById('deliveryFields');
+    const antiquityInput = document.getElementById('id_antiquity_years');
+    const deliveryInput = document.getElementById('id_delivery_date');
+    const statusDataElement = document.getElementById('statusMetadata');
+
+    if (!statusSelect) {
+        return;
+    }
+
+    const statusMap = {};
+    if (statusDataElement) {
+        try {
+            const statuses = JSON.parse(statusDataElement.textContent || '[]');
+            statuses.forEach(function(item) {
+                if (!item || typeof item.id === 'undefined') {
+                    return;
+                }
+                const idKey = String(item.id);
+                const normalizedCode = normalizeValue(item.code);
+                const normalizedName = normalizeValue(item.name);
+                statusMap[idKey] = normalizedCode || normalizedName;
+            });
+        } catch (error) {
+            console.warn('No se pudo procesar la metadata de estados', error);
+        }
+    }
+
+    const antiquityAliases = ['antiguedad', 'antiquity', 'anosantiguedad'];
+    const constructionAliases = ['enconstruccion', 'enconstruction', 'underconstruction', 'construccion'];
+
+    function normalizeValue(value) {
+        if (!value) {
+            return '';
+        }
+        return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function matchesAlias(value, aliases) {
+        if (!value) {
+            return false;
+        }
+        return aliases.some(function(alias) {
+            if (!alias) {
+                return false;
+            }
+            return value === alias || value.includes(alias) || alias.includes(value);
+        });
+    }
+
+    function toggleStatusFields() {
+        const selectedValue = statusSelect.value;
+        const option = statusSelect.options[statusSelect.selectedIndex];
+        const normalizedFallback = normalizeValue(option ? option.text : '');
+        const normalizedStatus = statusMap[selectedValue] || normalizedFallback;
+
+        const showAntiquity = matchesAlias(normalizedStatus, antiquityAliases);
+        const showDelivery = matchesAlias(normalizedStatus, constructionAliases);
+
+        if (antiquityRow) {
+            antiquityRow.classList.toggle('d-none', !showAntiquity);
+        }
+        if (deliveryRow) {
+            deliveryRow.classList.toggle('d-none', !showDelivery);
+        }
+
+        if (!showAntiquity && antiquityInput) {
+            antiquityInput.value = '';
+        }
+        if (!showDelivery && deliveryInput) {
+            deliveryInput.value = '';
+        }
+    }
+
+    statusSelect.addEventListener('change', toggleStatusFields);
+    toggleStatusFields();
+}
+
+function setupUnitLocationVisibility() {
+    const typeSelect = document.getElementById('id_property_type');
+    const unitRow = document.getElementById('unitLocationRow');
+
+    if (!typeSelect || !unitRow) return;
+
+    function evaluate() {
+        const sel = typeSelect.options[typeSelect.selectedIndex];
+        const text = (sel && sel.text) ? sel.text.toLowerCase() : '';
+        const isDepartamento = text.includes('departamento');
+        unitRow.style.display = isDepartamento ? '' : 'none';
+        // If hiding, clear the value
+        if (!isDepartamento) {
+            const input = document.getElementById('id_unit_location');
+            if (input) input.value = '';
+        }
+    }
+
+    typeSelect.addEventListener('change', evaluate);
+    // Inicializar visibilidad
+    evaluate();
+}
+
+function setupSubtypeSelector() {
+    const propertyTypeSelect = document.getElementById('id_property_type');
+    const propertySubtypeSelect = document.getElementById('id_property_subtype');
+    if (!propertyTypeSelect || !propertySubtypeSelect) {
+        return;
+    }
+
+    const initialSubtype = propertySubtypeSelect.dataset.selected || propertySubtypeSelect.value;
+
+    function loadPropertySubtypes(propertyTypeId, selectedSubtypeId) {
+        if (!propertyTypeId) {
+            propertySubtypeSelect.innerHTML = '<option value="">Seleccione un subtipo</option>';
+            propertySubtypeSelect.disabled = true;
+            return;
+        }
+
+        fetch("{% url 'properties:api_property_subtypes' %}?property_type_id=" + encodeURIComponent(propertyTypeId))
+            .then(response => response.json())
+            .then(data => {
+                propertySubtypeSelect.innerHTML = '<option value="">Seleccione un subtipo</option>';
+                const subtypes = Array.isArray(data) ? data : (data.subtypes || []);
+                subtypes.forEach(subtype => {
+                    const option = document.createElement('option');
+                    option.value = subtype.id;
+                    option.textContent = subtype.name;
+                    if (selectedSubtypeId && String(subtype.id) === String(selectedSubtypeId)) {
+                        option.selected = true;
+                    }
+                    propertySubtypeSelect.appendChild(option);
+                });
+                propertySubtypeSelect.disabled = false;
+            })
+            .catch(() => {
+                propertySubtypeSelect.innerHTML = '<option value="">Error al cargar subtipos</option>';
+                propertySubtypeSelect.disabled = false;
+            });
+    }
+
+    propertyTypeSelect.addEventListener('change', function() {
+        loadPropertySubtypes(this.value, null);
+    });
+
+    if (propertyTypeSelect.value) {
+        loadPropertySubtypes(propertyTypeSelect.value, initialSubtype);
+    } else {
+        propertySubtypeSelect.disabled = true;
+    }
+}
+
+function setupLocationSelectors() {
+    const departmentSelect = document.getElementById('id_department');
+    const provinceSelect = document.getElementById('id_province');
+    const districtSelect = document.getElementById('id_district');
+    const urbanizationSelect = document.getElementById('id_urbanization');
+
+    if (!departmentSelect || !provinceSelect || !districtSelect || !urbanizationSelect) {
+        return;
+    }
+
+    const selectedDepartmentId = departmentSelect.dataset.selected;
+    const selectedProvinceId = provinceSelect.dataset.selected;
+    const selectedProvinceName = provinceSelect.dataset.selectedName;
+    const selectedDistrictId = districtSelect.dataset.selected;
+    const selectedDistrictName = districtSelect.dataset.selectedName;
+    const selectedUrbanizationId = urbanizationSelect.dataset.selected;
+    const selectedUrbanizationName = urbanizationSelect.dataset.selectedName;
+
+    function populateSelect(select, options, placeholder, selectedValue, selectedName) {
+        select.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = placeholder;
+        select.appendChild(defaultOption);
+
+        options.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.name;
+            if ((selectedValue && String(item.id) === String(selectedValue)) || (selectedName && item.name === selectedName)) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+
+        select.disabled = options.length === 0;
+    }
+
+    function loadProvinces(departmentId, selectedId, selectedName) {
+        if (!departmentId) {
+            populateSelect(provinceSelect, [], '-- Seleccionar provincia --', null, null);
+            populateSelect(districtSelect, [], '-- Seleccionar distrito --', null, null);
+            populateSelect(urbanizationSelect, [], '-- Seleccionar urbanización --', null, null);
+            districtSelect.disabled = true;
+            urbanizationSelect.disabled = true;
+            return;
+        }
+
+        provinceSelect.classList.add('loading');
+        fetch("{% url 'properties:api_provinces' %}?department_id=" + encodeURIComponent(departmentId))
+            .then(response => response.json())
+            .then(data => {
+                populateSelect(provinceSelect, data, '-- Seleccionar provincia --', selectedId, selectedName);
+                provinceSelect.classList.remove('loading');
+                if (selectedId || selectedName) {
+                    const value = provinceSelect.value;
+                    if (value) {
+                        loadDistricts(value, selectedDistrictId, selectedDistrictName);
+                    }
+                }
+            })
+            .catch(() => {
+                provinceSelect.classList.remove('loading');
+                populateSelect(provinceSelect, [], 'Error al cargar provincias', null, null);
+            });
+    }
+
+    function loadDistricts(provinceId, selectedId, selectedName) {
+        if (!provinceId) {
+            populateSelect(districtSelect, [], '-- Seleccionar distrito --', null, null);
+            populateSelect(urbanizationSelect, [], '-- Seleccionar urbanización --', null, null);
+            urbanizationSelect.disabled = true;
+            return;
+        }
+
+        districtSelect.classList.add('loading');
+        fetch("{% url 'properties:api_districts' %}?province_id=" + encodeURIComponent(provinceId))
+            .then(response => response.json())
+            .then(data => {
+                populateSelect(districtSelect, data, '-- Seleccionar distrito --', selectedId, selectedName);
+                districtSelect.classList.remove('loading');
+                if (selectedId || selectedName) {
+                    const value = districtSelect.value;
+                    if (value) {
+                        loadUrbanizations(value, selectedUrbanizationId, selectedUrbanizationName);
+                    }
+                }
+            })
+            .catch(() => {
+                districtSelect.classList.remove('loading');
+                populateSelect(districtSelect, [], 'Error al cargar distritos', null, null);
+            });
+    }
+
+    function loadUrbanizations(districtId, selectedId, selectedName) {
+        if (!districtId) {
+            populateSelect(urbanizationSelect, [], '-- Seleccionar urbanización --', null, null);
+            return;
+        }
+
+        urbanizationSelect.classList.add('loading');
+        fetch("{% url 'properties:api_urbanizations' %}?district_id=" + encodeURIComponent(districtId))
+            .then(response => response.json())
+            .then(data => {
+                populateSelect(urbanizationSelect, data, '-- Seleccionar urbanización --', selectedId, selectedName);
+                urbanizationSelect.classList.remove('loading');
+            })
+            .catch(() => {
+                urbanizationSelect.classList.remove('loading');
+                populateSelect(urbanizationSelect, [], 'Error al cargar urbanizaciones', null, null);
+            });
+    }
+
+    departmentSelect.addEventListener('change', function() {
+        loadProvinces(this.value, null, null);
+    });
+
+    provinceSelect.addEventListener('change', function() {
+        loadDistricts(this.value, null, null);
+    });
+
+    districtSelect.addEventListener('change', function() {
+        loadUrbanizations(this.value, null, null);
+    });
+
+    if (selectedDepartmentId) {
+        departmentSelect.value = selectedDepartmentId;
+        loadProvinces(selectedDepartmentId, selectedProvinceId, selectedProvinceName);
+    } else {
+        provinceSelect.disabled = true;
+        districtSelect.disabled = true;
+        urbanizationSelect.disabled = true;
+    }
+
+    if (selectedDepartmentId && !selectedProvinceId && selectedProvinceName) {
+        provinceSelect.dataset.selectedName = selectedProvinceName;
+    }
+    if (selectedProvinceId && !selectedDistrictId && selectedDistrictName) {
+        districtSelect.dataset.selectedName = selectedDistrictName;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setupStatusSection();
+    setupSubtypeSelector();
+    setupLocationSelectors();
+    setupUnitLocationVisibility();
+
+    const propertyForm = document.getElementById('propertyForm');
+    const savingOverlay = document.getElementById('savingOverlay');
+
+    if (propertyForm && savingOverlay) {
+        propertyForm.addEventListener('submit', function(event) {
+            if (typeof propertyForm.checkValidity === 'function' && !propertyForm.checkValidity()) {
+                event.preventDefault();
+                // Mostrar mensajes nativos y además enfocar/scroll al primer campo inválido
+                propertyForm.reportValidity();
+                try {
+                    const firstInvalid = propertyForm.querySelector(':invalid');
+                    if (firstInvalid) {
+                        firstInvalid.focus({preventScroll: false});
+                        firstInvalid.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        // Añadir una alerta temporal visible para mayor claridad
+                        let alertBox = document.getElementById('formValidationAlert');
+                        if (!alertBox) {
+                            alertBox = document.createElement('div');
+                            alertBox.id = 'formValidationAlert';
+                            alertBox.className = 'alert alert-danger mt-2';
+                            alertBox.style.position = 'sticky';
+                            alertBox.style.top = '10px';
+                            alertBox.innerText = 'Hay campos obligatorios o inválidos. Revisa los campos resaltados.';
+                            propertyForm.parentNode.insertBefore(alertBox, propertyForm);
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Error intentando enfocar campo inválido', err);
+                }
+                return;
+            }
+
+            if (savingOverlay.classList.contains('d-none')) {
+                savingOverlay.classList.remove('d-none');
+            }
+
+            const submitBtn = propertyForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Guardando...';
+            }
+        });
+    }
+});
+
+window.gm_authFailure = function() {
+    alert('Error de autenticación con Google Maps. Verifica tu API key.');
+};
+
+function gm_error() {
+    alert('Error al cargar Google Maps API. Verifica tu conexión y la API key.');
+}
+
+function addImageForm() {
+    const container = document.getElementById('image-forms');
+    const template = container.firstElementChild;
+    if (!template) {
+        return;
+    }
+
+    const newForm = template.cloneNode(true);
+    newForm.querySelectorAll('input, select, textarea').forEach(input => {
+        if (input.type === 'file') {
+            input.value = '';
+        } else if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0;
+        } else if (input.type === 'number' || input.type === 'text') {
+            input.value = '';
+        }
+    });
+
+    const orderInput = newForm.querySelector('input[name="image_orders"]');
+    if (orderInput) {
+        orderInput.value = container.children.length + 1;
+    }
+
+    const previewDiv = newForm.querySelector('.image-preview');
+    if (previewDiv) {
+        previewDiv.innerHTML = '';
+    }
+    container.appendChild(newForm);
+    populateImageTypeSelect(newForm.querySelector('select[name="image_types"]'));
+    populateImageAmbienteSelect(newForm.querySelector('select[name="image_ambientes"]'));
+    // Wire the sensible toggle to the hidden select so the server receives a value per image
+    try {
+        const toggle = newForm.querySelector('.image-sensible-toggle');
+        const hiddenSelect = newForm.querySelector('select[name="image_sensibles"]');
+        if (toggle && hiddenSelect) {
+            hiddenSelect.value = toggle.checked ? '1' : '0';
+            toggle.addEventListener('change', function() {
+                hiddenSelect.value = this.checked ? '1' : '0';
+            });
+        }
+    } catch (e) { console.error(e); }
+}
+
+function addVideoForm() {
+    const container = document.getElementById('video-forms');
+    if (!container || !container.firstElementChild) {
+        return;
+    }
+
+    const newForm = container.firstElementChild.cloneNode(true);
+    const inputs = newForm.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0;
+        } else if (input.type === 'file') {
+            input.value = '';
+        } else if (input.tagName === 'TEXTAREA' || input.type === 'text') {
+            input.value = '';
+        }
+    });
+
+    const previewDiv = newForm.querySelector('.video-preview');
+    if (previewDiv) {
+        previewDiv.innerHTML = '';
+    }
+
+    container.appendChild(newForm);
+
+    const videoTypeSelect = newForm.querySelector('select[name="video_types"]');
+    if (videoTypeSelect) {
+        populateVideoTypeSelect(videoTypeSelect);
+    }
+}
+
+function addDocumentForm() {
+    const container = document.getElementById('document-forms');
+    const originalForm = container.firstElementChild;
+    if (!originalForm) {
+        return;
+    }
+
+    const newForm = originalForm.cloneNode(true);
+    const inputs = newForm.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (input.type === 'file') {
+            input.value = '';
+        } else if (input.type === 'text' || input.type === 'number') {
+            input.value = '';
+        } else if (input.tagName === 'TEXTAREA') {
+            input.value = '';
+        } else if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0;
+        }
+    });
+
+    container.appendChild(newForm);
+
+    const documentTypeSelect = newForm.querySelector('select[name="document_types"]');
+    if (documentTypeSelect) {
+        populateDocumentTypeSelect(documentTypeSelect);
+    }
+}
+
+function addRoomForm() {
+    const container = document.getElementById('room-forms');
+    const template = container.firstElementChild;
+    if (!template) {
+        return;
+    }
+
+    const newForm = template.cloneNode(true);
+    newForm.querySelectorAll('input, textarea, select').forEach(input => {
+        if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0;
+        } else if (input.type === 'number' || input.type === 'text') {
+            input.value = '';
+        } else if (input.tagName === 'TEXTAREA') {
+            input.value = '';
+        }
+    });
+
+    const orderInput = newForm.querySelector('input[name="room_orders"]');
+    if (orderInput) {
+        orderInput.value = container.children.length;
+    }
+
+    container.appendChild(newForm);
+}
+
+function removeRoomForm(button) {
+    const container = document.getElementById('room-forms');
+    if (container.children.length > 1) {
+        button.closest('.dynamic-form-item').remove();
+    } else {
+        alert('Debes mantener al menos un ambiente.');
+    }
+}
+
+function populateImageTypeSelect(select) {
+    fetch("{% url 'properties:api_image_types' %}")
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Seleccionar tipo</option>';
+            data.forEach(type => {
+                select.innerHTML += `<option value="${type.id}">${type.name}</option>`;
+            });
+            // seleccionar el valor si está marcado en data-selected
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
+        })
+        .catch(() => {
+            select.innerHTML = '<option value="">Error al cargar tipos</option>';
+        });
+}
+
+function populateImageAmbienteSelect(select) {
+    fetch("{% url 'properties:api_roomtypes' %}")
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Seleccionar ambiente</option>';
+            data.forEach(room => {
+                select.innerHTML += `<option value="${room.id}">${room.name}</option>`;
+            });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
+        })
+        .catch(() => {
+            select.innerHTML = '<option value="">Error al cargar ambientes</option>';
+        });
+}
+
+function populateVideoTypeSelect(select) {
+    fetch("{% url 'properties:api_video_types' %}")
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Seleccionar tipo</option>';
+            data.forEach(videoType => {
+                select.innerHTML += `<option value="${videoType.id}">${videoType.name}</option>`;
+            });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
+        })
+        .catch(() => {
+            select.innerHTML = '<option value="">Error al cargar tipos</option>';
+        });
+}
+
+function populateDocumentTypeSelect(select) {
+    fetch("{% url 'properties:api_document_types' %}")
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Seleccionar tipo</option>';
+            data.forEach(docType => {
+                select.innerHTML += `<option value="${docType.id}">${docType.name}</option>`;
+            });
+            try {
+                const sel = select.dataset && select.dataset.selected;
+                if (sel) select.value = sel;
+            } catch (e) { }
+        })
+        .catch(error => {
+            select.innerHTML = '<option value="">Error al cargar tipos</option>';
+            console.error('Error loading document types:', error);
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('select[name="image_types"]').forEach(populateImageTypeSelect);
+    document.querySelectorAll('select[name="image_ambientes"]').forEach(populateImageAmbienteSelect);
+    document.querySelectorAll('select[name="video_types"]').forEach(populateVideoTypeSelect);
+    document.querySelectorAll('select[name="document_types"]').forEach(populateDocumentTypeSelect);
+});
+
+document.addEventListener('change', function(e) {
+    if (e.target.matches('input[name="images"]') && e.target.files && e.target.files[0]) {
+        const fileInput = e.target;
+        const previewDiv = fileInput.closest('.dynamic-form-item').querySelector('.image-preview');
+        const file = e.target.files[0];
+
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                if (previewDiv) {
+                    previewDiv.innerHTML = `
+                        <div class="position-relative d-inline-block">
+                            <img src="${ev.target.result}" alt="Previsualización" class="preview-thumb">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn" title="Eliminar" style="position:absolute; top:6px; right:6px;">&times;</button>
+                        </div>`;
+
+                    const btn = previewDiv.querySelector('.remove-file-btn');
+                    if (btn) {
+                        btn.addEventListener('click', function() {
+                            const container = fileInput.closest('.dynamic-form-item');
+                            const parent = container ? container.parentNode : null;
+                            if (parent && parent.children && parent.children.length > 1) {
+                                parent.removeChild(container);
+                                renumberImageOrders();
+                            } else if (container) {
+                                try { fileInput.value = ''; } catch(e) {}
+                                const preview = container.querySelector('.image-preview');
+                                if (preview) preview.innerHTML = '';
+                                container.querySelectorAll('[name="image_types"], [name="image_ambientes"], [name="image_orders"], [name="image_captions"]').forEach(field => {
+                                    if (field.tagName === 'SELECT') field.selectedIndex = 0;
+                                    else field.value = '';
+                                    field.disabled = false;
+                                });
+                                renumberImageOrders();
+                            }
+                        });
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+        } else if (previewDiv) {
+            previewDiv.innerHTML = '';
+        }
+    } else if (e.target.matches('input[name="videos"]') && e.target.files && e.target.files[0]) {
+        const fileInput = e.target;
+        const previewDiv = fileInput.closest('.dynamic-form-item').querySelector('.video-preview');
+        const file = e.target.files[0];
+
+        if (previewDiv) {
+            previewDiv.innerHTML = '';
+        }
+
+        if (file && file.type.startsWith('video/') && previewDiv) {
+            const videoElement = document.createElement('video');
+            videoElement.controls = true;
+            videoElement.preload = 'metadata';
+            const objectUrl = URL.createObjectURL(file);
+            videoElement.src = objectUrl;
+            videoElement.addEventListener('loadeddata', () => {
+                URL.revokeObjectURL(objectUrl);
+            }, { once: true });
+            const wrapper = document.createElement('div');
+            wrapper.className = 'position-relative d-inline-block';
+            wrapper.appendChild(videoElement);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-outline-danger remove-file-btn';
+            btn.title = 'Eliminar';
+            btn.style.position = 'absolute';
+            btn.style.top = '6px';
+            btn.style.right = '6px';
+            btn.innerHTML = '&times;';
+            btn.addEventListener('click', function() {
+                const container = fileInput.closest('.dynamic-form-item');
+                const parent = container ? container.parentNode : null;
+                if (parent && parent.children && parent.children.length > 1) {
+                    parent.removeChild(container);
+                    renumberImageOrders();
+                } else if (container) {
+                    try { fileInput.value = ''; } catch(e) {}
+                    const preview = container.querySelector('.video-preview');
+                    if (preview) preview.innerHTML = '';
+                    container.querySelectorAll('[name="video_types"], [name="video_titles"], [name="video_descriptions"]').forEach(field => {
+                        if (field.tagName === 'SELECT') field.selectedIndex = 0;
+                        else field.value = '';
+                        field.disabled = false;
+                    });
+                }
+            });
+            wrapper.appendChild(btn);
+            previewDiv.appendChild(wrapper);
+        } else if (previewDiv) {
+            previewDiv.textContent = '';
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const propertyForm = document.getElementById('propertyForm');
+    if (!propertyForm) {
+        return;
+    }
+
+    propertyForm.addEventListener('submit', function() {
+        document.querySelectorAll('#image-forms .dynamic-form-item').forEach(item => {
+            const fileInput = item.querySelector('input[name="images"]');
+            const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+            if (!hasFile) {
+                item.querySelectorAll('[name="image_types"], [name="image_ambientes"], [name="image_orders"], [name="image_captions"]').forEach(field => {
+                    field.disabled = true;
+                });
+            }
+        });
+
+        document.querySelectorAll('#video-forms .dynamic-form-item').forEach(item => {
+            const fileInput = item.querySelector('input[name="videos"]');
+            const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+            if (!hasFile) {
+                item.querySelectorAll('[name="video_types"], [name="video_titles"], [name="video_descriptions"]').forEach(field => {
+                    field.disabled = true;
+                });
+            }
+        });
+
+        document.querySelectorAll('#document-forms .dynamic-form-item').forEach(item => {
+            const fileInput = item.querySelector('input[name="documents"]');
+            const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+            if (!hasFile) {
+                item.querySelectorAll('[name="document_types"], [name="document_titles"], [name="document_descriptions"]').forEach(field => {
+                    field.disabled = true;
+                });
+            }
+        });
+    });
+});
+
+function renumberImageOrders() {
+    const container = document.getElementById('image-forms');
+    if (!container) return;
+    const items = Array.from(container.querySelectorAll('.dynamic-form-item'));
+    items.forEach((item, idx) => {
+        const orderInput = item.querySelector('input[name="image_orders"]');
+        if (orderInput) {
+            orderInput.value = idx + 1;
+        }
+    });
+}
+
+// Delegated handler para botones de eliminación
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.classList && e.target.classList.contains('remove-file-btn')) {
+        const btn = e.target;
+        const container = btn.closest('.dynamic-form-item');
+        if (!container) return;
+        const parent = container.parentNode;
+        if (parent && parent.children && parent.children.length > 1) {
+            parent.removeChild(container);
+            renumberImageOrders();
+        } else {
+            // limpiar el único bloque
+            const fileInput = container.querySelector('input[type="file"]');
+            try { if (fileInput) fileInput.value = ''; } catch(e) {}
+            const preview = container.querySelector('.image-preview, .video-preview');
+            if (preview) preview.innerHTML = '';
+            container.querySelectorAll('[name^="image_"], [name^="video_"], [name^="document_"]').forEach(field => {
+                if (field.tagName === 'SELECT') field.selectedIndex = 0;
+                else field.value = '';
+                field.disabled = false;
+            });
+        }
+    }
+});
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBrL1QF7vTl9zF8FmCUumfRpFJcaYokO7Q&libraries=places&callback=initMap" async defer></script>
+{% endblock %}
