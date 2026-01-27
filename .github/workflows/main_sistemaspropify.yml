@@ -7,7 +7,7 @@ name: Build and deploy Python app to Azure Web App - sistemaspropify
 on:
   push:
     branches:
-      - nuevo-servidor
+      - main
   workflow_dispatch:
 
 jobs:
@@ -74,29 +74,4 @@ jobs:
           app-name: 'sistemaspropify'
           slot-name: 'Production'
 
-  sync_main:
-    runs-on: ubuntu-latest
-    needs: deploy
-    permissions:
-      contents: write   # para poder pushear a main con el GITHUB_TOKEN
-
-    steps:
-      - name: Checkout repo (full history)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Sync main <- nuevo-servidor (fast-forward only)
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git fetch origin main nuevo-servidor
-          git checkout main
-          git reset --hard origin/main
-
-          # Fast-forward main to nuevo-servidor (si no es FF, falla)
-          git merge --ff-only origin/nuevo-servidor
-
-          git push origin main
           
