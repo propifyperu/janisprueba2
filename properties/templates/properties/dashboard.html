@@ -6,6 +6,48 @@
 {% block title %}Explorar Propiedades - Janis Platform{% endblock %}
 {% block dashboard_extra_css %}
 <style>
+    /* SIDEBAR */
+    /* Contenedor botones mobile */
+.mobile-filters-toggle {
+    display: none;
+    padding: 0.75rem;
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 1050;
+    border-bottom: 1px solid #eee;
+}
+
+/* Sidebar desktop */
+.filter-sidebar {
+    flex-shrink: 0;
+}
+
+/* Mobile */
+@media (max-width: 991px) {
+
+    .mobile-filters-toggle {
+        display: block;
+    }
+
+    .filter-sidebar {
+        position: fixed;
+        top: var(--navbar-height);
+        left: 0;
+        height: calc(100vh - var(--navbar-height));
+        width: 100%;
+        max-width: 360px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1200;
+        border-bottom: none;
+    }
+
+    .filter-sidebar.open {
+        transform: translateX(0);
+    }
+}
+
     :root {
         --color-accent: #2ea44f; /* verde principal */
         --color-accent-dark: #258e45; /* hover / oscuro */
@@ -33,7 +75,7 @@
     }
 
     .filter-sidebar {
-        width: 310px;
+        width: 356px;
         flex-shrink: 0;
         background: #fff;
         border-right: 1px solid rgba(4, 125, 125, 0.15);
@@ -645,14 +687,23 @@
         .dashboard-main-container {
             flex-direction: column;
             overflow: visible;
+            height: auto;
+            min-height: 100vh;
+            overflow: visible;
+            flex-direction: column;
         }
 
-        .filter-sidebar {
+        .map-container-main {
+            height: 50vh;
+            min-height: 300px;
+        }
+
+        /* .filter-sidebar {
             width: 100%;
             height: auto;
             border-right: none;
             border-bottom: 1px solid rgba(4, 125, 125, 0.15);
-        }
+        } */
 
         .dashboard-view-area {
             min-height: 500px;
@@ -681,13 +732,57 @@
             padding: 1rem;
         }
     }
+    /* Colapse */
+    @media (min-width: 992px) {
+        .filter-sidebar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #fff;
+        }
+    }
+
+
+.filter-body {
+    transition: 
+        max-height 0.35s ease,
+        opacity 0.2s ease;
+    overflow: hidden;
+}
+
+/* Estado colapsado */
+.filter-sidebar.collapsed .filter-body {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* View switcher siempre visible */
+.view-switcher {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 2;
+}
+
+    
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
 <div class="dashboard-main-container view-mode-map" id="dashboard-container">
     <!-- Sidebar de Filtros: Ocupa toda la altura izquierda -->
-    <aside class="filter-sidebar">
+     <div class="mobile-filters-toggle">
+        <button id="openFilters" class="btn btn-primary w-100">
+            <i class="fas fa-filter me-2"></i> Aplicar filtros
+        </button>
+
+        <button id="closeFilters" class="btn btn-outline-secondary w-100 d-none">
+            <i class="fas fa-times me-2"></i> Ocultar filtros
+        </button>
+    </div>
+
+    <aside class="filter-sidebar ">
         <!-- Switcher de Vista -->
         <div class="view-switcher mb-3" style="margin: 0 0 1rem 0;">
             <button type="button" class="view-btn active" id="btn-view-map" onclick="switchDashboardView('map')">
@@ -698,9 +793,10 @@
             </button>
         </div>
 
-        <form method="get" id="filter-form">
+        <div class="filter-body">
+            <form method="get" id="filter-form">
             <div class="filter-actions mb-3">
-                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter me-2"></i>Aplicar</button>
+                <button type="submit" class="btn btn-primary btn-sm btn-filter-mb"><i class="fas fa-filter me-2"></i>Aplicar</button>
                 <button type="button" id="toggle-advanced-filters" class="btn btn-outline-secondary btn-sm"><i class="fas fa-sliders-h me-2"></i>Filtro avanzado</button>
                 <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary btn-sm">Limpiar</a>
             </div>
@@ -865,6 +961,7 @@
                 </div>
             </div>
         </form>
+        </div>
     </aside>
 
     <!-- Área de Visualización: Mapa y Resultados (scrollable juntos) -->
@@ -1790,5 +1887,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+/* To scroll and hide filter options */
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.querySelector('.filter-sidebar');
+    let lastScroll = 0;
+    const threshold = 40;
+
+    window.addEventListener('scroll', () => {
+        const currentScroll = window.scrollY;
+
+        // Scroll hacia abajo
+        if (currentScroll > lastScroll && currentScroll > threshold) {
+            sidebar.classList.add('collapsed');
+        }
+
+        // Volviendo al tope
+        if (currentScroll <= threshold) {
+            sidebar.classList.remove('collapsed');
+        }
+
+        lastScroll = currentScroll;
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const sidebar = document.querySelector('.filter-sidebar');
+    const openBtn = document.getElementById('openFilters');
+    const closeBtn = document.getElementById('closeFilters');
+
+    if (!sidebar || !openBtn || !closeBtn) return;
+
+    openBtn.addEventListener('click', () => {
+        sidebar.classList.add('open');
+        openBtn.classList.add('d-none');
+        closeBtn.classList.remove('d-none');
+    });
+
+    closeBtn.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        closeBtn.classList.add('d-none');
+        openBtn.classList.remove('d-none');
+    });
+});
+
+document.getElementById('filter-form')?.addEventListener('submit', () => {
+    if (window.innerWidth < 992) {
+        sidebar.classList.remove('open');
+        closeBtn.classList.add('d-none');
+        openBtn.classList.remove('d-none');
+    }
+});
+
+
 </script>
 {% endblock %}
