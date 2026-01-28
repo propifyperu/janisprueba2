@@ -36,6 +36,7 @@
         /* Color acento tomado del fondo por defecto del sidebar (tema verde) */
         --sidebar-accent: #047d7d;
         --color-on-dark: #f4f4f4;
+        --color-primary: #399898;
     }
 
     /* Cabecera en flujo normal (no fija) */
@@ -53,6 +54,10 @@
         align-items: center;
         padding: 0 0; /* altura controlada por --navbar-height */
         overflow: visible;
+    }
+
+    .dropdown-toggle::after {
+        display: none;
     }
 
     /* Línea divisoria inferior del header que coincide con el color del sidebar */
@@ -499,6 +504,25 @@
         .properties-layout {
             flex-direction: column;
         }
+        .sidebar-user-profile {
+            display: flex;
+            margin-bottom: 0 !important;
+            text-align: left !important;
+        }
+        .sidebar-user-avatar {
+            margin: 0 16px 0 0 !important;
+        }
+        .sidebar-user-name {
+            font-size: 1.15rem !important;
+        }
+        .sidebar-user-info-text {
+            font-size: .9rem !important;
+        }
+        .badge {
+            padding: .5em .85em !important;
+            font-size: .8em !important;
+            margin-top: 12px !important;
+        }
 
         /* .sidebar {
             width: 90%;
@@ -689,14 +713,16 @@
                             <i class="fas fa-user"></i>
                         {% endif %}
                     </div>
-                    <div class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-                    <div class="sidebar-user-info-text">{{ request.user.department.name|default:"Sin Departamento" }}</div>
-                    <div class="sidebar-user-info-text">
-                        {% if request.user.is_superuser %}
-                            <span class="badge bg-danger">Superusuario</span>
-                        {% else %}
-                            {{ request.user.role.name|default:"Sin Rol" }}
-                        {% endif %}
+                    <div>
+                        <div class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+                        <div class="sidebar-user-info-text">{{ request.user.department.name|default:"Sin Departamento" }}</div>
+                        <div class="sidebar-user-info-text">
+                            {% if request.user.is_superuser %}
+                                <span class="badge bg-danger">Superusuario</span>
+                            {% else %}
+                                {{ request.user.role.name|default:"Sin Rol" }}
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endif %}
