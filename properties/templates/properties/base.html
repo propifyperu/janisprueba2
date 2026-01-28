@@ -36,9 +36,9 @@
                             <i class="far fa-envelope" style="color:inherit"></i>
                         </a>
                     {% endif %}
-                    <a href="#" title="Chat" style="display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:8px; background:transparent; border:1px solid rgba(0,0,0,0.08); color:#6c757d;">
+                    <!-- <a href="#" title="Chat" style="display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:8px; background:transparent; border:1px solid rgba(0,0,0,0.08); color:#6c757d;">
                         <i class="far fa-comment" style="color:inherit"></i>
-                    </a>
+                    </a> -->
                     {% if match_notifications and match_notifications|length > 0 %}
                         {% with n=match_notifications.0 %}
                         <a href="{% url 'properties:matching_matches' n.requirement_id %}" title="Se encontró una coincidencia" style="display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:8px; background:transparent; border:1px solid rgba(0,0,0,0.08); color:#6c757d; position:relative;">
@@ -51,7 +51,7 @@
                             <i class="far fa-bell" style="color:inherit"></i>
                         </a>
                     {% endif %}
-                    <a href="#" title="Usuario" style="display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:8px; background:transparent; border:1px solid rgba(0,0,0,0.08); color:#6c757d;">
+                    <a href="/users/profile" title="Usuario" style="display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:8px; background:transparent; border:1px solid rgba(0,0,0,0.08); color:#6c757d;">
                         <i class="far fa-user" style="color:inherit"></i>
                     </a>
                 </div>
