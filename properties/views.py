@@ -146,6 +146,7 @@ def simple_properties_view(request):
         <html>
         <head>
             <title>Propiedades</title>
+            <link rel="icon" type="image" href="/media/favicon.png">
             <style>
                 body { font-family: Arial; margin: 20px; }
                 table { border-collapse: collapse; width: 100%; }
