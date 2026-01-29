@@ -6,23 +6,64 @@
 {% block dashboard_extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
-    /* Usar color de la barra lateral directamente como fallback
-       (algunas plantillas no envuelven con .permissions-page) */
-    .permissions-page {
-        --primary-color: #047D7D;
-        --secondary-color: #279896;
+    /* Estilos JANIS PROPIFY */
+    :root {
+        --janis-primary: #047D7D;
+        --janis-secondary: #279896;
     }
+    
     .form-label {
-        font-weight: 500;
+        font-weight: 600 !important;
+        font-size: 0.9rem;
+        color: #333;
+        margin-bottom: 0.4rem;
     }
+    
     .btn-teal {
-        background-color: var(--primary-color, #047D7D) !important;
-        border-color: var(--primary-color, #047D7D) !important;
+        background-color: var(--janis-primary) !important;
+        border-color: var(--janis-primary) !important;
         color: #fff !important;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
     }
+    
     .btn-teal:hover {
-        background-color: var(--secondary-color, #279896) !important;
-        border-color: var(--secondary-color, #279896) !important;
+        background-color: var(--janis-secondary) !important;
+        border-color: var(--janis-secondary) !important;
+        box-shadow: 0 4px 12px rgba(4, 125, 125, 0.2);
+    }
+    
+    .card {
+        border: 1px solid rgba(0,0,0,0.08) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
+    }
+    
+    .section-header {
+        position: relative;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .section-header h5 {
+        color: var(--janis-primary);
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px !important;
+        border: 1px solid #ced4da !important;
+        padding: 0.6rem 0.75rem !important;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--janis-primary) !important;
+        box-shadow: 0 0 0 0.25rem rgba(4, 125, 125, 0.1) !important;
     }
 </style>
 {% endblock %}
@@ -32,35 +73,41 @@
     <div class="row justify-content-center">
         <div class="col-12 col-xl-11">
             <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="fw-bold mb-0">EDITAR REQUERIMIENTO #{{ object.id }}</h4>
-                        <a href="{% url 'properties:requirements_detail' object.id %}" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-arrow-left me-1"></i> Volver al detalle
-                        </a>
-                    </div>
-
+                <div class="card-body p-lg-5">
                     <form id="requirement-form" method="post" enctype="multipart/form-data">
                         {% csrf_token %}
 
-                        <!-- SecciÛn: Datos del cliente -->
-                        <div class="mb-4">
-                            <h5 class="fw-bold mb-3">DATOS DEL CLIENTE</h5>
+                        <!-- Datos del cliente -->
+                        <div class="mb-5">
+                            <div class="section-header">
+                                <h5>DATOS DEL CLIENTE</h5>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.client_name.id_for_label }}">Nombre del cliente</label>
+                                    <label class="form-label" for="{{ form.client_name.id_for_label }}">Nombre del Cliente</label>
                                     {{ form.client_name }}
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.phone.id_for_label }}">TelÈfono</label>
+                                    <label class="form-label" for="{{ form.phone.id_for_label }}">Tel√©fono</label>
                                     {{ form.phone }}
                                 </div>
                             </div>
+                            
+                            {% if request.user.is_superuser or request.user.role and request.user.role.name == 'Call Center' %}
+                            <div class="row g-3 mt-3">
+                                <div class="col-12">
+                                    <label class="form-label text-primary fw-bold">Agente Asignado</label>
+                                    {{ form.assigned_agent }}
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
 
-                        <!-- SecciÛn: Tipo de inmueble -->
-                        <div class="mb-4">
-                            <h5 class="fw-bold mb-3">TIPO DE INMUEBLE</h5>
+                        <!-- Tipo de inmueble -->
+                        <div class="mb-5">
+                            <div class="section-header">
+                                <h5>TIPO DE INMUEBLE</h5>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label" for="{{ form.property_type.id_for_label }}">Tipo</label>
@@ -71,44 +118,48 @@
                                     {{ form.property_subtype }}
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label" for="{{ form.area_type.id_for_label }}">¡rea terreno - Tipo</label>
+                                    <label class="form-label" for="{{ form.area_type.id_for_label }}">√Årea terreno - Tipo</label>
                                     {{ form.area_type }}
                                 </div>
                             </div>
+                            
                             <div class="row g-3 mt-2" id="area-range-rows">
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.land_area_min.id_for_label }}">MÌnimo (m)</label>
+                                    <label class="form-label" for="{{ form.land_area_min.id_for_label }}">M√≠nimo (m¬≤)</label>
                                     {{ form.land_area_min }}
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.land_area_max.id_for_label }}">M·ximo (m)</label>
+                                    <label class="form-label" for="{{ form.land_area_max.id_for_label }}">M√°ximo (m¬≤)</label>
                                     {{ form.land_area_max }}
                                 </div>
                             </div>
+                            
                             <div class="row g-3 mt-2" id="area-approx-row" style="display:none;">
                                 <div class="col-md-12">
-                                    <label class="form-label" for="{{ form.land_area_approx.id_for_label }}">¡rea aproximada (m)</label>
+                                    <label class="form-label" for="{{ form.land_area_approx.id_for_label }}">√Årea aproximada (m¬≤)</label>
                                     {{ form.land_area_approx }}
                                 </div>
                             </div>
 
                             <!-- FRENTERA -->
-                            <div class="row g-3 mt-2" id="frontera-mode-row">
+                             <div class="row g-3 mt-2">
                                 <div class="col-md-4">
                                     <label class="form-label" for="{{ form.frontera_type.id_for_label }}">FRENTERA - Tipo</label>
                                     {{ form.frontera_type }}
                                 </div>
                             </div>
-                            <div class="row g-3 mt-2" id="frontera-range-rows">
+
+                            <div class="row g-3 mt-2" id="frontera-range-rows" style="display:none;">
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.frontera_min.id_for_label }}">MÌnimo (m)</label>
+                                    <label class="form-label" for="{{ form.frontera_min.id_for_label }}">M√≠nimo (m)</label>
                                     {{ form.frontera_min }}
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.frontera_max.id_for_label }}">M·ximo (m)</label>
+                                    <label class="form-label" for="{{ form.frontera_max.id_for_label }}">M√°ximo (m)</label>
                                     {{ form.frontera_max }}
                                 </div>
                             </div>
+
                             <div class="row g-3 mt-2" id="frontera-approx-row" style="display:none;">
                                 <div class="col-md-12">
                                     <label class="form-label" for="{{ form.frontera_approx.id_for_label }}">Frontera aproximada (m)</label>
@@ -117,45 +168,43 @@
                             </div>
 
                             <!-- Preferencia de pisos -->
-                            <div class="row g-3 mt-2" id="preferred-floors-row">
+                            <div class="row g-3 mt-2" id="preferred-floors-row" style="display:none;">
                                 <div class="col-md-12">
                                     <label class="form-label" for="{{ form.preferred_floors.id_for_label }}">Pisos preferidos</label>
                                     {{ form.preferred_floors }}
-                                    <div class="form-text small text-muted mt-1">Selecciona uno o varios pisos (Ctrl/Cmd + clic).</div>
                                 </div>
                             </div>
 
-                            <!-- ZonificaciÛn -->
-                            <div class="row g-3 mt-2" id="zonificacion-row">
+                            <!-- Zonificaci√≥n -->
+                            <div class="row g-3 mt-2" id="zonificacion-row" style="display:none;">
                                 <div class="col-md-12">
-                                    <label class="form-label" for="{{ form.zonificaciones.id_for_label }}">ZonificaciÛn</label>
+                                    <label class="form-label" for="{{ form.zonificaciones.id_for_label }}">Zonificaci√≥n</label>
                                     {{ form.zonificaciones }}
-                                    <div class="form-text small text-muted mt-1">Selecciona una o m·s zonificaciones aplicables.</div>
                                 </div>
                             </div>
 
                             <!-- Ascensor -->
-                            <div class="row g-3 mt-2" id="ascensor-row">
+                            <div class="row g-3 mt-2" id="ascensor-row" style="display:none;">
                                 <div class="col-md-12">
                                     <label class="form-label" for="{{ form.ascensor.id_for_label }}">Ascensor</label>
                                     {{ form.ascensor }}
-                                    <div class="form-text small text-muted mt-1">Indica si se requiere ascensor (aplicable para departamentos).</div>
                                 </div>
                             </div>
 
                             <!-- Cantidad de pisos -->
-                            <div class="row g-3 mt-2" id="number-of-floors-row">
+                            <div class="row g-3 mt-2" id="number-of-floors-row" style="display:none;">
                                 <div class="col-md-12">
                                     <label class="form-label" for="{{ form.number_of_floors.id_for_label }}">Cantidad de pisos</label>
                                     {{ form.number_of_floors }}
-                                    <div class="form-text small text-muted mt-1">Selecciona la cantidad de pisos (aplicable para casas).</div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- SecciÛn: UbicaciÛn -->
-                        <div class="mb-4">
-                            <h5 class="fw-bold mb-3">UBICACI”N</h5>
+                        <!-- Ubicaci√≥n -->
+                        <div class="mb-5">
+                            <div class="section-header">
+                                <h5>UBICACI√ìN</h5>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label" for="{{ form.department.id_for_label }}">Departamento</label>
@@ -168,14 +217,15 @@
                                 <div class="col-md-4">
                                     <label class="form-label" for="{{ form.districts.id_for_label }}">Distrito(s)</label>
                                     {{ form.districts }}
-                                    <div class="form-text small text-muted mt-1">Puedes seleccionar varios distritos (Ctrl/Cmd + clic o usar la caja de b˙squeda).</div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- SecciÛn: Presupuesto -->
-                        <div class="mb-4">
-                            <h5 class="fw-bold mb-3">PRESUPUESTO</h5>
+                        <!-- Presupuesto -->
+                        <div class="mb-5">
+                            <div class="section-header">
+                                <h5>PRESUPUESTO</h5>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label" for="{{ form.budget_type.id_for_label }}">Tipo</label>
@@ -190,16 +240,18 @@
                                     {{ form.payment_method }}
                                 </div>
                             </div>
+                            
                             <div class="row g-3 mt-2" id="budget-range-rows">
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.budget_min.id_for_label }}">MÌnimo</label>
+                                    <label class="form-label" for="{{ form.budget_min.id_for_label }}">M√≠nimo</label>
                                     {{ form.budget_min }}
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.budget_max.id_for_label }}">M·ximo</label>
+                                    <label class="form-label" for="{{ form.budget_max.id_for_label }}">M√°ximo</label>
                                     {{ form.budget_max }}
                                 </div>
                             </div>
+                            
                             <div class="row g-3 mt-2" id="budget-approx-row" style="display:none;">
                                 <div class="col-md-12">
                                     <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Presupuesto aproximado</label>
@@ -208,20 +260,22 @@
                             </div>
                         </div>
 
-                        <!-- SecciÛn: CaracterÌsticas -->
-                        <div class="mb-4">
-                            <h5 class="fw-bold mb-3">CARACTERÕSTICAS</h5>
+                        <!-- Caracter√≠sticas -->
+                        <div class="mb-5">
+                            <div class="section-header">
+                                <h5>CARACTER√çSTICAS</h5>
+                            </div>
                             <div class="row g-3" id="caracteristicas-fields">
                                 <div class="col-md-3">
                                     <label class="form-label" for="{{ form.bedrooms.id_for_label }}">Habitaciones</label>
                                     {{ form.bedrooms }}
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label" for="{{ form.bathrooms.id_for_label }}">BaÒos</label>
+                                    <label class="form-label" for="{{ form.bathrooms.id_for_label }}">Ba√±os</label>
                                     {{ form.bathrooms }}
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label" for="{{ form.half_bathrooms.id_for_label }}">Medios baÒos</label>
+                                    <label class="form-label" for="{{ form.half_bathrooms.id_for_label }}">Medios ba√±os</label>
                                     {{ form.half_bathrooms }}
                                 </div>
                                 <div class="col-md-3">
@@ -237,14 +291,10 @@
                             </div>
                         </div>
 
-                        <!-- Botones -->
-                        <div class="row g-3 mt-4">
-                            <div class="col-12 text-end border-top pt-3">
-                                <a href="{% url 'properties:requirements_detail' object.id %}" class="btn btn-light me-2">Cancelar</a>
-                                <button class="btn btn-teal px-5" type="submit" id="submitBtn">
-                                    <i class="fas fa-save me-2"></i><span id="btnText">Actualizar Requerimiento</span>
-                                </button>
-                            </div>
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-teal shadow-sm btn-lg px-5" id="submitBtn">
+                                <i class="fas fa-sync-alt me-2"></i> ACTUALIZAR REQUERIMIENTO
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -258,229 +308,58 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-/* ¡rea tipo toggle */
-(function(){
-    function toggleArea() {
-        const at = document.getElementById("{{ form.area_type.id_for_label }}");
-        const approxRow = document.getElementById('area-approx-row');
-        const rangeRows  = document.getElementById('area-range-rows');
-        if(!at) return;
-        const val = at.value || '';
-        if(val === 'approx'){
-            if(approxRow) approxRow.style.display = '';
-            if(rangeRows)  rangeRows.style.display  = 'none';
-        } else {
-            if(approxRow) approxRow.style.display = 'none';
-            if(rangeRows)  rangeRows.style.display  = '';
-        }
+$(document).ready(function() {
+    // Select2
+    $('#{{ form.districts.id_for_label }}').select2({ placeholder: "Seleccionar distritos", width: '100%' });
+    $('#{{ form.preferred_floors.id_for_label }}').select2({ placeholder: "Seleccionar pisos", width: '100%' });
+    $('#{{ form.zonificaciones.id_for_label }}').select2({ placeholder: "Seleccionar zonificaci√≥n", width: '100%' });
+
+    // Toggles din√°micos
+    function updateToggles() {
+        const at = $('#{{ form.area_type.id_for_label }}').val();
+        $('#area-approx-row').toggle(at === 'approx');
+        $('#area-range-rows').toggle(at === 'range');
+
+        const bt = $('#{{ form.budget_type.id_for_label }}').val();
+        $('#budget-approx-row').toggle(bt === 'approx');
+        $('#budget-range-rows').toggle(bt === 'range');
+
+        const ft = $('#{{ form.frontera_type.id_for_label }}').val();
+        $('#frontera-approx-row').toggle(ft === 'approx');
+        $('#frontera-range-rows').toggle(ft === 'range');
+
+        const propType = $('#{{ form.property_type.id_for_label }} option:selected').text().toLowerCase();
+        $('#caracteristicas-fields').parent().toggle(!propType.includes('terreno'));
+        $('#ascensor-row').toggle(propType.includes('departamento'));
+        $('#preferred-floors-row').toggle(propType.includes('departamento'));
+        $('#zonificacion-row').toggle(propType.includes('terreno'));
+        $('#number-of-floors-row').toggle(propType.includes('casa'));
     }
-    document.addEventListener('DOMContentLoaded', function(){
-        toggleArea();
-        const at = document.getElementById("{{ form.area_type.id_for_label }}");
-        if(at) at.addEventListener('change', toggleArea);
-    });
-})();
 
-/* FRENTERA tipo toggle */
-(function(){
-    function toggleFrontera(){
-        const fm = document.getElementById('{{ form.frontera_type.id_for_label }}');
-        const approxRow = document.getElementById('frontera-approx-row');
-        const rangeRows  = document.getElementById('frontera-range-rows');
-        if(!fm) return;
-        const val = fm.value || '';
-        if(val === 'approx'){
-            if(approxRow) approxRow.style.display = '';
-            if(rangeRows)  rangeRows.style.display  = 'none';
-        } else if(val === 'range'){
-            if(approxRow) approxRow.style.display = 'none';
-            if(rangeRows)  rangeRows.style.display  = '';
-        } else {
-            if(approxRow) approxRow.style.display = 'none';
-            if(rangeRows)  rangeRows.style.display  = 'none';
-        }
-    }
-    document.addEventListener('DOMContentLoaded', function(){
-        toggleFrontera();
-        const fm = document.getElementById('{{ form.frontera_type.id_for_label }}');
-        if(fm) fm.addEventListener('change', toggleFrontera);
-    });
-})();
+    $('select').on('change', updateToggles);
+    updateToggles();
 
-/* Presupuesto tipo toggle */
-(function(){
-    function toggleBudget() {
-        const bt = document.getElementById("{{ form.budget_type.id_for_label }}");
-        const approxRow = document.getElementById('budget-approx-row');
-        const rangeRows  = document.getElementById('budget-range-rows');
-        if(!bt) return;
-        const val = bt.value || '';
-        if(val === 'approx'){
-            if(approxRow) approxRow.style.display = '';
-            if(rangeRows)  rangeRows.style.display  = 'none';
-        } else {
-            if(approxRow) approxRow.style.display = 'none';
-            if(rangeRows)  rangeRows.style.display  = '';
-        }
-    }
-    document.addEventListener('DOMContentLoaded', function(){
-        toggleBudget();
-        const bt = document.getElementById("{{ form.budget_type.id_for_label }}");
-        if(bt) bt.addEventListener('change', toggleBudget);
-    });
-})();
-
-/* Ocultar caracterÌsticas si es Terreno */
-(function(){
-    function toggleCaracteristicas() {
-        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
-        const caracFields = document.getElementById('caracteristicas-fields');
-        if(!typeSelect || !caracFields) return;
-        
-        const selectedText = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
-        
-        if(selectedText.includes('terreno')){
-            caracFields.style.display = 'none';
-        } else {
-            caracFields.style.display = '';
-        }
-    }
-    document.addEventListener('DOMContentLoaded', function(){
-        toggleCaracteristicas();
-        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
-        if(typeSelect) typeSelect.addEventListener('change', toggleCaracteristicas);
-    });
-})();
-
-/* Select2 init */
-(function(){
-    try{
-        document.addEventListener('DOMContentLoaded', function(){
-            const $ = window.jQuery;
-            if(!$) return;
-            $('#{{ form.districts.id_for_label }}').select2({
-                placeholder: 'Selecciona distritos',
-                width: '100%',
-                allowClear: true
-            });
-            $('#{{ form.preferred_floors.id_for_label }}').select2({
-                placeholder: 'Selecciona pisos',
-                width: '100%',
-                allowClear: true
-            });
-            $('#{{ form.zonificaciones.id_for_label }}').select2({
-                placeholder: 'Selecciona zonificaciÛn',
-                width: '100%',
-                allowClear: true
-            });
-        });
-    }catch(e){ console.warn('Select2 init failed', e); }
-})();
-
-/* Logic matches requirement_create (Conditional fields) */
-(function(){
-    document.addEventListener('DOMContentLoaded', function(){
-        const dept = document.getElementById('{{ form.department.id_for_label }}');
-        const typeSelect = document.getElementById('{{ form.property_type.id_for_label }}');
-        const floorsRow = document.getElementById('preferred-floors-row');
-        const ascRow = document.getElementById('ascensor-row');
-        const zonRow = document.getElementById('zonificacion-row');
-        const nofRow = document.getElementById('number-of-floors-row');
-
-        function toggleVisibility(){
-            const typeText = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
-            const isDept = typeText.includes('departamento');
-            const isTerreno = typeText.includes('terreno');
-            const isCasa = typeText.includes('casa');
-
-            if(floorsRow) floorsRow.style.display = (isDept || (dept && dept.value)) ? '' : 'none';
-            if(ascRow) ascRow.style.display = isDept ? '' : 'none';
-            if(zonRow) zonRow.style.display = isTerreno ? '' : 'none';
-            if(nofRow) nofRow.style.display = isCasa ? '' : 'none';
-        }
-
-        if(typeSelect) typeSelect.addEventListener('change', toggleVisibility);
-        if(dept) dept.addEventListener('change', toggleVisibility);
-        toggleVisibility();
-    });
-})();
-
-/* Cascada Tipo -> Subtipo */
-(function(){
-    document.addEventListener('DOMContentLoaded', function(){
-        const typeSelect    = document.getElementById('{{ form.property_type.id_for_label }}');
-        const subtypeSelect = document.getElementById('{{ form.property_subtype.id_for_label }}');
-        if (!typeSelect || !subtypeSelect) return;
-
-        const subtypesUrl = "{% url 'properties:api_property_subtypes' %}";
-        function loadSubtypesFor(typeId, currentSubId = null){
-            if(!typeId) {
-                subtypeSelect.innerHTML = '<option value="">---------</option>';
-                return;
-            }
-            fetch(subtypesUrl + '?property_type_id=' + encodeURIComponent(typeId))
-                .then(res => res.json())
-                .then(data => {
-                    const list = data.subtypes || data;
-                    const oldVal = subtypeSelect.value;
-                    subtypeSelect.innerHTML = '<option value="">---------</option>';
-                    list.forEach(sub => {
-                        const opt = document.createElement('option');
-                        opt.value = sub.id;
-                        opt.textContent = sub.name;
-                        subtypeSelect.appendChild(opt);
-                    });
-                    subtypeSelect.value = oldVal;
-                });
-        }
-        
-        typeSelect.addEventListener('change', () => loadSubtypesFor(typeSelect.value));
-    });
-})();
-
-/* Cascada Dept -> Prov -> Dist */
-(function(){
-    document.addEventListener('DOMContentLoaded', function(){
-        const deptSel = document.getElementById('{{ form.department.id_for_label }}');
-        const provSel = document.getElementById('{{ form.province.id_for_label }}');
-        const distSel = document.getElementById('{{ form.districts.id_for_label }}');
-        if(!deptSel || !provSel || !distSel) return;
-
-        deptSel.addEventListener('change', function(){
-            fetch("{% url 'properties:api_provinces' %}?department_id=" + this.value)
-                .then(r => r.json())
-                .then(data => {
-                    provSel.innerHTML = '<option value="">Seleccione una provincia</option>';
-                    data.forEach(p => { provSel.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
-                });
-        });
-
-        provSel.addEventListener('change', function(){
-            fetch("{% url 'properties:api_districts' %}?province_id=" + this.value)
-                .then(r => r.json())
-                .then(data => {
-                    const $ = window.jQuery;
-                    if($ && $(distSel).data('select2')){
-                        $(distSel).empty();
-                        data.forEach(d => {
-                            $(distSel).append(new Option(d.name, d.id, false, false));
-                        });
-                        $(distSel).trigger('change');
-                    } else {
-                        distSel.innerHTML = '';
-                        data.forEach(d => { distSel.innerHTML += `<option value="${d.id}">${d.name}</option>`; });
-                    }
-                });
+    // Cascada
+    $('#{{ form.department.id_for_label }}').on('change', function() {
+        $.getJSON("{% url 'properties:api_provinces' %}", {department_id: $(this).val()}, function(data) {
+            let options = '<option value="">Seleccione provincia</option>';
+            data.forEach(x => options += `<option value="${x.id}">${x.name}</option>`);
+            $('#{{ form.province.id_for_label }}').html(options).trigger('change');
         });
     });
-})();
 
-document.getElementById('requirement-form').addEventListener('submit', function() {
-    const btn = document.getElementById('submitBtn');
-    if(btn){
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Guardando...';
-    }
+    $('#{{ form.province.id_for_label }}').on('change', function() {
+        $.getJSON("{% url 'properties:api_districts' %}", {province_id: $(this).val()}, function(data) {
+            let options = '';
+            data.forEach(x => options += `<option value="${x.id}">${x.name}</option>`);
+            $('#{{ form.districts.id_for_label }}').html(options).trigger('change');
+        });
+    });
+
+    $('#requirement-form').on('submit', function() {
+        const btn = $('#submitBtn');
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span> PROCESANDO...');
+    });
 });
 </script>
 {% endblock %}

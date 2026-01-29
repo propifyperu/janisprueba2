@@ -3,7 +3,7 @@ from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import Http404, HttpResponseRedirect, HttpResponse
+from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.template.loader import get_template
@@ -1312,15 +1312,27 @@ class RequirementUpdateView(LoginRequiredMixin, UpdateView):
         from .forms import RequirementEditForm
         return RequirementEditForm
 
+    def get_initial(self):
+        initial = super().get_initial()
+        if self.object.created_by:
+            initial['assigned_agent'] = self.object.created_by
+        return initial
+
     def form_valid(self, form):
         req = form.save(commit=False)
-        # sólo el creador o superuser puede editar
-        if not (self.request.user.is_superuser or (req.created_by and req.created_by.id == self.request.user.id)):
+        # sólo el creador, Call Center o superuser puede editar
+        is_call_center = (self.request.user.role and self.request.user.role.name == 'Call Center')
+        if not (self.request.user.is_superuser or is_call_center or (req.created_by and req.created_by.id == self.request.user.id)):
             messages.error(self.request, 'No tienes permiso para editar este requerimiento.')
             return redirect('properties:requirements_my')
+        
+        # Permitir reasignación del agente (created_by) si tiene permisos
+        if (self.request.user.is_superuser or is_call_center) and form.cleaned_data.get('assigned_agent'):
+            req.created_by = form.cleaned_data.get('assigned_agent')
+
         req.modified_by = self.request.user
         req.save()
-        # guardar M2M `districts`
+        # guardar M2M `districts`, `preferred_floors`, `zonificaciones`
         try:
             form.save_m2m()
         except Exception:
