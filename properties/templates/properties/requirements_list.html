@@ -76,13 +76,16 @@
                                     <td>{{ r.created_at|date:"d/m/Y" }}</td>
 
                                     <td>
-                                        {% if r.match_score %}
+                                        {% if r.match_score is not None %}
                                             <div class="d-flex align-items-center">
                                                 <span class="badge bg-success">Encontrada</span>
                                                 <span class="ms-2 fw-bold text-dark">{{ r.match_score|floatformat:2 }}%</span>
                                             </div>
                                         {% else %}
-                                            -
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-secondary">Sin coincidencias</span>
+                                                <span class="ms-2 text-muted">-</span>
+                                            </div>
                                         {% endif %}
                                     </td>
 

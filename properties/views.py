@@ -230,44 +230,89 @@ def matching_weights_view(request):
     if not request.user.is_superuser:
         return HttpResponse('Forbidden', status=403)
 
+    from django.contrib import messages
+
     if request.method == 'POST':
         # actualizar pesos desde el formulario
+        updated_count = 0
         for key, value in request.POST.items():
             if key.startswith('weight_'):
                 k = key.replace('weight_', '')
                 try:
-                    mw = MatchingWeight.objects.get(key=k)
+                    if not value.strip():
+                        continue
+                    mw, created = MatchingWeight.objects.get_or_create(key=k)
                     mw.weight = float(value)
                     mw.save()
-                except MatchingWeight.DoesNotExist:
-                    MatchingWeight.objects.create(key=k, weight=float(value or 1.0))
-                except Exception:
-                    pass
+                    updated_count += 1
+                except (ValueError, TypeError):
+                    messages.error(request, f'Valor inválido para el criterio "{k}".')
+                except Exception as e:
+                    messages.error(request, f'Error al guardar "{k}": {str(e)}')
+        
+        if updated_count > 0:
+            messages.success(request, f'Se actualizaron {updated_count} pesos de matching.')
+
         # crear nuevo criterio si se envió
         new_key = request.POST.get('new_key', '').strip()
         new_weight = request.POST.get('new_weight', '').strip()
         if new_key:
             try:
-                # validar formato básico
-                if len(new_key) > 100 or not new_key.replace('_', '').isalnum():
-                    from django.contrib import messages
-                    messages.error(request, 'Clave inválida para el nuevo criterio.')
+                # validar formato básico: permitir letras, números y guiones bajos
+                import re
+                if not re.match(r'^[a-z0-9_]+$', new_key):
+                    messages.error(request, 'Clave inválida (solo minúsculas, números y guiones bajos).')
                 else:
                     if MatchingWeight.objects.filter(key=new_key).exists():
-                        from django.contrib import messages
                         messages.warning(request, f'El criterio "{new_key}" ya existe.')
                     else:
                         wval = float(new_weight) if new_weight else 1.0
                         MatchingWeight.objects.create(key=new_key, weight=wval)
-                        from django.contrib import messages
                         messages.success(request, f'Nuevo criterio "{new_key}" creado con peso {wval}.')
+            except ValueError:
+                messages.error(request, 'El peso del nuevo criterio debe ser un número.')
             except Exception:
-                from django.contrib import messages
                 messages.error(request, 'No fue posible crear el nuevo criterio.')
+        
         return redirect('properties:matching_weights')
 
+    # Diccionario de pesos por defecto (copiado de matching.py para consistencia)
+    DEFAULT_WEIGHTS = {
+        'property_type': 5.0,
+        'district': 5.0,
+        'currency': 2.0,
+        'price': 3.0,
+        'area': 2.0,
+        'land_area': 2.0,
+        'built_area': 2.0,
+        'front_measure': 1.0,
+        'depth_measure': 1.0,
+        'bedrooms': 1.0,
+        'bathrooms': 1.0,
+        'half_bathrooms': 0.5,
+        'garage_spaces': 0.8,
+        'garage_type': 0.5,
+        'parking_cost_included': 0.5,
+        'parking_cost': 0.5,
+        'amenities': 1.0,
+        'tags': 1.0,
+        'water_service': 0.5,
+        'energy_service': 0.5,
+        'drainage_service': 0.5,
+        'gas_service': 0.5,
+        'is_project': 0.5,
+        'project_name': 0.5,
+        'unit_location': 0.5,
+        'ascensor': 0.5,
+        'floors': 0.5,
+    }
+
+    # Asegurar que los pesos por defecto existan en la base de datos
+    for k, v in DEFAULT_WEIGHTS.items():
+        MatchingWeight.objects.get_or_create(key=k, defaults={'weight': v})
+
     weights = MatchingWeight.objects.all().order_by('key')
-    # Etiquetas en español para mostrar en el UI del selector (definidas antes de usarlas)
+    # Etiquetas en español para mostrar en el UI del selector
     MATCHING_KEY_LABELS = {
         'property_type': 'Tipo de propiedad',
         'property_subtype': 'Subtipo',
@@ -309,36 +354,18 @@ def matching_weights_view(request):
             'weight': w.weight,
             'label': MATCHING_KEY_LABELS.get(w.key, w.key)
         })
-    # claves por defecto reconocidas por el motor de matching
-    DEFAULT_MATCHING_KEYS = [
-        'property_type', 'property_subtype', 'district', 'province', 'department', 'urbanization',
-        'currency', 'price', 'area', 'land_area', 'built_area', 'front_measure', 'depth_measure',
-        'bedrooms', 'bathrooms', 'half_bathrooms',
-        'garage_spaces', 'garage_type', 'parking_cost_included', 'parking_cost',
-        'amenities', 'tags',
-        'water_service', 'energy_service', 'drainage_service', 'gas_service',
-        'is_project', 'project_name', 'unit_location', 'ascensor', 'floors'
-    ]
+    # claves por defecto reconocidas por el motor de matching para el dropdown de "nuevo"
+    DEFAULT_MATCHING_KEYS = list(MATCHING_KEY_LABELS.keys())
     
     existing = set(weights.values_list('key', flat=True))
-    # Calcular solo las claves que existen en ambos modelos (Property y Requirement)
-    try:
-        prop_field_names = {f.name for f in Property._meta.get_fields()}
-    except Exception:
-        prop_field_names = set()
-    try:
-        req_field_names = {f.name for f in Requirement._meta.get_fields()}
-    except Exception:
-        req_field_names = set()
-
-    # Construir lista de tuplas (key, label) con solo campos compartidos
+    
+    # Construir lista de tuplas (key, label) con solo campos que NO están en el DB todavía
     available_keys = []
     for k in DEFAULT_MATCHING_KEYS:
-        if k in existing:
-            continue
-        if k in prop_field_names and k in req_field_names:
+        if k not in existing:
             label = MATCHING_KEY_LABELS.get(k, k)
             available_keys.append((k, label))
+            
     return render(request, 'properties/matching_weights.html', {
         'weights': weights_list,
         'available_keys': available_keys,
