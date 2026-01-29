@@ -1,7 +1,7 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load static %}
 
-{% block title %}Crear Requerimiento - Janis Platform{% endblock %}
+{% block title %}Crear Requerimiento - Propify{% endblock %}
 
 {% block dashboard_extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
