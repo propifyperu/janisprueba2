@@ -6,6 +6,19 @@
 {% block dashboard_extra_css %}
 <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
 <style>
+    @media (max-width: 992px) {
+        .agenda-container {
+            display: block !important;
+            height: auto !important;
+            min-height: 700px !important;
+            gap: 0;
+            margin-bottom: 20px !important;
+        }
+        .sidebar-calendar {
+            width: fit-content !important;
+        }
+       
+    }
     .agenda-container {
         display: flex;
         height: calc(100vh - 120px);
