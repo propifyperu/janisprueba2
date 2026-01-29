@@ -440,29 +440,47 @@ class RequirementEditForm(forms.ModelForm):
             'preferred_floors',
             'zonificaciones',
             'frontera_type', 'frontera_approx', 'frontera_min', 'frontera_max',
-                'number_of_floors',
-                'ascensor',
+            'number_of_floors',
+            'ascensor',
             'notes', 'area_type', 'land_area_approx', 'land_area_min', 'land_area_max'
         ]
 
+    assigned_agent = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Hacer campos opcionales por defecto y aplicar widgets coherentes con create
-        for field_name in self.fields:
-            self.fields[field_name].required = False
-        self.fields['client_name'].widget = forms.TextInput(attrs={'class': 'form-control'})
-        self.fields['phone'].widget = forms.TextInput(attrs={'class': 'form-control'})
-        self.fields['notes'].widget = forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
-        # districts: mostrar como select múltiple con tamaño usable
+        # Aplicar clases Bootstrap a todos los campos
+        for field_name, field in self.fields.items():
+            if isinstance(field.widget, (forms.TextInput, forms.NumberInput, forms.EmailInput, forms.PasswordInput, forms.DecimalField)):
+                field.widget.attrs.update({'class': 'form-control'})
+            elif isinstance(field.widget, (forms.Select, forms.SelectMultiple)):
+                field.widget.attrs.update({'class': 'form-select'})
+            elif isinstance(field.widget, forms.Textarea):
+                field.widget.attrs.update({'class': 'form-control', 'rows': 3})
+            
+            # Hacer campos opcionales por defecto (según la lógica de Janis para matching parcial)
+            field.required = False
+
+        # Configurar querysets y widgets específicos para Select2
         try:
-            from .models import District
-            self.fields['districts'].queryset = District.objects.filter(is_active=True).order_by('name')
-            self.fields['districts'].widget = forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
-            from .models import ZoningOption
-            # zonificaciones: mostrar como select múltiple
+            from .models import District, ZoningOption, FloorOption
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            if 'districts' in self.fields:
+                self.fields['districts'].queryset = District.objects.filter(is_active=True).order_by('name')
+                self.fields['districts'].widget.attrs.update({'size': 6})
+            
             if 'zonificaciones' in self.fields:
                 self.fields['zonificaciones'].queryset = ZoningOption.objects.filter(is_active=True).order_by('order', 'name')
-                self.fields['zonificaciones'].widget = forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
+                self.fields['zonificaciones'].widget.attrs.update({'size': 6})
+                
+            if 'preferred_floors' in self.fields:
+                self.fields['preferred_floors'].queryset = FloorOption.objects.filter(is_active=True).order_by('order', 'name')
+                self.fields['preferred_floors'].widget.attrs.update({'size': 6})
+
+            if 'assigned_agent' in self.fields:
+                self.fields['assigned_agent'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
         except Exception:
             pass
 
