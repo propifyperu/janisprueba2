@@ -1,4 +1,4 @@
-# Sistema de Agenda - Janis Platform
+# Sistema de Agenda - Propify
 
 ## 📅 Descripción
 
@@ -206,4 +206,4 @@ Para más información sobre el sistema de agenda, consultar la documentación g
 
 **Versión**: 1.0.0  
 **Fecha**: 6 de enero de 2026  
-**Desarrollado para**: Janis Platform
+**Desarrollado para**: Propify
