@@ -418,7 +418,7 @@
 
     .property-card:hover,
     .property-card.active {
-        transform: translateY(-1px);
+        /* transform: translateY(-1px); */
         box-shadow: 0 4px 16px rgba(4, 125, 125, 0.12);
         border-color: rgba(4, 125, 125, 0.4);
         background-color: rgba(243, 253, 253, 0.95);
@@ -608,6 +608,7 @@
         color: var(--color-secondary);
         font-weight: 700;
         font-size: 1rem;
+        padding-right: 16px;
     }
 
     .princing-title {
@@ -1080,7 +1081,7 @@
                 {% else %}
                 <div class="property-cards" id="propertyCards">
                     {% for property in properties %}
-                    <article class="property-card" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
+                    <article class="property-card pr-md-3" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
                         <div class="property-card-media">
                             <a href="{% url 'properties:detail' property.pk %}" title="Ver detalle de {{ property.code }}">
                             {% with images=property.images.all %}
@@ -1122,7 +1123,7 @@
                                 </span>
                             </p>
 
-                            <div class="property-card-footer">
+                            <div class="property-card-footer mr-3">
                                 <div class="property-info-stack">
                                     <div class="property-meta">
                                         <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
