@@ -414,14 +414,6 @@
         align-items: stretch;
         background-color: #fff;
         border-radius: 0.6rem;
-        padding: 0.5rem;
-        border: 1px solid rgba(4, 125, 125, 0.16);
-        box-shadow: 0 2px 8px rgba(4, 125, 125, 0.06);
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.25s ease;
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-        min-height: 120px;
     }
 
     .property-card:hover,
@@ -504,6 +496,9 @@
         align-items: center;
         justify-content: space-between;
         gap: 0.4rem;
+    }
+    .property-card-top-mb {
+        display: block;
     }
 
     .property-card-top .badge-status {
@@ -615,6 +610,10 @@
         font-size: 1rem;
     }
 
+    .princing-title {
+        font-size: 13px;
+    }
+
     .badge-status {
         background: rgba(4, 125, 125, 0.12);
         color: var(--color-primary);
@@ -709,11 +708,15 @@
         }
 
         .property-card-body {
-            display: none;
+            display: none !important;
         }
 
         .property-card-body-mb, .info-details-card-body-mb {
-            display: contents;
+            display: inline-table !important;
+        }
+
+        .info-details-card-body-mb {
+            min-width: 350px !important;
         }
 
         #propertyMap {
@@ -734,9 +737,53 @@
             margin-bottom: 0.5rem;
         }
         .property-card-media {
-            width: 164px;
-            height: 148px;
+            width: 164px !important;
+            height: 148px !important;
         }
+        .property-card {
+            display: grid;
+            grid-template-columns: 170px 1fr !important;
+            gap: 0.75rem;
+            align-items: stretch;
+            background-color: #fff;
+            border-radius: 0.6rem;
+            padding: 0.5rem;
+            border: 1px solid rgba(4, 125, 125, 0.16);
+            box-shadow: 0 2px 8px rgba(4, 125, 125, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.25s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            min-height: 120px;
+        }
+        .property-card-footer {
+            display: block !important;
+            margin-top: 16px !important;
+        }
+
+        .property-actions {
+            display: flex;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+            margin-top: 16px;
+        }
+        .princing-title {
+            font-size: 12px;
+        }
+        .property-card .price {
+            font-size: 1.14rem !important;
+        }
+
+        .property-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #16343b;
+            white-space: unset;
+            overflow: unset;
+            text-overflow: unset;
+        }
+
     }
 
     @media (max-width: 576px) {
@@ -1121,12 +1168,12 @@
 
 
                         <div class="property-card-body-mb">
-                            <div class="property-card-top">
+                            <div class="property-card-top-mb">
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="badge-status">{{ property.property_type.name }}</span>
                                     <span class="status-label">{{ property.status.name }}</span>
                                 </div>
-                                <div class="property-meta">
+                                <div class="property-meta mt-3">
                                     <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
                                     <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
                                     {% if property.land_area and property.land_area_unit %}
@@ -1139,8 +1186,8 @@
                                     <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
                                     {% endif %}
                                 </div>
-                                <div>Precio total:</div>
-                                <div class="price text-end">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
+                                <div class="princing-title mt-3">Precio total:</div>
+                                <div class="price">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
                                 
                             </div>
                         </div>
@@ -1159,7 +1206,7 @@
                                 </span>
                             </p>
 
-                            <div class="property-card-footer">
+                            <div class="property-card-footer d-flex">
                                 <div class="property-info-stack">
                                     
                                     <div class="property-contacts">
@@ -1170,7 +1217,7 @@
                                                 <span style="color: #888; font-style: italic; font-weight: normal;">Vista No Autorizada</span>
                                             {% endif %}
                                         </span>
-                                        <span><i class="fas fa-user-check"></i>Resp:
+                                        <span><i class="fas fa-user-check"></i>Responsable:
                                             {% if property.responsible %}
                                                 {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
                                             {% else %} Sin asignar {% endif %}
@@ -2041,6 +2088,11 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
   if (isMobile()) {
     switchDashboardView('properties');
   }
+
+  /* const price = Number(document.getElementById('price').innerText);
+
+  document.getElementById('price').innerText =
+    new Intl.NumberFormat('es-PE').format(price); */
 
 </script>
 {% endblock %}
