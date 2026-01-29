@@ -26,9 +26,12 @@ def _load_weights() -> Dict[str, float]:
     # defaults
     defaults = {
         'property_type': 5.0,
+        'property_subtype': 3.0,
         'district': 5.0,
         'currency': 2.0,
         'price': 3.0,
+        'payment_method': 2.0,
+        'property_status': 2.0,
         'area': 2.0,
         'land_area': 2.0,
         'built_area': 2.0,
@@ -60,31 +63,15 @@ def _load_weights() -> Dict[str, float]:
 
 def hard_filter(requirement: Requirement, qs: QuerySet) -> QuerySet:
     """Aplicar filtros duros (excluyentes) sobre `qs`.
-
-    Ejemplos:
-    - Si `requirement.property_type` está definido, mantener solo propiedades con ese tipo.
-    - Si `requirement.district` o `requirement.districts` definido, mantener solo esas distritos.
-    - Si `requirement.payment_method` (ej. solo hipotecario), filtrar `forma_de_pago`.
-    - Si `requirement.status` (venta vs alquiler) filtrar por condición/operation_type.
+    
+    Solo mantenemos los filtros que son absolutamente críticos.
     """
     if requirement.property_type:
         qs = qs.filter(property_type=requirement.property_type)
 
-    # districts: Requirement can specify a single district FK or multiple via M2M
-    if getattr(requirement, 'district', None):
-        qs = qs.filter(district=requirement.district)
-    if requirement.districts.exists():
-        qs = qs.filter(district__in=requirement.districts.all())
+    # El presupuesto lo tratamos preferiblemente como scoring, pero si el usuario
+    # pusiere un limite infranqueable se podria añadir aqui. Por ahora es scoring.
 
-    if requirement.payment_method:
-        qs = qs.filter(forma_de_pago=requirement.payment_method)
-
-    # Ejemplo: si requirement.status corresponde a venta, eliminar propiedades de solo alquiler
-    if requirement.status:
-        # assume Property.status maps appropriately; keep only matching
-        qs = qs.filter(status=requirement.status)
-
-    # Otras reglas excluyentes se pueden añadir aquí
     return qs
 
 
@@ -132,6 +119,17 @@ def score_property(requirement: Requirement, prop: Property, weights: Dict[str, 
     contrib = w if matched else 0.0
     info = 'id_match' if matched else ('no_pref' if not getattr(requirement, 'property_type', None) else 'no_match')
     details['property_type'] = {'contrib': contrib, 'matched': matched, 'info': info}
+    score_acc += contrib
+
+    # property_subtype match
+    w = weights.get('property_subtype', 0)
+    total_weight += w
+    matched = False
+    if getattr(requirement, 'property_subtype', None):
+        matched = prop.property_subtype_id == requirement.property_subtype_id
+    contrib = w if matched else 0.0
+    info = 'id_match' if matched else ('no_pref' if not getattr(requirement, 'property_subtype', None) else 'no_match')
+    details['property_subtype'] = {'contrib': contrib, 'matched': matched, 'info': info}
     score_acc += contrib
 
     # district exact (compatibilidad con Property que puede tener FK, campo texto, o almacenar id como string)
@@ -190,6 +188,31 @@ def score_property(requirement: Requirement, prop: Property, weights: Dict[str, 
     contrib = w if matched else 0.0
     info = 'id_match' if matched else ('no_pref' if not getattr(requirement, 'currency', None) else 'no_match')
     details['currency'] = {'contrib': contrib, 'matched': matched, 'info': info}
+    score_acc += contrib
+
+    # payment_method (Forma de pago)
+    w = weights.get('payment_method', 0)
+    total_weight += w
+    matched = False
+    if getattr(requirement, 'payment_method', None):
+        # En Property es forma_de_pago
+        if getattr(prop, 'forma_de_pago', None):
+            matched = prop.forma_de_pago_id == requirement.payment_method_id
+    contrib = w if matched else 0.0
+    info = 'match' if matched else ('no_pref' if not getattr(requirement, 'payment_method', None) else 'no_match')
+    details['payment_method'] = {'contrib': contrib, 'matched': matched, 'info': info}
+    score_acc += contrib
+
+    # property_status (Condición: Estreno, Antigüedad, etc)
+    w = weights.get('property_status', 0)
+    total_weight += w
+    matched = False
+    if getattr(requirement, 'status', None):
+        if getattr(prop, 'status', None):
+            matched = prop.status_id == requirement.status_id
+    contrib = w if matched else 0.0
+    info = 'match' if matched else ('no_pref' if not getattr(requirement, 'status', None) else 'no_match')
+    details['property_status'] = {'contrib': contrib, 'matched': matched, 'info': info}
     score_acc += contrib
 
     # price proximity
