@@ -32,7 +32,7 @@
 
     .filter-sidebar {
         position: fixed;
-        top: var(--navbar-height);
+        top: 14vh;
         left: 0;
         height: calc(100vh - var(--navbar-height));
         width: 100%;
@@ -85,7 +85,7 @@
         /* Alargamos el filtro hasta el borde inferior */
         height: 100%;
         padding: 1.25rem;
-        z-index: 100;
+        z-index: 1001;
     }
 
     .filter-sidebar form {
@@ -414,14 +414,6 @@
         align-items: stretch;
         background-color: #fff;
         border-radius: 0.6rem;
-        padding: 0.5rem;
-        border: 1px solid rgba(4, 125, 125, 0.16);
-        box-shadow: 0 2px 8px rgba(4, 125, 125, 0.06);
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.25s ease;
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-        min-height: 120px;
     }
 
     .property-card:hover,
@@ -504,6 +496,9 @@
         align-items: center;
         justify-content: space-between;
         gap: 0.4rem;
+    }
+    .property-card-top-mb {
+        display: block;
     }
 
     .property-card-top .badge-status {
@@ -615,6 +610,10 @@
         font-size: 1rem;
     }
 
+    .princing-title {
+        font-size: 13px;
+    }
+
     .badge-status {
         background: rgba(4, 125, 125, 0.12);
         color: var(--color-primary);
@@ -698,16 +697,26 @@
             min-height: 300px;
         }
 
-        /* .filter-sidebar {
+        .btn-filter-mb {
             width: 100%;
-            height: auto;
-            border-right: none;
-            border-bottom: 1px solid rgba(4, 125, 125, 0.15);
-        } */
-
+            display: block;
+            margin-bottom: 8px !important;
+        }
         .dashboard-view-area {
             min-height: 500px;
             overflow: visible;
+        }
+
+        .property-card-body {
+            display: none !important;
+        }
+
+        .property-card-body-mb, .info-details-card-body-mb {
+            display: inline-table !important;
+        }
+
+        .info-details-card-body-mb {
+            min-width: 350px !important;
         }
 
         #propertyMap {
@@ -722,6 +731,59 @@
             flex-direction: row;
             flex-wrap: wrap;
         }
+
+        .filter-sidebar .filter-actions {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        .property-card-media {
+            width: 164px !important;
+            height: 148px !important;
+        }
+        .property-card {
+            display: grid;
+            grid-template-columns: 170px 1fr !important;
+            gap: 0.75rem;
+            align-items: stretch;
+            background-color: #fff;
+            border-radius: 0.6rem;
+            padding: 0.5rem;
+            border: 1px solid rgba(4, 125, 125, 0.16);
+            box-shadow: 0 2px 8px rgba(4, 125, 125, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.25s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            min-height: 120px;
+        }
+        .property-card-footer {
+            display: block !important;
+            margin-top: 16px !important;
+        }
+
+        .property-actions {
+            display: flex;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+            margin-top: 16px;
+        }
+        .princing-title {
+            font-size: 12px;
+        }
+        .property-card .price {
+            font-size: 1.14rem !important;
+        }
+
+        .property-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #16343b;
+            white-space: unset;
+            overflow: unset;
+            text-overflow: unset;
+        }
+
     }
 
     @media (max-width: 576px) {
@@ -739,9 +801,12 @@
             top: 0;
             z-index: 100;
             background: #fff;
-        }
+        }   
     }
 
+.property-card-body-mb, .info-details-card-body-mb {
+    display: none;
+}
 
 .filter-body {
     transition: 
@@ -765,6 +830,8 @@
     z-index: 2;
 }
 
+/* Buttons */
+
     
 </style>
 {% endblock %}
@@ -772,8 +839,8 @@
 {% block dashboard_content %}
 <div class="dashboard-main-container view-mode-map" id="dashboard-container">
     <!-- Sidebar de Filtros: Ocupa toda la altura izquierda -->
-     <div class="mobile-filters-toggle">
-        <button id="openFilters" class="btn btn-primary w-100">
+     <div class="mobile-filters-toggle mt-3">
+        <button id="openFilters" class="btn btn-primary  w-100">
             <i class="fas fa-filter me-2"></i> Aplicar filtros
         </button>
 
@@ -797,8 +864,8 @@
             <form method="get" id="filter-form">
             <div class="filter-actions mb-3">
                 <button type="submit" class="btn btn-primary btn-sm btn-filter-mb"><i class="fas fa-filter me-2"></i>Aplicar</button>
-                <button type="button" id="toggle-advanced-filters" class="btn btn-outline-secondary btn-sm"><i class="fas fa-sliders-h me-2"></i>Filtro avanzado</button>
-                <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary btn-sm">Limpiar</a>
+                <button type="button" id="toggle-advanced-filters" class="btn btn-outline-secondary btn-sm btn-filter-mb"><i class="fas fa-sliders-h me-2"></i>Filtro avanzado</button>
+                <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary btn-sm btn-filter-mb">Limpiar</a>
             </div>
 
             <div class="filter-control">
@@ -1097,6 +1164,81 @@
                                     <span class="last-update">Act. {{ property.updated_at|date:"d/m/Y" }}</span>
                                 </div>
                             </div>
+                        </div>
+
+
+                        <div class="property-card-body-mb">
+                            <div class="property-card-top-mb">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge-status">{{ property.property_type.name }}</span>
+                                    <span class="status-label">{{ property.status.name }}</span>
+                                </div>
+                                <div class="property-meta mt-3">
+                                    <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
+                                    <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
+                                    {% if property.land_area and property.land_area_unit %}
+                                    <span><i class="fas fa-ruler-combined"></i>{{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
+                                    {% endif %}
+                                    {% if property.built_area and property.built_area_unit %}
+                                    <span><i class="fas fa-drafting-compass"></i>{{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
+                                    {% endif %}
+                                    {% if property.garage_spaces %}
+                                    <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
+                                    {% endif %}
+                                </div>
+                                <div class="princing-title mt-3">Precio total:</div>
+                                <div class="price">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
+                                
+                            </div>
+                        </div>
+                        <!-- Title more info details  -->
+                         <div class="info-details-card-body-mb">
+                            <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
+                            
+                            <p class="property-location mb-0">
+                                <i class="fas fa-map-marker-alt text-primary"></i>
+                                <span class="property-location-main">
+                                    {% if property.display_district or property.display_province %}
+                                        {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
+                                    {% else %}
+                                        {{ property.real_address|default:'Ubicación no disponible' }}
+                                    {% endif %}
+                                </span>
+                            </p>
+
+                            <div class="property-card-footer d-flex">
+                                <div class="property-info-stack">
+                                    
+                                    <div class="property-contacts">
+                                        <span><i class="fas fa-user-tie"></i>Propietario: 
+                                            {% if user.is_superuser %}
+                                                {{ property.owner.full_name }}
+                                            {% else %}
+                                                <span style="color: #888; font-style: italic; font-weight: normal;">Vista No Autorizada</span>
+                                            {% endif %}
+                                        </span>
+                                        <span><i class="fas fa-user-check"></i>Responsable:
+                                            {% if property.responsible %}
+                                                {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
+                                            {% else %} Sin asignar {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="property-actions">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
+                                        {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
+                                            <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary" title="Editar"><i class="fas fa-edit"></i></a>
+                                        {% endif %}
+                                        <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info" title="Historial"><i class="fas fa-history"></i></a>
+                                    </div>
+                                    <span class="last-update">Act. {{ property.updated_at|date:"d/m/Y" }}</span>
+                                </div>
+                            </div>
+                         </div>
+                        <div>
+
                         </div>
                     </article>
                     {% endfor %}
@@ -1939,6 +2081,18 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
     }
 });
 
+  function isMobile() {
+    return window.matchMedia("(max-width: 992px)").matches;
+  }
+
+  if (isMobile()) {
+    switchDashboardView('properties');
+  }
+
+  /* const price = Number(document.getElementById('price').innerText);
+
+  document.getElementById('price').innerText =
+    new Intl.NumberFormat('es-PE').format(price); */
 
 </script>
 {% endblock %}
