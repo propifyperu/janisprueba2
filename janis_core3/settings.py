@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "chat",
     "tasks",
     "storages",
+    "notifications",
 ]
 # Facebook Pixel ID (opcional, para campañas)
 import os
@@ -298,3 +299,15 @@ OPENSEARCH_HOSTS = [h.strip() for h in os.environ.get('OPENSEARCH_HOSTS', 'http:
 # behavior (first()-based fallback).
 WHATSAPP_DEFAULT_PROPERTY_ID = os.environ.get('WHATSAPP_DEFAULT_PROPERTY_ID') or None
 WHATSAPP_DEFAULT_SOCIAL_ID = os.environ.get('WHATSAPP_DEFAULT_SOCIAL_ID') or None
+
+#LOGGING = {
+#    "version": 1,
+#    "disable_existing_loggers": False,
+#    "handlers": {"console": {"class": "logging.StreamHandler"}},
+#    "loggers": {
+#        "django.db.backends": {
+#            "handlers": ["console"],
+#            "level": "DEBUG",
+#        }
+#    }
+#}

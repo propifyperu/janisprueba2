@@ -1,4 +1,6 @@
 from django.db.models.signals import post_save, m2m_changed
+from properties.models import RequirementMatch
+from notifications.events import on_property_matched
 from django.dispatch import receiver
 from django.core.cache import cache
 import logging
@@ -123,3 +125,8 @@ try:
     m2m_changed.connect(lambda sender, instance, action, **kw: _m2m_changed_handler(action, instance, **kw), sender=Requirement.zonificaciones.through)
 except Exception:
     logger.exception('Failed to connect m2m_changed handlers for Requirement')
+
+@receiver(post_save, sender=RequirementMatch)
+def requirement_match_saved(sender, instance, created, **kwargs):
+    # Solo dispara evento, nada más
+    on_property_matched(instance)
