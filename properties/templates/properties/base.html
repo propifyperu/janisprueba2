@@ -17,7 +17,7 @@
             <div class="d-flex" style="justify-content: space-between; align-items:center;"> <!-- navbar-nav  -->
                 <div class="d-flex" style="align-items: center">
                     <a class="navbar-brand mr-2" href="{% url 'properties:list' %}">
-                        <img src="/media/Logo-Ho.png" alt="Logo" class="logo-main" />
+                        <img src="{{ MEDIA_URL }}Logo-Ho.png" alt="Logo" class="logo-main" />
                     </a>
                     <form class="d-none d-md-block" method="get" action="{% url 'properties:search' %}" role="search" style="min-width:320px; max-width:360px; flex:1;">
                         <div class="input-group" style="border-radius:999px; overflow:hidden; height:35px; border:1px solid rgba(0,0,0,0.14); box-shadow: 0 1px 4px rgba(0,0,0,0.04);margin-left: 30px;">
