@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "whatsapp",
     "chat",
     "tasks",
+    "storages",
 ]
 # Facebook Pixel ID (opcional, para campañas)
 import os
@@ -185,15 +186,31 @@ AZURE_ACCOUNT_NAME = os.environ.get('AZURE_ACCOUNT_NAME')
 AZURE_ACCOUNT_KEY = os.environ.get('AZURE_ACCOUNT_KEY')
 AZURE_CONTAINER = os.environ.get('AZURE_CONTAINER', 'media')
 
-if AZURE_ACCOUNT_NAME:
-    # Use Managed Identity / Azure backend that stores blobs and returns proxy URLs
-    DEFAULT_FILE_STORAGE = 'janis_core3.storage_backends.AzureManagedIdentityStorage'
-    # django-storages / backend settings
-    AZURE_ACCOUNT_NAME = AZURE_ACCOUNT_NAME
-    AZURE_ACCOUNT_KEY = AZURE_ACCOUNT_KEY
-    AZURE_CONTAINER = AZURE_CONTAINER
-    # MEDIA_URL remains the base; the storage backend will append SAS tokens
+if AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.azure_storage.AzureStorage",
+            "OPTIONS": {
+                "account_name": AZURE_ACCOUNT_NAME,
+                "account_key": AZURE_ACCOUNT_KEY,
+                "azure_container": AZURE_CONTAINER,  # media
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
     MEDIA_URL = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
+else:
+    # fallback local (dev sin Azure)
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 # Optimización para desarrollo: No buscar archivos estáticos en cada carga si estamos en DEBUG
 WHITENOISE_AUTOREFRESH = DEBUG
