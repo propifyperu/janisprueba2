@@ -20,7 +20,7 @@ from .models import (
     EventType, Event
 )
 
-from .models import Requirement
+from .models import Requirement, RequirementMatch
 from .models import MatchingWeight, MatchEvent
 
 
@@ -412,6 +412,12 @@ class RequirementAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
     ordering = ('-created_at',)
 
+@admin.register(RequirementMatch)
+class RequirementMatchAdmin(admin.ModelAdmin):
+    list_display = ("id", "requirement", "property", "score", "computed_at")
+    list_filter = ("computed_at",)
+    search_fields = ("requirement__id", "property__code", "property__title")
+    autocomplete_fields = ("requirement", "property")
 
 @admin.register(LeadStatus)
 class LeadStatusAdmin(admin.ModelAdmin):

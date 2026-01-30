@@ -16,9 +16,11 @@ Notas de diseño:
 """
 from typing import Dict, Any, List, Tuple
 from django.db.models import QuerySet
+from django.utils import timezone
 from django.db import transaction
 
-from .models import Requirement, Property, MatchingWeight, MatchEvent, District
+from .models import Requirement, Property, MatchingWeight, MatchEvent, RequirementMatch
+
 
 
 def _load_weights() -> Dict[str, float]:
@@ -638,3 +640,38 @@ def record_positive_match(requirement: Requirement, prop: Property, metadata: Di
             MatchingWeight.objects.create(key=key, weight=max(0.1, 1.0 + delta))
 
     return None
+
+def persist_matches_for_requirement(requirement: Requirement, limit: int = 50, min_score: float = 0.0):
+    """
+    Calcula matches (fase A+B) y los guarda en RequirementMatch.
+    - actualiza si ya existe
+    - opcional: elimina antiguos que ya no están en el top/que bajaron del mínimo
+    """
+    matches = get_matches_for_requirement(requirement, limit=limit)
+
+    keep_property_ids = []
+
+    for item in matches:
+        prop = item['property']
+        score = float(item['score'])
+        details = item.get('details') or {}
+
+        if score < min_score:
+            continue
+
+        keep_property_ids.append(prop.id)
+
+        RequirementMatch.objects.update_or_create(
+            requirement=requirement,
+            property=prop,
+            defaults={
+                "score": round(score, 2),
+                "details": details,
+                "computed_at": timezone.now(),
+            }
+        )
+
+    # Limpieza opcional: borra matches viejos que ya no están en el top o bajo min_score
+    RequirementMatch.objects.filter(requirement=requirement).exclude(property_id__in=keep_property_ids).delete()
+
+    return keep_property_ids

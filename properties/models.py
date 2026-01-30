@@ -1439,4 +1439,32 @@ class AgencyConfig(TitleCaseMixin, models.Model):
         self._apply_title_case()
         super().save(*args, **kwargs)
 
+class RequirementMatch(models.Model):
+    requirement = models.ForeignKey(
+        'Requirement',
+        on_delete=models.CASCADE,
+        related_name='matches'
+    )
+    property = models.ForeignKey(
+        'Property',
+        on_delete=models.CASCADE,
+        related_name='requirement_matches'
+    )
+
+    score = models.DecimalField(max_digits=6, decimal_places=2)  # 0.00 - 100.00
+    details = models.JSONField(default=dict, blank=True)          # lo que viene de matching.py
+    computed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'requirement_matches'
+        unique_together = [('requirement', 'property')]
+        indexes = [
+            models.Index(fields=['requirement', '-score']),
+            models.Index(fields=['property', '-score']),
+        ]
+        ordering = ['-score']
+
+    def __str__(self):
+        return f"Req {self.requirement_id} - Prop {self.property_id} => {self.score}%"
+
 
