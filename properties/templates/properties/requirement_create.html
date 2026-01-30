@@ -127,7 +127,7 @@
                                 </div>
                             </div>
                             <div class="row g-3 mt-2" id="area-approx-row" style="display:none;">
-                                <div class="col-md-12">
+                                <div class="cols-12 col-md-4">
                                     <label class="form-label" for="{{ form.land_area_approx.id_for_label }}">Área aproximada (m²)</label>
                                     {{ form.land_area_approx }}
                                 </div>
@@ -262,10 +262,14 @@
                                 </div>
                             </div>
                             <div class="row g-3 mt-2" id="budget-approx-row" style="display:none;">
-                                <div class="col-md-12">
+                                <div class="col-12 col-md-4">
                                     <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Presupuesto aproximado</label>
-                                    {{ form.budget_approx }}
+                                    <div class="input-group budget-input">
+                                        <span class="input-group-text" id="currency-prefix">S/.</span>
+                                        {{ form.budget_approx }}
+                                    </div>
                                 </div>
+
                             </div>
                         </div>
 
@@ -646,6 +650,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const provincesUrl = "{% url 'properties:api_provinces' %}";
         const districtsUrl = "{% url 'properties:api_districts' %}";
 
+        function selectByText(select, text){
+            if(!select) return false;
+            const t = text.toLowerCase();
+            for(let i = 0; i < select.options.length; i++){
+                if(select.options[i].text.toLowerCase() === t){
+                    select.selectedIndex = i;
+                    select.dispatchEvent(new Event('change'));
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
         function clearSelect(sel, placeholder, multiple){
             if(!sel) return;
             if(multiple){
@@ -711,6 +729,23 @@ document.addEventListener('DOMContentLoaded', function() {
             try{ $("#{{ form.district.id_for_label }}").val(null).trigger('change'); }catch(e){}
         });
         provSel.addEventListener('change', function(){ loadDistricts(this.value); try{ $("#{{ form.district.id_for_label }}").val(null).trigger('change'); }catch(e){} });
+        // ---- DEFAULT: Arequipa ----
+        setTimeout(() => {
+            // 1. Departamento
+            if(!deptSel.value){
+                selectByText(deptSel, 'Arequipa');
+            }
+
+            // 2. Esperar provincias y seleccionar Arequipa
+            const waitProvinces = setInterval(() => {
+                if(provSel.options.length > 1){
+                    if(selectByText(provSel, 'Arequipa')){
+                        clearInterval(waitProvinces);
+                    }
+                }
+            }, 200);
+        }, 300);
+
     });
 })();
 </script>
@@ -738,5 +773,70 @@ document.addEventListener('DOMContentLoaded', function(){
         }
     }catch(e){ console.warn('requirement form binding failed', e); }
 });
+
+/* Add format price*/
+document.addEventListener('DOMContentLoaded', function () {
+    const budgetInput = document.getElementById('{{ form.budget_approx.id_for_label }}');
+    const currencySelect = document.getElementById('{{ form.currency.id_for_label }}');
+
+    if (!budgetInput || !currencySelect) return;
+
+    function formatMoney(value) {
+        const number = Number(value.replace(/[^0-9.]/g, ''));
+        if (isNaN(number)) return '';
+
+        const formatted = new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(number);
+        return formatted;
+    }
+
+    function applyFormat() {
+        if (!budgetInput.value) return;
+        budgetInput.value = formatMoney(budgetInput.value);
+    }
+
+    budgetInput.addEventListener('blur', applyFormat);
+
+    currencySelect.addEventListener('change', applyFormat);
+});
+document.addEventListener('DOMContentLoaded', function () {
+    const currencySelect = document.getElementById('{{ form.currency.id_for_label }}');
+    const prefix = document.getElementById('currency-prefix');
+
+    if (!currencySelect || !prefix) return;
+
+    function updatePrefix() {
+        const text = currencySelect.options[currencySelect.selectedIndex]?.text || '';
+        if (text.toLowerCase().includes('dolar')) {
+            prefix.textContent = '$';
+        } else if (text.toLowerCase().includes('sol')) {
+            prefix.textContent = 'S/.';
+        }
+    }
+
+    updatePrefix();
+    currencySelect.addEventListener('change', updatePrefix);
+});
+
+/* document.addEventListener('DOMContentLoaded', () => {
+  const input = document.querySelector('.budget-input');
+
+  if (!input.value) {
+    input.value = '0.00';
+  }
+
+  input.addEventListener('blur', () => {
+    let value = input.value.replace(/,/g, '');
+    if (value === '' || isNaN(value)) {
+      input.value = '0.00';
+      return;
+    }
+
+    input.value = Number(value).toFixed(2);
+  });
+}); */
+
 </script>
 {% endblock %}
