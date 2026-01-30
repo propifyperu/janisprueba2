@@ -646,6 +646,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const provincesUrl = "{% url 'properties:api_provinces' %}";
         const districtsUrl = "{% url 'properties:api_districts' %}";
 
+        function selectByText(select, text){
+            if(!select) return false;
+            const t = text.toLowerCase();
+            for(let i = 0; i < select.options.length; i++){
+                if(select.options[i].text.toLowerCase() === t){
+                    select.selectedIndex = i;
+                    select.dispatchEvent(new Event('change'));
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
         function clearSelect(sel, placeholder, multiple){
             if(!sel) return;
             if(multiple){
@@ -711,6 +725,23 @@ document.addEventListener('DOMContentLoaded', function() {
             try{ $("#{{ form.district.id_for_label }}").val(null).trigger('change'); }catch(e){}
         });
         provSel.addEventListener('change', function(){ loadDistricts(this.value); try{ $("#{{ form.district.id_for_label }}").val(null).trigger('change'); }catch(e){} });
+        // ---- DEFAULT: Arequipa ----
+        setTimeout(() => {
+            // 1. Departamento
+            if(!deptSel.value){
+                selectByText(deptSel, 'Arequipa');
+            }
+
+            // 2. Esperar provincias y seleccionar Arequipa
+            const waitProvinces = setInterval(() => {
+                if(provSel.options.length > 1){
+                    if(selectByText(provSel, 'Arequipa')){
+                        clearInterval(waitProvinces);
+                    }
+                }
+            }, 200);
+        }, 300);
+
     });
 })();
 </script>
