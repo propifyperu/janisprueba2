@@ -4,12 +4,16 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
+from properties.matching import persist_matches_for_requirement
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.template.loader import get_template
+from django.db.models import Count, Max
 from xhtml2pdf import pisa
 import os
 from django.conf import settings
+from django.db.models import Prefetch
+from .models import PropertyImage  # <-- AJUSTA si tu modelo se llama diferente
 
 def link_callback(uri, rel):
     """
@@ -1218,24 +1222,8 @@ def requirement_create_view(request):
                 })
             # Recalcular coincidencias inmediatamente y guardarlas en cache para acceso rápido
             try:
-                from django.core.cache import cache
-                matches = matching_module.get_matches_for_requirement(req, limit=10)
-                # serializar a estructura simple para cache (no almacenar instancias de modelos)
-                cached = []
-                for m in matches:
-                    prop = m.get('property')
-                    cached.append({
-                        'property_id': getattr(prop, 'id', None),
-                        'score': m.get('score'),
-                        'details': m.get('details')
-                    })
-                cache_key = f'req_matches_{req.pk}'
-                try:
-                    cache.set(cache_key, cached, 60 * 60)  # 1 hora
-                except Exception:
-                    # en algunos entornos de test no hay backend de cache configurado
-                    pass
-                messages.success(request, f'Requerimiento guardado correctamente. Se calcularon {len(cached)} coincidencias.')
+                persist_matches_for_requirement(req, limit=50, min_score=50)
+                messages.success(request, 'Requerimiento guardado correctamente. Se calcularon coincidencias.')
             except Exception:
                 # No romper el flujo principal si el cálculo falla
                 messages.success(request, 'Requerimiento guardado correctamente.')
@@ -1257,32 +1245,34 @@ class MyRequirementsView(LoginRequiredMixin, ListView):
     context_object_name = 'requirements'
     paginate_by = 12
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Cargar coincidencias cacheadas por requerimiento para mostrar en listado
-        from django.core.cache import cache
-        matches_map = {}
-        for req in context.get('requirements', []):
-            try:
-                cached = cache.get(f'req_matches_{req.pk}')
-            except Exception:
-                cached = None
-            if cached and isinstance(cached, list):
-                matches_map[req.pk] = {
-                    'count': len(cached),
-                    'top_score': cached[0]['score'] if len(cached) > 0 and 'score' in cached[0] else None,
-                }
-            else:
-                matches_map[req.pk] = {'count': 0, 'top_score': None}
-        context['matches_map'] = matches_map
-        return context
-
     def get_queryset(self):
         from django.db import OperationalError
         try:
-            return Requirement.objects.filter(created_by=self.request.user).order_by('-created_at')
+            # Annotate: count y top_score desde DB
+            return (
+                Requirement.objects
+                .filter(created_by=self.request.user)
+                .annotate(
+                    matches_count=Count('matches', distinct=True),
+                    top_score=Max('matches__score'),
+                )
+                .order_by('-created_at')
+            )
         except OperationalError:
             return Requirement.objects.none()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        matches_map = {}
+        for req in context.get('requirements', []):
+            matches_map[req.pk] = {
+                'count': getattr(req, 'matches_count', 0) or 0,
+                'top_score': getattr(req, 'top_score', None),
+            }
+
+        context['matches_map'] = matches_map
+        return context
 
 
 class RequirementDetailView(LoginRequiredMixin, DetailView):
@@ -1338,6 +1328,12 @@ class RequirementUpdateView(LoginRequiredMixin, UpdateView):
             form.save_m2m()
         except Exception:
             pass
+
+        try:
+            persist_matches_for_requirement(req, limit=50, min_score=50)
+        except Exception:
+            pass
+
         messages.success(self.request, 'Requerimiento actualizado correctamente.')
         return redirect('properties:requirements_detail', pk=req.pk)
 
@@ -1727,19 +1723,30 @@ def drafts_list_view(request):
 
 
 class PropertyDashboardView(LoginRequiredMixin, ListView):
+
     model = Property
     template_name = 'properties/dashboard.html'
     context_object_name = 'properties'
     paginate_by = None
 
     def get_queryset(self):
+
+        images_qs = (
+            PropertyImage.objects
+            .defer("image_blob")
+            .only("id", "property_id", "image", "order", "is_primary", "image_blob")  # deja image_blob si necesitas detectar si existe (ver nota abajo)
+            .order_by("order")
+        )
+
         queryset = (
             Property.objects.filter(is_active=True)
             .select_related('property_type', 'status', 'owner', 'created_by', 'currency')
-            .prefetch_related('images')
-            .only('id', 'code', 'title', 'price', 'coordinates', 'exact_address', 'district', 
-                  'real_address', 'is_active', 'created_at', 'property_type_id', 'status_id', 
-                  'owner_id', 'created_by_id', 'currency_id')
+            .prefetch_related(Prefetch("images", queryset=images_qs))
+            .only(
+                'id', 'code', 'title', 'price', 'coordinates', 'exact_address', 'district',
+                'real_address', 'is_active', 'created_at',
+                'property_type_id', 'status_id', 'owner_id', 'created_by_id', 'currency_id'
+            )
         )
 
         # Si el usuario es agente, mostrar solo sus propiedades y asignadas
@@ -2067,7 +2074,7 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                         except Exception:
                             first_image_url = first_image.image.url
                     # Si la imagen se almacenó como blob en la tabla, usar la vista que la sirve (URL absoluta)
-                    elif getattr(first_image, 'image_blob', None):
+                    elif getattr(first_image, 'image_content_type', None):
                         try:
                             first_image_url = self.request.build_absolute_uri(reverse('properties:image_blob', kwargs={'pk': first_image.pk}))
                         except Exception:
