@@ -735,63 +735,8 @@ class PropertyImage(TitleCaseMixin, models.Model):
         return f"Imagen {self.id} - {self.property.code}"
 
     def save(self, *args, **kwargs):
-        """Guardar la instancia y volcar el contenido del ImageField en `image_blob`.
-
-        Esto asegura que la imagen quede almacenada en la fila de la tabla, lo que
-        permite servirla desde la base de datos independientemente del storage.
-        """
-        # Normalizar campos y guardar inicialmente para asegurar pk
         self._apply_title_case()
-        result = super().save(*args, **kwargs)
-
-        # Intentar volcar el contenido del ImageField a image_blob siempre que haya un archivo
-        try:
-            if self.image and getattr(self.image, 'name', None):
-                # Ignorar archivos vacíos
-                try:
-                    if getattr(self.image, 'size', 0) == 0:
-                        return result
-                except Exception:
-                    pass
-
-                # Leer usando el almacenamiento por defecto para asegurar compatibilidad
-                from django.core.files.storage import default_storage
-                data = None
-                try:
-                    with default_storage.open(self.image.name, 'rb') as fh:
-                        data = fh.read()
-                except Exception:
-                    data = None
-
-                if data:
-                    # determinar tipo de contenido
-                    ct = None
-                    try:
-                        fo = getattr(self.image, 'file', None)
-                        if fo is not None and hasattr(fo, 'content_type'):
-                            ct = fo.content_type
-                    except Exception:
-                        ct = None
-
-                    if not ct:
-                        guessed = mimetypes.guess_type(getattr(self.image, 'name', '') or '')[0]
-                        ct = guessed or 'image/jpeg'
-
-                    # actualizar mediante queryset para evitar recursión en save()
-                    try:
-                        type(self).objects.filter(pk=self.pk).update(image_blob=data, image_content_type=ct)
-                        self.image_blob = data
-                        self.image_content_type = ct
-                    except Exception:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.exception('Error actualizando image_blob para PropertyImage %s', getattr(self, 'pk', None))
-        except Exception:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.exception('Error al volcar el binario de la imagen para PropertyImage %s', getattr(self, 'pk', None))
-
-        return result
+        return super().save(*args, **kwargs)
 
 
 # =============================================================================
