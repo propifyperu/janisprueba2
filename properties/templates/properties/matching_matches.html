@@ -4,8 +4,8 @@
 {% block dashboard_content %}
 <div class="container-fluid py-4">
     <div class="row justify-content-center">
-        <div class="col-10 col-xl-10">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="col-12 col-xl-10">
+            <div class="d-md-flex justify-content-between align-items-center mb-3">
                 <h1 class="h5 mb-0"><i class="fas fa-search me-2"></i>Matches para Requerimiento {{ requirement.id }}</h1>
                 <a href="{% url 'properties:requirements_list' %}" class="btn btn-outline-teal">Volver a Requerimientos</a>
             </div>
@@ -22,118 +22,216 @@
                         <a class="btn btn-sm btn-outline-secondary ms-2" href="?export=csv{% if only_matches %}&only_matches=1{% endif %}">Exportar CSV</a>
                     </form>
 
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Score</th>
-                                <th>Dirección exacta</th>
-                                <th>Título</th>
-                                <th>Precio</th>
-                                <th>Distrito</th>
-                                <th>Detalles</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for r in results %}
-                            <tr>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-success">Encontrada</span>
-                                        <span class="ms-2 fw-bold text-dark">{{ r.score|floatformat:2 }}%</span>
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Score</th>
+                                    <th>Dirección exacta</th>
+                                    <th>Título</th>
+                                    <th>Precio</th>
+                                    <th>Distrito</th>
+                                    <th>Detalles</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in results %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-success">Encontrada</span>
+                                            <span class="ms-2 fw-bold text-dark">{{ r.score|floatformat:2 }}%</span>
+                                        </div>
+                                    </td>
+                                    <td>{{ r.property.exact_address }}</td>
+                                    <td>{{ r.property.title }}</td>
+                                    <td>{% if r.property.currency %}{{ r.property.currency.symbol }}{% else %}$ {% endif %}{{ r.property.price }}</td>
+                                    <td>{{ r.district_display|default:'—' }}</td>
+                                    <td>
+                                        <div class="table-responsive">
+                                        <table class="table table-sm table-bordered mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Campo</th>
+                                                    <th>Requerimiento</th>
+                                                    <th>Propiedad</th>
+                                                    <th>Coincide</th>
+                                                    <th>Proximidad</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            {% for k,v in r.details.items %}
+                                                {% if not only_matches or v.matched %}
+                                                <tr>
+                                                    <td class="align-middle">
+                                                        {% if k == 'property_type' %}Tipo
+                                                        {% elif k == 'property_subtype' %}Subtipo
+                                                        {% elif k == 'district' %}Distrito
+                                                        {% elif k == 'price' %}Precio
+                                                        {% elif k == 'currency' %}Moneda
+                                                        {% elif k == 'bedrooms' %}Dormitorios
+                                                        {% elif k == 'land_area' %}Área de terreno
+                                                        {% else %}{{ k }}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        {% if k == 'property_type' %}{% if requirement.property_type %}{{ requirement.property_type.name }}{% else %}—{% endif %}
+                                                        {% elif k == 'property_subtype' %}{% if requirement.property_subtype %}{{ requirement.property_subtype.name }}{% else %}—{% endif %}
+                                                        {% elif k == 'district' %}
+                                                            {% if requirement.district %}{{ requirement.district.name }}{% elif requirement.districts.all %}{% for d in requirement.districts.all %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}
+                                                        {% elif k == 'payment_method' %}
+                                                            {% if requirement.payment_method %}{{ requirement.payment_method.name }}{% else %}—{% endif %}
+                                                        {% elif k == 'price' %}
+                                                            {% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{% if requirement.budget_type == 'approx' %}{{ requirement.budget_approx }}{% else %}{{ requirement.budget_min }} - {{ requirement.budget_max }}{% endif %}
+                                                        {% elif k == 'currency' %}
+                                                            {% if requirement.currency %}{{ requirement.currency.code }}{% else %}—{% endif %}
+                                                        {% elif k == 'bedrooms' %}
+                                                            {% if requirement.bedrooms %}{{ requirement.bedrooms }}{% else %}—{% endif %}
+                                                        {% elif k == 'land_area' %}
+                                                            {% if requirement.area_type == 'approx' %}{{ requirement.land_area_approx }}{% else %}{{ requirement.land_area_min }} - {{ requirement.land_area_max }}{% endif %}
+                                                        {% else %}
+                                                            —
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        {% if k == 'property_type' %}{% if r.property.property_type %}{{ r.property.property_type.name }}{% else %}—{% endif %}
+                                                        {% elif k == 'property_subtype' %}{% if r.property.property_subtype %}{{ r.property.property_subtype.name }}{% else %}—{% endif %}
+                                                            {% elif k == 'district' %}{{ r.district_display|default:'—' }}
+                                                            {% elif k == 'payment_method' %}{{ v.prop_value|default:'—' }}
+                                                        {% elif k == 'price' %}{% if r.property.currency %}{{ r.property.currency.symbol }}{% else %}$ {% endif %}{{ r.property.price|default:'—' }}
+                                                        {% elif k == 'currency' %}{% if r.property.currency %}{{ r.property.currency.code }}{% else %}—{% endif %}
+                                                        {% elif k == 'bedrooms' %}{{ r.property.bedrooms|default:'—' }}
+                                                        {% elif k == 'land_area' %}{{ r.property.land_area|default:'—' }}
+                                                        {% else %}{{ v.prop_value|default:'—' }}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        {% if v.matched %}<span class="badge bg-success">Coincide</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        {% if v.contrib is not None and v.max is not None %}
+                                                            {{ v.contrib|floatformat:2 }} / {{ v.max|floatformat:2 }}
+                                                        {% elif v.contrib is not None %}
+                                                            {{ v.contrib|floatformat:2 }}
+                                                        {% else %}
+                                                            —
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% if v.info %}
+                                                    <tr><td colspan="5" class="small text-muted">{{ v.info }}</td></tr>
+                                                {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            </tbody>
+                                        </table>
+                                        </div>
+                                    </td>
+                                    <td><a class="btn btn-sm btn-outline-primary" href="{% url 'properties:detail' r.property.id %}">Ver</a></td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="7">No se encontraron coincidencias.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-block d-md-none">
+                        {% for r in results %}
+                            <div class="card mb-4 shadow-sm border-0">
+                                <div class="card-body">
+
+                                    <!-- Header -->
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div>
+                                            <h6 class="mb-1 fw-bold">
+                                                {{ r.property.title }}
+                                            </h6>
+                                            <div class="text-muted small">
+                                                {{ r.property.exact_address|default:"Sin dirección" }}
+                                            </div>
+                                        </div>
+                                        <div style="width:60px">
+                                            <div class="progress" style="height:6px">
+                                                <div class="progress-bar bg-success"
+                                                    style="width: {{ r.score|floatformat:0 }}%">
+                                                </div>
+                                            </div>
+                                            <div class="small text-center mt-1">
+                                                {{ r.score|floatformat:1 }}%
+                                            </div>
+                                        </div>
+
                                     </div>
-                                </td>
-                                <td>{{ r.property.exact_address }}</td>
-                                <td>{{ r.property.title }}</td>
-                                <td>{% if r.property.currency %}{{ r.property.currency.symbol }}{% else %}$ {% endif %}{{ r.property.price }}</td>
-                                <td>{{ r.district_display|default:'—' }}</td>
-                                <td>
-                                    <div class="table-responsive">
-                                    <table class="table table-sm table-bordered mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Campo</th>
-                                                <th>Requerimiento</th>
-                                                <th>Propiedad</th>
-                                                <th>Coincide</th>
-                                                <th>Proximidad</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                        {% for k,v in r.details.items %}
-                                            {% if not only_matches or v.matched %}
-                                            <tr>
-                                                <td class="align-middle">
-                                                    {% if k == 'property_type' %}Tipo
-                                                    {% elif k == 'property_subtype' %}Subtipo
-                                                    {% elif k == 'district' %}Distrito
-                                                    {% elif k == 'price' %}Precio
-                                                    {% elif k == 'currency' %}Moneda
-                                                    {% elif k == 'bedrooms' %}Dormitorios
-                                                    {% elif k == 'land_area' %}Área de terreno
-                                                    {% else %}{{ k }}
-                                                    {% endif %}
-                                                </td>
-                                                <td class="align-middle">
-                                                    {% if k == 'property_type' %}{% if requirement.property_type %}{{ requirement.property_type.name }}{% else %}—{% endif %}
-                                                    {% elif k == 'property_subtype' %}{% if requirement.property_subtype %}{{ requirement.property_subtype.name }}{% else %}—{% endif %}
-                                                    {% elif k == 'district' %}
-                                                        {% if requirement.district %}{{ requirement.district.name }}{% elif requirement.districts.all %}{% for d in requirement.districts.all %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}
-                                                    {% elif k == 'payment_method' %}
-                                                        {% if requirement.payment_method %}{{ requirement.payment_method.name }}{% else %}—{% endif %}
-                                                    {% elif k == 'price' %}
-                                                        {% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{% if requirement.budget_type == 'approx' %}{{ requirement.budget_approx }}{% else %}{{ requirement.budget_min }} - {{ requirement.budget_max }}{% endif %}
-                                                    {% elif k == 'currency' %}
-                                                        {% if requirement.currency %}{{ requirement.currency.code }}{% else %}—{% endif %}
-                                                    {% elif k == 'bedrooms' %}
-                                                        {% if requirement.bedrooms %}{{ requirement.bedrooms }}{% else %}—{% endif %}
-                                                    {% elif k == 'land_area' %}
-                                                        {% if requirement.area_type == 'approx' %}{{ requirement.land_area_approx }}{% else %}{{ requirement.land_area_min }} - {{ requirement.land_area_max }}{% endif %}
-                                                    {% else %}
-                                                        —
-                                                    {% endif %}
-                                                </td>
-                                                <td class="align-middle">
-                                                    {% if k == 'property_type' %}{% if r.property.property_type %}{{ r.property.property_type.name }}{% else %}—{% endif %}
-                                                    {% elif k == 'property_subtype' %}{% if r.property.property_subtype %}{{ r.property.property_subtype.name }}{% else %}—{% endif %}
-                                                        {% elif k == 'district' %}{{ r.district_display|default:'—' }}
-                                                        {% elif k == 'payment_method' %}{{ v.prop_value|default:'—' }}
-                                                    {% elif k == 'price' %}{% if r.property.currency %}{{ r.property.currency.symbol }}{% else %}$ {% endif %}{{ r.property.price|default:'—' }}
-                                                    {% elif k == 'currency' %}{% if r.property.currency %}{{ r.property.currency.code }}{% else %}—{% endif %}
-                                                    {% elif k == 'bedrooms' %}{{ r.property.bedrooms|default:'—' }}
-                                                    {% elif k == 'land_area' %}{{ r.property.land_area|default:'—' }}
-                                                    {% else %}{{ v.prop_value|default:'—' }}
-                                                    {% endif %}
-                                                </td>
-                                                <td class="align-middle">
-                                                    {% if v.matched %}<span class="badge bg-success">Coincide</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}
-                                                </td>
-                                                <td class="align-middle">
-                                                    {% if v.contrib is not None and v.max is not None %}
-                                                        {{ v.contrib|floatformat:2 }} / {{ v.max|floatformat:2 }}
-                                                    {% elif v.contrib is not None %}
-                                                        {{ v.contrib|floatformat:2 }}
-                                                    {% else %}
-                                                        —
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                            {% if v.info %}
-                                                <tr><td colspan="5" class="small text-muted">{{ v.info }}</td></tr>
-                                            {% endif %}
-                                            {% endif %}
+
+                                    <!-- Datos principales -->
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Precio</span>
+                                            <strong>
+                                                {% if r.property.currency %}
+                                                    {{ r.property.currency.symbol }}
+                                                {% else %}
+                                                    $
+                                                {% endif %}
+                                                {{ r.property.price }}
+                                            </strong>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Distrito</span>
+                                            <strong>{{ r.district_display|default:"—" }}</strong>
+                                        </div>
+                                    </div>
+
+                                    <hr>
+
+                                    <!-- Características generales -->
+                                    <div class="mb-3">
+                                        <h6 class="fw-semibold mb-2">Características</h6>
+                                        <div class="row g-2 small">
+                                            {% for key, value in r.property_data.items %}
+                                                <div class="col-6">
+                                                    <span class="text-muted">{{ key|capfirst }}:</span>
+                                                    <strong>{{ value }}</strong>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+
+                                    <hr>
+
+                                    <!-- Requisitos evaluados -->
+                                    <div>
+                                        <h6 class="fw-semibold mb-2">Evaluación del requerimiento</h6>
+
+                                        {% for k, v in r.details.items %}
+                                            <div class="d-flex justify-content-between align-items-center py-1 border-bottom small">
+                                                <span>{{ k|capfirst }}</span>
+                                                {% if v.matched %}
+                                                    <span class="badge bg-success">Coincide</span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-muted">No coincide</span>
+                                                {% endif %}
+                                            </div>
                                         {% endfor %}
-                                        </tbody>
-                                    </table>
                                     </div>
-                                </td>
-                                <td><a class="btn btn-sm btn-outline-primary" href="{% url 'properties:detail' r.property.id %}">Ver</a></td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="7">No se encontraron coincidencias.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+
+                                    <!-- Acción -->
+                                    <a href="{% url 'properties:detail' r.property.id %}"
+                                    class="btn btn-outline-primary btn-sm w-100 mt-3">
+                                        Ver propiedad
+                                    </a>
+
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="text-center text-muted py-4">
+                                No se encontraron coincidencias.
+                            </div>
+                        {% endfor %}
+                    </div>
+
                 </div>
             </div>
         </div>
