@@ -1,4 +1,5 @@
 from .models import Property, AgencyConfig
+from django.core.files.storage import default_storage
 from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView
@@ -925,6 +926,7 @@ def image_blob_view(request, pk):
         return redirect(pi.image.url)
 
     return HttpResponseNotFound('Image not found')
+
 from .forms import PropertyOwnerForm
 from .models import PropertyOwner
 from django.views.generic import ListView, CreateView, DetailView
@@ -2066,22 +2068,27 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             images_qs = list(property_obj.images.all())
             if images_qs:
                 first_image = images_qs[0]
-                if first_image:
-                    # Preferir la URL del ImageField cuando exista. Usar URL absoluta
-                    if getattr(first_image, 'image', None) and getattr(first_image.image, 'url', None):
-                        try:
-                            first_image_url = self.request.build_absolute_uri(first_image.image.url)
-                        except Exception:
-                            first_image_url = first_image.image.url
-                    # Si la imagen se almacenó como blob en la tabla, usar la vista que la sirve (URL absoluta)
-                    elif getattr(first_image, 'image_content_type', None):
-                        try:
-                            first_image_url = self.request.build_absolute_uri(reverse('properties:image_blob', kwargs={'pk': first_image.pk}))
-                        except Exception:
-                            try:
-                                first_image_url = reverse('properties:image_blob', kwargs={'pk': first_image.pk})
-                            except Exception:
-                                first_image_url = ''
+                image_name = getattr(getattr(first_image, 'image', None), 'name', None)
+                file_exists_in_storage = False
+                if image_name:
+                    try:
+                        file_exists_in_storage = default_storage.exists(image_name)
+                    except Exception:
+                        file_exists_in_storage = False
+
+                if file_exists_in_storage and getattr(first_image.image, 'url', None):
+                    try:
+                        first_image_url = self.request.build_absolute_uri(first_image.image.url)
+                    except Exception:
+                        first_image_url = first_image.image.url
+
+                elif getattr(first_image, 'image_blob', None):
+                    try:
+                        first_image_url = self.request.build_absolute_uri(
+                            reverse('properties:image_blob', kwargs={'pk': first_image.pk})
+                        )
+                    except Exception:
+                        first_image_url = reverse('properties:image_blob', kwargs={'pk': first_image.pk})
 
             # Preparar nombre seguro del propietario: puede ser método o atributo string
             try:
