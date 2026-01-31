@@ -127,6 +127,7 @@
             color: #94a3b8;
             margin-top: 6px;
         }
+        
 
         /* Animations */
         @keyframes fadeIn {
@@ -239,6 +240,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const list = document.getElementById('notifList');
     const count = document.getElementById('notifBadge')
     const btn = document.getElementById('btnNotifications');
+    let unreadCount = 0;
+
+
+    // Cerrar modal al hacer clic fuera de la tarjeta
+    modal.addEventListener('click', function () {
+        closeNotifications();
+    });
+
+    // Evitar que el clic dentro de la tarjeta cierre el modal
+    const card = document.querySelector('.notif-card');
+    card.addEventListener('click', function (e) {
+        e.stopPropagation();
+    });
+
 
     if (!btn) {
         console.error('No se encontró #btnNotifications');
@@ -266,19 +281,56 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
-                list.innerHTML = data.results.map(n => `
-                    <div class="notif-item ${n.is_read ? '' : 'unread'}"
-                         onclick="markRead(${n.id})">
-                        <div>${n.title}</div>
-                        <div>${n.message}</div>
-                        <div class="notif-time">
-                            ${new Date(n.created_at).toLocaleString()}
+                list.innerHTML = data.results.map(n => {
+                    const requirementId = n.data?.requirement_id;
+                    const url = requirementId
+                        ? `/dashboard/matching/requirement/${requirementId}/matches/`
+                        : '#';
+
+                    return `
+                        <div class="notif-item ${n.is_read ? '' : 'unread'}"
+                            onclick="handleNotificationClick(${n.id}, '${url}')">
+                            <div>${n.title}</div>
+                            <div>${n.message}</div>
+                            <div class="notif-time">
+                                ${new Date(n.created_at).toLocaleString()}
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
+
             });
     }
-    loadCounterNotifications();
+    
+
+    function renderCounter() {
+        if (unreadCount <= 0) {
+            count.innerHTML = '';
+            return;
+        }
+
+        count.innerHTML = `
+            <span style="
+                position:absolute;
+                top:-6px;
+                right:-6px;
+                background:#dc3545;
+                color:#fff;
+                font-size:11px;
+                padding:2px 6px;
+                border-radius:999px;
+                font-weight:600;
+            ">
+                ${unreadCount}
+            </span>
+        `;
+    }
+
+    function updateCounter(delta) {
+        unreadCount = Math.max(0, unreadCount + delta);
+        renderCounter();
+    }
+
 
     function loadCounterNotifications() {
         fetch('/notifications/api/unread-count/')
@@ -287,7 +339,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if(!data.unread_count) {
                     return;
                 }
-                count.innerHTML = `<span style="position:absolute; top:-6px; right:-6px; background:#dc3545; color:#fff; font-size:11px; padding:2px 6px; border-radius:999px;">${data.unread_count}</span>`
+                unreadCount = data.unread_count || 0;
+                renderCounter();
             } )
     }
 
@@ -299,6 +352,21 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }).then(() => loadNotifications());
     };
+
+    window.handleNotificationClick = function (id, url) {
+        fetch(`/notifications/api/${id}/mark-read/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRF()
+            }
+        }).then(() => {
+            updateCounter(-1);
+            window.location.href = url;
+        });
+    };
+
+    loadCounterNotifications();
+
 
     function getCSRF() {
         return document.cookie
