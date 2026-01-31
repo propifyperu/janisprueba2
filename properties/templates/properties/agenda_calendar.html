@@ -6,19 +6,138 @@
 {% block dashboard_extra_css %}
 <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
 <style>
+    .fc a {
+        color: inherit !important;
+        text-decoration: none !important;
+    }
+
     @media (max-width: 992px) {
         .agenda-container {
-            display: block !important;
-            height: auto !important;
-            min-height: 700px !important;
-            gap: 0;
-            margin-bottom: 20px !important;
+            flex-direction: column;
+            height: auto;
+            min-height: auto;
         }
+
         .sidebar-calendar {
-            width: fit-content !important;
+            width: 100% !important;
+            display: flex;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+            max-height: none;
+            min-height: fit-content;
         }
-       
+
+        .main-calendar {
+            height: 75vh;
+            padding: 12px !important;
+            min-height: 520px;
+        }
+
+        #calendar {
+            height: 100%;
+        }
+
+        #mini-calendar {
+            display: none;
+        }
+
+        .fc {
+            height: 100%;
+        }
+        .fc-event {
+           font-size: 11px;
+           padding: 3px 6px;
+        }   
+        .fc-header-toolbar {
+            flex-direction: column;
+            gap: 8px;
+            padding-bottom: 8px;
+            flex-direction: row;
+        }
+
+        .fc-toolbar-title {
+            font-size: 18px !important;
+            text-align: center;
+        }
+
+        .fc-toolbar-chunk {
+            display: flex;
+            gap: 6px;
+        }
+
+        .fc-button {
+            padding: 6px 10px !important;
+            font-size: 13px !important;
+        }
+        .agent-list {
+            max-height: 190px;
+            overflow-y: auto;
+        }
+        .event-modal-content {
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .event-modal-footer {
+            flex-direction: column;
+        }
+
+        .btn-modal {
+            width: 100%;
+            text-align: center;
+        }
+        .agent-legend {
+            display: none;
+            background: #1c1c1c;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-top: 0.75rem;
+        }
+
+        .agent-legend.show-mobile {
+            display: block;
+        }
+
+        .btn-toggle-agents {
+            max-width: 256px;
+            min-width: 192px;
+            max-height: 44px;
+            background: #2a2a2a;
+            color: white;
+            border: none;
+            padding: 0.6rem;
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
     }
+
+    /* Calendar */
+    .fc-theme-standard td,
+    .fc-theme-standard th {
+        border: 1px solid #e8e8e8;
+    }
+
+    .fc-scrollgrid {
+        border: 1px solid #e8e8e8;
+    }
+
+     .fc-daygrid-day-frame {
+        padding: 4px;
+    }
+
+    .fc-daygrid-day {
+        transition: background 0.2s;
+    }
+
+    .fc-daygrid-day:hover {
+        background: #f8f9fa;
+    }
+    
+
+
+
     .agenda-container {
         display: flex;
         height: calc(100vh - 120px);
@@ -81,7 +200,7 @@
         width: 300px;
         background: #fff;
         border-right: 1px solid #e0e0e0;
-        padding: 15px;
+        padding: 15px 8px 0;
         display: flex;
         flex-direction: column;
         overflow-y: auto;
@@ -171,10 +290,13 @@
     
     .mini-calendar .fc-daygrid-day-number {
         font-size: 12px;
+        color: #5f6368;
+        padding: 4px;
     }
     
     .main-calendar {
         flex: 1;
+        min-width: 0;
         padding: 20px;
         background: #fff;
         overflow: auto;
@@ -190,7 +312,7 @@
     }
     
     .fc-toolbar-title {
-        font-size: 22px !important;
+        font-size: 22px;
         font-weight: 600;
         color: #202124;
     }
@@ -216,11 +338,12 @@
     }
     
     .fc-event {
-        border-radius: 4px;
-        padding: 2px 4px;
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.2s;
+        border: none !important;
+        border-radius: 12px;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.2;
     }
     
     .fc-event:hover {
@@ -231,7 +354,20 @@
     
     .fc-day-today {
         background-color: #e8f5e9 !important;
+        border-radius: 8px;
     }
+
+    .fc-day-today .fc-daygrid-day-number {
+        background: #1967d2;
+        color: #fff;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     
     /* Modal de detalles del evento */
     .event-modal {
@@ -365,13 +501,22 @@
 <div class="agenda-container">
     <!-- Sidebar con mini calendario y botón crear -->
     <div class="sidebar-calendar">
-        <a href="{% url 'properties:event_create' %}" class="btn-create-event">
-            <i class="fas fa-plus"></i> Crear evento
-        </a>
+       <div class="d-flex space-between" style="justify-content: space-between;">
+            <div>
+                <a href="{% url 'properties:event_create' %}" class="btn-create-event">
+                    <i class="fas fa-plus"></i> Crear evento
+                </a>
+        </div>
+            <button class="btn-toggle-agents d-md-none" onclick="toggleAgentsMobile()">
+                <i class="fas fa-users"></i> Ver agentes
+            </button>
+       </div>
         
         <div id="mini-calendar" class="mini-calendar"></div>
 
         {% if can_see_all and agents_with_events %}
+        
+
         <div class="agent-legend">
             <div class="agent-legend-title">Agentes</div>
             <div class="agent-list">
@@ -487,12 +632,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('Elemento calendario encontrado:', calendarEl);
     console.log('FullCalendar disponible:', typeof FullCalendar !== 'undefined');
+
     
     // Calendario principal
     try {
+
+        const isMobile = window.innerWidth <= 768;
+
         calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
+            initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
             locale: 'es',
+            slotMinTime: "09:00:00",
+            slotMaxTime: "23:00:00",
+            
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
@@ -555,7 +707,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     miniCalendar.gotoDate(dateInfo.view.currentStart);
                 }
             },
-            height: '100%',
+            height: 'auto',
+            expandRows: true,
+            handleWindowResize: true,
             nowIndicator: true,
             editable: false,
             selectable: false
@@ -563,6 +717,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('Renderizando calendario principal...');
         calendar.render();
+        setTimeout(() => {
+            calendar.updateSize();
+        }, 300);
+        window.addEventListener('resize', () => {
+            if (calendar) {
+                calendar.updateSize();
+            }
+        });
+
         console.log('✅ Calendario principal renderizado');
     } catch (error) {
         console.error('❌ Error al crear/renderizar el calendario:', error);
@@ -696,5 +859,16 @@ window.onclick = function(event) {
         closeEventModal();
     }
 }
+
+function toggleAgentsMobile() {
+    const legend = document.querySelector('.agent-legend');
+    if (!legend) {
+        console.warn('Agent legend not found');
+        return;
+    }
+
+    legend.classList.toggle('show-mobile');
+}
+
 </script>
 {% endblock %}
