@@ -1091,10 +1091,10 @@
                             {% with images=property.images.all %}
                                 {% if images %}
                                     {% with first=images|first %}
-                                        {% if first.image_blob %}
-                                            <img src="{% url 'properties:image_blob' first.id %}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
-                                        {% elif first.image %}
+                                        {% if first.image %}
                                             <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
+                                        {% elif first.image_blob %}
+                                            <img src="{% url 'properties:image_blob' first.id %}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
                                         {% else %}
                                             <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
                                         {% endif %}
