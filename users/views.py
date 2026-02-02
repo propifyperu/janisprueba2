@@ -8,6 +8,40 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from security.models import AuthorizedDevice, DeviceStatus
 import uuid
+# users/api/views.py
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.viewsets import GenericViewSet
+from rest_framework.mixins import RetrieveModelMixin, UpdateModelMixin
+from .serializers import UserMeProfileSerializer
+
+User = get_user_model()
+
+
+class MeProfileViewSet(GenericViewSet, RetrieveModelMixin, UpdateModelMixin):
+    serializer_class = UserMeProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # No lo usaremos realmente porque get_object() devuelve request.user,
+        # pero DRF espera queryset en algunos flujos.
+        return User.objects.all()
+
+    def get_object(self):
+        user = self.request.user
+
+        # Asegura que exista profile para que el GET siempre tenga campos consistentes
+        UserProfile.objects.get_or_create(user=user)
+
+        return user
+
+    @transaction.atomic
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Transacción para no dejar User y Profile a medias.
+        """
+        return super().partial_update(request, *args, **kwargs)
 
 class LoginForm(forms.Form):
     username = forms.CharField(label='Usuario', max_length=150)

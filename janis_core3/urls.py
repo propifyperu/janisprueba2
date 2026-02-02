@@ -41,6 +41,7 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/token/revoke/', revoke_refresh_token, name='token_revoke'),
     path("notifications/", include("notifications.urls", namespace="notifications")),
+    path("api/users/", include("users.urls")),
 ]
 
 # Servir archivos de media en desarrollo

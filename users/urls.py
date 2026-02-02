@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views import MeProfileViewSet
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
@@ -8,4 +9,5 @@ urlpatterns = [
     path('register/success/', views.register_success_view, name='register_success'),
     path('profile/', views.profile_view, name='profile'),
     path('profile/edit/', views.profile_edit_view, name='profile_edit'),
+    path("me/", MeProfileViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),name="api-users-me",),
 ]
