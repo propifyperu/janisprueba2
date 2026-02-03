@@ -15,6 +15,11 @@ import os
 from django.conf import settings
 from django.db.models import Prefetch
 from .models import PropertyImage  # <-- AJUSTA si tu modelo se llama diferente
+from .models import (
+    Property, PropertyImage, PropertyType, PropertyStatus,
+    PaymentMethod, District, Province, Department, Urbanization
+)
+
 
 def link_callback(uri, rel):
     """
@@ -1735,22 +1740,19 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
 
         images_qs = (
             PropertyImage.objects
-            .defer("image_blob")
-            .only("id", "property_id", "image", "order", "is_primary", "image_blob")  # deja image_blob si necesitas detectar si existe (ver nota abajo)
-            .order_by("order")
+            .only("id", "property_id", "image", "order", "is_primary")
+            .order_by("-is_primary", "order", "id")
         )
 
         queryset = (
             Property.objects.filter(is_active=True)
-            .select_related('property_type', 'status', 'owner', 'created_by', 'currency')
-            .prefetch_related(Prefetch("images", queryset=images_qs))
-            .only(
-                'id', 'code', 'title', 'price', 'coordinates', 'exact_address', 'district',
-                'real_address', 'is_active', 'created_at',
-                'property_type_id', 'status_id', 'owner_id', 'created_by_id', 'currency_id'
+            .select_related(
+                'property_type', 'status', 'owner', 'created_by', 'currency',
+                'responsible', 'land_area_unit', 'built_area_unit',
             )
+            .prefetch_related(Prefetch("images", queryset=images_qs, to_attr="prefetched_images"))
         )
-
+        
         # Si el usuario es agente, mostrar solo sus propiedades y asignadas
         if self.request.user.role and self.request.user.role.code_name == 'agent':
             queryset = queryset.filter(
@@ -1952,46 +1954,36 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         context['user_role'] = self.request.user.role.name if self.request.user.role else 'Sin rol'
         # Listas para selects reducidas según requerimiento
         context['property_types'] = PropertyType.objects.filter(is_active=True).order_by('name')
-        from .models import PaymentMethod
+        from .models import PaymentMethod, District, Urbanization, Department, Province
         context['payment_methods'] = PaymentMethod.objects.filter(is_active=True).order_by('order')
         # Obtener distritos de las propiedades ya cargadas en memoria
         # Resolver posibles valores numéricos a nombres usando el modelo District
-        try:
-            from .models import District
+        raw_districts = [p.district for p in properties if p.district]
+        numeric_district_ids = {int(d) for d in raw_districts if str(d).isdigit()}
+        district_map = {}
+        if numeric_district_ids:
+            district_map = {d.id: d.name for d in District.objects.filter(id__in=numeric_district_ids)}
 
-            def _resolve_district_obj(value):
-                if not value:
-                    return None
-                try:
-                    if str(value).isdigit():
-                        obj = District.objects.filter(pk=int(value)).first()
-                        if obj:
-                            return {'id': obj.id, 'name': getattr(obj, 'name', str(value))}
-                        else:
-                            return {'id': int(value), 'name': str(value)}
-                    return {'id': '', 'name': str(value)}
-                except Exception:
-                    return {'id': '', 'name': str(value)}
-
-            # Mantener el orden y eliminar duplicados por (id,name)
-            seen = set()
-            districts = []
-            for p in properties:
-                if not p.district:
-                    continue
-                resolved = _resolve_district_obj(p.district)
-                key = (str(resolved.get('id')), resolved.get('name'))
+        seen = set()
+        districts = []
+        for d in raw_districts:
+            if str(d).isdigit():
+                did = int(d)
+                name = district_map.get(did, str(d))
+                key = (str(did), name)
                 if key not in seen:
                     seen.add(key)
-                    districts.append(resolved)
+                    districts.append({'id': did, 'name': name})
+            else:
+                key = ('', str(d))
+                if key not in seen:
+                    seen.add(key)
+                    districts.append({'id': '', 'name': str(d)})
 
-            # ordenar por nombre para mostrar
-            context['districts_list'] = sorted(districts, key=lambda x: (x.get('name') or ''))
-        except Exception:
-            # En caso de error, caer al valor bruto como lista de nombres
-            names = sorted({p.district for p in properties if p.district})
-            context['districts_list'] = [{'id': '', 'name': n} for n in names]
-
+        context['districts_list'] = sorted(districts, key=lambda x: (x.get('name') or ''))
+        # ------------
+        # filtros UI
+        # ------------
         context['filters'] = {
             'property_type': self.request.GET.get('property_type', '').strip(),
             'district': self.request.GET.get('district', '').strip(),
@@ -2052,8 +2044,30 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         except Exception:
             context['urbanizations_list'] = []
 
+        props_list = list(properties) 
+        first_50 = list(properties[:50])
+
+        dept_ids = {int(p.department) for p in first_50 if p.department and str(p.department).isdigit()}
+        prov_ids = {int(p.province) for p in first_50 if p.province and str(p.province).isdigit()}
+        dist_ids = {int(p.district) for p in first_50 if p.district and str(p.district).isdigit()}
+        urb_ids  = {int(p.urbanization) for p in first_50 if p.urbanization and str(p.urbanization).isdigit()}
+
+        dept_map = {o.id: o.name for o in Department.objects.filter(id__in=dept_ids)} if dept_ids else {}
+        prov_map = {o.id: o.name for o in Province.objects.filter(id__in=prov_ids)} if prov_ids else {}
+        dist_map2 = {o.id: o.name for o in District.objects.filter(id__in=dist_ids)} if dist_ids else {}
+        urb_map  = {o.id: o.name for o in Urbanization.objects.filter(id__in=urb_ids)} if urb_ids else {}
+
+        for p in props_list:
+            p.display_department = dept_map.get(int(p.department), p.department) if (p.department and str(p.department).isdigit()) else (p.department or '')
+            p.display_province   = prov_map.get(int(p.province), p.province) if (p.province and str(p.province).isdigit()) else (p.province or '')
+            p.display_district   = dist_map2.get(int(p.district), p.district) if (p.district and str(p.district).isdigit()) else (p.district or '')
+            p.display_urbanization = urb_map.get(int(p.urbanization), p.urbanization) if (p.urbanization and str(p.urbanization).isdigit()) else (p.urbanization or '')
+        # -------------------------
+        # ✅ markers + thumbnail sin N+1 de images
+        # -------------------------
+
         markers = []
-        for property_obj in properties[:50]:  # Limitar a 50 propiedades por página
+        for property_obj in first_50:
             lat = lng = None
             if property_obj.coordinates:
                 parts = [p.strip() for p in property_obj.coordinates.split(',') if p.strip()]
@@ -2065,30 +2079,12 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                         lat = lng = None
 
             first_image_url = ''
-            images_qs = list(property_obj.images.all())
-            if images_qs:
-                first_image = images_qs[0]
-                image_name = getattr(getattr(first_image, 'image', None), 'name', None)
-                file_exists_in_storage = False
-                if image_name:
-                    try:
-                        file_exists_in_storage = default_storage.exists(image_name)
-                    except Exception:
-                        file_exists_in_storage = False
-
-                if file_exists_in_storage and getattr(first_image.image, 'url', None):
-                    try:
-                        first_image_url = self.request.build_absolute_uri(first_image.image.url)
-                    except Exception:
-                        first_image_url = first_image.image.url
-
-                elif getattr(first_image, 'image_blob', None):
-                    try:
-                        first_image_url = self.request.build_absolute_uri(
-                            reverse('properties:image_blob', kwargs={'pk': first_image.pk})
-                        )
-                    except Exception:
-                        first_image_url = reverse('properties:image_blob', kwargs={'pk': first_image.pk})
+            imgs = getattr(property_obj, "prefetched_images", []) or []
+            if imgs and getattr(imgs[0], "image", None):
+                try:
+                    first_image_url = self.request.build_absolute_uri(imgs[0].image.url)
+                except Exception:
+                    first_image_url = imgs[0].image.url
 
             # Preparar nombre seguro del propietario: puede ser método o atributo string
             try:
@@ -2119,34 +2115,6 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 'created': property_obj.created_at.strftime('%d/%m/%Y'),
                 'thumbnail': first_image_url,
             })
-
-            # Resolve textual names for location fields in case the Property stores numeric IDs
-            def resolve_location_name(value, model_cls):
-                if not value:
-                    return ''
-                try:
-                    # if value looks like an integer id, try to resolve
-                    if str(value).isdigit():
-                        obj = model_cls.objects.filter(pk=int(value)).first()
-                        if obj:
-                            return getattr(obj, 'name', str(value))
-                    # otherwise assume value already a name
-                    return str(value)
-                except Exception:
-                    return str(value)
-
-            # attach resolved display attributes to the property object for template use
-            try:
-                from .models import Province, District, Urbanization, Department
-                property_obj.display_department = resolve_location_name(property_obj.department, Department)
-                property_obj.display_province = resolve_location_name(property_obj.province, Province)
-                property_obj.display_district = resolve_location_name(property_obj.district, District)
-                property_obj.display_urbanization = resolve_location_name(property_obj.urbanization, Urbanization)
-            except Exception:
-                property_obj.display_department = property_obj.department or ''
-                property_obj.display_province = property_obj.province or ''
-                property_obj.display_district = property_obj.district or ''
-                property_obj.display_urbanization = property_obj.urbanization or ''
 
         context['property_markers'] = markers
 

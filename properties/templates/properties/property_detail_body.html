@@ -46,10 +46,8 @@
                             <div id="propertyCarousel" class="carousel slide w-100 h-100" data-bs-ride="false">
                                 <div class="carousel-inner w-100 h-100">
                                     {% for image in property.images.all %}
-                                    <div class="carousel-item w-100 h-100 {% if forloop.first %}active{% endif %}" onclick="openFullscreenModal('{% if image.image_blob %}{% url 'properties:image_blob' image.id %}{% else %}{{ image.image.url }}{% endif %}', '{{ image.caption|escapejs }}')">
-                                        {% if image.image_blob %}
-                                            <img src="{% url 'properties:image_blob' image.id %}" class="d-block w-100 h-100" style="object-fit: cover; cursor: zoom-in;" alt="{{ image.caption }}">
-                                        {% elif image.image %}
+                                    <div class="carousel-item w-100 h-100 {% if forloop.first %}active{% endif %}" onclick="openFullscreenModal('{{ image.image.url }}', '{{ image.caption|escapejs }}')"
+                                        {% if image.image %}
                                             <img src="{{ image.image.url }}" class="d-block w-100 h-100" style="object-fit: cover; cursor: zoom-in;" alt="{{ image.caption }}">
                                         {% endif %}
                                     </div>
