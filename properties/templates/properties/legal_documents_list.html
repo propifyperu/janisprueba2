@@ -70,13 +70,15 @@
 
             <td>
                 <div class="fw-semibold text-wrap" style="max-width: 210px;">
-                    {{ row.property.exact_address|default:row.property.real_address }}
+                    {{ row.property.exact_addre
+                        
+                        ss|default:row.property.real_address }}
                 </div>
                 <small class="text-muted">{{ row.property.code }}</small>
             </td>
 
             {% for cell in row.cells %}
-            <td class="text-center">
+            <td class="text-center" style="max-width: 56px;">
                 {% if cell.present %}
                     <button class="icon-btn text-success"
                             data-preview-url="/dashboard/{{ row.property.id }}/pdf/">
