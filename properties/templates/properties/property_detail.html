@@ -44,7 +44,7 @@
     const imagesList = [
         {% for image in property.images.all %}
         {
-            src: "{% if image.image_blob %}{% url 'properties:image_blob' image.id %}{% else %}{{ image.image.url }}{% endif %}",
+            src: "{{ image.image.url }}",
             caption: "{{ image.caption|escapejs }}"
         },
         {% endfor %}

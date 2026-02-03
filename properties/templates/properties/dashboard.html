@@ -1092,13 +1092,11 @@
                     <article class="property-card pr-md-3" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
                         <div class="property-card-media">
                             <a href="{% url 'properties:detail' property.pk %}" title="Ver detalle de {{ property.code }}">
-                            {% with images=property.images.all %}
+                            {% with images=property.prefetched_images %}
                                 {% if images %}
                                     {% with first=images|first %}
                                         {% if first.image %}
                                             <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
-                                        {% elif first.image_blob %}
-                                            <img src="{% url 'properties:image_blob' first.id %}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
                                         {% else %}
                                             <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
                                         {% endif %}

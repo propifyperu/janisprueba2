@@ -622,9 +622,7 @@
                                             <label class="form-label">Archivo (reemplazar si desea)</label>
                                             <input type="file" name="images" class="form-control" accept="image/*">
                                             <div class="small text-muted mt-1">Archivo actual: 
-                                                {% if image.image_blob %}
-                                                    <a href="{% url 'properties:image_blob' image.id %}" target="_blank">ver</a>
-                                                {% elif image.image %}
+                                                {% if image.image %}
                                                     <a href="{{ image.image.url }}" target="_blank">ver</a>
                                                 {% else %}
                                                     (no disponible)
@@ -649,9 +647,7 @@
                                         </div>
                                         <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
                                             <div class="image-preview w-100 text-center">
-                                                {% if image.image_blob %}
-                                                    <img src="{% url 'properties:image_blob' image.id %}" alt="{{ image.caption }}" class="preview-thumb">
-                                                {% elif image.image %}
+                                                {% if image.image %}
                                                     <img src="{{ image.image.url }}" alt="{{ image.caption }}" class="preview-thumb">
                                                 {% else %}
                                                     <div class="text-muted">No disponible</div>
