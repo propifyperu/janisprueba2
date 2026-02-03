@@ -1574,7 +1574,7 @@ function openPropertyInfo(property, marker) {
         image.src = property.thumbnail;
         image.alt = property.title || property.code || 'Propiedad';
         image.style.width = '100%';
-        image.style.height = '100px';
+        image.style.height = '204px';
         image.style.objectFit = 'cover';
         image.style.borderRadius = '0.5rem';
         image.style.marginBottom = '0.3rem';
@@ -1607,7 +1607,7 @@ function openPropertyInfo(property, marker) {
         container.appendChild(price);
     }
 
-    if (property.owner) {
+    /* if (property.owner) {
         const owner = document.createElement('p');
         owner.style.margin = '0 0 0.15rem 0';
         owner.style.color = '#3c5466';
@@ -1617,7 +1617,7 @@ function openPropertyInfo(property, marker) {
         owner.style.pointerEvents = 'none';
         owner.textContent = `Prop: ${property.owner}`;
         container.appendChild(owner);
-    }
+    } */
 
     if (property.url) {
         const link = document.createElement('a');
