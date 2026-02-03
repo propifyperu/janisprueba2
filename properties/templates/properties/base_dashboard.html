@@ -697,186 +697,190 @@
         <span></span>
     </button>
 
-
-    <!--  <button class="sidebar-close d-md-none" aria-label="Cerrar menú">
-        <i class="fas fa-times"></i>
-    </button> -->
-    <aside class="sidebar {% if request.user.is_authenticated and profile %}theme-{{ profile.theme|default:'green' }}{% else %}theme-green{% endif %}">
-        <div class="sidebar-inner">
-            <div class="position-relative">
-                {% if request.user.is_authenticated %}
-                <div class="sidebar-user-profile">
-                    <div class="sidebar-user-avatar">
-                        {% if profile.avatar %}
-                            <img src="{{ profile.avatar.url }}" alt="Avatar">
-                        {% else %}
-                            <i class="fas fa-user"></i>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <div class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-                        <div class="sidebar-user-info-text">{{ request.user.department.name|default:"Sin Departamento" }}</div>
-                        <div class="sidebar-user-info-text">
-                            {% if request.user.is_superuser %}
-                                <span class="badge bg-danger">Superusuario</span>
-                            {% else %}
-                                {{ request.user.role.name|default:"Sin Rol" }}
-                            {% endif %}
+    {# ✅ AQUI ES EL CAMBIO CLAVE: profile sale de request.user.profile #}
+    {% if request.user.is_authenticated %}
+        {% with profile=request.user.profile %}
+            <aside class="sidebar theme-{{ profile.theme|default:'green' }}">
+                <div class="sidebar-inner">
+                    <div class="position-relative">
+                        <div class="sidebar-user-profile">
+                            <div class="sidebar-user-avatar">
+                                {% if profile.avatar %}
+                                    <img src="{{ profile.avatar.url }}" alt="Avatar">
+                                {% else %}
+                                    <i class="fas fa-user"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <div class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+                                <div class="sidebar-user-info-text">{{ request.user.department.name|default:"Sin Departamento" }}</div>
+                                <div class="sidebar-user-info-text">
+                                    {% if request.user.is_superuser %}
+                                        <span class="badge bg-danger">Superusuario</span>
+                                    {% else %}
+                                        {{ request.user.role.name|default:"Sin Rol" }}
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                {% endif %}
 
-                <!-- {% block sidebar_header %}
-                <h2 class="h5 fw-bold text-white mb-1">Menú Principal</h2>
-                
-                <p class="text-white-50 mb-0">Gestiona tus recursos de manera rápida</p>
+                    <nav class="nav flex-column position-relative">
+                    {% url 'properties:list' as properties_list_url %}
+                    {% url 'properties:create' as properties_create_url %}
+                    {% url 'properties:my_properties' as properties_my_url %}
+                    {% url 'properties:my_uploaded_documents' as my_uploaded_documents_url %}
+                    {% url 'properties:drafts' as properties_drafts_url %}
+                    {% url 'properties:contact_list' as contacts_list_url %}
+                    {% url 'properties:contact_create' as contacts_create_url %}
+                    {% url 'properties:leads_list' as leads_list_url %}
+                    {% url 'users:profile' as profile_url %}
+                    {% if request.user.is_superuser %}
+                    {% url 'security:device_list' as security_device_list_url %}
+                    {% url 'security:role_field_permissions' as role_permissions_url %}
+                    {% endif %}
 
-                {% endblock %} -->
-            </div>
-            <nav class="nav flex-column position-relative">
-            {% url 'properties:list' as properties_list_url %}
-            {% url 'properties:create' as properties_create_url %}
-            {% url 'properties:my_properties' as properties_my_url %}
-            {% url 'properties:my_uploaded_documents' as my_uploaded_documents_url %}
-            {% url 'properties:drafts' as properties_drafts_url %}
-            {% url 'properties:contact_list' as contacts_list_url %}
-            {% url 'properties:contact_create' as contacts_create_url %}
-            {% url 'properties:leads_list' as leads_list_url %}
-            {% url 'users:profile' as profile_url %}
-            {% if request.user.is_superuser %}
-            {% url 'security:device_list' as security_device_list_url %}
-            {% url 'security:role_field_permissions' as role_permissions_url %}
-            {% endif %}
-            <div class="nav-group">
-                <button class="nav-group-toggle{% if request.path == properties_list_url or request.path == properties_create_url or request.path == properties_my_url or request.path == properties_drafts_url %} expanded{% endif %}" type="button" data-target="propertiesSubmenu" aria-controls="propertiesSubmenu" aria-expanded="{% if request.path == properties_list_url or request.path == properties_create_url or request.path == properties_my_url or request.path == properties_drafts_url %}true{% else %}false{% endif %}">
-                    <i class="fas fa-map-marked-alt"></i>
-                    <span>Propiedades</span>
-                    <i class="fas fa-chevron-up toggle-icon"></i>
-                </button>
-                <div class="nav-submenu{% if request.path == properties_list_url or request.path == properties_create_url or request.path == properties_my_url or request.path == properties_drafts_url %} show{% endif %}" id="propertiesSubmenu">
-                    <a class="nav-link {% if request.path == properties_list_url %}active{% endif %}" href="{{ properties_list_url }}"><i class="fas fa-list me-2"></i>Listar propiedades</a>
-                    <a class="nav-link {% if request.path == properties_create_url %}active{% endif %}" href="{{ properties_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear propiedad</a>
-                    <a class="nav-link {% if request.path == properties_drafts_url %}active{% endif %}" href="{{ properties_drafts_url }}"><i class="fas fa-file-alt me-2"></i>Mis borradores</a>
-                    <a class="nav-link {% if request.path == properties_my_url %}active{% endif %}" href="{{ properties_my_url }}"><i class="fas fa-home me-2"></i>Mis propiedades</a>
-                    <a class="nav-link {% if request.path == my_uploaded_documents_url %}active{% endif %}" href="{{ my_uploaded_documents_url }}"><i class="fas fa-folder-open me-2"></i>Mis documentos (subidos)</a>
-                </div>
-            </div>
-            <div class="nav-group">
-                <button class="nav-group-toggle{% if request.path == contacts_list_url or request.path == contacts_create_url %} expanded{% endif %}" type="button" data-target="contactsSubmenu" aria-controls="contactsSubmenu" aria-expanded="{% if request.path == contacts_list_url or request.path == contacts_create_url %}true{% else %}false{% endif %}">
-                    <i class="fas fa-address-book"></i>
-                    <span>Contactos</span>
-                    <i class="fas fa-chevron-up toggle-icon"></i>
-                </button>
-                <div class="nav-submenu{% if request.path == contacts_list_url or request.path == contacts_create_url %} show{% endif %}" id="contactsSubmenu">
-                    <a class="nav-link {% if request.path == contacts_list_url %}active{% endif %}" href="{{ contacts_list_url }}"><i class="fas fa-list me-2"></i>Listar contactos</a>
-                    <a class="nav-link {% if request.path == contacts_create_url %}active{% endif %}" href="{{ contacts_create_url }}"><i class="fas fa-user-plus me-2"></i>Crear contacto</a>
-                </div>
-            </div>
+                    <div class="nav-group">
+                        <button class="nav-group-toggle{% if request.path == properties_list_url or request.path == properties_create_url or request.path == properties_my_url or request.path == properties_drafts_url %} expanded{% endif %}" type="button" data-target="propertiesSubmenu" aria-controls="propertiesSubmenu" aria-expanded="{% if request.path == properties_list_url or request.path == properties_create_url or request.path == properties_my_url or request.path == properties_drafts_url %}true{% else %}false{% endif %}">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <span>Propiedades</span>
+                            <i class="fas fa-chevron-up toggle-icon"></i>
+                        </button>
+                        <div class="nav-submenu{% if request.path == properties_list_url or request.path == properties_create_url or request.path == properties_my_url or request.path == properties_drafts_url %} show{% endif %}" id="propertiesSubmenu">
+                            <a class="nav-link {% if request.path == properties_list_url %}active{% endif %}" href="{{ properties_list_url }}"><i class="fas fa-list me-2"></i>Listar propiedades</a>
+                            <a class="nav-link {% if request.path == properties_create_url %}active{% endif %}" href="{{ properties_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear propiedad</a>
+                            <a class="nav-link {% if request.path == properties_drafts_url %}active{% endif %}" href="{{ properties_drafts_url }}"><i class="fas fa-file-alt me-2"></i>Mis borradores</a>
+                            <a class="nav-link {% if request.path == properties_my_url %}active{% endif %}" href="{{ properties_my_url }}"><i class="fas fa-home me-2"></i>Mis propiedades</a>
+                            <a class="nav-link {% if request.path == my_uploaded_documents_url %}active{% endif %}" href="{{ my_uploaded_documents_url }}"><i class="fas fa-folder-open me-2"></i>Mis documentos (subidos)</a>
+                        </div>
+                    </div>
 
-            <div class="nav-group">
-                <button class="nav-group-toggle{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} expanded{% endif %}" type="button" data-target="crmSubmenu" aria-controls="crmSubmenu" aria-expanded="{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %}true{% else %}false{% endif %}">
-                    <i class="fas fa-whatsapp"></i>
-                    <span>CRM WhatsApp</span>
-                    <i class="fas fa-chevron-up toggle-icon"></i>
-                </button>
-                <div class="nav-submenu{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} show{% endif %}" id="crmSubmenu">
-                    <a class="nav-link {% if 'crm' in request.path %}active{% endif %}" href="{% url 'properties:crm_dashboard' %}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
-                    <a class="nav-link {% if 'leads' in request.path and 'whatsapp' not in request.path %}active{% endif %}" href="{{ leads_list_url }}"><i class="fas fa-user-tie me-2"></i>Mis Leads</a>
-                </div>
-            </div>
+                    <div class="nav-group">
+                        <button class="nav-group-toggle{% if request.path == contacts_list_url or request.path == contacts_create_url %} expanded{% endif %}" type="button" data-target="contactsSubmenu" aria-controls="contactsSubmenu" aria-expanded="{% if request.path == contacts_list_url or request.path == contacts_create_url %}true{% else %}false{% endif %}">
+                            <i class="fas fa-address-book"></i>
+                            <span>Contactos</span>
+                            <i class="fas fa-chevron-up toggle-icon"></i>
+                        </button>
+                        <div class="nav-submenu{% if request.path == contacts_list_url or request.path == contacts_create_url %} show{% endif %}" id="contactsSubmenu">
+                            <a class="nav-link {% if request.path == contacts_list_url %}active{% endif %}" href="{{ contacts_list_url }}"><i class="fas fa-list me-2"></i>Listar contactos</a>
+                            <a class="nav-link {% if request.path == contacts_create_url %}active{% endif %}" href="{{ contacts_create_url }}"><i class="fas fa-user-plus me-2"></i>Crear contacto</a>
+                        </div>
+                    </div>
 
-            <div class="nav-group">
-                {% url 'properties:requirements_list' as requirements_list_url %}
-                {% url 'properties:requirements_create' as requirements_create_url %}
-                {% url 'properties:requirements_my' as requirements_my_url %}
-                <button class="nav-group-toggle{% if 'requerimientos' in request.path %} expanded{% endif %}" type="button" data-target="requirementsSubmenu" aria-controls="requirementsSubmenu" aria-expanded="{% if 'requerimientos' in request.path %}true{% else %}false{% endif %}">
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>Requerimientos</span>
-                    <i class="fas fa-chevron-up toggle-icon"></i>
-                </button>
-                <div class="nav-submenu{% if 'requerimientos' in request.path %} show{% endif %}" id="requirementsSubmenu">
-                    <a class="nav-link {% if request.path == requirements_list_url %}active{% endif %}" href="{{ requirements_list_url }}"><i class="fas fa-list me-2"></i>Lista de requerimientos</a>
-                    <a class="nav-link {% if request.path == requirements_create_url %}active{% endif %}" href="{{ requirements_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear requerimiento</a>
-                    <a class="nav-link {% if request.path == requirements_my_url %}active{% endif %}" href="{{ requirements_my_url }}"><i class="fas fa-user me-2"></i>Mis requerimientos</a>
-                </div>
-            </div>
+                    <div class="nav-group">
+                        <button class="nav-group-toggle{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} expanded{% endif %}" type="button" data-target="crmSubmenu" aria-controls="crmSubmenu" aria-expanded="{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %}true{% else %}false{% endif %}">
+                            <i class="fas fa-whatsapp"></i>
+                            <span>CRM WhatsApp</span>
+                            <i class="fas fa-chevron-up toggle-icon"></i>
+                        </button>
+                        <div class="nav-submenu{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} show{% endif %}" id="crmSubmenu">
+                            <a class="nav-link {% if 'crm' in request.path %}active{% endif %}" href="{% url 'properties:crm_dashboard' %}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
+                            <a class="nav-link {% if 'leads' in request.path and 'whatsapp' not in request.path %}active{% endif %}" href="{{ leads_list_url }}"><i class="fas fa-user-tie me-2"></i>Mis Leads</a>
+                        </div>
+                    </div>
 
-            <div class="nav-group">
-                {% url 'properties:legal_documents' as legal_documents_url %}
-                <button class="nav-group-toggle{% if 'legal' in request.path or 'documentos' in request.path %} expanded{% endif %}" type="button" data-target="legalSubmenu" aria-controls="legalSubmenu" aria-expanded="{% if 'legal' in request.path or 'documentos' in request.path %}true{% else %}false{% endif %}">
-                    <i class="fas fa-gavel"></i>
-                    <span>Área Legal</span>
-                    <i class="fas fa-chevron-up toggle-icon"></i>
-                </button>
-                <div class="nav-submenu{% if 'legal' in request.path or 'documentos' in request.path %} show{% endif %}" id="legalSubmenu">
-                    <a class="nav-link {% if request.path == legal_documents_url %}active{% endif %}" href="{{ legal_documents_url }}"><i class="fas fa-file-alt me-2"></i>Lista de Documentos</a>
-                </div>
-            </div>
+                    <div class="nav-group">
+                        {% url 'properties:requirements_list' as requirements_list_url %}
+                        {% url 'properties:requirements_create' as requirements_create_url %}
+                        {% url 'properties:requirements_my' as requirements_my_url %}
+                        <button class="nav-group-toggle{% if 'requerimientos' in request.path %} expanded{% endif %}" type="button" data-target="requirementsSubmenu" aria-controls="requirementsSubmenu" aria-expanded="{% if 'requerimientos' in request.path %}true{% else %}false{% endif %}">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>Requerimientos</span>
+                            <i class="fas fa-chevron-up toggle-icon"></i>
+                        </button>
+                        <div class="nav-submenu{% if 'requerimientos' in request.path %} show{% endif %}" id="requirementsSubmenu">
+                            <a class="nav-link {% if request.path == requirements_list_url %}active{% endif %}" href="{{ requirements_list_url }}"><i class="fas fa-list me-2"></i>Lista de requerimientos</a>
+                            <a class="nav-link {% if request.path == requirements_create_url %}active{% endif %}" href="{{ requirements_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear requerimiento</a>
+                            <a class="nav-link {% if request.path == requirements_my_url %}active{% endif %}" href="{{ requirements_my_url }}"><i class="fas fa-user me-2"></i>Mis requerimientos</a>
+                        </div>
+                    </div>
 
-            <div class="nav-group">
-                {% url 'properties:agenda_calendar' as agenda_calendar_url %}
-                {% url 'properties:event_create' as event_create_url %}
-                <button class="nav-group-toggle{% if 'agenda' in request.path %} expanded{% endif %}" type="button" data-target="agendaSubmenu" aria-controls="agendaSubmenu" aria-expanded="{% if 'agenda' in request.path %}true{% else %}false{% endif %}">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Agenda</span>
-                    <i class="fas fa-chevron-up toggle-icon"></i>
-                </button>
-                <div class="nav-submenu{% if 'agenda' in request.path %} show{% endif %}" id="agendaSubmenu">
-                    <a class="nav-link {% if request.path == agenda_calendar_url %}active{% endif %}" href="{{ agenda_calendar_url }}"><i class="fas fa-calendar me-2"></i>Calendario</a>
-                    <a class="nav-link {% if request.path == event_create_url %}active{% endif %}" href="{{ event_create_url }}"><i class="fas fa-calendar-plus me-2"></i>Crear visita</a>
-                </div>
-            </div>
+                    <div class="nav-group">
+                        {% url 'properties:legal_documents' as legal_documents_url %}
+                        <button class="nav-group-toggle{% if 'legal' in request.path or 'documentos' in request.path %} expanded{% endif %}" type="button" data-target="legalSubmenu" aria-controls="legalSubmenu" aria-expanded="{% if 'legal' in request.path or 'documentos' in request.path %}true{% else %}false{% endif %}">
+                            <i class="fas fa-gavel"></i>
+                            <span>Área Legal</span>
+                            <i class="fas fa-chevron-up toggle-icon"></i>
+                        </button>
+                        <div class="nav-submenu{% if 'legal' in request.path or 'documentos' in request.path %} show{% endif %}" id="legalSubmenu">
+                            <a class="nav-link {% if request.path == legal_documents_url %}active{% endif %}" href="{{ legal_documents_url }}"><i class="fas fa-file-alt me-2"></i>Lista de Documentos</a>
+                        </div>
+                    </div>
 
-            <div class="nav-group">
-                {% url 'tasks:kanban_board' as kanban_url %}
-                <button class="nav-group-toggle{% if 'tasks' in request.path %} expanded{% endif %}" type="button" data-target="tasksSubmenu" aria-controls="tasksSubmenu" aria-expanded="{% if 'tasks' in request.path %}true{% else %}false{% endif %}">
-                    <i class="fas fa-tasks"></i>
-                    <span>Tareas</span>
-                    <i class="fas fa-chevron-up toggle-icon"></i>
-                </button>
-                <div class="nav-submenu{% if 'tasks' in request.path %} show{% endif %}" id="tasksSubmenu">
-                    <a class="nav-link {% if request.path == kanban_url %}active{% endif %}" href="{{ kanban_url }}"><i class="fas fa-columns me-2"></i>Tablero Kanban</a>
-                </div>
-            </div>
+                    <div class="nav-group">
+                        {% url 'properties:agenda_calendar' as agenda_calendar_url %}
+                        {% url 'properties:event_create' as event_create_url %}
+                        <button class="nav-group-toggle{% if 'agenda' in request.path %} expanded{% endif %}" type="button" data-target="agendaSubmenu" aria-controls="agendaSubmenu" aria-expanded="{% if 'agenda' in request.path %}true{% else %}false{% endif %}">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Agenda</span>
+                            <i class="fas fa-chevron-up toggle-icon"></i>
+                        </button>
+                        <div class="nav-submenu{% if 'agenda' in request.path %} show{% endif %}" id="agendaSubmenu">
+                            <a class="nav-link {% if request.path == agenda_calendar_url %}active{% endif %}" href="{{ agenda_calendar_url }}"><i class="fas fa-calendar me-2"></i>Calendario</a>
+                            <a class="nav-link {% if request.path == event_create_url %}active{% endif %}" href="{{ event_create_url }}"><i class="fas fa-calendar-plus me-2"></i>Crear visita</a>
+                        </div>
+                    </div>
 
-            <div class="nav-group">
-                <button class="nav-group-toggle{% if 'marketing' in request.path %} expanded{% endif %}" type="button" data-target="marketingSubmenu" aria-controls="marketingSubmenu" aria-expanded="{% if 'marketing' in request.path %}true{% else %}false{% endif %}">
-                    <i class="fas fa-bullhorn"></i>
-                    <span>Marketing</span>
-                    <i class="fas fa-chevron-up toggle-icon"></i>
-                </button>
-                <div class="nav-submenu{% if 'marketing' in request.path %} show{% endif %}" id="marketingSubmenu">
-                    <a class="nav-link {% if 'marketing' in request.path %}active{% endif %}" href="{% url 'properties:marketing_properties_list' %}"><i class="fas fa-link me-2"></i>Gestión de UTMs</a>
-                </div>
-            </div>
+                    <div class="nav-group">
+                        {% url 'tasks:kanban_board' as kanban_url %}
+                        <button class="nav-group-toggle{% if 'tasks' in request.path %} expanded{% endif %}" type="button" data-target="tasksSubmenu" aria-controls="tasksSubmenu" aria-expanded="{% if 'tasks' in request.path %}true{% else %}false{% endif %}">
+                            <i class="fas fa-tasks"></i>
+                            <span>Tareas</span>
+                            <i class="fas fa-chevron-up toggle-icon"></i>
+                        </button>
+                        <div class="nav-submenu{% if 'tasks' in request.path %} show{% endif %}" id="tasksSubmenu">
+                            <a class="nav-link {% if request.path == kanban_url %}active{% endif %}" href="{{ kanban_url }}"><i class="fas fa-columns me-2"></i>Tablero Kanban</a>
+                        </div>
+                    </div>
 
-            <a class="nav-link {% if request.path == profile_url %}active{% endif %}" href="{{ profile_url }}"><i class="fas fa-user-circle me-2"></i>Mi Perfil</a>
-            {% if request.user.is_superuser %}
-            <div class="nav-group">
-                <button class="nav-group-toggle{% if request.path == security_device_list_url or request.path == role_permissions_url %} expanded{% endif %}" type="button" data-target="configSubmenu" aria-controls="configSubmenu" aria-expanded="{% if request.path == security_device_list_url or request.path == role_permissions_url %}true{% else %}false{% endif %}">
-                    <i class="fas fa-cog"></i>
-                    <span>Configuración</span>
-                    <i class="fas fa-chevron-up toggle-icon"></i>
-                </button>
-                <div class="nav-submenu{% if request.path == security_device_list_url or request.path == role_permissions_url or request.path == '/configuracion/inmobiliaria/' %} show{% endif %}" id="configSubmenu">
-                    <a class="nav-link {% if request.path == '/configuracion/inmobiliaria/' %}active{% endif %}" href="{% url 'properties:agency_config' %}"><i class="fas fa-building me-2"></i>Datos Inmobiliaria</a>
-                    <a class="nav-link {% if request.path == security_device_list_url %}active{% endif %}" href="{{ security_device_list_url }}"><i class="fas fa-shield-alt me-2"></i>Aprobar dispositivos</a>
-                    <a class="nav-link {% if request.path == role_permissions_url %}active{% endif %}" href="{{ role_permissions_url }}"><i class="fas fa-lock me-2"></i>Permisos de campos</a>
-                    <a class="nav-link {% if request.path == '/matching/weights/' %}active{% endif %}" href="{% url 'properties:matching_weights' %}"><i class="fas fa-weight-hanging me-2"></i>Matching (Pesos)</a>
+                    <div class="nav-group">
+                        <button class="nav-group-toggle{% if 'marketing' in request.path %} expanded{% endif %}" type="button" data-target="marketingSubmenu" aria-controls="marketingSubmenu" aria-expanded="{% if 'marketing' in request.path %}true{% else %}false{% endif %}">
+                            <i class="fas fa-bullhorn"></i>
+                            <span>Marketing</span>
+                            <i class="fas fa-chevron-up toggle-icon"></i>
+                        </button>
+                        <div class="nav-submenu{% if 'marketing' in request.path %} show{% endif %}" id="marketingSubmenu">
+                            <a class="nav-link {% if 'marketing' in request.path %}active{% endif %}" href="{% url 'properties:marketing_properties_list' %}"><i class="fas fa-link me-2"></i>Gestión de UTMs</a>
+                        </div>
+                    </div>
+
+                    <a class="nav-link {% if request.path == profile_url %}active{% endif %}" href="{{ profile_url }}"><i class="fas fa-user-circle me-2"></i>Mi Perfil</a>
+
+                    {% if request.user.is_superuser %}
+                    <div class="nav-group">
+                        <button class="nav-group-toggle{% if request.path == security_device_list_url or request.path == role_permissions_url %} expanded{% endif %}" type="button" data-target="configSubmenu" aria-controls="configSubmenu" aria-expanded="{% if request.path == security_device_list_url or request.path == role_permissions_url %}true{% else %}false{% endif %}">
+                            <i class="fas fa-cog"></i>
+                            <span>Configuración</span>
+                            <i class="fas fa-chevron-up toggle-icon"></i>
+                        </button>
+                        <div class="nav-submenu{% if request.path == security_device_list_url or request.path == role_permissions_url or request.path == '/configuracion/inmobiliaria/' %} show{% endif %}" id="configSubmenu">
+                            <a class="nav-link {% if request.path == '/configuracion/inmobiliaria/' %}active{% endif %}" href="{% url 'properties:agency_config' %}"><i class="fas fa-building me-2"></i>Datos Inmobiliaria</a>
+                            <a class="nav-link {% if request.path == security_device_list_url %}active{% endif %}" href="{{ security_device_list_url }}"><i class="fas fa-shield-alt me-2"></i>Aprobar dispositivos</a>
+                            <a class="nav-link {% if request.path == role_permissions_url %}active{% endif %}" href="{{ role_permissions_url }}"><i class="fas fa-lock me-2"></i>Permisos de campos</a>
+                            <a class="nav-link {% if request.path == '/matching/weights/' %}active{% endif %}" href="{% url 'properties:matching_weights' %}"><i class="fas fa-weight-hanging me-2"></i>Matching (Pesos)</a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <a href="{% url 'users:logout' %}" class="nav-link"><i class="fas fa-sign-out-alt me-2"></i>Cerrar sesión</a>
+                    </nav>
+
+                    {% if property_count|default_if_none:'' != '' %}
+                    <div class="mt-4 pt-3 border-top" style="border-top-color: rgba(255,255,255,0.1) !important;">
+                        <p class="text-white-50 small mb-2">Propiedades activas</p>
+                        <div class="h4 fw-bold text-white mb-0">{{ property_count }}</div>
+                    </div>
+                    {% endif %}
                 </div>
+            </aside>
+        {% endwith %}
+    {% else %}
+        <aside class="sidebar theme-green">
+            <div class="sidebar-inner">
+                <div class="position-relative"></div>
             </div>
-            {% endif %}
-            <a href="{% url 'users:logout' %}" class="nav-link"><i class="fas fa-sign-out-alt me-2"></i>Cerrar sesión</a>
-            </nav>
-            {% if property_count|default_if_none:'' != '' %}
-            <div class="mt-4 pt-3 border-top" style="border-top-color: rgba(255,255,255,0.1) !important;">
-                <p class="text-white-50 small mb-2">Propiedades activas</p>
-                <div class="h4 fw-bold text-white mb-0">{{ property_count }}</div>
-            </div>
-            {% endif %}
-        </div>
-    </aside>
+        </aside>
+    {% endif %}
 
     <section class="main-content">
         <div class="main-content-inner">
@@ -897,6 +901,7 @@
 {% block extra_js %}
 {{ block.super }}
 <script>
+
 function setupSidebarMenus() {
     document.querySelectorAll('.nav-group-toggle').forEach((toggle) => {
         if (toggle.dataset.bound === 'true') {
@@ -1046,7 +1051,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 document.querySelectorAll('.sidebar .nav-link').forEach(link => {
     link.addEventListener('click', () => {
-        sidebar.classList.remove('open');
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.classList.remove('open');
     });
 });
 

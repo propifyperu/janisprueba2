@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "users.apps.UsersConfig",
     # Third-party apps
     "rest_framework",
     "corsheaders",
@@ -48,7 +49,6 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "prueba",
     "properties.apps.PropertiesConfig",
-    "users",
     "security",
     "whatsapp",
     "chat",
