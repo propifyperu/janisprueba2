@@ -1,60 +1,210 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load tz %}
+{% block dashboard_extra_css %}
+<style>
+    .legal-table th,
+    .legal-table td {
+        vertical-align: middle;
+    }
+
+    .icon-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    .icon-btn i {
+        font-size: 1.2rem;
+    }
+
+    .toggle-row i {
+        transition: transform .2s ease;
+    }
+
+    .toggle-row[aria-expanded="true"] i {
+        transform: rotate(180deg);
+    }
+
+    .toggle-row i {
+        transition: transform .2s ease;
+    }
+
+
+    tr[aria-expanded="true"] .toggle-row i {
+        transform: rotate(180deg);
+    }
+
+</style>
+{% endblock %}
 
 {% block dashboard_content %}
 <h3 class="mb-3">Área Legal — Lista de Documentos</h3>
-<div class="card mb-4">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-sm table-striped mb-0">
-                <thead>
-                    <tr>
-                        <th>Código</th>
-                        <th>Dirección</th>
-                        <th>Propietario</th>
-                        <th>Creado</th>
-                        <th>Subido por</th>
-                        {% for dt in doc_types_no_estudio %}
-                        <th>{{ dt.name }}</th>
-                        {% endfor %}
-                        <th>{{ estudio_name }}</th>
-                        <th>% Completado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in rows %}
-                    <tr>
-                        <td>{{ row.property.code }}</td>
-                        <td>{{ row.property.exact_address|default:row.property.real_address }}</td>
-                        <td>
-                            {% if row.property.owner %}
-                                {{ row.property.owner.full_name }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                        <td>{{ row.property.created_at|localtime|date:"Y-m-d" }}</td>
-                        <td>
-                            {% if row.uploader %}
-                                {{ row.uploader.get_full_name|default:row.uploader.username }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                        {% for cell in row.cells %}
-                        <td>{% if cell.present %}Si{% else %}No{% endif %}</td>
-                        {% endfor %}
-                        <td>{% if row.estudio_present %}Si{% else %}No{% endif %}</td>
-                        <td>{{ row.completed_pct }}%</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="{{ empty_colspan }}">No hay propiedades para mostrar.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+
+<table class="table table-hover align-middle legal-table">
+    <thead class="table-light">
+        <tr>
+            <th class="text-center"></th>
+            <th>Dirección</th>
+            {% for dt in doc_types_no_estudio %}
+                <th class="text-center">{{ dt.name|truncatechars:12 }}</th>
+            {% endfor %}
+            <!-- ESTUDIO DE TITULOS CAMPO DUPLICADO -->
+            <!-- <th class="text-center ">{{ estudio_name }}</th> -->
+            <th class="text-end">Avance</th>
+            <th class="text-center">Acciones</th>
+        </tr>
+    </thead>
+
+    <tbody>
+    {% for row in rows %}
+        <tr>
+            <td class="text-center">
+                <button class="btn btn-sm btn-link toggle-row"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#details-{{ row.property.id }}"
+                        aria-expanded="false">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </td>
+
+            <td>
+                <div class="fw-semibold text-wrap" style="max-width: 210px;">
+                    {{ row.property.exact_address|default:row.property.real_address }}
+                </div>
+                <small class="text-muted">{{ row.property.code }}</small>
+            </td>
+
+            {% for cell in row.cells %}
+            <td class="text-center" style="max-width: 56px;">
+                {% if cell.present %}
+                    <button class="icon-btn text-success"
+                            data-preview-url="/dashboard/{{ row.property.id }}/pdf/">
+                        <i class="fas fa-check-circle"></i>
+                    </button>
+                {% else %}
+                    <i class="fas fa-times-circle text-muted opacity-50"></i>
+                {% endif %}
+            </td>
+            {% endfor %}
+
+            <!-- ESTUDIO DE TITULOS CAMPO DUPLICADO -->
+            <!-- <td class="text-center">
+                {% if row.estudio_present %}
+                    <button class="icon-btn text-success"
+                            data-preview-url="/dashboard/{{ row.property.id }}/pdf/">
+                        <i class="fas fa-check-circle"></i>
+                    </button>
+                {% else %}
+                    <i class="fas fa-times-circle text-muted opacity-50"></i>
+                {% endif %}
+            </td> -->
+
+            <td class="text-end">
+                <span class="badge rounded-pill bg-{% if row.completed_pct == 100 %}success{% elif row.completed_pct > 70 %}info{% else %}warning{% endif %}">
+                    {{ row.completed_pct }}%
+                </span>
+            </td>
+
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary upload-btn"
+                        data-property="{{ row.property.id }}">
+                    <i class="fas fa-upload"></i>
+                </button>
+            </td>
+        </tr>
+
+        <tr class="collapse bg-light" id="details-{{ row.property.id }}">
+            <td colspan="100">
+                <div class="p-3 small">
+                    <div><strong>Propietario:</strong>
+                        {{ row.property.owner.full_name|default:"—" }}
+                    </div>
+                    <div><strong>Creado:</strong>
+                        {{ row.property.created_at|date:"d/m/Y" }}
+                    </div>
+                    <div><strong>Subido por:</strong>
+                        {{ row.uploader.get_full_name|default:row.uploader.username|default:"—" }}
+                    </div>
+                    <div>
+                        <a href="{% url 'properties:detail' row.property.pk %}">
+                            <button class="btn btn-primary btn-xs mt-3" data-property="{{ row.property.id }}">
+                                <i class="fas fa-eye"></i>
+                                Ver detalle
+                            </button>
+                        </a>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Vista previa del documento</h6>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="pdfFrame" src="" style="width:100%; height:80vh;" frameborder="0"></iframe>
+      </div>
     </div>
+  </div>
 </div>
+
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h6 class="modal-title">Subir documento</h6>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" name="property_id" id="uploadPropertyId">
+
+        <div class="mb-3">
+          <label class="form-label">Tipo de documento</label>
+          <select name="doc_type" class="form-select" required>
+            <option value="">Selecciona</option>
+            <option value="estudio_del_titulo">Estudio del título</option>
+            <option value="contrato_de_reserva">Contrato de reserva</option>
+            <option value="contrato_de_corretaje">Contrato de corretaje</option>
+            <option value="other">Otro</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Archivo (PDF)</label>
+          <input type="file" name="file" class="form-control" accept="application/pdf" required>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('[data-preview-url]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.getElementById('pdfFrame').src = btn.dataset.previewUrl;
+        new bootstrap.Modal(document.getElementById('previewModal')).show();
+    });
+});
+
+document.querySelectorAll('.upload-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.getElementById('uploadPropertyId').value = btn.dataset.property;
+        new bootstrap.Modal(document.getElementById('uploadModal')).show();
+    });
+});
+</script>
+
 {% endblock %}
