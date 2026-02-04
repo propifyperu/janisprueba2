@@ -16,8 +16,7 @@ class PropertyOwnerForm(forms.ModelForm):
     class Meta:
         model = PropertyOwner
         fields = [
-            'first_name', 'last_name', 'maternal_last_name',
-            'document_type', 'document_number', 'birth_date', 'gender',
+            'first_name', 'last_name', 'maternal_last_name', 'document_number', 'birth_date', 'gender',
             'photo', 'phone', 'secondary_phone', 'email', 'profession',
             'company', 'department', 'province', 'district', 'urbanization',
             'address_exact', 'address_coordinates', 'observations', 'tags'
@@ -26,7 +25,6 @@ class PropertyOwnerForm(forms.ModelForm):
             'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombres completos'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido paterno'}),
             'maternal_last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido materno'}),
-            'document_type': forms.Select(attrs={'class': 'form-select'}),
             'document_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Número de documento'}),
             'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'gender': forms.Select(attrs={'class': 'form-select'}),
