@@ -212,6 +212,18 @@
     </tr>
   </tbody>
 </table>
+<div class="d-flex justify-content-between align-items-center mt-3">
+  <button id="prevPage" class="btn btn-outline-secondary btn-sm" disabled>
+    ← Anterior
+  </button>
+
+  <span id="pageInfo" class="text-muted small"></span>
+
+  <button id="nextPage" class="btn btn-outline-secondary btn-sm" disabled>
+    Siguiente →
+  </button>
+</div>
+
 
 <div class="modal fade" id="previewModal" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -221,7 +233,7 @@
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-0">
-        <iframe id="pdfFrame" src="" style="width:100%; height:80vh;" frameborder="0"></iframe>
+        <iframe id="pdfFrame" src="" style="width:96%; height:80vh;" frameborder="0"></iframe>
       </div>
     </div>
   </div>
@@ -263,37 +275,34 @@
 </div>
 
 <script>
+let currentPage = 1;
+let nextPageUrl = null;
+let prevPageUrl = null;
 
-async function loadLegalDocuments() {
+async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') {
   const tbody = document.getElementById('legalTableBody');
+  const pageInfo = document.getElementById('pageInfo');
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="10" class="text-center text-muted py-4">
+        Cargando documentos…
+      </td>
+    </tr>
+  `;
 
   try {
-    const res = await fetch('/dashboard/api/properties/with-docs/');
+    const res = await fetch(url);
     const data = await res.json();
+
+    nextPageUrl = data.next;
+    prevPageUrl = data.previous;
 
     tbody.innerHTML = '';
 
     data.results.forEach(p => {
       const docs = p.property_documents;
       const progress = calcProgress(docs);
-
-      const others = Object.entries(docs)
-        .filter(([k, v]) =>
-          v &&
-          ![
-            'Titulo_dominio',
-            'Partida_registral',
-            'DNI_titular',
-            'Estudio_de_titulo',
-            'Contrato_de_corretaje'
-          ].includes(k)
-        )
-        .map(([k, v]) =>
-          `<span class="badge bg-secondary badge-doc cursor-pointer"
-                 data-preview-url="${v}">
-            ${k.replaceAll('_', ' ')}
-          </span>`
-        ).join(' ');
 
       tbody.insertAdjacentHTML('beforeend', `
         <tr>
@@ -312,8 +321,6 @@ async function loadLegalDocuments() {
           <td class="text-center">${docIcon(docs.Estudio_de_titulo)}</td>
           <td class="text-center">${docIcon(docs.Contrato_de_corretaje)}</td>
 
-          <td>${others || '—'}</td>
-
           <td class="text-end">
             <span class="badge rounded-pill bg-${
               progress === 100 ? 'success' :
@@ -331,58 +338,37 @@ async function loadLegalDocuments() {
       `);
     });
 
-  } catch (err) {
+    document.getElementById('nextPage').disabled = !nextPageUrl;
+    document.getElementById('prevPage').disabled = !prevPageUrl;
+
+    pageInfo.textContent = `Página ${currentPage}`;
+
+  } catch (e) {
+    console.error(e);
     tbody.innerHTML = `
       <tr>
         <td colspan="10" class="text-danger text-center">
-          Error cargando documentos
+          Error cargando datos
         </td>
       </tr>
     `;
-    console.error(err);
   }
 }
 
-document.addEventListener('DOMContentLoaded', loadLegalDocuments);
-
-
-document.addEventListener('click', function (e) {
-  const el = e.target.closest('[data-preview-url]');
-  if (!el) return;
-
-  const url = el.dataset.previewUrl;
-  const frame = document.getElementById('pdfFrame');
-  frame.src = url;
-
-  new bootstrap.Modal(
-    document.getElementById('previewModal')
-  ).show();
-});
-    
-document.querySelectorAll('[data-preview-url]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.getElementById('pdfFrame').src = btn.dataset.previewUrl;
-        new bootstrap.Modal(document.getElementById('previewModal')).show();
-    });
-});
-
-document.querySelectorAll('.upload-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.getElementById('uploadPropertyId').value = btn.dataset.property;
-        new bootstrap.Modal(document.getElementById('uploadModal')).show();
-    });
-});
-
-
-/* íconos y progreso */
+/* helpers */
 
 function docIcon(url) {
   if (!url) {
     return `<i class="fas fa-minus-circle text-muted opacity-50"></i>`;
   }
+
+  // quitamos dominio y /media/
+  const path = url.split('/media/')[1];
+
   return `
     <i class="fas fa-check-circle text-success cursor-pointer"
-       data-preview-url="${url}"></i>
+       data-preview-url="/media/${path}">
+    </i>
   `;
 }
 
@@ -393,7 +379,50 @@ function calcProgress(docs) {
   return Math.round((present / total) * 100);
 }
 
+/* paginación */
 
+document.getElementById('nextPage').addEventListener('click', () => {
+  if (!nextPageUrl) return;
+  currentPage++;
+  loadLegalDocuments(nextPageUrl);
+});
 
+document.getElementById('prevPage').addEventListener('click', () => {
+  if (!prevPageUrl) return;
+  currentPage--;
+  loadLegalDocuments(prevPageUrl);
+});
+
+/* preview PDF url lo */
+
+document.addEventListener('click', function (e) {
+  const el = e.target.closest('[data-preview-url]');
+  if (!el) return;
+
+  const url = el.dataset.previewUrl;
+  console.log('Preview PDF:', url);
+
+  const frame = document.getElementById('pdfFrame');
+  if (!frame) {
+    window.open(url, '_blank');
+    return;
+  }
+
+  frame.src = url;
+
+  const modalEl = document.getElementById('previewModal');
+  if (modalEl) {
+    new bootstrap.Modal(modalEl).show();
+  } else {
+    window.open(url, '_blank');
+  }
+});
+
+/* init */
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadLegalDocuments();
+});
 </script>
+
 {% endblock %}
