@@ -2,7 +2,8 @@
 
 from rest_framework import serializers
 from . import models
-
+from rest_framework import serializers
+from properties.models import Property
 
 class PropertyImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
@@ -34,16 +35,22 @@ class PropertyVideoSerializer(serializers.ModelSerializer):
 
 class PropertyDocumentSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
+    document_type = serializers.CharField(source="document_type.name", read_only=True)  # 👈 agrega esto
 
     class Meta:
         model = models.PropertyDocument
-        fields = ('id', 'title', 'description', 'file_url', 'is_approved')
+        fields = ('id', 'title', 'description', 'document_type', 'file_url', 'is_approved')
 
     def get_file_url(self, obj):
         request = self.context.get('request') if self.context else None
-        if obj and getattr(obj, 'file', None) and request:
-            return request.build_absolute_uri(obj.file.url)
+        if obj and getattr(obj, 'file', None):
+            url = obj.file.url
+            return request.build_absolute_uri(url) if request else url
         return None
+
+    class Meta:
+        model = models.PropertyDocument
+        fields = ('id', 'title', 'description', 'document_type', 'file_url', 'is_approved')
 
 
 class PropertyRoomSerializer(serializers.ModelSerializer):
@@ -135,3 +142,86 @@ class PropertySerializer(serializers.ModelSerializer):
             return getattr(responsible, 'username', None)
         except Exception:
             return None
+
+class PropertyWithDocsSerializer(serializers.ModelSerializer):
+    direccion = serializers.CharField(source="exact_address", read_only=True)
+    owner = serializers.CharField(source='owner.full_name', read_only=True)
+    created_by = serializers.SerializerMethodField()
+    property_documents = serializers.SerializerMethodField()
+    can_marketing_upload_media = serializers.SerializerMethodField()
+    can_legal_upload_study = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Property
+        fields = (
+            "id",
+            "code",
+            "direccion",
+            "title",
+            "owner",
+            "is_active",
+            "created_at",
+            "created_by",
+            "can_marketing_upload_media",
+            "can_legal_upload_study",
+            "property_documents",
+        )
+
+    def _docs_map(self, obj):
+        """
+        Devuelve el dict {DocumentType.name: file_url o None}
+        """
+        request = self.context.get("request")
+
+        # Base: todos los tipos activos => None
+        types = models.DocumentType.objects.filter(is_active=True).order_by("name")
+        data = {t.name: None for t in types}
+
+        # Fill: documentos existentes
+        for d in obj.documents.select_related("document_type").all():
+            if not d.document_type:
+                continue
+            key = d.document_type.name
+            if getattr(d, "file", None):
+                url = d.file.url
+                data[key] = request.build_absolute_uri(url) if request else url
+
+        return data
+    
+    def get_created_by(self, obj):
+        u = getattr(obj, "created_by", None)
+        if not u:
+            return None
+        # CustomUser hereda AbstractUser, esto existe
+        full = u.get_full_name() if hasattr(u, "get_full_name") else ""
+        return full.strip() or getattr(u, "username", None) or str(u)
+
+    def get_property_documents(self, obj):
+        return self._docs_map(obj)
+
+    def get_can_marketing_upload_media(self, obj):
+        # Regla: si existe (con file) Partida_registral o Contrato_de_corretaje => True
+        required = {"Partida_registral", "Contrato_de_corretaje"}
+        for d in obj.documents.select_related("document_type").all():
+            if d.document_type and d.document_type.name in required and getattr(d, "file", None):
+                return True
+        return False
+
+    def get_can_legal_upload_study(self, obj):
+        """
+        Habilitación para LEGAL: depende de base docs + usuario con Area LEGAL (si está logueado).
+        Si no está autenticado => False.
+        """
+        base_ok = self.get_can_marketing_upload_media(obj)
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+
+        # Asumiendo que luego renombramos department -> area:
+        user_area_code = None
+        if getattr(user, "area_id", None) and getattr(user.area, "code", None):
+            user_area_code = user.area.code
+
+        return base_ok and user_area_code == "LEGAL"

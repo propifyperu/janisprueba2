@@ -174,6 +174,7 @@ class Urbanization(models.Model):
 # =============================================================================
 
 class DocumentType(models.Model):
+    code = models.CharField(max_length=50, unique=True, null=True, blank=True)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
@@ -496,6 +497,24 @@ class PropertyOwner(TitleCaseMixin, models.Model):
 # MODELO PRINCIPAL DE PROPIEDAD
 # =============================================================================
 
+REQUIRED_DOC_CODES = [
+    "estudio_del_titulo",
+    "contrato_de_reserva",
+    "contrato_de_corretaje",
+    "contrato_compra_venta",
+    "contrato_arras",
+    "autovaluo",
+    "dni",
+    "titulo_de_dominio",
+    "vigencia_de_poder",
+    "partida_registral",
+    "otros",
+]
+
+MARKETING_UNLOCK_DOCS = {"partida_registral", "contrato_de_corretaje"}
+
+LEGAL_ONLY_DOCS = {"estudio_del_titulo"}
+
 class Property(TitleCaseMixin, models.Model):
     title_case_fields = (
         'title',
@@ -639,6 +658,48 @@ class Property(TitleCaseMixin, models.Model):
     def __str__(self):
         return f"{self.code} - {self.title}"
 
+    def get_documents_map(self):
+        """
+        Retorna dict: {doc_code: file_url_or_none}
+        Prioriza 1 archivo por tipo (el más reciente).
+        """
+        # trae docs reales que existan
+        qs = self.documents.select_related("document_type").order_by("-uploaded_at")
+        latest_by_code = {}
+        for d in qs:
+            code = getattr(d.document_type, "code", None)
+            if not code:
+                continue
+            if code not in latest_by_code:
+                latest_by_code[code] = d
+
+        # arma mapa completo (incluye los que faltan)
+        result = {}
+        for code in REQUIRED_DOC_CODES:
+            doc = latest_by_code.get(code)
+            if doc and doc.file:
+                try:
+                    result[code] = doc.file.url
+                except Exception:
+                    # por si no hay storage configurado con url()
+                    result[code] = str(doc.file)
+            else:
+                result[code] = None
+        return result
+
+    def has_any_docs(self, codes: set[str]) -> bool:
+        docs_map = self.get_documents_map()
+        return any(docs_map.get(c) for c in codes)
+
+    @property
+    def marketing_enabled(self) -> bool:
+        return self.has_any_docs(MARKETING_UNLOCK_DOCS)
+
+    @property
+    def legal_enabled(self) -> bool:
+        # regla: se habilita legal si marketing ya está habilitado
+        return self.marketing_enabled
+    
     @property
     def department_name(self):
         """Devuelve el nombre del departamento si el campo es numérico (ID), sino el valor original."""

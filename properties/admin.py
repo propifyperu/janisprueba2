@@ -93,7 +93,7 @@ class UrbanizationAdmin(admin.ModelAdmin):
 # ===================== ADMIN PARA CATÁLOGOS =====================
 @admin.register(DocumentType)
 class DocumentTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_active')
+    list_display = ('code', 'name', 'is_active')
     list_filter = ('is_active',)
     search_fields = ('name',)
 
@@ -249,7 +249,7 @@ class PropertyRoomInline(admin.TabularInline):
 
 @admin.register(PropertyOwner)
 class PropertyOwnerAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'document_number', 'phone', 'email', 'is_active', 'created_at')
+    list_display = ('full_name', 'document_type','document_number', 'phone', 'email', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at', 'gender', 'profession')
     search_fields = ('first_name', 'last_name', 'document_number', 'email', 'phone')
     readonly_fields = ('created_at', 'updated_at')
@@ -350,7 +350,7 @@ class PropertyVideoAdmin(admin.ModelAdmin):
 
 @admin.register(PropertyDocument)
 class PropertyDocumentAdmin(admin.ModelAdmin):
-    list_display = ('property', 'title', 'document_type', 'uploaded_at')
+    list_display = ('property', 'title', 'file','document_type', 'uploaded_at')
     list_filter = ('document_type', 'uploaded_at')
     search_fields = ('property__code', 'title')
     ordering = ('-uploaded_at',)

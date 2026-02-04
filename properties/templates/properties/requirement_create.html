@@ -61,6 +61,11 @@
                             <!-- Formulario para nuevo contacto (oculto inicialmente) -->
                             <div id="newOwnerForm" style="display: none;">
                                 <h6 class="text-primary mb-3 mt-3">Información del Nuevo Contacto</h6>
+                                {% if owner_form.errors %}
+                                <div class="alert alert-danger">
+                                    {{ owner_form.errors }}
+                                </div>
+                                {% endif %}
                                 <div class="row g-3">
                                     <div class="col-md-4">
                                         <label class="form-label">Nombres</label>
