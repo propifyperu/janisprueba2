@@ -3078,6 +3078,20 @@ def marketing_properties_list(request):
         'properties': properties
     })
 
+@login_required
+def marketing_properties_multimedia(request):
+    """Lista propiedades para gestión de Marketing/Multimedia"""
+    from django.db.models import Count, Q
+    properties = (
+        Property.objects.filter(is_active=True)
+        .select_related('currency')
+        .order_by('-created_at')
+    )
+    
+    return render(request, 'properties/marketing_properties_multimedia.html', {
+        'properties': properties
+    })
+
 
 @login_required
 def whatsapp_links_list(request, property_id):

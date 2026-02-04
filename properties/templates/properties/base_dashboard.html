@@ -745,6 +745,8 @@
             {% url 'properties:contact_list' as contacts_list_url %}
             {% url 'properties:contact_create' as contacts_create_url %}
             {% url 'properties:leads_list' as leads_list_url %}
+            {% url 'properties:marketing_properties_list' as utm_list %}
+            {% url 'properties:marketing_properties_multimedia' as multimedia_list %}
             {% url 'users:profile' as profile_url %}
             {% if request.user.is_superuser %}
             {% url 'security:device_list' as security_device_list_url %}
@@ -849,7 +851,8 @@
                     <i class="fas fa-chevron-up toggle-icon"></i>
                 </button>
                 <div class="nav-submenu{% if 'marketing' in request.path %} show{% endif %}" id="marketingSubmenu">
-                    <a class="nav-link {% if 'marketing' in request.path %}active{% endif %}" href="{% url 'properties:marketing_properties_list' %}"><i class="fas fa-link me-2"></i>Gestión de UTMs</a>
+                    <a class="nav-link {% if request.path == utm_list %}active{% endif %}" href="{% url 'properties:marketing_properties_list' %}"><i class="fas fa-link me-2"></i>Gestión de UTMs</a>
+                    <a class="nav-link {% if request.path == multimedia_list %}active{% endif %}" href="{% url 'properties:marketing_properties_multimedia' %}"><i class="fas fa-photo-film me-2"></i>Multimedia</a>
                 </div>
             </div>
 

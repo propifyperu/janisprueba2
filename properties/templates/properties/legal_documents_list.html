@@ -1,10 +1,18 @@
 {% extends 'properties/base_dashboard.html' %}
-{% load tz %}
+
 {% block dashboard_extra_css %}
 <style>
     .legal-table th,
     .legal-table td {
         vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .legal-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: #f8f9fa;
     }
 
     .icon-btn {
@@ -22,125 +30,151 @@
         transition: transform .2s ease;
     }
 
-    .toggle-row[aria-expanded="true"] i {
-        transform: rotate(180deg);
-    }
-
-    .toggle-row i {
-        transition: transform .2s ease;
-    }
-
-
     tr[aria-expanded="true"] .toggle-row i {
         transform: rotate(180deg);
     }
 
+    .doc-key {
+        background: #e9f7ef; /* verde claro elegante */
+    }
+
+    .badge-doc {
+        font-size: .7rem;
+        margin: 0 .15rem .15rem 0;
+    }
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
-<h3 class="mb-3">Área Legal — Lista de Documentos</h3>
+<h3 class="mb-3">Área Legal — Documentos por Propiedad</h3>
 
 <table class="table table-hover align-middle legal-table">
-    <thead class="table-light">
-        <tr>
-            <th class="text-center"></th>
-            <th>Dirección</th>
-            {% for dt in doc_types_no_estudio %}
-                <th class="text-center">{{ dt.name|truncatechars:12 }}</th>
-            {% endfor %}
-            <!-- ESTUDIO DE TITULOS CAMPO DUPLICADO -->
-            <!-- <th class="text-center ">{{ estudio_name }}</th> -->
-            <th class="text-end">Avance</th>
-            <th class="text-center">Acciones</th>
-        </tr>
-    </thead>
+<thead>
+<tr>
+    <th></th>
+    <th>Dirección</th>
+    <th class="text-center">Título Dominio</th>
+    <th class="text-center">Partida</th>
+    <th class="text-center">DNI</th>
+    <th class="text-center doc-key">Estudio Título</th>
+    <th class="text-center doc-key">Corretaje</th>
+    <th class="text-center">Otros</th>
+    <th class="text-end">Avance</th>
+    <th></th>
+</tr>
+</thead>
 
-    <tbody>
-    {% for row in rows %}
-        <tr>
-            <td class="text-center">
-                <button class="btn btn-sm btn-link toggle-row"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#details-{{ row.property.id }}"
-                        aria-expanded="false">
-                    <i class="fas fa-chevron-down"></i>
-                </button>
-            </td>
+<tbody>
+{% for row in rows %}
+<tr>
+    <!-- Expand -->
+    <td class="text-center">
+        <button class="btn btn-sm btn-link toggle-row"
+                data-bs-toggle="collapse"
+                data-bs-target="#details-{{ row.property.id }}">
+            <i class="fas fa-chevron-down"></i>
+        </button>
+    </td>
 
-            <td>
-                <div class="fw-semibold text-wrap" style="max-width: 210px;">
-                    {{ row.property.exact_address|default:row.property.real_address }}
-                </div>
-                <small class="text-muted">{{ row.property.code }}</small>
-            </td>
+    <!-- Dirección -->
+    <td>
+        <div class="fw-semibold text-wrap" style="max-width:248px">
+            {{ row.property.exact_address|default:row.property.real_address }}
+        </div>
+        <small class="text-muted">{{ row.property.code }}</small>
+    </td>
 
-            {% for cell in row.cells %}
-            <td class="text-center" style="max-width: 56px;">
-                {% if cell.present %}
-                    <button class="icon-btn text-success"
-                            data-preview-url="/dashboard/{{ row.property.id }}/pdf/">
-                        <i class="fas fa-check-circle"></i>
-                    </button>
-                {% else %}
-                    <i class="fas fa-times-circle text-muted opacity-50"></i>
+    <!-- Título dominio -->
+    <td class="text-center">
+        {% for c in row.cells %}
+            {% if c.doc_type == "Titulo_dominio" %}
+                <i class="fas {% if c.present %}fa-check-circle text-success{% else %}fa-minus-circle text-muted opacity-50{% endif %}"></i>
+            {% endif %}
+        {% endfor %}
+    </td>
+
+    <!-- Partida -->
+    <td class="text-center">
+        {% for c in row.cells %}
+            {% if c.doc_type == "Partida_registral" %}
+                <i class="fas {% if c.present %}fa-check-circle text-success{% else %}fa-minus-circle text-muted opacity-50{% endif %}"></i>
+            {% endif %}
+        {% endfor %}
+    </td>
+
+    <!-- DNI -->
+    <td class="text-center">
+        {% for c in row.cells %}
+            {% if c.doc_type == "DNI_titular" %}
+                <i class="fas {% if c.present %}fa-check-circle text-success{% else %}fa-minus-circle text-muted opacity-50{% endif %}"></i>
+            {% endif %}
+        {% endfor %}
+    </td>
+
+    <!-- Estudio título -->
+    <td class="text-center doc-key">
+        {% for c in row.cells %}
+            {% if c.doc_type == "Estudio_de_titulo" %}
+                <i class="fas {% if c.present %}fa-check-circle text-success{% else %}fa-minus-circle text-muted opacity-50{% endif %}"></i>
+            {% endif %}
+        {% endfor %}
+    </td>
+
+    <!-- Corretaje -->
+    <td class="text-center doc-key">
+        {% for c in row.cells %}
+            {% if c.doc_type == "Contrato_de_corretaje" %}
+                <i class="fas {% if c.present %}fa-check-circle text-success{% else %}fa-minus-circle text-muted opacity-50{% endif %}"></i>
+            {% endif %}
+        {% endfor %}
+    </td>
+
+    <!-- Otros documentos -->
+    <td style="max-width:220px;">
+        {% for c in row.cells %}
+            {% if c.doc_type not in "Titulo_dominio Partida_registral DNI_titular Estudio_de_titulo Contrato_de_corretaje" %}
+                {% if c.present %}
+                    <span class="badge bg-secondary badge-doc">
+                        {{ c.doc_type|cut:"_" }}
+                    </span>
                 {% endif %}
-            </td>
-            {% endfor %}
+            {% endif %}
+        {% endfor %}
+    </td>
 
-            <!-- ESTUDIO DE TITULOS CAMPO DUPLICADO -->
-            <!-- <td class="text-center">
-                {% if row.estudio_present %}
-                    <button class="icon-btn text-success"
-                            data-preview-url="/dashboard/{{ row.property.id }}/pdf/">
-                        <i class="fas fa-check-circle"></i>
-                    </button>
-                {% else %}
-                    <i class="fas fa-times-circle text-muted opacity-50"></i>
-                {% endif %}
-            </td> -->
+    <!-- Avance -->
+    <td class="text-end">
+        <span class="badge rounded-pill bg-warning">
+            {{ row.completed_pct }}%
+        </span>
+    </td>
 
-            <td class="text-end">
-                <span class="badge rounded-pill bg-{% if row.completed_pct == 100 %}success{% elif row.completed_pct > 70 %}info{% else %}warning{% endif %}">
-                    {{ row.completed_pct }}%
-                </span>
-            </td>
+    <!-- Acciones -->
+    <td class="text-center">
+        <button class="btn btn-sm btn-outline-primary upload-btn"
+                data-property="{{ row.property.id }}">
+            <i class="fas fa-upload"></i>
+        </button>
+    </td>
+</tr>
 
-            <td class="text-center">
-                <button class="btn btn-sm btn-outline-primary upload-btn"
-                        data-property="{{ row.property.id }}">
-                    <i class="fas fa-upload"></i>
-                </button>
-            </td>
-        </tr>
+<!-- Detalle -->
+<tr class="collapse bg-light" id="details-{{ row.property.id }}">
+<td colspan="100">
+    <div class="p-3 small">
+        <div><strong>Propietario:</strong> {{ row.property.owner.full_name|default:"—" }}</div>
+        <div><strong>Creado:</strong> {{ row.property.created_at|date:"d/m/Y" }}</div>
+        <div><strong>Subido por:</strong> {{ row.uploader.get_full_name|default:row.uploader.username|default:"—" }}</div>
 
-        <tr class="collapse bg-light" id="details-{{ row.property.id }}">
-            <td colspan="100">
-                <div class="p-3 small">
-                    <div><strong>Propietario:</strong>
-                        {{ row.property.owner.full_name|default:"—" }}
-                    </div>
-                    <div><strong>Creado:</strong>
-                        {{ row.property.created_at|date:"d/m/Y" }}
-                    </div>
-                    <div><strong>Subido por:</strong>
-                        {{ row.uploader.get_full_name|default:row.uploader.username|default:"—" }}
-                    </div>
-                    <div>
-                        <a href="{% url 'properties:detail' row.property.pk %}">
-                            <button class="btn btn-primary btn-xs mt-3" data-property="{{ row.property.id }}">
-                                <i class="fas fa-eye"></i>
-                                Ver detalle
-                            </button>
-                        </a>
-                    </div>
-                </div>
-            </td>
-        </tr>
-    {% endfor %}
-    </tbody>
+        <a href="{% url 'properties:detail' row.property.pk %}" class="btn btn-primary btn-xs mt-2">
+            <i class="fas fa-eye"></i> Ver detalle
+        </a>
+    </div>
+</td>
+</tr>
+{% endfor %}
+</tbody>
 </table>
-
 
 <div class="modal fade" id="previewModal" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -206,5 +240,4 @@ document.querySelectorAll('.upload-btn').forEach(btn => {
     });
 });
 </script>
-
 {% endblock %}
