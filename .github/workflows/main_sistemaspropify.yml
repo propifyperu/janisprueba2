@@ -67,7 +67,3 @@ jobs:
           app-name: "sistemaspropify"
           slot-name: "Production"
           package: .
-
-
-
-#hola prueba
