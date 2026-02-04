@@ -688,6 +688,7 @@
 {% block dashboard_extra_css %}{% endblock %}
 {% endblock %}
 
+
 {% block content %}
 <div class="properties-layout">
     <!-- <button class="sidebar-toggle" aria-label="Abrir menú">
@@ -902,6 +903,7 @@
 {% block extra_js %}
 {{ block.super }}
 <script>
+
 function setupSidebarMenus() {
     document.querySelectorAll('.nav-group-toggle').forEach((toggle) => {
         if (toggle.dataset.bound === 'true') {
@@ -1051,7 +1053,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 document.querySelectorAll('.sidebar .nav-link').forEach(link => {
     link.addEventListener('click', () => {
-        sidebar.classList.remove('open');
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.classList.remove('open');
     });
 });
 
