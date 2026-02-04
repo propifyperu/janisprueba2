@@ -135,3 +135,84 @@ class PropertySerializer(serializers.ModelSerializer):
             return getattr(responsible, 'username', None)
         except Exception:
             return None
+
+class RequirementSerializer(serializers.ModelSerializer):
+
+    client_phone = serializers.CharField(write_only=True, required=True)
+    client_first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    client_last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    client_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    
+    agent_phone = serializers.CharField(write_only=True, required=False) #IDENT
+
+    class Meta:
+        model = models.Requirement
+        fields = [
+            'id',
+
+            'client_phone', 'client_first_name', 'client_last_name', 'client_email',
+            'agent_phone',
+            
+            'property_type', 'property_subtype',
+            'budget_min', 'budget_max', 'currency',
+            'districts', 'bedrooms', 'bathrooms', 'garage_spaces',
+            'notes', 'created_at'
+        ]
+        extra_kwargs = {
+            'districts': {'required': False},
+            'currency': {'required': False},
+        }
+
+    def create(self, validated_data):
+        c_phone = validated_data.pop('client_phone')
+        c_first = validated_data.pop('client_first_name', '')
+        c_last = validated_data.pop('client_last_name', '')
+        c_email = validated_data.pop('client_email', '')
+        a_phone = validated_data.pop('agent_phone', None)
+        districts = validated_data.pop('districts', [])
+
+        # REVISAR Lógica automática: Si envían min/max, es un rango (para que funcione el matching)
+        if validated_data.get('budget_min') is not None or validated_data.get('budget_max') is not None:
+            validated_data['budget_type'] = 'range'
+
+        
+        user = self.context['request'].user # hallar agente
+        if a_phone:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            clean_phone = ''.join(filter(str.isdigit, str(a_phone)))
+            
+            agent = User.objects.filter(phone=clean_phone).first() # buscar agente por teléfono (exacto o últimos 9 dígitos)
+            if not agent and len(clean_phone) >= 9:
+                agent = User.objects.filter(phone__endswith=clean_phone[-9:]).first()
+            
+            if agent:
+                user = agent
+
+        contact = None # busca o crea contacto (PropertyOwner)
+        all_owners = models.PropertyOwner.objects.filter(is_active=True)
+        for owner in all_owners:
+            if owner.phone == c_phone:
+                contact = owner
+                break
+        
+        if not contact:
+            contact = models.PropertyOwner.objects.create(
+                first_name=c_first or 'Cliente WhatsApp',
+                last_name=c_last or '',
+                phone=c_phone,
+                email=c_email,
+                created_by=user
+            )
+
+        requirement = models.Requirement.objects.create( # crear requerimiento
+            contact=contact,
+            created_by=user,
+            **validated_data
+        )
+
+        if districts:
+            requirement.districts.set(districts)
+
+        return requirement
