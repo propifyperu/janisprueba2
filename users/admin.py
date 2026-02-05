@@ -1,10 +1,10 @@
 from django.contrib import admin
-from .models import CustomUser, Department, Role, UserProfile, RoleFieldPermission
+from .models import CustomUser, Area, Role, UserProfile, RoleFieldPermission
 
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
-    list_display = ('username', 'email', 'first_name', 'last_name', 'department', 'role', 'is_active', 'is_verified','is_superuser')
-    list_filter = ('is_active', 'is_verified', 'is_active_agent', 'department', 'role', 'date_joined')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'area', 'role', 'is_active', 'is_verified','is_superuser')
+    list_filter = ('is_active', 'is_verified', 'is_active_agent', 'area', 'role', 'date_joined')
     search_fields = ('username', 'email', 'first_name', 'last_name', 'phone')
     readonly_fields = ('date_joined', 'last_login')
     fieldsets = (
@@ -15,7 +15,7 @@ class CustomUserAdmin(admin.ModelAdmin):
             'fields': ('first_name', 'last_name', 'phone')
         }),
         ('Organización', {
-            'fields': ('department', 'role', 'commission_rate')
+            'fields': ('area', 'role', 'commission_rate')
         }),
         ('Estado', {
             'fields': ('is_active', 'is_verified', 'is_active_agent')
@@ -28,8 +28,8 @@ class CustomUserAdmin(admin.ModelAdmin):
         }),
     )
 
-@admin.register(Department)
-class DepartmentAdmin(admin.ModelAdmin):
+@admin.register(Area)
+class AreaAdmin(admin.ModelAdmin):
     list_display = ('name', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at')
     search_fields = ('name', 'description')

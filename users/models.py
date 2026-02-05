@@ -1,7 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-class Department(models.Model):
+class Area(models.Model):
+    code = models.CharField(max_length=30, unique=True, null=True, blank=True)
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
@@ -14,6 +15,7 @@ class Department(models.Model):
         return self.name
 
 class Role(models.Model):
+    area = models.ForeignKey(Area, on_delete=models.PROTECT, related_name='roles', null=True, blank=True,)
     name = models.CharField(max_length=50, unique=True)
     code_name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True)
@@ -27,15 +29,9 @@ class Role(models.Model):
         return self.name
 
 class CustomUser(AbstractUser):
-    role = models.ForeignKey(
-        Role,
-        on_delete=models.PROTECT,
-        related_name='users',
-        null=True,
-        blank=True
-    )
-    department = models.ForeignKey(
-        Department,
+    role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name='users', null=True, blank=True)
+    area = models.ForeignKey(
+        Area,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
