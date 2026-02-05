@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
+from django.db.models import Exists, OuterRef
 from . import models
 from django.shortcuts import get_object_or_404
 
@@ -29,6 +30,22 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
             'assigned_agent', 'owner', 'created_by'
         )
         .prefetch_related('documents__document_type')
+        .annotate(
+            has_legal_base=Exists(
+                models.PropertyDocument.objects.filter(
+                    property_id=OuterRef("pk"),
+                    document_type__code__in=["103", "110"],
+                    file__isnull=False,
+                ).exclude(file="")
+            ),
+            has_study=Exists(
+                models.PropertyDocument.objects.filter(
+                    property_id=OuterRef("pk"),
+                    document_type__code="101",
+                    file__isnull=False,
+                ).exclude(file="")
+            ),
+        )
     )
 
     serializer_class = PropertySerializer
@@ -72,6 +89,8 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
+        prop = self.get_queryset().get(pk=prop.pk)
+
         out = PropertyWithDocsSerializer(prop, context={"request": request})
         return Response(out.data, status=status.HTTP_201_CREATED)
     
@@ -93,6 +112,8 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
+        prop = self.get_queryset().get(pk=prop.pk)
 
         out = PropertyWithDocsSerializer(prop, context={"request": request})
         return Response(out.data, status=status.HTTP_200_OK)
