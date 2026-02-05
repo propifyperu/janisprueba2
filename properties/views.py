@@ -1260,32 +1260,30 @@ class MyRequirementsView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         from django.db import OperationalError
         try:
-            # Annotate: count y top_score desde DB
             return (
                 Requirement.objects
                 .filter(created_by=self.request.user)
+                .select_related(
+                    "contact",
+                    "property_type",
+                    "province",
+                    "currency",
+                    "property_subtype",
+                    "district",   # tu FK single (fallback)
+                    "department",
+                )
+                .prefetch_related(
+                    "districts",
+                )
                 .annotate(
                     matches_count=Count('matches', distinct=True),
                     top_score=Max('matches__score'),
                 )
+                .defer("notes")
                 .order_by('-created_at')
             )
         except OperationalError:
             return Requirement.objects.none()
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        matches_map = {}
-        for req in context.get('requirements', []):
-            matches_map[req.pk] = {
-                'count': getattr(req, 'matches_count', 0) or 0,
-                'top_score': getattr(req, 'top_score', None),
-            }
-
-        context['matches_map'] = matches_map
-        return context
-
 
 class RequirementDetailView(LoginRequiredMixin, DetailView):
     model = Requirement

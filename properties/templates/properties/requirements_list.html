@@ -45,8 +45,8 @@
 
                                     <td>
                                         {% with ds=r.districts.all %}
-                                            {% if ds and ds|length > 0 %}
-                                                {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                            {% if ds %}
+                                                {% for d in ds %}...{% endfor %}
                                             {% elif r.district %}
                                                 {% if r.district.name %}{{ r.district.name }}{% else %}{{ r.district }}{% endif %}
                                             {% else %}
