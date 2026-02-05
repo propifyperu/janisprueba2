@@ -198,33 +198,19 @@ class PropertyWithDocsSerializer(serializers.ModelSerializer):
 
     def get_property_documents(self, obj):
         return self._docs_map(obj)
-
-    def get_can_marketing_upload_media(self, obj):
-        # Regla: si existe (con file) Partida_registral o Contrato_de_corretaje => True
-        required = {"Partida_registral", "Contrato_de_corretaje"}
-        for d in obj.documents.select_related("document_type").all():
-            if d.document_type and d.document_type.name in required and getattr(d, "file", None):
-                return True
-        return False
+    
+    def _has_doc(self, obj, codes: set[str]) -> bool:
+        # Usa la relación reverse: documents (related_name='documents')
+        return obj.documents.filter(
+            document_type__code__in=codes,
+            file__isnull=False,
+        ).exists()
 
     def get_can_legal_upload_study(self, obj):
-        """
-        Habilitación para LEGAL: depende de base docs + usuario con Area LEGAL (si está logueado).
-        Si no está autenticado => False.
-        """
-        base_ok = self.get_can_marketing_upload_media(obj)
+        return bool(getattr(obj, "has_legal_base", False))
 
-        request = self.context.get("request")
-        user = getattr(request, "user", None)
-        if not user or not user.is_authenticated:
-            return False
-
-        # Asumiendo que luego renombramos department -> area:
-        user_area_code = None
-        if getattr(user, "area_id", None) and getattr(user.area, "code", None):
-            user_area_code = user.area.code
-
-        return base_ok and user_area_code == "LEGAL"
+    def get_can_marketing_upload_media(self, obj):
+        return bool(getattr(obj, "has_study", False))
     
 class PropertyDocumentCreateSerializer(serializers.ModelSerializer):
     document_type = serializers.PrimaryKeyRelatedField(
