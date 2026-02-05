@@ -76,7 +76,7 @@ class ProvinceAdmin(admin.ModelAdmin):
 
 @admin.register(District)
 class DistrictAdmin(admin.ModelAdmin):
-    list_display = ('name', 'province', 'is_active')
+    list_display = ('id','code','name', 'province', 'is_active')
     list_filter = ('is_active', 'province')
     search_fields = ('name',)
     ordering = ('province', 'name')
