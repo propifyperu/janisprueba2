@@ -1,13 +1,13 @@
 ﻿from django.urls import path, include
 from . import views
-from .api import PropertyViewSet, RequirementViewSet
+from .api import PropertyViewSet
 from rest_framework.routers import DefaultRouter
 
 app_name = 'properties'
 
 router = DefaultRouter()
 router.register(r'properties', PropertyViewSet, basename='properties')
-router.register(r'requirements', RequirementViewSet, basename='requirements')
+#router.register(r'requirements', RequirementViewSet, basename='requirements')
 
 urlpatterns = [
     path('ultra-simple/', views.simple_properties_view, name='ultra_simple_list'),

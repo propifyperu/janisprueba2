@@ -4,9 +4,11 @@ from rest_framework import permissions, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import status
 
 from .models import Property
-from .serializers import PropertySerializer, PropertyWithDocsSerializer
+from .serializers import PropertySerializer, PropertyWithDocsSerializer, PropertyDocumentCreateSerializer
 
 
 class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
@@ -55,3 +57,18 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
 
         serializer = self.get_serializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
+    
+    @action(detail=True, methods=["post"], url_path="documents", parser_classes=[MultiPartParser, FormParser],
+    )
+    def create_document(self, request, *args, **kwargs):
+        prop = self.get_object()
+
+        serializer = PropertyDocumentCreateSerializer(
+            data=request.data,
+            context={"property": prop, "request": request}, 
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        out = PropertyWithDocsSerializer(prop, context={"request": request})
+        return Response(out.data, status=status.HTTP_201_CREATED)
