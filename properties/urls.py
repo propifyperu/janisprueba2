@@ -1,13 +1,13 @@
 ﻿from django.urls import path, include
 from . import views
-from .api import PropertyViewSet, DocumentTypeViewSet  
+from .api import PropertyViewSet, DocumentTypeViewSet, RequirementViewSet
 from rest_framework.routers import DefaultRouter
 
 app_name = 'properties'
 
 router = DefaultRouter()
 router.register(r'properties', PropertyViewSet, basename='properties')
-#router.register(r'requirements', RequirementViewSet, basename='requirements')
+router.register(r'requirements', RequirementViewSet, basename='requirements')
 router.register(r'document-types', DocumentTypeViewSet, basename='document-types')  # 👈 agrega esto
 
 urlpatterns = [
