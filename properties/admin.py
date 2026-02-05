@@ -93,7 +93,7 @@ class UrbanizationAdmin(admin.ModelAdmin):
 # ===================== ADMIN PARA CATÁLOGOS =====================
 @admin.register(DocumentType)
 class DocumentTypeAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'is_active')
+    list_display = ('id','code', 'name', 'is_active')
     list_filter = ('is_active',)
     search_fields = ('name',)
 

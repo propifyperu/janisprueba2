@@ -1,4 +1,3 @@
-from rest_framework.viewsets import GenericViewSet
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework import permissions, filters
@@ -7,10 +6,12 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
+from . import models
+from django.shortcuts import get_object_or_404
 
 
 from .models import Property, Requirement
-from .serializers import PropertySerializer, PropertyWithDocsSerializer, RequirementSerializer, PropertyDocumentCreateSerializer
+from .serializers import PropertySerializer, PropertyWithDocsSerializer, RequirementSerializer, PropertyDocumentCreateSerializer, PropertyDocumentUpdateSerializer, DocumentTypeSerializer
 
 
 class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
@@ -73,6 +74,28 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
 
         out = PropertyWithDocsSerializer(prop, context={"request": request})
         return Response(out.data, status=status.HTTP_201_CREATED)
+    
+
+    @action(detail=True, methods=["patch"], url_path=r"documents/by-type/(?P<document_type_id>[^/.]+)", parser_classes=[MultiPartParser, FormParser],)
+    def update_document_by_type(self, request, document_type_id=None, *args, **kwargs):
+        prop = self.get_object()
+        doc = get_object_or_404(
+            models.PropertyDocument,
+            property=prop,
+            document_type_id=document_type_id,
+        )
+
+        serializer = PropertyDocumentUpdateSerializer(
+            doc,
+            data=request.data,
+            partial=True,
+            context={"request": request, "property": prop},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        out = PropertyWithDocsSerializer(prop, context={"request": request})
+        return Response(out.data, status=status.HTTP_200_OK)
 
 class RequirementViewSet(ModelViewSet):
     """
@@ -89,3 +112,9 @@ class RequirementViewSet(ModelViewSet):
         # Soft delete: marcar como inactivo en lugar de borrar físicamente
         instance.is_active = False
         instance.save()
+
+class DocumentTypeViewSet(GenericViewSet, ListModelMixin):
+    queryset = models.DocumentType.objects.filter(is_active=True)
+    serializer_class = DocumentTypeSerializer
+    permission_classes = [permissions.AllowAny]
+    pagination_class = None

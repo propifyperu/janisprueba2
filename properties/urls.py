@@ -1,6 +1,6 @@
 ﻿from django.urls import path, include
 from . import views
-from .api import PropertyViewSet
+from .api import PropertyViewSet, DocumentTypeViewSet  
 from rest_framework.routers import DefaultRouter
 
 app_name = 'properties'
@@ -8,6 +8,7 @@ app_name = 'properties'
 router = DefaultRouter()
 router.register(r'properties', PropertyViewSet, basename='properties')
 #router.register(r'requirements', RequirementViewSet, basename='requirements')
+router.register(r'document-types', DocumentTypeViewSet, basename='document-types')  # 👈 agrega esto
 
 urlpatterns = [
     path('ultra-simple/', views.simple_properties_view, name='ultra_simple_list'),
@@ -41,11 +42,12 @@ urlpatterns = [
     path('agenda/eventos/<int:pk>/borrar/', views.event_delete_view, name='event_delete'),
     path('api/events/', views.api_events_json, name='api_events'),
     # APIs
+    path('api/document-types-legacy/', views.api_document_types, name='api_document_types_legacy'),
     path('api/property-subtypes/', views.api_property_subtypes, name='api_property_subtypes'),
     path('api/provinces/', views.api_provinces, name='api_provinces'),
     path('api/districts/', views.api_districts, name='api_districts'),
     path('api/urbanizations/', views.api_urbanizations, name='api_urbanizations'),
-    path('api/document-types/', views.api_document_types, name='api_document_types'),
+    #path('api/document-types/', views.api_document_types, name='api_document_types'),
     path('api/image-types/', views.api_image_types, name='api_image_types'),
     path('api/roomtypes/', views.api_roomtypes, name='api_roomtypes'),
     path('api/video-types/', views.api_video_types, name='api_video_types'),
