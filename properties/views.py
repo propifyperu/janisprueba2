@@ -1104,6 +1104,11 @@ def requirement_create_view(request):
                 })
         
         if form.is_valid():
+            print("FORM VALID?", form.is_valid())
+            print("FORM ERRORS", form.errors)
+            print("POST district", request.POST.getlist("district"))
+            print("POST province", request.POST.get("province"))
+            print("POST property_subtype", request.POST.get("property_subtype"))
             data = form.cleaned_data
             req = Requirement()
             

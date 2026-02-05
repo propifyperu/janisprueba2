@@ -249,7 +249,7 @@ class PropertyRoomInline(admin.TabularInline):
 
 @admin.register(PropertyOwner)
 class PropertyOwnerAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'document_type','document_number', 'phone', 'email', 'is_active', 'created_at')
+    list_display = ('id','full_name', 'document_type','document_number', 'phone', 'email', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at', 'gender', 'profession')
     search_fields = ('first_name', 'last_name', 'document_number', 'email', 'phone')
     readonly_fields = ('created_at', 'updated_at')
