@@ -58,6 +58,7 @@ urlpatterns = [
     path('whatsapp/leads/detalle/<int:lead_id>/', views.lead_detail, name='lead_detail'),
     path('crm/', views.crm_dashboard, name='crm_dashboard'),
     path('marketing/propiedades/', views.marketing_properties_list, name='marketing_properties_list'),
+    path('marketing/propiedades/multimedia', views.marketing_properties_multimedia, name='marketing_properties_multimedia'),
     path('marketing/dashboard/', views.marketing_utm_dashboard, name='marketing_utm_dashboard'),
     path('legal/documentos/', views.legal_documents_list_view, name='legal_documents'),
     path('api/', include(router.urls)),

@@ -1,10 +1,18 @@
 {% extends 'properties/base_dashboard.html' %}
-{% load tz %}
+
 {% block dashboard_extra_css %}
 <style>
     .legal-table th,
     .legal-table td {
         vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .legal-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: #f8f9fa;
     }
 
     .icon-btn {
@@ -22,124 +30,66 @@
         transition: transform .2s ease;
     }
 
-    .toggle-row[aria-expanded="true"] i {
-        transform: rotate(180deg);
-    }
-
-    .toggle-row i {
-        transition: transform .2s ease;
-    }
-
-
     tr[aria-expanded="true"] .toggle-row i {
         transform: rotate(180deg);
     }
 
+    .doc-key {
+        background: #e9f7ef; /* verde claro elegante */
+    }
+
+    .badge-doc {
+        font-size: .7rem;
+        margin: 0 .15rem .15rem 0;
+    }
+    .modal {
+        z-index: 10000;
+        height: 90%;
+        top: 45px;
+
+    }
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
-<h3 class="mb-3">Área Legal — Lista de Documentos</h3>
+<h3 class="mb-3">Área Legal — Documentos por Propiedad</h3>
+
 
 <table class="table table-hover align-middle legal-table">
-    <thead class="table-light">
-        <tr>
-            <th class="text-center"></th>
-            <th>Dirección</th>
-            {% for dt in doc_types_no_estudio %}
-                <th class="text-center">{{ dt.name|truncatechars:12 }}</th>
-            {% endfor %}
-            <!-- ESTUDIO DE TITULOS CAMPO DUPLICADO -->
-            <!-- <th class="text-center ">{{ estudio_name }}</th> -->
-            <th class="text-end">Avance</th>
-            <th class="text-center">Acciones</th>
-        </tr>
-    </thead>
+  <thead class="table-light sticky-top">
+    <tr>
+      <th></th>
+      <th>Dirección</th>
+      <th class="text-center">Título Dominio</th>
+      <th class="text-center">Partida</th>
+      <th class="text-center">DNI</th>
+      <th class="text-center">Estudio Título</th>
+      <th class="text-center">Corretaje</th>
+      <th class="text-center">Otros</th>
+      <th class="text-end">Avance</th>
+      <th></th>
+    </tr>
+  </thead>
 
-    <tbody>
-    {% for row in rows %}
-        <tr>
-            <td class="text-center">
-                <button class="btn btn-sm btn-link toggle-row"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#details-{{ row.property.id }}"
-                        aria-expanded="false">
-                    <i class="fas fa-chevron-down"></i>
-                </button>
-            </td>
-
-            <td>
-                <div class="fw-semibold text-wrap" style="max-width: 210px;">
-                    {{ row.property.exact_address|default:row.property.real_address }}
-                </div>
-                <small class="text-muted">{{ row.property.code }}</small>
-            </td>
-
-            {% for cell in row.cells %}
-            <td class="text-center" style="max-width: 56px;">
-                {% if cell.present %}
-                    <button class="icon-btn text-success"
-                            data-preview-url="/dashboard/{{ row.property.id }}/pdf/">
-                        <i class="fas fa-check-circle"></i>
-                    </button>
-                {% else %}
-                    <i class="fas fa-times-circle text-muted opacity-50"></i>
-                {% endif %}
-            </td>
-            {% endfor %}
-
-            <!-- ESTUDIO DE TITULOS CAMPO DUPLICADO -->
-            <!-- <td class="text-center">
-                {% if row.estudio_present %}
-                    <button class="icon-btn text-success"
-                            data-preview-url="/dashboard/{{ row.property.id }}/pdf/">
-                        <i class="fas fa-check-circle"></i>
-                    </button>
-                {% else %}
-                    <i class="fas fa-times-circle text-muted opacity-50"></i>
-                {% endif %}
-            </td> -->
-
-            <td class="text-end">
-                <span class="badge rounded-pill bg-{% if row.completed_pct == 100 %}success{% elif row.completed_pct > 70 %}info{% else %}warning{% endif %}">
-                    {{ row.completed_pct }}%
-                </span>
-            </td>
-
-            <td class="text-center">
-                <button class="btn btn-sm btn-outline-primary upload-btn"
-                        data-property="{{ row.property.id }}">
-                    <i class="fas fa-upload"></i>
-                </button>
-            </td>
-        </tr>
-
-        <tr class="collapse bg-light" id="details-{{ row.property.id }}">
-            <td colspan="100">
-                <div class="p-3 small">
-                    <div><strong>Propietario:</strong>
-                        {{ row.property.owner.full_name|default:"—" }}
-                    </div>
-                    <div><strong>Creado:</strong>
-                        {{ row.property.created_at|date:"d/m/Y" }}
-                    </div>
-                    <div><strong>Subido por:</strong>
-                        {{ row.uploader.get_full_name|default:row.uploader.username|default:"—" }}
-                    </div>
-                    <div>
-                        <a href="{% url 'properties:detail' row.property.pk %}">
-                            <button class="btn btn-primary btn-xs mt-3" data-property="{{ row.property.id }}">
-                                <i class="fas fa-eye"></i>
-                                Ver detalle
-                            </button>
-                        </a>
-                    </div>
-                </div>
-            </td>
-        </tr>
-    {% endfor %}
-    </tbody>
+  <tbody id="legalTableBody">
+    <tr>
+      <td colspan="10" class="text-center text-muted py-4">
+        Cargando documentos…
+      </td>
+    </tr>
+  </tbody>
 </table>
+<div class="d-flex justify-content-between align-items-center mt-3">
+  <button id="prevPage" class="btn btn-outline-secondary btn-sm" disabled>
+    ← Anterior
+  </button>
+
+  <span id="pageInfo" class="text-muted small"></span>
+
+  <button id="nextPage" class="btn btn-outline-secondary btn-sm" disabled>
+    Siguiente →
+  </button>
+</div>
 
 
 <div class="modal fade" id="previewModal" tabindex="-1">
@@ -150,7 +100,7 @@
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-0">
-        <iframe id="pdfFrame" src="" style="width:100%; height:80vh;" frameborder="0"></iframe>
+        <iframe id="pdfFrame" src="" style="width:96%; height:80vh;" frameborder="0"></iframe>
       </div>
     </div>
   </div>
@@ -192,19 +142,154 @@
 </div>
 
 <script>
-document.querySelectorAll('[data-preview-url]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.getElementById('pdfFrame').src = btn.dataset.previewUrl;
-        new bootstrap.Modal(document.getElementById('previewModal')).show();
+let currentPage = 1;
+let nextPageUrl = null;
+let prevPageUrl = null;
+
+async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') {
+  const tbody = document.getElementById('legalTableBody');
+  const pageInfo = document.getElementById('pageInfo');
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="10" class="text-center text-muted py-4">
+        Cargando documentos…
+      </td>
+    </tr>
+  `;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    nextPageUrl = normalizeUrl(data.next);
+    prevPageUrl = normalizeUrl(data.previous);
+
+    tbody.innerHTML = '';
+
+    data.results.forEach(p => {
+      const docs = p.property_documents;
+      const progress = calcProgress(docs);
+
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr>
+          <td></td>
+
+          <td>
+            <div class="fw-semibold text-wrap" style="max-width:248px">
+              ${p.direccion}
+            </div>
+            <small class="text-muted">${p.code}</small>
+          </td>
+
+          <td class="text-center">${docIcon(docs.Titulo_dominio)}</td>
+          <td class="text-center">${docIcon(docs.Partida_registral)}</td>
+          <td class="text-center">${docIcon(docs.DNI_titular)}</td>
+          <td class="text-center">${docIcon(docs.Estudio_de_titulo)}</td>
+          <td class="text-center">${docIcon(docs.Contrato_de_corretaje)}</td>
+
+          <td class="text-end">
+            <span class="badge rounded-pill bg-${
+              progress === 100 ? 'success' :
+              progress > 70 ? 'info' : 'warning'
+            }">${progress}%</span>
+          </td>
+
+          <td class="text-center">
+            <button class="btn btn-sm btn-outline-primary upload-btn"
+                    data-property="${p.id}">
+              <i class="fas fa-upload"></i>
+            </button>
+          </td>
+        </tr>
+      `);
     });
+
+    document.getElementById('nextPage').disabled = !nextPageUrl;
+    document.getElementById('prevPage').disabled = !prevPageUrl;
+
+    pageInfo.textContent = `Página ${currentPage}`;
+
+  } catch (e) {
+    console.error(e);
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="10" class="text-danger text-center">
+          Error cargando datos
+        </td>
+      </tr>
+    `;
+  }
+}
+
+/* helpers */
+
+function docIcon(url) {
+  if (!url) {
+    return `<i class="fas fa-minus-circle text-muted opacity-50"></i>`;
+  }
+
+  // quitamos dominio y /media/
+  const path = url.split('/media/')[1];
+
+  return `
+    <i class="fas fa-check-circle text-success cursor-pointer"
+       data-preview-url="/media/${path}">
+    </i>
+  `;
+}
+
+
+function calcProgress(docs) {
+  const total = Object.keys(docs).length;
+  const present = Object.values(docs).filter(Boolean).length;
+  return Math.round((present / total) * 100);
+}
+
+/* paginación */
+
+document.getElementById('nextPage').addEventListener('click', () => {
+  if (!nextPageUrl) return;
+  currentPage++;
+  loadLegalDocuments(nextPageUrl);
 });
 
-document.querySelectorAll('.upload-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.getElementById('uploadPropertyId').value = btn.dataset.property;
-        new bootstrap.Modal(document.getElementById('uploadModal')).show();
-    });
+document.getElementById('prevPage').addEventListener('click', () => {
+  if (!prevPageUrl) return;
+  currentPage--;
+  loadLegalDocuments(prevPageUrl);
 });
+
+
+/* abrir PDF en nueva pestaña */
+
+document.addEventListener('click', function (e) {
+  const el = e.target.closest('[data-preview-url]');
+  if (!el) return;
+
+  const url = el.dataset.previewUrl;
+
+  window.open(url, '_blank', 'noopener,noreferrer');
+});
+
+
+/* init */
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadLegalDocuments();
+});
+
+function normalizeUrl(url) {
+  if (!url) return null;
+
+  // Si viene http en producción, lo forzamos a https
+  if (location.protocol === 'https:' && url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+
+  return url;
+}
+
 </script>
 
 {% endblock %}
