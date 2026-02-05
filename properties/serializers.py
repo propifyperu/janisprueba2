@@ -226,6 +226,54 @@ class PropertyWithDocsSerializer(serializers.ModelSerializer):
 
         return base_ok and user_area_code == "LEGAL"
     
+class PropertyDocumentCreateSerializer(serializers.ModelSerializer):
+    document_type = serializers.PrimaryKeyRelatedField(
+        queryset=models.DocumentType.objects.filter(is_active=True)
+    )
+
+    class Meta:
+        model = models.PropertyDocument
+        fields = ("document_type", "file")
+
+    def validate(self, attrs):
+        prop = self.context["property"]
+        doc_type = attrs["document_type"]
+
+        # Evitar duplicados por (property, document_type)
+        if models.PropertyDocument.objects.filter(property=prop, document_type=doc_type).exists():
+            raise serializers.ValidationError({
+                "document_type": "Ya existe un documento de este tipo para esta propiedad."
+            })
+
+        # file obligatorio
+        if not attrs.get("file"):
+            raise serializers.ValidationError({"file": "Este campo es requerido."})
+
+        return attrs
+
+    def create(self, validated_data):
+        prop = self.context["property"]
+        request = self.context["request"]
+
+        # ✅ IMPORTANTE: tu BD exige uploaded_by_id NOT NULL
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("Debes estar autenticado para subir documentos.")
+
+        validated_data.setdefault("is_approved", False)
+
+        # Opcional: si tu modelo tiene title/description pero no quieres pedirlos,
+        # los puedes autogenerar sin romper nada:
+        dt = validated_data["document_type"]
+        validated_data.setdefault("title", getattr(dt, "name", "") or "")
+        validated_data.setdefault("description", "")
+
+        return models.PropertyDocument.objects.create(
+            property=prop,
+            uploaded_by=user,   # ✅ CLAVE para tu error
+            **validated_data
+        )
+
 class RequirementSerializer(serializers.ModelSerializer):
 
     client_phone = serializers.CharField(write_only=True, required=True)
