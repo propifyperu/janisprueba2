@@ -8,12 +8,42 @@
         white-space: nowrap;
     }
 
+    .legal-table th {
+      border-bottom: #e0e0e0 3px solid !important;
+      padding: 1rem .75rem;
+      height: 78px;
+    }
+
     .legal-table thead th {
-        position: sticky;
+      position: sticky;
         top: 0;
         z-index: 3;
         background: #f8f9fa;
     }
+
+    .legal-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 99;
+      }
+
+      .table-scroll-wrapper::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  height: 1px;
+  background: #f8f9fa;
+  z-index: 101;
+}
+
+
+
+    .table-scroll-wrapper {
+        max-height: calc(100vh - 180px); 
+        overflow-y: auto;
+        position: relative;
+      }
+
 
     .icon-btn {
         background: none;
@@ -74,15 +104,21 @@
       color: #198754;
     }
 
+    .legal-table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
 <h3 class=" my-3">Área Legal — Documentos por Propiedad</h3>
 
-
-<table class="table table-hover align-middle legal-table">
-  <thead class="table-light sticky-top">
+<div class="table-scroll-wrapper">
+  <table class="table table-hover align-middle legal-table">
+  <thead class="table-light">
     <tr>
       <th></th>
       <th>Dirección</th>
@@ -105,6 +141,11 @@
     </tr>
   </tbody>
 </table>
+</div>
+
+
+
+
 <div class="d-flex justify-content-between align-items-center mt-3">
   <button id="prevPage" class="btn btn-outline-secondary btn-sm" disabled>
     ← Anterior
