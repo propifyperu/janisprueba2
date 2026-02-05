@@ -1,12 +1,13 @@
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework import permissions, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import Property
-from .serializers import PropertySerializer, PropertyWithDocsSerializer
+from .models import Property, Requirement
+from .serializers import PropertySerializer, PropertyWithDocsSerializer, RequirementSerializer
 
 
 class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
@@ -55,3 +56,19 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
 
         serializer = self.get_serializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
+
+class RequirementViewSet(ModelViewSet):
+    """
+    CRUD completo para Requerimientos.
+    """
+    queryset = Requirement.objects.filter(is_active=True).order_by('-created_at')
+    serializer_class = RequirementSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['property_type', 'budget_type']
+    ordering_fields = ['created_at', 'budget_min', 'budget_max']
+
+    def perform_destroy(self, instance):
+        # Soft delete: marcar como inactivo en lugar de borrar físicamente
+        instance.is_active = False
+        instance.save()
