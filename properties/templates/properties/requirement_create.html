@@ -35,7 +35,12 @@
                 <div class="card-body">
                     <form id="requirement-form" method="post" enctype="multipart/form-data">
                         {% csrf_token %}
-
+                        {# ✅ ERRORES DEL REQUIREMENT FORM (RequirementSimpleForm) #}
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            {{ form.errors }}
+                        </div>
+                        {% endif %}
                         <!-- Sección: Seleccionar Contacto -->
                         <div class="mb-4">
                             <h5 class="fw-bold mb-3">DATOS DEL CLIENTE</h5>

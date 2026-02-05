@@ -1,5 +1,7 @@
 from django import forms
+import re
 import unicodedata
+from decimal import Decimal, InvalidOperation 
 from .models import (
     Property,
     PropertyOwner,
@@ -332,9 +334,9 @@ class RequirementSimpleForm(forms.Form):
     property_type = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     property_subtype = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     budget_type = forms.ChoiceField(choices=(('approx','Aproximado'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))
-    budget_approx = forms.DecimalField(required=False, widget=forms.TextInput(attrs={'class':'form-control','inputmode': 'decimal'}))
-    budget_min = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
-    budget_max = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    budget_approx = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'decimal'}))
+    budget_min = forms.CharField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    budget_max = forms.CharField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
     # Área de terreno
     area_type = forms.ChoiceField(choices=(('approx','Aproximado'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     land_area_approx = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
@@ -372,54 +374,153 @@ class RequirementSimpleForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Importar modelos aquí para evitar ciclos y establecer querysets dinámicamente
-        from .models import PropertyType, PropertySubtype, PaymentMethod, PropertyStatus, Department, Province, District, Urbanization
+
         from django.db import OperationalError
         try:
-            self.fields['property_type'].queryset = PropertyType.objects.filter(is_active=True).order_by('name')
-            self.fields['property_subtype'].queryset = PropertySubtype.objects.filter(is_active=True).order_by('name')
-            self.fields['payment_method'].queryset = PaymentMethod.objects.filter(is_active=True).order_by('order')
-            self.fields['status'].queryset = PropertyStatus.objects.filter(is_active=True).order_by('order')
-            # Monedas
-            from .models import Currency
-            self.fields['currency'].queryset = Currency.objects.filter(is_active=True).order_by('name')
-            self.fields['department'].queryset = Department.objects.filter(is_active=True).order_by('name')
-            self.fields['province'].queryset = Province.objects.filter(is_active=True).order_by('name')
-            self.fields['district'].queryset = District.objects.filter(is_active=True).order_by('name')
-            from .models import FloorOption
-            self.fields['preferred_floors'].queryset = FloorOption.objects.filter(is_active=True).order_by('order', 'name')
-            from .models import ZoningOption
-            self.fields['zonificacion'].queryset = ZoningOption.objects.filter(is_active=True).order_by('order', 'name')
-            
-            # Cargar usuarios para asignación
+            from .models import (
+                PropertyType, PropertySubtype, PaymentMethod, PropertyStatus,
+                Department, Province, District, Currency, FloorOption, ZoningOption
+            )
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            self.fields['assigned_agent'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
-        except OperationalError:
-            # Si las tablas no existen (deploy sin migraciones), devolver querysets vacíos para no fallar la carga
-            self.fields['property_type'].queryset = PropertyType.objects.none()
+
+            # ✅ LIVIANOS (siempre)
+            self.fields['property_type'].queryset = (
+                PropertyType.objects.filter(is_active=True).only('id', 'name').order_by('name')
+            )
+            self.fields['payment_method'].queryset = (
+                PaymentMethod.objects.filter(is_active=True).only('id', 'name', 'order').order_by('order')
+            )
+            self.fields['status'].queryset = (
+                PropertyStatus.objects.filter(is_active=True).only('id', 'name', 'order').order_by('order')
+            )
+            self.fields['currency'].queryset = (
+                Currency.objects.filter(is_active=True).only('id', 'name').order_by('name')
+            )
+            self.fields['department'].queryset = (
+                Department.objects.filter(is_active=True).only('id', 'name').order_by('name')
+            )
+            self.fields['preferred_floors'].queryset = (
+                FloorOption.objects.filter(is_active=True).only('id', 'name', 'order').order_by('order', 'name')
+            )
+            self.fields['zonificacion'].queryset = (
+                ZoningOption.objects.filter(is_active=True).only('id', 'name', 'order').order_by('order', 'name')
+            )
+
+            self.fields['assigned_agent'].queryset = (
+                User.objects.filter(is_active=True)
+                .only('id', 'first_name', 'last_name')
+                .order_by('first_name', 'last_name')
+            )
+
+            # ✅ PESADOS: VACÍOS EN GET
             self.fields['property_subtype'].queryset = PropertySubtype.objects.none()
-            self.fields['payment_method'].queryset = PaymentMethod.objects.none()
-            self.fields['status'].queryset = PropertyStatus.objects.none()
-            # Monedas
-            try:
-                self.fields['currency'].queryset = Currency.objects.none()
-            except Exception:
-                pass
-            self.fields['department'].queryset = Department.objects.none()
             self.fields['province'].queryset = Province.objects.none()
             self.fields['district'].queryset = District.objects.none()
-            self.fields['urbanization'].queryset = Urbanization.objects.none()
-            try:
-                self.fields['preferred_floors'].queryset = FloorOption.objects.none()
-            except Exception:
-                pass
-            try:
-                # Garantizar que el campo de zonificación no falle si no existen las tablas
-                self.fields['zonificacion'].queryset = ZoningOption.objects.none()
-            except Exception:
-                pass
 
+            # ==========================================================
+            # ✅ FIX REAL: SI ES POST (self.is_bound), reconstruir querysets
+            # ==========================================================
+            if self.is_bound:
+                # 1) Subtipo depende de property_type
+                type_id = (self.data.get('property_type') or '').strip()
+                if type_id:
+                    self.fields['property_subtype'].queryset = (
+                        PropertySubtype.objects.filter(is_active=True, property_type_id=type_id)
+                        .only('id', 'name')
+                        .order_by('name')
+                    )
+
+                # 2) Provincia depende de department
+                dept_id = (self.data.get('department') or '').strip()
+                if dept_id:
+                    self.fields['province'].queryset = (
+                        Province.objects.filter(is_active=True, department_id=dept_id)
+                        .only('id', 'name')
+                        .order_by('name')
+                    )
+
+                # 3) District (multi) depende de province
+                prov_id = (self.data.get('province') or '').strip()
+                if prov_id:
+                    self.fields['district'].queryset = (
+                        District.objects.filter(is_active=True, province_id=prov_id)
+                        .only('id', 'name')
+                        .order_by('name')
+                    )
+
+        except OperationalError:
+            # Si DB no está lista, no revientes la página
+            for k in self.fields.keys():
+                f = self.fields.get(k)
+                if hasattr(f, 'queryset') and getattr(f, 'queryset', None) is not None:
+                    try:
+                        f.queryset = f.queryset.model.objects.none()
+                    except Exception:
+                        pass
+
+    def _clean_decimal(self, field_name: str):
+        raw = self.cleaned_data.get(field_name)
+
+        if raw in (None, ''):
+            return None
+        if isinstance(raw, Decimal):
+            return raw
+
+        s = str(raw).strip()
+
+        # 1) eliminar símbolos/monedas y espacios
+        #    deja solo dígitos, punto, coma y signo -
+        s = s.replace(" ", "")
+        s = re.sub(r"[^\d\.,\-]", "", s)  # quita $ S/ etc.
+
+        if s in ("", "-", ".", ","):
+            return None
+
+        # 2) Normalizar separadores:
+        # Caso A: tiene "." y "," => decidir cuál es decimal por la última aparición
+        if "." in s and "," in s:
+            last_dot = s.rfind(".")
+            last_comma = s.rfind(",")
+
+            if last_comma > last_dot:
+                # 1.234,56 -> miles "." y decimal ","
+                s = s.replace(".", "")
+                s = s.replace(",", ".")
+            else:
+                # 1,234.56 -> miles "," y decimal "."
+                s = s.replace(",", "")
+
+        # Caso B: solo "," => puede ser decimal o miles
+        elif "," in s and "." not in s:
+            # si la coma está a 1-2 dígitos del final => decimal (123,45)
+            # si está a 3 dígitos del final => miles (1,234)
+            parts = s.split(",")
+            if len(parts[-1]) in (1, 2):
+                s = s.replace(",", ".")
+            else:
+                s = s.replace(",", "")
+
+        # Caso C: solo "." => puede ser decimal o miles
+        elif "." in s and "," not in s:
+            parts = s.split(".")
+            # si el último grupo tiene 3 dígitos y hay más de 1 punto => miles (1.234.567)
+            if len(parts) > 2 and len(parts[-1]) == 3:
+                s = s.replace(".", "")
+
+        try:
+            return Decimal(s)
+        except (InvalidOperation, ValueError, TypeError):
+            raise forms.ValidationError("Introduzca un número válido.")
+
+    def clean_budget_approx(self):
+        return self._clean_decimal("budget_approx")
+
+    def clean_budget_min(self):
+        return self._clean_decimal("budget_min")
+
+    def clean_budget_max(self):
+        return self._clean_decimal("budget_max")
 
 class RequirementEditForm(forms.ModelForm):
     """Formulario para editar un `Requirement` desde la UI.
