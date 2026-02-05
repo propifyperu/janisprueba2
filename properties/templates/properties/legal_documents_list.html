@@ -162,8 +162,8 @@ async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') 
     const res = await fetch(url);
     const data = await res.json();
 
-    nextPageUrl = data.next;
-    prevPageUrl = data.previous;
+    nextPageUrl = normalizeUrl(data.next);
+    prevPageUrl = normalizeUrl(data.previous);
 
     tbody.innerHTML = '';
 
@@ -260,36 +260,36 @@ document.getElementById('prevPage').addEventListener('click', () => {
   loadLegalDocuments(prevPageUrl);
 });
 
-/* preview PDF url lo */
+
+/* abrir PDF en nueva pestaña */
 
 document.addEventListener('click', function (e) {
   const el = e.target.closest('[data-preview-url]');
   if (!el) return;
 
   const url = el.dataset.previewUrl;
-  console.log('Preview PDF:', url);
 
-  const frame = document.getElementById('pdfFrame');
-  if (!frame) {
-    window.open(url, '_blank');
-    return;
-  }
-
-  frame.src = url;
-
-  const modalEl = document.getElementById('previewModal');
-  if (modalEl) {
-    new bootstrap.Modal(modalEl).show();
-  } else {
-    window.open(url, '_blank');
-  }
+  window.open(url, '_blank', 'noopener,noreferrer');
 });
+
 
 /* init */
 
 document.addEventListener('DOMContentLoaded', () => {
   loadLegalDocuments();
 });
+
+function normalizeUrl(url) {
+  if (!url) return null;
+
+  // Si viene http en producción, lo forzamos a https
+  if (location.protocol === 'https:' && url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+
+  return url;
+}
+
 </script>
 
 {% endblock %}
