@@ -333,8 +333,8 @@ class RequirementSimpleForm(forms.Form):
     property_subtype = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     budget_type = forms.ChoiceField(choices=(('approx','Aproximado'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     budget_approx = forms.DecimalField(required=False, widget=forms.TextInput(attrs={'class':'form-control','inputmode': 'decimal'}))
-    budget_min = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
-    budget_max = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    budget_min = forms.DecimalField(required=False, widget=forms.TextInput(attrs={'class':'form-control','inputmode': 'decimal'}))
+    budget_max = forms.DecimalField(required=False, widget=forms.TextInput(attrs={'class':'form-control','inputmode': 'decimal'}))
     # Área de terreno
     area_type = forms.ChoiceField(choices=(('approx','Aproximado'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     land_area_approx = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
