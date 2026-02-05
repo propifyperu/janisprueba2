@@ -376,3 +376,29 @@ class RequirementSerializer(serializers.ModelSerializer):
         for field in ['client_phone', 'client_first_name', 'client_last_name', 'client_email', 'agent_phone']:
             validated_data.pop(field, None)
         return super().update(instance, validated_data)
+
+class PropertyDocumentUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.PropertyDocument
+        fields = ("file",)  # ✅ solo reemplazar archivo
+
+    def validate(self, attrs):
+        if not attrs.get("file"):
+            raise serializers.ValidationError({"file": "Este campo es requerido."})
+        return attrs
+
+    def update(self, instance, validated_data):
+        request = self.context["request"]
+
+        if hasattr(instance, "uploaded_by") and getattr(request, "user", None) and request.user.is_authenticated:
+            instance.uploaded_by = request.user
+
+        instance.file = validated_data["file"]
+        instance.is_approved = False  # al cambiar archivo, vuelve a revisión
+        instance.save()
+        return instance
+
+class DocumentTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.DocumentType
+        fields = ("id", "code", "name", "description", "is_active")
