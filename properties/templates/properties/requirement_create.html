@@ -261,14 +261,20 @@
                                     {{ form.payment_method }}
                                 </div>
                             </div>
-                            <div class="row g-3 mt-2" id="budget-range-rows">
+                            <!-- <div class="row g-3 mt-2" id="budget-range-rows">
                                 <div class="col-md-6">
                                     <label class="form-label" for="{{ form.budget_min.id_for_label }}">Mínimo</label>
-                                    {{ form.budget_min }}
+                                    <div class="input-group budget-input">
+                                        <span class="input-group-text" id="currency-prefix">S/.</span>
+                                        {{ form.budget_min}}
+                                    </div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label" for="{{ form.budget_max.id_for_label }}">Máximo</label>
-                                    {{ form.budget_max }}
+                                    <div class="input-group budget-input">
+                                        <span class="input-group-text" id="currency-prefix">S/.</span>
+                                        {{ form.budget_max }}
+                                    </div>
                                 </div>
                             </div>
                             <div class="row g-3 mt-2" id="budget-approx-row" style="display:none;">
@@ -280,7 +286,33 @@
                                     </div>
                                 </div>
 
+                            </div> -->
+                            <div class="row g-3 mt-2" id="budget-range-rows">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_min.id_for_label }}">Mínimo</label>
+                                    <div class="input-group budget-input">
+                                        <span class="input-group-text currency-prefix">S/.</span>
+                                        {{ form.budget_min }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.budget_max.id_for_label }}">Máximo</label>
+                                    <div class="input-group budget-input">
+                                        <span class="input-group-text currency-prefix">S/.</span>
+                                        {{ form.budget_max }}
+                                    </div>
+                                </div>
                             </div>
+                            <div class="row g-3 mt-2" id="budget-approx-row" style="display:none;">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label" for="{{ form.budget_approx.id_for_label }}">Presupuesto aproximado</label>
+                                    <div class="input-group budget-input">
+                                        <span class="input-group-text currency-prefix">S/.</span>
+                                        {{ form.budget_approx }}
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
                         <!-- Sección: Características -->
@@ -785,7 +817,7 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 /* Add format price*/
-document.addEventListener('DOMContentLoaded', function () {
+/* document.addEventListener('DOMContentLoaded', function () {
     const budgetInput = document.getElementById('{{ form.budget_approx.id_for_label }}');
     const currencySelect = document.getElementById('{{ form.currency.id_for_label }}');
 
@@ -810,43 +842,64 @@ document.addEventListener('DOMContentLoaded', function () {
     budgetInput.addEventListener('blur', applyFormat);
 
     currencySelect.addEventListener('change', applyFormat);
+}); */
+document.addEventListener('DOMContentLoaded', function () {
+    const inputs = [
+        document.getElementById('{{ form.budget_min.id_for_label }}'),
+        document.getElementById('{{ form.budget_max.id_for_label }}'),
+        document.getElementById('{{ form.budget_approx.id_for_label }}')
+    ];
+    const currencySelect = document.getElementById('{{ form.currency.id_for_label }}');
+
+    if (!currencySelect) return;
+
+    const budgetInputs = inputs.filter(input => input);
+
+    function formatMoney(value) {
+        const number = Number(value.replace(/[^0-9.]/g, ''));
+        if (isNaN(number)) return '';
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(number);
+    }
+
+    function applyFormat(event) {
+        const input = event.target;
+        if (!input.value) return;
+        input.value = formatMoney(input.value);
+    }
+
+    budgetInputs.forEach(input => {
+        input.addEventListener('blur', applyFormat);
+    });
+    currencySelect.addEventListener('change', function () {
+        budgetInputs.forEach(input => {
+            if (input.value) input.value = formatMoney(input.value);
+        });
+    });
 });
+
+
 document.addEventListener('DOMContentLoaded', function () {
     const currencySelect = document.getElementById('{{ form.currency.id_for_label }}');
-    const prefix = document.getElementById('currency-prefix');
+    const prefixes = document.querySelectorAll('.currency-prefix');
 
-    if (!currencySelect || !prefix) return;
+    if (!currencySelect || prefixes.length === 0) return;
 
     function updatePrefix() {
         const text = currencySelect.options[currencySelect.selectedIndex]?.text || '';
-        if (text.toLowerCase().includes('dolar')) {
-            prefix.textContent = '$';
-        } else if (text.toLowerCase().includes('sol')) {
-            prefix.textContent = 'S/.';
-        }
+        const symbol = text.toLowerCase().includes('dolar') ? '$' : 'S/.';
+        prefixes.forEach(span => {
+            span.textContent = symbol;
+        });
     }
 
     updatePrefix();
     currencySelect.addEventListener('change', updatePrefix);
 });
 
-/* document.addEventListener('DOMContentLoaded', () => {
-  const input = document.querySelector('.budget-input');
 
-  if (!input.value) {
-    input.value = '0.00';
-  }
-
-  input.addEventListener('blur', () => {
-    let value = input.value.replace(/,/g, '');
-    if (value === '' || isNaN(value)) {
-      input.value = '0.00';
-      return;
-    }
-
-    input.value = Number(value).toFixed(2);
-  });
-}); */
 
 </script>
 {% endblock %}
