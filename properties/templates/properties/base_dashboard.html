@@ -718,7 +718,7 @@
                     </div>
                     <div>
                         <div class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-                        <div class="sidebar-user-info-text">{{ request.user.department.name|default:"Sin Departamento" }}</div>
+                        <div class="sidebar-user-info-text">{{ request.user.area.name|default:"Sin Departamento" }}</div>
                         <div class="sidebar-user-info-text">
                             {% if request.user.is_superuser %}
                                 <span class="badge bg-danger">Superusuario</span>

@@ -8,6 +8,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from django.db.models import Exists, OuterRef
 from . import models
+from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 
 
@@ -16,6 +17,38 @@ from .serializers import PropertySerializer, PropertyWithDocsSerializer, Require
 
 
 class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
+    LEGAL_BASE_CODES = {"103", "110"}   # partida registral / contrato corretaje
+    LEGAL_STUDY_CODE = "101"           # estudio de títulos
+
+    def _user_area_code(self, user) -> str:
+        a = getattr(user, "area", None) or getattr(getattr(user, "role", None), "area", None)
+
+        # si tienes code úsalo; si no, usa name
+        code = (getattr(a, "code", "") or "").strip().lower()
+        if code:
+            return code
+
+        name = (getattr(a, "name", "") or "").strip().lower()
+        return name  # ej: "legal", "marketing", etc.
+
+    def _property_has_legal_base(self, prop) -> bool:
+        return prop.documents.filter(
+            document_type__code__in=self.LEGAL_BASE_CODES,
+            file__isnull=False,
+        ).exclude(file="").exists()
+
+    def _assert_can_upload_doc(self, request, prop, doc_type):
+        doc_code = str(getattr(doc_type, "code", "")).strip()
+
+        # SOLO REGLA PARA ESTUDIO DE TÍTULOS (101)
+        if doc_code == self.LEGAL_STUDY_CODE:
+            if self._user_area_code(request.user) != "legal":
+                raise PermissionDenied("Solo el área LEGAL puede subir/reemplazar el Estudio de Títulos.")
+
+            if not self._property_has_legal_base(prop):
+                raise PermissionDenied(
+                    "Antes de subir el Estudio de Títulos debes cargar primero la Partida Registral o el Contrato de Corretaje."
+                )
     """
     Read-only API for Properties.
     - list:    GET /dashboard/api/properties/
@@ -78,19 +111,37 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
         serializer = self.get_serializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
     
+    @action(detail=False, methods=["get"], url_path="my-properties/with-docs", permission_classes=[permissions.IsAuthenticated],)
+    def my_properties_with_docs(self, request, *args, **kwargs):
+        qs = self.get_queryset().filter(created_by=request.user)
+
+        # si quieres que también incluya propiedades donde soy responsible o assigned_agent,
+        # lo vemos luego. Por ahora SOLO "mías" = created_by.
+
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = PropertyWithDocsSerializer(page, many=True, context={"request": request})
+            return self.get_paginated_response(serializer.data)
+
+        serializer = PropertyWithDocsSerializer(qs, many=True, context={"request": request})
+        return Response(serializer.data)
+    
     @action(detail=True, methods=["post"], url_path="documents", parser_classes=[MultiPartParser, FormParser],)
     def create_document(self, request, *args, **kwargs):
         prop = self.get_object()
 
         serializer = PropertyDocumentCreateSerializer(
             data=request.data,
-            context={"property": prop, "request": request}, 
+            context={"property": prop, "request": request},
         )
         serializer.is_valid(raise_exception=True)
+
+        doc_type = serializer.validated_data["document_type"]
+        self._assert_can_upload_doc(request, prop, doc_type)
+
         serializer.save()
 
         prop = self.get_queryset().get(pk=prop.pk)
-
         out = PropertyWithDocsSerializer(prop, context={"request": request})
         return Response(out.data, status=status.HTTP_201_CREATED)
     
@@ -103,6 +154,7 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
             property=prop,
             document_type_id=document_type_id,
         )
+        self._assert_can_upload_doc(request, doc.document_type)
 
         serializer = PropertyDocumentUpdateSerializer(
             doc,

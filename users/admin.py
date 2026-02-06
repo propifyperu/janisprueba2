@@ -30,14 +30,14 @@ class CustomUserAdmin(admin.ModelAdmin):
 
 @admin.register(Area)
 class AreaAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_active', 'created_at')
+    list_display = ('code','name', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at')
     search_fields = ('name', 'description')
     readonly_fields = ('created_at',)
 
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code_name', 'is_active', 'created_at')
+    list_display = ('area','name', 'code_name', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at')
     search_fields = ('name', 'code_name', 'description')
     readonly_fields = ('created_at',)
