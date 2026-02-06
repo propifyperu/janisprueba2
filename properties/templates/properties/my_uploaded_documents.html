@@ -248,7 +248,7 @@ async function getAllDocumentTypes(
 ) {
   const res = await fetch(url);
   const data = await res.json();
-  DOCUMENT_TYPES_CACHE = data.filter(d => d.is_active);
+  DOCUMENT_TYPES_CACHE = data.filter(d => d.is_active).filter(d => d.id !== 5);
   return DOCUMENT_TYPES_CACHE;
 }
 
@@ -393,11 +393,19 @@ function openEditModal(propertyId) {
   select.innerHTML = `<option value="">Selecciona un tipo</option>`;
 
   DOCUMENT_TYPES_CACHE.forEach(doc => {
+    const hasFile = Boolean(
+        ACTIVE_PROPERTY.property_documents?.[doc.name]
+    );
+
     const option = document.createElement('option');
     option.value = doc.id;
-    option.textContent = doc.name.replaceAll('_', ' ');
+    option.textContent = hasFile
+        ? `${doc.name.replaceAll('_', ' ')} (reemplazar)`
+        : doc.name.replaceAll('_', ' ');
+
     select.appendChild(option);
-  });
+    });
+
 
   fileInput.value = '';
   fileText.textContent = 'Selecciona el archivo';
