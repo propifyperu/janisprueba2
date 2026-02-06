@@ -49,13 +49,12 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
                 raise PermissionDenied(
                     "Antes de subir el Estudio de Títulos debes cargar primero la Partida Registral o el Contrato de Corretaje."
                 )
-    """
-    Read-only API for Properties.
-    - list:    GET /dashboard/api/properties/
-    - retrieve GET /dashboard/api/properties/{id}/
-    - with-docs(detail): GET /dashboard/api/properties/{id}/with-docs/
-    - with-docs(list):   GET /dashboard/api/properties/with-docs/
-    """
+            
+    def _assert_can_delete_doc(self, request, doc_type):
+        doc_code = str(getattr(doc_type, "code", "")).strip()
+        if doc_code == self.LEGAL_STUDY_CODE and self._user_area_code(request.user) != "legal":
+            raise PermissionDenied("Solo el área LEGAL puede eliminar el Estudio de Títulos.")
+        
     queryset = (
         Property.objects.filter(is_active=True)
         .select_related(
@@ -92,6 +91,24 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
         if self.action in ("with_docs", "with_docs_list"):
             return PropertyWithDocsSerializer
         return PropertySerializer
+    
+    @action( detail=True, methods=["delete"], url_path=r"documents/by-type/(?P<document_type_id>[^/.]+)", permission_classes=[permissions.IsAuthenticated],)
+    def delete_document_by_type(self, request, document_type_id=None, *args, **kwargs):
+        prop = self.get_object()
+
+        doc = get_object_or_404(
+            models.PropertyDocument,
+            property=prop,
+            document_type_id=document_type_id,
+        )
+
+        self._assert_can_delete_doc(request, doc.document_type)
+
+        if getattr(doc, "file", None):
+            doc.file.delete(save=False)
+
+        doc.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)    
 
     @action(detail=True, methods=["get"], url_path="with-docs")
     def with_docs(self, request, *args, **kwargs):
