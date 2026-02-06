@@ -1,87 +1,501 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load tz %}
+{% block dashboard_extra_css %}
+<style>
+    .legal-table th,
+    .legal-table td {
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .legal-table th {
+      border-bottom: #e0e0e0 3px solid !important;
+      padding: 1rem .75rem;
+      height: 78px;
+    }
+
+    .legal-table thead th {
+      position: sticky;
+        top: 0;
+        z-index: 3;
+        background: #f8f9fa;
+    }
+
+    .legal-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 99;
+      }
+
+      .table-scroll-wrapper::before {
+        content: '';
+        position: sticky;
+        top: 0;
+        height: 1px;
+        background: #f8f9fa;
+        z-index: 101;
+      }
+
+
+
+    .table-scroll-wrapper {
+        max-height: calc(100vh - 180px); 
+        overflow-y: auto;
+        position: relative;
+      }
+
+
+    .icon-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    .icon-btn i {
+        font-size: 1.2rem;
+    }
+
+    .toggle-row i {
+        transition: transform .2s ease;
+    }
+
+    tr[aria-expanded="true"] .toggle-row i {
+        transform: rotate(180deg);
+    }
+
+    .doc-key {
+        background: #e9f7ef; /* verde claro elegante */
+    }
+
+    .badge-doc {
+        font-size: .7rem;
+        margin: 0 .15rem .15rem 0;
+    }
+    .modal {
+        z-index: 10000;
+        height: 90%;
+        top: 45px;
+
+    }
+
+    .cursor-pointer {
+      cursor: pointer;
+    }
+
+    /* Component upload file */
+    .upload-dropzone {
+      display: block;
+      border: 2px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s ease;
+      background: #f8fafc;
+    }
+
+    .upload-dropzone:hover {
+      border-color: #0d6efd;
+      background: #eef4ff;
+    }
+
+    .upload-dropzone input:valid + .dropzone-content {
+      color: #198754;
+    }
+
+    .legal-table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .doc-highlight {
+      background-color: #e9f7ef !important; 
+    }
+    /* Header */
+    /* .legal-table th {
+        white-space: normal;    
+        text-align: center;
+        vertical-align: middle;
+        font-size: 0.75rem;
+        line-height: 1.2;
+        max-width: 110px;
+        }
+
+        .legal-table th span {
+        display: block;
+        word-break: break-word;
+        } 
+        
+        */
+    .legal-table th.doc-header {
+        font-size: 0.75rem;
+        max-width: 110px;
+        text-align: center;
+        vertical-align: middle;
+        }
+
+        .legal-table th.doc-header span {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        }
+
+
+</style>
+{% endblock %}
 
 {% block dashboard_content %}
-<h3 class="mb-3">Mis Documentos — Matriz de Cumplimiento</h3>
-<div class="card mb-4">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-sm table-striped mb-0 small align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-3">Propiedad / Dirección</th>
-                        <th>Propietario</th>
-                        <th>Creado</th>
-                        {% for dt in doc_types_no_estudio %}
-                        <th class="text-center">{{ dt.name|truncatechars:15 }}</th>
-                        {% endfor %}
-                        <th class="text-center table-warning">{{ estudio_name }}</th>
-                        <th class="text-end pe-3">Avance</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in rows %}
-                    <tr>
-                        <td class="ps-3">
-                            <div class="fw-bold text-wrap" style="max-width: 350px;">
-                                {{ row.property.exact_address|default:row.property.title }}
-                            </div>
-                            <small class="text-muted">{{ row.property.code }}</small>
-                        </td>
-                        <td>
-                            <div class="text-truncate" style="max-width: 120px;">
-                                {% if row.property.owner %}
-                                    {{ row.property.owner.full_name }}
-                                {% else %}
-                                    <span class="text-muted">—</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td>{{ row.property.created_at|localtime|date:"d/m/y" }}</td>
-                        
-                        {% for cell in row.cells %}
-                        <td class="text-center">
-                            {% if cell.present %}
-                                <i class="fas fa-check-circle text-success" title="Presente"></i>
-                            {% else %}
-                                <span class="text-muted text-opacity-25">•</span>
-                            {% endif %}
-                        </td>
-                        {% endfor %}
-                        
-                        <td class="text-center table-warning">
-                            {% if row.estudio_present %}
-                                <i class="fas fa-check-circle text-success"></i>
-                            {% else %}
-                                <span class="text-muted text-opacity-25">•</span>
-                            {% endif %}
-                        </td>
-                        
-                        <td class="text-end pe-3">
-                            {% if row.completed_pct == 100 %}
-                                <span class="badge bg-success">100%</span>
-                            {% else %}
-                                <div class="d-flex align-items-center justify-content-end gap-2">
-                                    <span class="small">{{ row.completed_pct }}%</span>
-                                    <div class="progress" style="width: 50px; height: 4px;">
-                                        <div class="progress-bar {% if row.completed_pct < 50 %}bg-danger{% elif row.completed_pct < 80 %}bg-warning{% else %}bg-info{% endif %}" 
-                                             role="progressbar" style="width: {{ row.completed_pct }}%"></div>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="{{ empty_colspan }}" class="text-center py-4 text-muted">
-                            <i class="fas fa-folder-open fa-2x mb-2 d-block"></i>
-                            No tienes propiedades registradas para verificar documentación.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+<h3 class="my-3">Mis Documentos — Matriz de Cumplimiento</h3>
+
+<div class="table-scroll-wrapper">
+  <table class="table table-hover align-middle legal-table">
+        <thead class="table-light">
+            <tr id="legalTableHeader">
+                <th></th>
+                <th>Acciones</th>
+                <th>Dirección</th>
+                <!-- columnas de documentos se inyectan aquí -->
+                
+            </tr>
+        </thead>
+
+
+        <tbody id="legalTableBody">
+            <tr>
+            <td colspan="10" class="text-center text-muted py-4">
+                Cargando documentos…
+            </td>
+            </tr>
+        </tbody>
+    </table>
 </div>
+
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form id="uploadForm" class="modal-content" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h6 class="modal-title">Subir documento</h6>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" name="property_id" id="uploadPropertyId">
+
+        <div class="mb-3">
+          <label class="form-label">Tipo de documento</label>
+          <select name="doc_type" class="form-select" required>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Archivo (PDF, JPG, JPEG o PNG)</label>
+
+          <div  class="upload-dropzone">
+            <div id="fileDrop">
+
+              <i class="fas fa-cloud-upload-alt fa-2x mb-2" style="color: #44DE88;"></i>
+
+              <div id="fileText" class="fw-semibold">
+                Haz clic para seleccionar tu archivo
+              </div>
+
+              <small class="text-muted">
+                PDF JPG JPEG PNG · Máx 10MB
+              </small>
+
+              <input
+                type="file"
+                name="file"
+                id="fileInput"
+                accept="application/pdf,image/jpeg,image/png"
+                hidden
+                required
+              >
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+/* =======================
+   CONFIG / STATE
+======================= */
+const API_URL = '/dashboard/api/properties/my-properties/with-docs/';
+
+let CURRENT_PROPERTY = null;
+let ACTIVE_PROPERTY = null;
+
+let ALL_DOC_TYPES = [];
+let DOCUMENT_TYPES_CACHE = [];
+
+let MODAL_MODE = 'create';
+let EDIT_DOC_TYPE_ID = null;
+
+/* =======================
+   FETCH DOCUMENT TYPES
+======================= */
+async function getAllDocumentTypes(
+  url = '/dashboard/api/document-types/'
+) {
+  const res = await fetch(url);
+  const data = await res.json();
+  DOCUMENT_TYPES_CACHE = data.filter(d => d.is_active);
+  return DOCUMENT_TYPES_CACHE;
+}
+
+/* =======================
+   HELPERS
+======================= */
+function shortName(name) {
+  const clean = name.replaceAll('_', ' ');
+  return clean.length > 12 ? clean.slice(0, 12) + '…' : clean;
+}
+
+function docIcon(url) {
+  if (!url) {
+    return `<i class="fas fa-times text-muted opacity-50"></i>`;
+  }
+
+  return `
+    <i class="fas fa-check-circle text-success cursor-pointer"
+       data-preview-url="${url}">
+    </i>
+  `;
+}
+
+function buildTableHeader(docTypes) {
+  const headerRow = document.getElementById('legalTableHeader');
+  headerRow.innerHTML = '<th></th><th></th><th>Propiedad</th>';
+
+  docTypes.forEach(type => {
+    const th = document.createElement('th');
+    th.className = 'doc-header';
+    th.setAttribute('title', type.replaceAll('_', ' '));
+    th.innerHTML = `<span>${shortName(type)}</span>`;
+    headerRow.appendChild(th);
+  });
+}
+
+/* =======================
+   LOAD TABLE
+======================= */
+async function loadTable() {
+  const tbody = document.getElementById('legalTableBody');
+
+  const res = await fetch(API_URL);
+  const data = await res.json();
+  const properties = data.results;
+
+  window.__LEGAL_DATA__ = properties;
+  CURRENT_PROPERTY = properties;
+
+  if (!properties.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="100%" class="text-center py-4 text-muted">
+          No tienes propiedades registradas.
+        </td>
+      </tr>`;
+    return;
+  }
+
+  ALL_DOC_TYPES = Object.keys(properties[0].property_documents);
+  buildTableHeader(ALL_DOC_TYPES);
+
+  tbody.innerHTML = '';
+
+  properties.forEach(p => {
+    const cells = ALL_DOC_TYPES.map(t =>
+      `<td class="text-center">${docIcon(p.property_documents[t])}</td>`
+    ).join('');
+
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr id="property-row-${p.id}">
+        <td></td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-primary edit-docs-btn"
+                  data-id="${p.id}">
+            <i class="fas fa-edit"></i> Editar
+          </button>
+        </td>
+        <td>
+          <div class="fw-semibold">${p.direccion}</div>
+          <small class="text-muted">${p.code}</small>
+        </td>
+        ${cells}
+      </tr>
+    `);
+  });
+}
+
+/* =======================
+   UPDATE SINGLE ROW
+======================= */
+function updatePropertyRow(p) {
+  const row = document.getElementById(`property-row-${p.id}`);
+  if (!row) {
+    loadTable();
+    return;
+  }
+
+  const cells = ALL_DOC_TYPES.map(type =>
+    `<td class="text-center">
+      ${docIcon(p.property_documents[type])}
+    </td>`
+  ).join('');
+
+  row.outerHTML = `
+    <tr id="property-row-${p.id}">
+      <td></td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-primary edit-docs-btn"
+                data-id="${p.id}">
+          <i class="fas fa-edit"></i> Editar
+        </button>
+      </td>
+      <td>
+        <div class="fw-semibold">${p.direccion}</div>
+        <small class="text-muted">${p.code}</small>
+      </td>
+      ${cells}
+    </tr>
+  `;
+}
+
+/* =======================
+   PREVIEW DOCUMENT
+======================= */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-preview-url]');
+  if (!el) return;
+  window.open(el.dataset.previewUrl, '_blank', 'noopener,noreferrer');
+});
+
+/* =======================
+   OPEN MODAL
+======================= */
+function openEditModal(propertyId) {
+  ACTIVE_PROPERTY = CURRENT_PROPERTY.find(p => p.id === propertyId);
+  if (!ACTIVE_PROPERTY) return;
+
+  uploadPropertyId.value = propertyId;
+
+  const select = document.querySelector('select[name="doc_type"]');
+  select.innerHTML = `<option value="">Selecciona un tipo</option>`;
+
+  DOCUMENT_TYPES_CACHE.forEach(doc => {
+    const option = document.createElement('option');
+    option.value = doc.id;
+    option.textContent = doc.name.replaceAll('_', ' ');
+    select.appendChild(option);
+  });
+
+  fileInput.value = '';
+  fileText.textContent = 'Selecciona el archivo';
+
+  new bootstrap.Modal(uploadModal).show();
+}
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.edit-docs-btn');
+  if (!btn) return;
+  openEditModal(Number(btn.dataset.id));
+});
+
+/* =======================
+   FILE INPUT
+======================= */
+const fileDrop = document.getElementById('fileDrop');
+const fileInput = document.getElementById('fileInput');
+const fileText = document.getElementById('fileText');
+
+fileDrop.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', () => {
+  if (!fileInput.files.length) return;
+  fileText.innerHTML = `
+    <i class="fas fa-check-circle text-success me-1"></i>
+    ${fileInput.files[0].name}
+  `;
+});
+
+/* =======================
+   CSRF
+======================= */
+function getCSRFToken() {
+  return document.cookie
+    .split('; ')
+    .find(row => row.startsWith('csrftoken='))
+    ?.split('=')[1];
+}
+
+/* =======================
+   SUBMIT FORM
+======================= */
+document.getElementById('uploadForm').addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const form = e.target;
+  const propertyId = uploadPropertyId.value;
+  const formData = new FormData(form);
+
+  const docTypeId = form.doc_type.value;
+  if (!docTypeId) {
+    alert('Selecciona un tipo de documento');
+    return;
+  }
+
+  formData.set('document_type', docTypeId);
+
+  try {
+    const res = await fetch(
+      `/dashboard/api/properties/${propertyId}/documents/`,
+      {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': getCSRFToken() }
+      }
+    );
+
+    if (!res.ok) throw new Error('Error subiendo documento');
+
+    const updatedProperty = await res.json();
+
+    bootstrap.Modal.getInstance(uploadModal).hide();
+
+    const index = window.__LEGAL_DATA__.findIndex(
+      p => p.id === updatedProperty.id
+    );
+
+    if (index !== -1) {
+      window.__LEGAL_DATA__[index] = updatedProperty;
+      updatePropertyRow(updatedProperty);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert('No se pudo subir el documento');
+  }
+});
+
+/* =======================
+   INIT
+======================= */
+document.addEventListener('DOMContentLoaded', async () => {
+  await getAllDocumentTypes();
+  loadTable();
+});
+</script>
+
+
+
 {% endblock %}
