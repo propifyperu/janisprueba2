@@ -96,6 +96,9 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
     def delete_document_by_type(self, request, document_type_id=None, *args, **kwargs):
         prop = self.get_object()
 
+        if getattr(prop, "created_by_id", None) != getattr(request.user, "id", None):
+            raise PermissionDenied("No puedes eliminar documentos de una propiedad que no es tuya.")
+
         doc = get_object_or_404(
             models.PropertyDocument,
             property=prop,
