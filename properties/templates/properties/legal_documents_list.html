@@ -28,13 +28,13 @@
       }
 
       .table-scroll-wrapper::before {
-  content: '';
-  position: sticky;
-  top: 0;
-  height: 1px;
-  background: #f8f9fa;
-  z-index: 101;
-}
+        content: '';
+        position: sticky;
+        top: 0;
+        height: 1px;
+        background: #f8f9fa;
+        z-index: 101;
+      }
 
 
 
@@ -107,6 +107,10 @@
     .legal-table {
       border-collapse: separate;
       border-spacing: 0;
+    }
+
+    .doc-highlight {
+      background-color: #e9f7ef !important; 
     }
 
 
@@ -191,7 +195,7 @@
         </div>
 
         <div class="mb-3">
-          <label class="form-label">Archivo (PDF)</label>
+          <label class="form-label">Archivo (PDF, JPG, JPEG o PNG)</label>
 
           <div  class="upload-dropzone">
             <div id="fileDrop">
@@ -210,7 +214,7 @@
                 type="file"
                 name="file"
                 id="fileInput"
-                accept="application/pdf"
+                accept="application/pdf,image/jpeg,image/png"
                 hidden
                 required
               >
@@ -221,8 +225,11 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-primary">Guardar</button>
+        <button id="saveBtn" class="btn btn-primary" type="submit">
+          Guardar
+        </button>
       </div>
+
     </form>
   </div>
 </div>
@@ -233,6 +240,9 @@ let nextPageUrl = null;
 let prevPageUrl = null;
 
 let DOCUMENT_TYPES_CACHE = null;
+
+let MODAL_MODE = 'create';
+let EDIT_DOC_TYPE_ID = null;
 
 function renderOtherDocs(docs) {
   const MAIN_DOCS = [
@@ -323,7 +333,7 @@ async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') 
           <td class="text-center">${docIcon(docs.Titulo_dominio)}</td>
           <td class="text-center">${docIcon(docs.Partida_registral)}</td>
           <td class="text-center">${docIcon(docs.DNI_titular)}</td>
-          <td class="text-center">${docIcon(docs.Estudio_de_titulo)}</td>
+          <td class="text-center doc-highlight">${docIcon(docs.Estudio_de_titulo)}</td>
           <td class="text-center">${docIcon(docs.Contrato_de_corretaje)}</td>
           <td class="text-center">
            <div class="d-grid">
@@ -341,10 +351,7 @@ async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') 
 
           <td class="text-center">
             <button
-              class="btn btn-sm upload-btn ${p.can_legal_upload_study ? 'btn-primary' : 'btn-outline-primary'}"
-              ${p.can_legal_upload_study 
-                ? '' 
-                : 'disabled aria-disabled="true" data-bs-toggle="tooltip" title="Completa los documentos previos"'}
+              class="btn btn-sm upload-btn btn-primary"
               data-property="${p.id}">
               
               <i class="fas fa-upload me-1"></i>
@@ -438,8 +445,7 @@ function putStaticData(obj) {
 
           <td class="text-center">
             <button
-              class="btn btn-sm upload-btn ${p.can_legal_upload_study ? 'btn-primary' : 'btn-outline-primary'}"
-              ${p.can_legal_upload_study ? '' : 'disabled aria-disabled="true"'}
+              class="btn btn-sm upload-btn"
               data-property="${p.id}">
               
               <i class="fas fa-upload me-1"></i>
@@ -545,7 +551,7 @@ document.addEventListener('click', async e => {
 
   const property = window.__LEGAL_DATA__.find(p => p.id == propertyId);
 
-  await populateDocTypeSelect(property.property_documents);
+  await populateDocTypeSelect(property.property_documents, property.can_legal_upload_study);
 
   const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
   modal.show();
@@ -574,21 +580,57 @@ document.getElementById('uploadForm').addEventListener('submit', async e => {
 
   const form = e.target;
   const propertyId = document.getElementById('uploadPropertyId').value;
-  const docTypeId = form.doc_type.value;
-
-  if (!docTypeId) {
-    alert('Por favor selecciona un tipo de documento.');
-    return;
-  }
-
   const formData = new FormData(form);
-  formData.set('document_type', docTypeId);
 
-  const url = `/dashboard/api/properties/${propertyId}/documents/`;
+  
+
+  let url = '';
+  let method = '';
+
+  if (MODAL_MODE === 'edit') {
+    // EDITAR documento existente (PATCH)
+    if (!EDIT_DOC_TYPE_ID) {
+      alert('Selecciona el documento a editar');
+      return;
+    }
+    const saveBtn = document.getElementById('saveBtn');
+
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+      Guardando...
+    `;
+
+
+    url = `/dashboard/api/properties/${propertyId}/documents/by-type/${EDIT_DOC_TYPE_ID}/`;
+    method = 'PATCH';
+
+  } else {
+    // CREAR documento nuevo (POST)
+    const docTypeId = form.doc_type.value;
+
+    if (!docTypeId) {
+      alert('Por favor selecciona un tipo de documento.');
+      return;
+    }
+
+    const saveBtn = document.getElementById('saveBtn');
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+        Guardando...
+      `;
+
+
+    formData.set('document_type', docTypeId);
+    url = `/dashboard/api/properties/${propertyId}/documents/`;
+    method = 'POST';
+  }
 
   try {
     const res = await fetch(url, {
-      method: 'POST',
+      method,
       body: formData,
       headers: {
         'X-CSRFToken': getCSRFToken(),
@@ -601,28 +643,29 @@ document.getElementById('uploadForm').addEventListener('submit', async e => {
       throw new Error('Error subiendo documento');
     }
 
-    const updatedProperty = await res.json(); 
+    const updatedProperty = await res.json();
 
     // cerrar modal
     bootstrap.Modal.getInstance(
       document.getElementById('uploadModal')
     ).hide();
 
-    // refrescar tabla
-    console.log('Response', res);
-    console.log(window.__LEGAL_DATA__);
-    const index = window.__LEGAL_DATA__.findIndex(ob => ob.id==updatedProperty.id); 
+    // actualizar solo la fila
+    const index = window.__LEGAL_DATA__.findIndex(
+      p => p.id === updatedProperty.id
+    );
+
     if (index !== -1) {
       window.__LEGAL_DATA__[index] = updatedProperty;
       updatePropertyRow(updatedProperty);
-
-      //putStaticData(window.__LEGAL_DATA__);
     }
-    
 
   } catch (err) {
     console.error(err);
-    console.error('No se pudo subir el documento');
+    alert('No se pudo subir el documento');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = 'Guardar';
   }
 });
 
@@ -642,10 +685,12 @@ function renderPropertyDetails(p) {
           class="btn btn-primary btn-xs mt-3 mr-5">
           <i class="fas fa-eye"></i> Ver detalle
         </a>
-        <a href="/dashboard/${p.id}/editar" 
-          class="btn btn-outline-primary btn-xs mt-3">
-          <i class="fas fa-edit"></i> Editar
-        </a>
+        <div 
+          class="btn btn-outline-primary btn-xs mt-3 edit-docs-btn"
+          data-property="${p.id}">
+          <i class="fas fa-edit"></i> Editar Documentos
+        </div>
+
       </div>
     </div>
   `;
@@ -671,7 +716,7 @@ document.addEventListener('click', e => {
   icon.classList.toggle('fa-chevron-down');
 });
 
-async function populateDocTypeSelect(propertyDocs) {
+async function populateDocTypeSelect(propertyDocs, canUploadStudy) {
   const select = document.querySelector('#uploadForm select[name="doc_type"]');
 
   select.innerHTML = `<option value="">Selecciona</option>`;
@@ -682,10 +727,20 @@ async function populateDocTypeSelect(propertyDocs) {
     if (propertyDocs[type.name]) return;
 
     const option = document.createElement('option');
-    option.value = type.id; 
+    option.value = type.id;
     option.textContent = type.name.replaceAll('_', ' ');
+
+    if (
+      type.name === 'Estudio_de_titulo' &&
+      canUploadStudy === false
+    ) {
+      option.disabled = true;
+      option.textContent += ' (no habilitado)';
+    }
+
     select.appendChild(option);
   });
+
 
   if (select.options.length === 1) {
     select.innerHTML = `<option value="">No hay documentos pendientes</option>`;
@@ -767,7 +822,7 @@ function updatePropertyRow(p) {
       <td class="text-center">
         <button class="btn btn-sm btn-outline-primary upload-btn"
                 data-property="${p.id}">
-          <i class="fas fa-upload"></i>
+          <i class="fas fa-upload"></i> <span>Subir</span>
         </button>
       </td>
     </tr>
@@ -784,6 +839,74 @@ function updatePropertyRow(p) {
   mainRow.outerHTML = newMainHTML;
   detailsRow.outerHTML = newDetailsHTML;
 }
+
+
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('.edit-docs-btn');
+  if (!btn) return;
+
+  MODAL_MODE = 'edit';
+
+  const propertyId = btn.dataset.property;
+  const property = window.__LEGAL_DATA__.find(p => p.id == propertyId);
+
+  document.getElementById('uploadPropertyId').value = propertyId;
+
+  const form = document.getElementById('uploadForm');
+  form.reset();
+
+  document.getElementById('fileText').textContent =
+    'Selecciona el archivo para reemplazar el documento';
+
+  await populateEditDocTypeSelect(property.property_documents);
+
+  const modal = new bootstrap.Modal(
+    document.getElementById('uploadModal')
+  );
+  modal.show();
+});
+
+document
+  .querySelector('#uploadForm select[name="doc_type"]')
+  .addEventListener('change', e => {
+    EDIT_DOC_TYPE_ID = e.target.value || null;
+  });
+
+
+async function populateEditDocTypeSelect(propertyDocs) {
+  const select = document.querySelector(
+    '#uploadForm select[name="doc_type"]'
+  );
+
+  select.innerHTML = `<option value="">Selecciona</option>`;
+
+  const allTypes = await getAllDocumentTypes();
+
+  allTypes.forEach(type => {
+    if (!propertyDocs[type.name]) return;
+
+    const option = document.createElement('option');
+    option.value = type.id;
+    option.textContent = type.name.replaceAll('_', ' ') + ' (reemplazar)';
+    select.appendChild(option);
+  });
+
+  if (select.options.length === 1) {
+    select.innerHTML = `<option>No hay documentos editables</option>`;
+    select.disabled = true;
+  } else {
+    select.disabled = false;
+  }
+}
+
+
+document
+  .getElementById('uploadModal')
+  .addEventListener('hidden.bs.modal', () => {
+    MODAL_MODE = 'create';
+    EDIT_DOC_TYPE_ID = null;
+  });
+
 
 </script>
 
