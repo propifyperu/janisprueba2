@@ -997,6 +997,15 @@ let marker;
 let autocomplete;
 let geocoder;
 
+let DOCUMENT_TYPES_CACHE = null;
+
+async function getAllDocumentTypes(url= '/dashboard/api/document-types/') {
+  const res = await fetch(url);
+  const data = await res.json();
+  DOCUMENT_TYPES_CACHE = data.filter(d => d.is_active);
+  return DOCUMENT_TYPES_CACHE;
+}
+
 function initMap() {
     geocoder = new google.maps.Geocoder();
     const defaultCenter = { lat: -12.046374, lng: -77.042793 };
@@ -1765,7 +1774,7 @@ function populateVideoTypeSelect(select) {
 }
 
 function populateDocumentTypeSelect(select) {
-    fetch("{% url 'properties:api_document_types' %}")
+    fetch("/dashboard/api/document-types/")
         .then(response => response.json())
         .then(data => {
             select.innerHTML = '<option value="">Seleccionar tipo</option>';

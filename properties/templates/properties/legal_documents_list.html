@@ -8,12 +8,42 @@
         white-space: nowrap;
     }
 
+    .legal-table th {
+      border-bottom: #e0e0e0 3px solid !important;
+      padding: 1rem .75rem;
+      height: 78px;
+    }
+
     .legal-table thead th {
-        position: sticky;
+      position: sticky;
         top: 0;
         z-index: 3;
         background: #f8f9fa;
     }
+
+    .legal-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 99;
+      }
+
+      .table-scroll-wrapper::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  height: 1px;
+  background: #f8f9fa;
+  z-index: 101;
+}
+
+
+
+    .table-scroll-wrapper {
+        max-height: calc(100vh - 180px); 
+        overflow-y: auto;
+        position: relative;
+      }
+
 
     .icon-btn {
         background: none;
@@ -48,15 +78,47 @@
         top: 45px;
 
     }
+
+    .cursor-pointer {
+      cursor: pointer;
+    }
+
+    /* Component upload file */
+    .upload-dropzone {
+      display: block;
+      border: 2px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s ease;
+      background: #f8fafc;
+    }
+
+    .upload-dropzone:hover {
+      border-color: #0d6efd;
+      background: #eef4ff;
+    }
+
+    .upload-dropzone input:valid + .dropzone-content {
+      color: #198754;
+    }
+
+    .legal-table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
-<h3 class="mb-3">Área Legal — Documentos por Propiedad</h3>
+<h3 class=" my-3">Área Legal — Documentos por Propiedad</h3>
 
-
-<table class="table table-hover align-middle legal-table">
-  <thead class="table-light sticky-top">
+<div class="table-scroll-wrapper">
+  <table class="table table-hover align-middle legal-table">
+  <thead class="table-light">
     <tr>
       <th></th>
       <th>Dirección</th>
@@ -79,6 +141,11 @@
     </tr>
   </tbody>
 </table>
+</div>
+
+
+
+
 <div class="d-flex justify-content-between align-items-center mt-3">
   <button id="prevPage" class="btn btn-outline-secondary btn-sm" disabled>
     ← Anterior
@@ -108,7 +175,7 @@
 
 <div class="modal fade" id="uploadModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <form class="modal-content" enctype="multipart/form-data">
+    <form id="uploadForm" class="modal-content" enctype="multipart/form-data">
       <div class="modal-header">
         <h6 class="modal-title">Subir documento</h6>
         <button class="btn-close" data-bs-dismiss="modal"></button>
@@ -120,18 +187,37 @@
         <div class="mb-3">
           <label class="form-label">Tipo de documento</label>
           <select name="doc_type" class="form-select" required>
-            <option value="">Selecciona</option>
-            <option value="estudio_del_titulo">Estudio del título</option>
-            <option value="contrato_de_reserva">Contrato de reserva</option>
-            <option value="contrato_de_corretaje">Contrato de corretaje</option>
-            <option value="other">Otro</option>
           </select>
         </div>
 
         <div class="mb-3">
           <label class="form-label">Archivo (PDF)</label>
-          <input type="file" name="file" class="form-control" accept="application/pdf" required>
+
+          <div  class="upload-dropzone">
+            <div id="fileDrop">
+
+              <i class="fas fa-cloud-upload-alt fa-2x mb-2" style="color: #44DE88;"></i>
+
+              <div id="fileText" class="fw-semibold">
+                Haz clic para seleccionar tu archivo
+              </div>
+
+              <small class="text-muted">
+                PDF JPG JPEG PNG · Máx 10MB
+              </small>
+
+              <input
+                type="file"
+                name="file"
+                id="fileInput"
+                accept="application/pdf"
+                hidden
+                required
+              >
+            </div>
+          </div>
         </div>
+
       </div>
 
       <div class="modal-footer">
@@ -145,6 +231,40 @@
 let currentPage = 1;
 let nextPageUrl = null;
 let prevPageUrl = null;
+
+let DOCUMENT_TYPES_CACHE = null;
+
+function renderOtherDocs(docs) {
+  const MAIN_DOCS = [
+    'Titulo_dominio',
+    'Partida_registral',
+    'DNI_titular',
+    'Estudio_de_titulo',
+    'Contrato_de_corretaje'
+  ];
+
+  const others = Object.entries(docs)
+    .filter(([key, val]) => val && !MAIN_DOCS.includes(key));
+
+  if (!others.length) {
+    return `<span class="text-muted"></span>`;
+  }
+
+  return others.map(([key, url]) => `
+    <span class="badge bg-secondary badge-doc"
+          data-preview-url="${url}">
+      ${key.replaceAll('_', ' ')}
+    </span>
+  `).join('');
+}
+
+async function getAllDocumentTypes(url= '/dashboard/api/document-types/') {
+  const res = await fetch(url);
+  const data = await res.json();
+  DOCUMENT_TYPES_CACHE = data.filter(d => d.is_active);
+  return DOCUMENT_TYPES_CACHE;
+}
+
 
 async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') {
   const tbody = document.getElementById('legalTableBody');
@@ -162,6 +282,9 @@ async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') 
     const res = await fetch(url);
     const data = await res.json();
 
+    window.__LEGAL_DATA__ = data.results;
+
+
     nextPageUrl = normalizeUrl(data.next);
     prevPageUrl = normalizeUrl(data.previous);
 
@@ -172,21 +295,42 @@ async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') 
       const progress = calcProgress(docs);
 
       tbody.insertAdjacentHTML('beforeend', `
-        <tr>
+        <tr  id="property-row-${p.id}">
           <td></td>
 
           <td>
-            <div class="fw-semibold text-wrap" style="max-width:248px">
-              ${p.direccion}
+            <div class="d-flex align-items-start gap-2">
+
+                <button
+                class="btn btn-sm btn-link p-0 toggle-row"
+                data-id="${p.id}"
+                aria-label="Ver detalles"
+                >
+                <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <div>
+                <div class="fw-semibold text-wrap" style="max-width:248px">
+                    ${p.direccion}
+                </div>
+                <small class="text-muted">${p.code}</small>
+                </div>
+
             </div>
-            <small class="text-muted">${p.code}</small>
-          </td>
+        </td>
+
 
           <td class="text-center">${docIcon(docs.Titulo_dominio)}</td>
           <td class="text-center">${docIcon(docs.Partida_registral)}</td>
           <td class="text-center">${docIcon(docs.DNI_titular)}</td>
           <td class="text-center">${docIcon(docs.Estudio_de_titulo)}</td>
           <td class="text-center">${docIcon(docs.Contrato_de_corretaje)}</td>
+          <td class="text-center">
+           <div class="d-grid">
+             ${renderOtherDocs(docs)}
+            </div>
+          </td>
+
 
           <td class="text-end">
             <span class="badge rounded-pill bg-${
@@ -196,10 +340,25 @@ async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') 
           </td>
 
           <td class="text-center">
-            <button class="btn btn-sm btn-outline-primary upload-btn"
-                    data-property="${p.id}">
-              <i class="fas fa-upload"></i>
+            <button
+              class="btn btn-sm upload-btn ${p.can_legal_upload_study ? 'btn-primary' : 'btn-outline-primary'}"
+              ${p.can_legal_upload_study 
+                ? '' 
+                : 'disabled aria-disabled="true" data-bs-toggle="tooltip" title="Completa los documentos previos"'}
+              data-property="${p.id}">
+              
+              <i class="fas fa-upload me-1"></i>
+              <span>Subir</span>
             </button>
+          </td>
+
+
+        </tr>
+      `);
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr class="details-row d-none" id="details-${p.id}">
+          <td colspan="10" class="bg-light">
+            ${renderPropertyDetails(p)}
           </td>
         </tr>
       `);
@@ -220,6 +379,84 @@ async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') 
       </tr>
     `;
   }
+}
+
+function putStaticData(obj) {
+  console.log('Putting static data', obj);
+  console.log('Putting length', obj.length);
+  const tbody = document.getElementById('legalTableBody');
+
+
+  obj.forEach(p => {
+      const docs = p.property_documents;
+      const progress = calcProgress(docs);
+
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr  id="property-row-${p.id}">
+          <td></td>
+
+          <td>
+            <div class="d-flex align-items-start gap-2">
+
+                <button
+                class="btn btn-sm btn-link p-0 toggle-row"
+                data-id="${p.id}"
+                aria-label="Ver detalles"
+                >
+                <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <div>
+                <div class="fw-semibold text-wrap" style="max-width:248px">
+                    ${p.direccion}
+                </div>
+                <small class="text-muted">${p.code}</small>
+                </div>
+
+            </div>
+        </td>
+
+
+          <td class="text-center">${docIcon(docs.Titulo_dominio)}</td>
+          <td class="text-center">${docIcon(docs.Partida_registral)}</td>
+          <td class="text-center">${docIcon(docs.DNI_titular)}</td>
+          <td class="text-center">${docIcon(docs.Estudio_de_titulo)}</td>
+          <td class="text-center">${docIcon(docs.Contrato_de_corretaje)}</td>
+          <td class="text-center">
+           <div class="d-grid">
+             ${renderOtherDocs(docs)}
+            </div>
+          </td>
+
+
+          <td class="text-end">
+            <span class="badge rounded-pill bg-${
+              progress === 100 ? 'success' :
+              progress > 70 ? 'info' : 'warning'
+            }">${progress}%</span>
+          </td>
+
+          <td class="text-center">
+            <button
+              class="btn btn-sm upload-btn ${p.can_legal_upload_study ? 'btn-primary' : 'btn-outline-primary'}"
+              ${p.can_legal_upload_study ? '' : 'disabled aria-disabled="true"'}
+              data-property="${p.id}">
+              
+              <i class="fas fa-upload me-1"></i>
+              <span>Subir</span>
+            </button>
+          </td>
+
+        </tr>
+      `);
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr class="details-row d-none" id="details-${p.id}">
+          <td colspan="10" class="bg-light">
+            ${renderPropertyDetails(p)}
+          </td>
+        </tr>
+      `);
+    });
 }
 
 /* helpers */
@@ -277,6 +514,10 @@ document.addEventListener('click', function (e) {
 
 document.addEventListener('DOMContentLoaded', () => {
   loadLegalDocuments();
+  getAllDocumentTypes();
+  new bootstrap.Tooltip(document.body, {
+    selector: '[data-bs-toggle="tooltip"]'
+  });
 });
 
 function normalizeUrl(url) {
@@ -288,6 +529,260 @@ function normalizeUrl(url) {
   }
 
   return url;
+}
+
+
+/* Open modal */
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('.upload-btn');
+  if (!btn) return;
+
+  const propertyId = btn.dataset.property;
+
+  document.getElementById('uploadPropertyId').value = propertyId;
+  document.getElementById('uploadForm').reset();
+  document.getElementById('fileInput').value = '';
+
+  const property = window.__LEGAL_DATA__.find(p => p.id == propertyId);
+
+  await populateDocTypeSelect(property.property_documents);
+
+  const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
+  modal.show();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const uploadModalEl = document.getElementById('uploadModal');
+  const uploadForm = document.getElementById('uploadForm');
+  const fileInput = document.getElementById('fileInput');
+  const fileText = document.getElementById('fileText');
+
+  if (!uploadModalEl) return;
+
+  uploadModalEl.addEventListener('show.bs.modal', () => {
+    uploadForm.reset();
+    fileInput.value = '';
+    fileText.textContent = 'Arrastra tu archivo aquí o haz clic para seleccionar';
+  });
+});
+
+
+
+/* Send media */
+document.getElementById('uploadForm').addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const form = e.target;
+  const propertyId = document.getElementById('uploadPropertyId').value;
+  const docTypeId = form.doc_type.value;
+
+  if (!docTypeId) {
+    alert('Por favor selecciona un tipo de documento.');
+    return;
+  }
+
+  const formData = new FormData(form);
+  formData.set('document_type', docTypeId);
+
+  const url = `/dashboard/api/properties/${propertyId}/documents/`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': getCSRFToken(),
+      }
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.error(err);
+      throw new Error('Error subiendo documento');
+    }
+
+    const updatedProperty = await res.json(); 
+
+    // cerrar modal
+    bootstrap.Modal.getInstance(
+      document.getElementById('uploadModal')
+    ).hide();
+
+    // refrescar tabla
+    console.log('Response', res);
+    console.log(window.__LEGAL_DATA__);
+    const index = window.__LEGAL_DATA__.findIndex(ob => ob.id==updatedProperty.id); 
+    if (index !== -1) {
+      window.__LEGAL_DATA__[index] = updatedProperty;
+      updatePropertyRow(updatedProperty);
+
+      //putStaticData(window.__LEGAL_DATA__);
+    }
+    
+
+  } catch (err) {
+    console.error(err);
+    console.error('No se pudo subir el documento');
+  }
+});
+
+
+
+function renderPropertyDetails(p) {
+  return `
+    <div class="p-3 small bg-light rounded">
+      <div class="d-md-flex gap-4">
+        <div><strong>Creado:</strong> ${formatDate(p.created_at)}</div>
+        <div><strong>Propietario:</strong> ${p.owner || '—'}</div>
+        <div><strong>Subido por:</strong> ${p.created_by || '—'}</div>
+      </div>
+
+      <div class="d-flex gap-4">
+        <a href="/dashboard/${p.id}/" 
+          class="btn btn-primary btn-xs mt-3 mr-5">
+          <i class="fas fa-eye"></i> Ver detalle
+        </a>
+        <a href="/dashboard/${p.id}/editar" 
+          class="btn btn-outline-primary btn-xs mt-3">
+          <i class="fas fa-edit"></i> Editar
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return isNaN(d) ? '—' : d.toLocaleDateString('es-PE');
+}
+
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.toggle-row');
+  if (!btn) return;
+
+  const id = btn.dataset.id;
+  const row = document.getElementById(`details-${id}`);
+  const icon = btn.querySelector('i');
+
+  row.classList.toggle('d-none');
+  icon.classList.toggle('fa-chevron-right');
+  icon.classList.toggle('fa-chevron-down');
+});
+
+async function populateDocTypeSelect(propertyDocs) {
+  const select = document.querySelector('#uploadForm select[name="doc_type"]');
+
+  select.innerHTML = `<option value="">Selecciona</option>`;
+
+  const allTypes = await getAllDocumentTypes();
+
+  allTypes.forEach(type => {
+    if (propertyDocs[type.name]) return;
+
+    const option = document.createElement('option');
+    option.value = type.id; 
+    option.textContent = type.name.replaceAll('_', ' ');
+    select.appendChild(option);
+  });
+
+  if (select.options.length === 1) {
+    select.innerHTML = `<option value="">No hay documentos pendientes</option>`;
+    select.disabled = true;
+  } else {
+    select.disabled = false;
+  }
+}
+
+function getCSRFToken() {
+    return document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+}
+
+const fileDrop = document.getElementById('fileDrop');
+const fileInput = document.getElementById('fileInput');
+const fileText = document.getElementById('fileText');
+
+fileDrop.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', () => {
+  if (!fileInput.files.length) return;
+
+  const file = fileInput.files[0];
+
+  fileText.innerHTML = `
+    <i class="fas fa-check-circle text-success me-1"></i>
+    ${file.name}
+  `;
+
+  fileDrop.classList.add('border-success');
+});
+
+function updatePropertyRow(p) {
+  const tbody = document.getElementById('legalTableBody');
+
+  const mainRow = document.getElementById(`property-row-${p.id}`);
+  const detailsRow = document.getElementById(`details-${p.id}`);
+
+  const docs = p.property_documents;
+  const progress = calcProgress(docs);
+
+  const newMainHTML = `
+    <tr id="property-row-${p.id}">
+      <td></td>
+      <td>
+        <div class="d-flex align-items-start gap-2">
+          <button class="btn btn-sm btn-link p-0 toggle-row" data-id="${p.id}">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          <div>
+            <div class="fw-semibold text-wrap" style="max-width:248px">
+              ${p.direccion}
+            </div>
+            <small class="text-muted">${p.code}</small>
+          </div>
+        </div>
+      </td>
+
+      <td class="text-center">${docIcon(docs.Titulo_dominio)}</td>
+      <td class="text-center">${docIcon(docs.Partida_registral)}</td>
+      <td class="text-center">${docIcon(docs.DNI_titular)}</td>
+      <td class="text-center">${docIcon(docs.Estudio_de_titulo)}</td>
+      <td class="text-center">${docIcon(docs.Contrato_de_corretaje)}</td>
+
+      <td class="text-center">
+        <div class="d-grid">${renderOtherDocs(docs)}</div>
+      </td>
+
+      <td class="text-end">
+        <span class="badge rounded-pill bg-${
+          progress === 100 ? 'success' :
+          progress > 70 ? 'info' : 'warning'
+        }">${progress}%</span>
+      </td>
+
+      <td class="text-center">
+        <button class="btn btn-sm btn-outline-primary upload-btn"
+                data-property="${p.id}">
+          <i class="fas fa-upload"></i>
+        </button>
+      </td>
+    </tr>
+  `;
+
+  const newDetailsHTML = `
+    <tr id="details-${p.id}" class="details-row">
+      <td colspan="10" class="bg-light">
+        ${renderPropertyDetails(p)}
+      </td>
+    </tr>
+  `;
+
+  mainRow.outerHTML = newMainHTML;
+  detailsRow.outerHTML = newDetailsHTML;
 }
 
 </script>
