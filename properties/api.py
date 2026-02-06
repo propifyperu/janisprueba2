@@ -92,7 +92,7 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
             return PropertyWithDocsSerializer
         return PropertySerializer
     
-    @action( detail=True, methods=["delete"], url_path=r"documents/by-type/(?P<document_type_id>[^/.]+)", permission_classes=[permissions.IsAuthenticated],)
+    @action( detail=True, methods=["delete"], url_path=r"documents/delete-by-type/(?P<document_type_id>[^/.]+)", permission_classes=[permissions.IsAuthenticated],)
     def delete_document_by_type(self, request, document_type_id=None, *args, **kwargs):
         prop = self.get_object()
 
@@ -174,7 +174,7 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
             property=prop,
             document_type_id=document_type_id,
         )
-        self._assert_can_upload_doc(request, doc.document_type)
+        self._assert_can_upload_doc(request, prop, doc.document_type)
 
         serializer = PropertyDocumentUpdateSerializer(
             doc,
