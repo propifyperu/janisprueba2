@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from security.models import AuthorizedDevice, DeviceStatus
+import os
 import uuid
 # users/api/views.py
 from django.contrib.auth import get_user_model
@@ -57,8 +58,8 @@ class ExternalAuthView(APIView):
     def post(self, request):
         secret = request.data.get('secret')
         phone = request.data.get('phone')
-
-        server_secret = getattr(settings, 'EXTERNAL_AUTH_SECRET', 'janis_external_secret_default') # variable de entorno EXTERNAL_AUTH_SECRET)
+        
+        server_secret = os.getenv('EXTERNAL_AUTH_SECRET', getattr(settings, 'EXTERNAL_AUTH_SECRET', 'janis_external_secret_default'))
         
         if secret != server_secret:
             return Response({'error': 'Unauthorized: Invalid Secret'}, status=status.HTTP_401_UNAUTHORIZED)
