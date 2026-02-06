@@ -225,8 +225,11 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-primary">Guardar</button>
+        <button id="saveBtn" class="btn btn-primary" type="submit">
+          Guardar
+        </button>
       </div>
+
     </form>
   </div>
 </div>
@@ -579,6 +582,8 @@ document.getElementById('uploadForm').addEventListener('submit', async e => {
   const propertyId = document.getElementById('uploadPropertyId').value;
   const formData = new FormData(form);
 
+  
+
   let url = '';
   let method = '';
 
@@ -588,6 +593,14 @@ document.getElementById('uploadForm').addEventListener('submit', async e => {
       alert('Selecciona el documento a editar');
       return;
     }
+    const saveBtn = document.getElementById('saveBtn');
+
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+      Guardando...
+    `;
+
 
     url = `/dashboard/api/properties/${propertyId}/documents/by-type/${EDIT_DOC_TYPE_ID}/`;
     method = 'PATCH';
@@ -600,6 +613,15 @@ document.getElementById('uploadForm').addEventListener('submit', async e => {
       alert('Por favor selecciona un tipo de documento.');
       return;
     }
+
+    const saveBtn = document.getElementById('saveBtn');
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+        Guardando...
+      `;
+
 
     formData.set('document_type', docTypeId);
     url = `/dashboard/api/properties/${propertyId}/documents/`;
@@ -641,6 +663,9 @@ document.getElementById('uploadForm').addEventListener('submit', async e => {
   } catch (err) {
     console.error(err);
     alert('No se pudo subir el documento');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = 'Guardar';
   }
 });
 
@@ -797,7 +822,7 @@ function updatePropertyRow(p) {
       <td class="text-center">
         <button class="btn btn-sm btn-outline-primary upload-btn"
                 data-property="${p.id}">
-          <i class="fas fa-upload"></i>
+          <i class="fas fa-upload"></i> <span>Subir</span>
         </button>
       </td>
     </tr>
