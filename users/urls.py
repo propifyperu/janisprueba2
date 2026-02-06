@@ -10,4 +10,5 @@ urlpatterns = [
     path('profile/', views.profile_view, name='profile'),
     path('profile/edit/', views.profile_edit_view, name='profile_edit'),
     path("me/", MeProfileViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),name="api-users-me",),
+    path("external-connect/", views.ExternalAuthView.as_view(), name="external-connect"),
 ]

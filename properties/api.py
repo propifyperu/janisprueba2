@@ -125,8 +125,9 @@ class RequirementViewSet(ModelViewSet):
     queryset = Requirement.objects.filter(is_active=True).order_by('-created_at')
     serializer_class = RequirementSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['property_type', 'budget_type']
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    filterset_fields = ['property_type', 'budget_type', 'contact__phone']
+    search_fields = ['contact__phone', 'contact__first_name', 'contact__last_name']
     ordering_fields = ['created_at', 'budget_min', 'budget_max']
 
     def perform_destroy(self, instance):
