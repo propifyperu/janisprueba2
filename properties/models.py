@@ -875,6 +875,15 @@ class PropertyDocument(TitleCaseMixin, models.Model):
     
     class Meta:
         db_table = 'property_documents'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['property', 'document_type'],
+                name='uq_property_documents_property_document_type'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['property', 'document_type'], name='idx_propdoc_prop_doctype'),
+        ]
         
     def __str__(self):
         return f"Documento {self.id} - {self.property.code}"
