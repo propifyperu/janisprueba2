@@ -282,7 +282,7 @@ class PropertyOwnerAdmin(admin.ModelAdmin):
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display = ('code', 'title', 'property_type', 'unit_location', 'status', 'price', 'owner', 'is_active', 'created_at')
+    list_display = ('code','condition','operation_type','responsible', 'title', 'property_type','availability_status', 'unit_location', 'status', 'price', 'owner', 'is_active', 'created_at')
     list_filter = ('is_active', 'status', 'property_type', 'created_at', 'department', 'unit_location')
     search_fields = ('code', 'title', 'owner__first_name', 'owner__last_name', 'description')
     readonly_fields = ('created_at', 'updated_at', 'code', 'codigo_unico_propiedad')
@@ -406,7 +406,7 @@ class PropertyWhatsAppLinkAdmin(admin.ModelAdmin):
 
 @admin.register(Requirement)
 class RequirementAdmin(admin.ModelAdmin):
-    list_display = ('id', 'client_name', 'phone', 'property_type', 'district', 'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'created_at')
+    list_display = ('id', 'client_name','created_by', 'phone', 'property_type', 'district', 'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'created_at')
     list_filter = ('is_active', 'budget_type', 'property_type', 'department')
     search_fields = ('client_name', 'phone')
     readonly_fields = ('created_at', 'updated_at')

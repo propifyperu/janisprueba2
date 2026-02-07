@@ -497,6 +497,14 @@ class PropertyOwner(TitleCaseMixin, models.Model):
 # MODELO PRINCIPAL DE PROPIEDAD
 # =============================================================================
 
+AVAILABILITY_STATUS_CHOICES = [
+    ("available", "Disponible"),
+    ("reserved", "Reservada"),
+    ("sold", "Vendida"),
+    ("unavailable", "No disponible"),
+    ("paused", "Pausada"),
+]
+
 REQUIRED_DOC_CODES = [
     "estudio_del_titulo",
     "contrato_de_reserva",
@@ -533,6 +541,7 @@ class Property(TitleCaseMixin, models.Model):
     owner = models.ForeignKey('PropertyOwner', on_delete=models.CASCADE, related_name='properties', blank=True, null=True)
     property_type = models.ForeignKey('PropertyType', on_delete=models.PROTECT, blank=True, null=True)
     property_subtype = models.ForeignKey('PropertySubtype', on_delete=models.PROTECT, blank=True, null=True)
+    availability_status = models.CharField(max_length=20, choices=AVAILABILITY_STATUS_CHOICES, default="available", db_index=True, verbose_name="Estado comercial")
     status = models.ForeignKey('PropertyStatus', on_delete=models.PROTECT, blank=True, null=True)
     condition = models.ForeignKey('PropertyCondition', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Condición Física")
     operation_type = models.ForeignKey('OperationType', on_delete=models.PROTECT, blank=True, null=True, verbose_name="Tipo de Operación")
