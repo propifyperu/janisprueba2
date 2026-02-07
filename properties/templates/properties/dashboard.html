@@ -1077,7 +1077,7 @@
                 {% else %}
                 <div class="property-cards" id="propertyCards">
                     {% for property in properties %}
-                    <div @click="openPropertyDetail({{ property.id }})" class="main-card-property">
+                    <div onclick="openPropertyDetail({{ property.id }})" class="main-card-property">
                         <article class="property-card pr-md-3" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
                             <div class="property-card-media">
                                 {% with images=property.prefetched_images %}
@@ -2104,10 +2104,13 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
     new Intl.NumberFormat('es-PE').format(price); */
 
     /* Open prperty */
-    openPropertyDetail = (propertyId) => {
+    function openPropertyDetail(propertyId) {
+        console.log('💕 Opening property with ID:', propertyId);
+
         const urlTemplate = "{% url 'properties:detail' '0' %}";
         const url = urlTemplate.replace('0', propertyId);
-        window.location.href
+
+        window.location.href = url;
     }
 </script>
 {% endblock %}
