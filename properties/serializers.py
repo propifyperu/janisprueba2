@@ -262,14 +262,14 @@ class PropertyDocumentCreateSerializer(serializers.ModelSerializer):
 
 class RequirementSerializer(serializers.ModelSerializer):
 
-    client_phone = serializers.CharField(write_only=True, required=True)
-    client_first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    client_last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    client_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    client_phone = serializers.CharField(write_only=True, required=False)
+    client_first_name = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
+    client_last_name = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
+    client_email = serializers.EmailField(write_only=True, required=False, allow_blank=True, allow_null=True)
     
-    agent_phone = serializers.CharField(write_only=True, required=False)
+    agent_phone = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
 
-    # Campos de lectura para mostrar detalles en la respuesta (GET)
+    # campos de lectura para mostrar detalles en la respuesta (GET)
     contact_id = serializers.IntegerField(source='contact.id', read_only=True)
     contact_name = serializers.SerializerMethodField()
     contact_phone = serializers.CharField(source='contact.phone', read_only=True)
@@ -287,15 +287,62 @@ class RequirementSerializer(serializers.ModelSerializer):
             'contact_id', 'contact_name', 'contact_phone', 'contact_email',
             'agent_name',
             
-            'property_type', 'property_subtype',
-            'budget_min', 'budget_max', 'currency',
-            'districts', 'bedrooms', 'bathrooms', 'garage_spaces',
+            'property_type', 'property_subtype', 'status', 'payment_method',
+            'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'currency',
+            
+            'department', 'province', 'district', 'districts',
+            
+            'area_type', 'land_area_approx', 'land_area_min', 'land_area_max',
+            'frontera_type', 'frontera_approx', 'frontera_min', 'frontera_max',
+            
+            'bedrooms', 'bathrooms', 'half_bathrooms', 'garage_spaces',
+            'floors', 'number_of_floors', 'ascensor',
+            'preferred_floors', 'zonificaciones',
+            
             'notes', 'created_at'
         ]
         extra_kwargs = {
             'districts': {'required': False},
             'currency': {'required': False},
         }
+
+    def to_internal_value(self, data):
+        # permitir que el agente externo envíe null y tratarlos como lista vacía
+        if isinstance(data, dict):
+            data = data.copy()
+            for field in ['districts', 'preferred_floors', 'zonificaciones']:
+                if field in data and data[field] is None:
+                    data[field] = []
+        return super().to_internal_value(data)
+
+    def validate(self, data):
+        # lógica de consistencia: si envían min/max, es un rango. si es approx, limpiamos min/max
+        if data.get('budget_min') is not None or data.get('budget_max') is not None:
+            data['budget_type'] = 'range'
+            data['budget_approx'] = None
+        elif data.get('budget_approx') is not None:
+            data['budget_type'] = 'approx'
+            data['budget_min'] = None
+            data['budget_max'] = None
+
+        # consistencia area
+        if data.get('land_area_min') is not None or data.get('land_area_max') is not None:
+            data['area_type'] = 'range'
+            data['land_area_approx'] = None
+        elif data.get('land_area_approx') is not None:
+            data['area_type'] = 'approx'
+            data['land_area_min'] = None
+            data['land_area_max'] = None
+
+        # consistencia frontera
+        if data.get('frontera_min') is not None or data.get('frontera_max') is not None:
+            data['frontera_type'] = 'range'
+            data['frontera_approx'] = None
+        elif data.get('frontera_approx') is not None:
+            data['frontera_type'] = 'approx'
+            data['frontera_min'] = None
+            data['frontera_max'] = None
+        return data
 
     def get_contact_name(self, obj):
         if obj.contact:
@@ -308,16 +355,18 @@ class RequirementSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
-        c_phone = validated_data.pop('client_phone')
+        c_phone = validated_data.pop('client_phone', None)
+        
+        if not c_phone:
+            c_phone = self.initial_data.get('contact_phone')
+
         c_first = validated_data.pop('client_first_name', '')
         c_last = validated_data.pop('client_last_name', '')
         c_email = validated_data.pop('client_email', '')
         a_phone = validated_data.pop('agent_phone', None)
         districts = validated_data.pop('districts', [])
-
-        # REVISAR Lógica automática: Si envían min/max, es un rango (para que funcione el matching)
-        if validated_data.get('budget_min') is not None or validated_data.get('budget_max') is not None:
-            validated_data['budget_type'] = 'range'
+        preferred_floors = validated_data.pop('preferred_floors', [])
+        zonificaciones = validated_data.pop('zonificaciones', [])
 
         
         user = self.context['request'].user # hallar agente
@@ -354,6 +403,10 @@ class RequirementSerializer(serializers.ModelSerializer):
 
         if districts:
             requirement.districts.set(districts)
+        if preferred_floors:
+            requirement.preferred_floors.set(preferred_floors)
+        if zonificaciones:
+            requirement.zonificaciones.set(zonificaciones)
 
         return requirement
 
