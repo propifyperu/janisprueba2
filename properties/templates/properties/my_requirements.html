@@ -3,147 +3,351 @@
 
 {% block title %}Mis Requerimientos - Propify{% endblock %}
 
+{% block dashboard_extra_css %}
+<style>
+    .legal-table th,
+    .legal-table td {
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .legal-table th {
+      border-bottom: #e0e0e0 3px solid !important;
+      padding: 1rem .75rem;
+      height: 78px;
+    }
+
+    .legal-table thead th {
+      position: sticky;
+        top: 0;
+        z-index: 3;
+        background: #f8f9fa;
+    }
+
+    .legal-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 99;
+      }
+
+      .table-scroll-wrapper::before {
+        content: '';
+        position: sticky;
+        top: 0;
+        height: 1px;
+        background: #f8f9fa;
+        z-index: 101;
+      }
+
+
+
+    .table-scroll-wrapper {
+        max-height: calc(100vh - 180px); 
+        overflow-y: auto;
+        position: relative;
+      }
+
+
+    .icon-btn {
+        background: #f8f9fa;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all .15s ease;
+        }
+
+        .icon-btn i {
+        font-size: .9rem;
+        color: #6b7280;
+        }
+
+        .icon-btn:hover {
+        background: #eef2f7;
+        border-color: #d1d5db;
+        }
+
+        .icon-btn:hover i {
+        color: #111827;
+        }
+
+        /* Variante peligro */
+        .icon-btn.danger:hover {
+        background: #fee2e2;
+        border-color: #fecaca;
+        }
+
+        .icon-btn.danger i {
+        color: #dc2626;
+        }
+
+
+    .toggle-row i {
+        transition: transform .2s ease;
+    }
+
+    tr[aria-expanded="true"] .toggle-row i {
+        transform: rotate(180deg);
+    }
+
+    .doc-key {
+        background: #e9f7ef; /* verde claro elegante */
+    }
+
+    .badge-doc {
+        font-size: .7rem;
+        margin: 0 .15rem .15rem 0;
+    }
+    .modal {
+        z-index: 10000;
+        height: 90%;
+        top: 45px;
+
+    }
+
+    .cursor-pointer {
+      cursor: pointer;
+    }
+
+    /* Component upload file */
+    .upload-dropzone {
+      display: block;
+      border: 2px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s ease;
+      background: #f8fafc;
+    }
+
+    .upload-dropzone:hover {
+      border-color: #0d6efd;
+      background: #eef4ff;
+    }
+
+    .upload-dropzone input:valid + .dropzone-content {
+      color: #198754;
+    }
+
+    .legal-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.85rem;
+    }
+    .legal-table .text-muted,
+    .legal-table small {
+        font-size: 0.75rem;
+    }
+
+    .doc-highlight {
+      background-color: #e9f7ef !important; 
+    }
+
+    .main-content-inner {
+        padding: 2rem .5rem 3rem !important;
+    }
+
+
+</style>
+{% endblock %}
+
+
 {% block dashboard_content %}
 <div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-12 col-xl-11">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h1 class="h4 mb-0"><i class="fas fa-user me-2"></i>Mis Requerimientos</h1>
-                <a href="{% url 'properties:requirements_create' %}" class="btn btn-teal"><i class="fas fa-plus me-2"></i>Crear requerimiento</a>
-            </div>
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-11">
 
-            <div class="card">
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Nombre</th>
-                                    <th>Apellido</th>
-                                    <th>Teléfono</th>
-                                    <th>Tipo</th>
-                                    <th>Provincia</th>
-                                    <th>Distrito(s)</th>
-                                    <th>Presupuesto</th>
-                                    <th>Área terreno</th>
-                                    <th>Fecha publicación</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for r in requirements %}
-                                <tr>
-                                    <td>
-                                        {% if r.contact and r.contact.first_name %}
-                                            {{ r.contact.first_name }}
-                                        {% elif r.client_name %}
-                                            {{ r.client_name }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if r.contact %}
-                                            {% if r.contact.last_name %}{{ r.contact.last_name }}{% elif r.contact.maternal_last_name %}{{ r.contact.maternal_last_name }}{% else %}-{% endif %}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if r.contact and r.contact.phone %}
-                                            {{ r.contact.phone }}
-                                        {% elif r.phone %}
-                                            {{ r.phone }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-
-                                    <td>{% if r.property_type %}{{ r.property_type.name }}{% else %}-{% endif %}</td>
-
-                                    <td>
-                                        {% with prov=r.province %}
-                                            {% if prov %}
-                                                {% if prov.name %}{{ prov.name }}{% else %}{{ prov }}{% endif %}
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        {% endwith %}
-                                    </td>
-
-                                    <td>
-                                        {% with ds=r.districts.all %}
-                                            {% if ds and ds|length > 0 %}
-                                                {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                                            {% elif r.district %}
-                                                {% if r.district.name %}{{ r.district.name }}{% else %}{{ r.district }}{% endif %}
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        {% endwith %}
-                                    </td>
-
-                                    <td>
-                                        {% with symbol=r.currency.symbol|default:"$" %}
-                                            {% if r.budget_type == 'approx' %}
-                                                {% if r.budget_approx %}{{ symbol }} {{ r.budget_approx }}{% else %}-{% endif %}
-                                            {% else %}
-                                                {% if r.budget_min and r.budget_max %}{{ symbol }} {{ r.budget_min }} - {{ symbol }} {{ r.budget_max }}{% else %}-{% endif %}
-                                            {% endif %}
-                                        {% endwith %}
-                                    </td>
-
-                                    <td>
-                                        {% if r.area_type == 'approx' %}
-                                            {% if r.land_area_approx %}{{ r.land_area_approx }} m²{% else %}-{% endif %}
-                                        {% else %}
-                                            {% if r.land_area_min and r.land_area_max %}{{ r.land_area_min }} - {{ r.land_area_max }} m²{% else %}-{% endif %}
-                                        {% endif %}
-                                    </td>
-
-                                    <td>{{ r.created_at|date:"d/m/Y" }}</td>
-
-                                    <td>
-                                        {% if r.matches_count and r.matches_count > 0 %}
-                                        <span class="badge bg-teal me-2">{{ r.matches_count }} matches</span>
-                                        {% endif %}
-                                        <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>
-                                        <a href="{% url 'properties:requirements_edit' r.id %}" class="btn btn-sm btn-outline-teal ms-1">Editar</a>
-                                        <form method="post" action="{% url 'properties:requirements_delete' r.id %}" style="display:inline;" onsubmit="return confirm('¿Confirmas eliminar este requerimiento?');">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-danger ms-1">Borrar</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="10" class="text-center py-4">No hay requerimientos registrados por ti.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            {% if is_paginated %}
-            <nav class="mt-3" aria-label="Paginación de requerimientos">
-                <ul class="pagination justify-content-center">
-                    {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
-                    </li>
-                    {% endif %}
-                    {% for num in page_obj.paginator.page_range %}
-                    <li class="page-item {% if page_obj.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-                    {% endfor %}
-                    {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
+      <!-- Header -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
+        <div>
+          <h1 class="h4 fw-semibold mb-1">
+            <i class="fas fa-clipboard-list me-2 text-teal"></i>Mis requerimientos
+          </h1>
+          <p class="text-muted small mb-0">
+            Gestiona tus requerimientos y revisa coincidencias
+          </p>
         </div>
+
+        <a href="{% url 'properties:requirements_create' %}" class="btn btn-teal px-4">
+          <i class="fas fa-plus me-2"></i>Nuevo requerimiento
+        </a>
+      </div>
+
+      <!-- Tabla -->
+      <div class="card border-0  rounded-4">
+        <div class="card-body p-0">
+
+          <div class="table-scroll-wrapper">
+            <table class="table legal-table table-hover align-middle mb-0">
+
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Teléfono</th>
+                  <th>Tipo</th>
+                  <th class="d-none d-lg-table-cell">Provincia</th>
+                  <th class="d-none d-xl-table-cell">Distrito(s)</th>
+                  <th>Presupuesto</th>
+                  <th class="d-none d-md-table-cell">Área</th>
+                  <th class="d-none d-md-table-cell">Fecha</th>
+                  <th class="text-end">Acciones</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {% for r in requirements %}
+                <tr>
+
+                  <!-- Cliente -->
+                  <td>
+                    <div class="fw-medium">
+                      {% if r.contact and r.contact.first_name %}
+                        {{ r.contact.first_name }} {{ r.contact.last_name|default:"" }}
+                      {% elif r.client_name %}
+                        {{ r.client_name }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </div>
+                  </td>
+
+                  <!-- Teléfono -->
+                  <td>
+                    {% if r.contact and r.contact.phone %}
+                      {{ r.contact.phone }}
+                    {% elif r.phone %}
+                      {{ r.phone }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+
+                  <!-- Tipo -->
+                  <td>
+                    {% if r.property_type %}
+                      <span class="badge bg-light text-dark border">
+                        {{ r.property_type.name }}
+                      </span>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+
+                  <!-- Provincia -->
+                  <td class="d-none d-lg-table-cell">
+                    {% if r.province %}
+                      {{ r.province.name|default:r.province }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+
+                  <!-- Distritos -->
+                  <td class="d-none d-xl-table-cell">
+                    {% with ds=r.districts.all %}
+                      {% if ds and ds|length > 0 %}
+                        {% for d in ds %}
+                          {{ d.name }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                      {% elif r.district %}
+                        {{ r.district.name|default:r.district }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    {% endwith %}
+                  </td>
+
+                  <!-- Presupuesto -->
+                  {% load money %}
+
+                  <td>
+                    {% with symbol=r.currency.symbol|default:"$" %}
+                      {% if r.budget_type == 'approx' %}
+                        {{ symbol }} {{ r.budget_approx|money_us }}
+                      {% else %}
+                        {{ symbol }} {{ r.budget_min|money_us }}
+                        –
+                        {{ symbol }} {{ r.budget_max|money_us }}
+                      {% endif %}
+                    {% endwith %}
+                  </td>
+                  
+
+
+
+
+
+                  <!-- Área -->
+                  <td class="d-none d-md-table-cell">
+                    {% if r.area_type == 'approx' %}
+                      {{ r.land_area_approx|default:"-" }} m²
+                    {% else %}
+                      {{ r.land_area_min }} – {{ r.land_area_max }} m²
+                    {% endif %}
+                  </td>
+
+                  <!-- Fecha -->
+                  <td class="d-none d-md-table-cell text-muted small">
+                    {{ r.created_at|date:"d/m/Y" }}
+                  </td>
+
+                  <!-- Acciones -->
+                  <td class="text-end">
+                    {% if r.matches_count and r.matches_count > 0 %}
+                      <span class="badge bg-teal text-dark me-2">
+                        {{ r.matches_count }} matches
+                      </span>
+                    {% endif %}
+
+                    <a href="{% url 'properties:requirements_detail' r.id %}"
+                       class="icon-btn me-2"
+                       title="Ver">
+                      <i class="fas fa-eye text-secondary"></i>
+                    </a>
+
+                    <a href="{% url 'properties:requirements_edit' r.id %}"
+                       class="icon-btn me-2"
+                       title="Editar">
+                      <i class="fas fa-pen text-secondary"></i>
+                    </a>
+
+                    <form method="post"
+                          action="{% url 'properties:requirements_delete' r.id %}"
+                          class="d-inline"
+                          onsubmit="return confirm('¿Confirmas eliminar este requerimiento?');">
+                      {% csrf_token %}
+                      <button type="submit" class="icon-btn danger" title="Eliminar">
+                        <i class="fas fa-trash text-danger"></i>
+                      </button>
+                    </form>
+                  </td>
+
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="9" class="text-center py-5 text-muted">
+                    <i class="fas fa-folder-open fa-2x mb-3"></i>
+                    <p class="mb-1 fw-medium">No tienes requerimientos aún</p>
+                    <p class="small mb-3">Crea uno para empezar a recibir coincidencias</p>
+                    <a href="{% url 'properties:requirements_create' %}" class="btn btn-teal btn-sm">
+                      Crear requerimiento
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div>
+  </div>
 </div>
 {% endblock %}
