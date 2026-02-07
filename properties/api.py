@@ -194,13 +194,32 @@ class RequirementViewSet(ModelViewSet):
     """
     CRUD completo para Requerimientos.
     """
-    queryset = Requirement.objects.filter(is_active=True).order_by('-created_at')
     serializer_class = RequirementSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     filterset_fields = ['property_type', 'budget_type', 'contact__phone']
     search_fields = ['contact__phone', 'contact__first_name', 'contact__last_name']
     ordering_fields = ['created_at', 'budget_min', 'budget_max']
+
+    def get_queryset(self):
+        # El usuario ya está autenticado por Token, así que filtramos solo SUS requerimientos.
+        return Requirement.objects.filter(is_active=True, created_by=self.request.user).order_by('-created_at')
+
+    @action(detail=False, methods=['get'])
+    def general(self, request):
+        """
+        Retorna todos los requerimientos generales (de todos los agentes).
+        """
+        queryset = Requirement.objects.filter(is_active=True).order_by('-created_at')
+        queryset = self.filter_queryset(queryset)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def perform_destroy(self, instance):
         # Soft delete: marcar como inactivo en lugar de borrar físicamente
