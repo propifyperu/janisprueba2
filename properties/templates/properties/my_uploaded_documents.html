@@ -148,7 +148,14 @@
 
 {% block dashboard_content %}
 <h3 class="my-3">Mis Documentos — Matriz de Cumplimiento</h3>
-
+<div id="uploadSuccess"
+     class="alert alert-success alert-dismissible fade d-none"
+     role="alert">
+  Documento subido correctamente
+  <button type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"></button>
+</div>
 <div class="table-scroll-wrapper">
   <table class="table table-hover align-middle legal-table">
         <thead class="table-light">
@@ -220,11 +227,13 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-primary">Guardar</button>
+        <button class="btn btn-primary" id="uploadSubmitBtn">Guardar</button>
       </div>
     </form>
   </div>
 </div>
+
+
 <script>
 /* =======================
    CONFIG / STATE
@@ -445,12 +454,29 @@ function getCSRFToken() {
     .find(row => row.startsWith('csrftoken='))
     ?.split('=')[1];
 }
+function setLoading(isLoading) {
+  const btn = document.getElementById('uploadSubmitBtn');
+
+  if (isLoading) {
+    btn.disabled = true;
+    btn.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2"></span>
+      Subiendo...
+    `;
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
+  }
+}
+
 
 /* =======================
    SUBMIT FORM
 ======================= */
 document.getElementById('uploadForm').addEventListener('submit', async e => {
   e.preventDefault();
+
+  setLoading(true);
 
   const form = e.target;
   const propertyId = uploadPropertyId.value;
@@ -459,6 +485,7 @@ document.getElementById('uploadForm').addEventListener('submit', async e => {
   const docTypeId = form.doc_type.value;
   if (!docTypeId) {
     alert('Selecciona un tipo de documento');
+    setLoading(false);
     return;
   }
 
@@ -478,6 +505,8 @@ document.getElementById('uploadForm').addEventListener('submit', async e => {
 
     const updatedProperty = await res.json();
 
+    showSuccess('Documento subido correctamente');
+
     bootstrap.Modal.getInstance(uploadModal).hide();
 
     const index = window.__LEGAL_DATA__.findIndex(
@@ -492,6 +521,8 @@ document.getElementById('uploadForm').addEventListener('submit', async e => {
   } catch (err) {
     console.error(err);
     alert('No se pudo subir el documento');
+  } finally {
+    setLoading(false);
   }
 });
 
@@ -502,6 +533,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   await getAllDocumentTypes();
   loadTable();
 });
+
+function showSuccess(message) {
+  const alert = document.getElementById('uploadSuccess');
+  alert.textContent = message;
+  alert.classList.remove('d-none');
+  alert.classList.add('show');
+
+  setTimeout(() => {
+    alert.classList.remove('show');
+    alert.classList.add('d-none');
+  }, 3000);
+}
+
 </script>
 
 
