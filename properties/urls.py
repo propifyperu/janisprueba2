@@ -46,6 +46,7 @@ urlpatterns = [
     path('api/property-subtypes/', views.api_property_subtypes, name='api_property_subtypes'),
     path('api/provinces/', views.api_provinces, name='api_provinces'),
     path('api/districts/', views.api_districts, name='api_districts'),
+    path('api/location-details/', views.api_location_details, name='api_location_details'),
     path('api/urbanizations/', views.api_urbanizations, name='api_urbanizations'),
     #path('api/document-types/', views.api_document_types, name='api_document_types'),
     path('api/image-types/', views.api_image_types, name='api_image_types'),
