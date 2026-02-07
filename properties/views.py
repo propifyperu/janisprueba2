@@ -7,6 +7,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
 from properties.matching import persist_matches_for_requirement
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from django.template.loader import get_template
 from django.db.models import Count, Max
@@ -19,6 +20,9 @@ from .models import (
     Property, PropertyImage, PropertyType, PropertyStatus,
     PaymentMethod, District, Province, Department, Urbanization
 )
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 
 def link_callback(uri, rel):
@@ -3555,3 +3559,102 @@ def marketing_utm_dashboard(request):
     }
     return render(request, 'properties/marketing_utm_dashboard.html', context)
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_location_details(request):
+
+    import unicodedata
+    from .models import Department, Province, District
+
+    names = request.data.get('names', [])
+    if not names:
+        return Response({'results': {}})
+
+    def normalize(text):
+        if not text:
+            return ""
+        
+        return ''.join(c for c in unicodedata.normalize('NFD', str(text)) if unicodedata.category(c) != 'Mn').lower() # normalizacion
+
+    # pre-cargar todas las ubicaciones para filtrado en memoria (optimización + soporte de tildes)
+    
+    all_deps = list(Department.objects.filter(is_active=True).values('id', 'name')) # 1. departamentos
+    for d in all_deps:
+        d['norm_name'] = normalize(d['name'])
+
+    all_provs = list(Province.objects.filter(is_active=True).values( # 2. provincias
+        'id', 'name', 'department__id', 'department__name'
+    ))
+    
+    provs_by_dep = {} # agrupar provincias por departamento (para respuesta de Dept)
+    for p in all_provs:
+        p['norm_name'] = normalize(p['name'])
+        did = p['department__id']
+        if did not in provs_by_dep:
+            provs_by_dep[did] = []
+        provs_by_dep[did].append({'id': p['id'], 'name': p['name']})
+
+    all_dists = list(District.objects.filter(is_active=True).values( # 3. distritos
+        'id', 'name', 'province__id', 'province__name', 'province__department__id', 'province__department__name'
+    ))
+    
+    dists_by_prov = {} # agrupar distritos por provincia (para respuesta de Prov)
+    for d in all_dists:
+        d['norm_name'] = normalize(d['name'])
+        pid = d['province__id']
+        if pid not in dists_by_prov:
+            dists_by_prov[pid] = []
+        dists_by_prov[pid].append({'id': d['id'], 'name': d['name']})
+
+    results = {}
+
+    for name in names:
+        term = str(name).strip()
+        if not term:
+            continue
+        
+        term_norm = normalize(term)
+        matches = []
+
+        # BUSQUEDA POR DISTRITO
+        for d in all_dists:
+            if term_norm in d['norm_name']:
+                matches.append({
+                    'type': 'District',
+                    'id': d['id'],
+                    'name': d['name'],
+                    'data': {
+                        'province': {'id': d['province__id'], 'name': d['province__name']},
+                        'department': {'id': d['province__department__id'], 'name': d['province__department__name']}
+                    }
+                })
+
+        # BUSQUEDA POR PROVINCIA
+        for p in all_provs:
+            if term_norm in p['norm_name']:
+                matches.append({
+                    'type': 'Province',
+                    'id': p['id'],
+                    'name': p['name'],
+                    'data': {
+                        'department': {'id': p['department__id'], 'name': p['department__name']},
+                        'districts': dists_by_prov.get(p['id'], [])
+                    }
+                })
+
+        # BUSQUEDA POR DEPARTAMENTO
+        for dep in all_deps:
+            if term_norm in dep['norm_name']:
+                matches.append({
+                    'type': 'Department',
+                    'id': dep['id'],
+                    'name': dep['name'],
+                    'data': {
+                        'provinces': provs_by_dep.get(dep['id'], [])
+                    }
+                })
+
+        results[term] = matches
+
+    return Response({'results': results})
