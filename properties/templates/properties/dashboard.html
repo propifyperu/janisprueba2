@@ -24,7 +24,7 @@
 }
 
 /* Mobile */
-@media (max-width: 991px) {
+@media (max-width: 1192px) {
 
     .mobile-filters-toggle {
         display: block;
@@ -411,36 +411,21 @@
     }
 
     .property-card {
-        display: grid;
-        grid-template-columns: 120px 1fr;
-        gap: 0.75rem;
-        align-items: stretch;
-        background-color: #fff;
-        border-radius: 0.6rem;
-    }
+        display: flex;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        }
+
 
     .property-card:hover,
     .property-card.active {
         /* transform: translateY(-1px); */
         box-shadow: 0 4px 16px rgba(4, 125, 125, 0.12);
         border-color: rgba(4, 125, 125, 0.4);
-        background-color: rgba(243, 253, 253, 0.95);
     }
 
-    .property-card::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        background: linear-gradient(135deg, rgba(82, 183, 181, 0.2) 0%, rgba(39, 152, 150, 0) 70%);
-        opacity: 0;
-        transition: opacity 0.2s ease;
-    }
-
-    .property-card:hover::before,
-    .property-card.active::before {
-        opacity: 1;
-    }
 
     .property-card > * {
         position: relative;
@@ -448,21 +433,27 @@
     }
 
     .property-card-media {
-        border-radius: 0.4rem;
-        overflow: hidden;
-        background: linear-gradient(135deg, rgba(4, 125, 125, 0.16), rgba(39, 152, 150, 0.16));
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 120px;
-        height: 120px;
-        transition: transform 0.2s ease;
-        cursor: pointer;
-    }
+        flex: 0 0 260px;
+        max-width: 260px;
+        position: relative;
+        }
 
     .property-card-media:hover {
         transform: scale(1.05);
     }
+    .property-card .property-card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 1rem !important; 
+        box-sizing: border-box;
+        min-width: 0;
+    }
+
+    .property-card-body > * + * {
+        margin-top: 0.5rem;
+    }   
+
 
     .property-card-media a {
         display: block;
@@ -492,14 +483,14 @@
         flex-direction: column;
         gap: 0.25rem;
         justify-content: center;
+        padding: 16px;
     }
 
     .property-card-top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.4rem;
-    }
+         display: flex;
+         flex-direction: column;
+         gap: 0.25rem;
+    }       
     .property-card-top-mb {
         display: block;
     }
@@ -521,17 +512,14 @@
         font-weight: 700;
         font-size: 0.95rem;
         color: #16343b;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
     .property-location {
         font-size: 0.8rem;
         color: var(--color-muted);
-        display: flex;
+        /* display: flex;
         align-items: center;
-        gap: 0.3rem;
+        gap: 0.3rem; */
     }
 
     /* Línea de ubicación principal (distrito, provincia) mostrada junto al icono */
@@ -588,10 +576,8 @@
         display: flex;
         flex-direction: column;
         align-items: flex-end;
-        gap: 0.15rem;
-        margin-top: 0;
-        border-left: 1px solid rgba(4, 125, 125, 0.1);
-        padding-left: 0.5rem;
+        gap: 0.25rem;
+        white-space: nowrap;
     }
 
     .property-actions .btn {
@@ -618,10 +604,6 @@
         font-size: 13px;
     }
 
-    .princing-title {
-        font-size: 13px;
-    }
-
     .badge-status {
         background: rgba(4, 125, 125, 0.12);
         color: var(--color-primary);
@@ -633,11 +615,11 @@
 
     /* Estilo para el contenedor de la parte inferior para separar info de acciones */
     .property-card-footer {
+        margin-top: auto;
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
         gap: 0.75rem;
-        margin-top: 0.15rem;
     }
 
     .property-info-stack {
@@ -690,7 +672,7 @@
         color: #ffffff;
     }
 
-    @media (max-width: 992px) {
+    @media (max-width: 1192px) {
         .dashboard-main-container {
             flex-direction: column;
             overflow: visible;
@@ -799,9 +781,12 @@
         .property-card {
             padding: 1rem;
         }
+        .results-section {
+            padding: 1rem 0.75rem 5rem;
+        }
     }
     /* Colapse */
-    @media (min-width: 992px) {
+    @media (min-width: 1192px) {
         .filter-sidebar {
             position: sticky;
             top: 0;
@@ -809,7 +794,7 @@
             background: #fff;
         }   
         .results-section {
-            padding: 1rem 0.75rem 9rem;
+            padding: 1rem 0.75rem 3rem;
         }
     }
 
@@ -840,7 +825,10 @@
 }
 
 /* Buttons */
-
+.main-card-property {
+    width: 100%;
+    cursor: pointer;
+}
     
 </style>
 {% endblock %}
@@ -1089,7 +1077,7 @@
                 {% else %}
                 <div class="property-cards" id="propertyCards">
                     {% for property in properties %}
-                    <a href="{% url 'properties:detail' property.pk %}" title="Ver detalle de {{ property.code }}" style="width: 100%;">
+                    <div @click="openPropertyDetail({{ property.id }})" class="main-card-property">
                         <article class="property-card pr-md-3" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
                             <div class="property-card-media">
                                 {% with images=property.prefetched_images %}
@@ -1112,8 +1100,11 @@
                                         <span class="badge-status">{{ property.property_type.name }}</span>
                                         <span class="status-label">{{ property.status.name }}</span>
                                     </div>
-                                    <div class="price text-end">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}
+                                    {% load money %}
 
+                                    <div class="princing-title mt-3">Precio total:</div>
+                                    <div class="price">
+                                    {{ property.currency.symbol }} {{ property.price|money_us }}
                                     </div>
                                 </div>
                                 
@@ -1198,8 +1189,12 @@
                                         <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
                                         {% endif %}
                                     </div>
+                                    {% load money %}
+
                                     <div class="princing-title mt-3">Precio total:</div>
-                                    <div class="price">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
+                                    <div class="price">
+                                    {{ property.currency.symbol }} {{ property.price|money_us }}
+                                    </div>
                                     
                                 </div>
                             </div>
@@ -1253,7 +1248,7 @@
 
                             </div>
                         </article>
-                    </a>
+                    </div>
                     
                     {% endfor %}
                 </div>
@@ -2088,7 +2083,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 document.getElementById('filter-form')?.addEventListener('submit', () => {
-    if (window.innerWidth < 992) {
+    if (window.innerWidth < 1192) {
         sidebar.classList.remove('open');
         closeBtn.classList.add('d-none');
         openBtn.classList.remove('d-none');
@@ -2096,7 +2091,7 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
 });
 
   function isMobile() {
-    return window.matchMedia("(max-width: 992px)").matches;
+    return window.matchMedia("(max-width: 1192px)").matches;
   }
 
   if (isMobile()) {
@@ -2108,5 +2103,11 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
   document.getElementById('price').innerText =
     new Intl.NumberFormat('es-PE').format(price); */
 
+    /* Open prperty */
+    openPropertyDetail = (propertyId) => {
+        const urlTemplate = "{% url 'properties:detail' '0' %}";
+        const url = urlTemplate.replace('0', propertyId);
+        window.location.href
+    }
 </script>
 {% endblock %}
