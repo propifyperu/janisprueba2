@@ -611,7 +611,7 @@ class EventForm(forms.ModelForm):
             'fecha_evento': 'Fecha del evento',
             'hora_inicio': 'Hora de inicio',
             'hora_fin': 'Hora de término',
-            'detalle': 'Detalle de la visita',
+            'detalle': 'Detalle del evento',
             'property': 'Inmueble',
             'created_by': 'Agente Asignado',
         }
