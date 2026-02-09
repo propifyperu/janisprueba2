@@ -833,7 +833,7 @@ function showEventModal(event) {
     }
     
     // URL de edición
-    document.getElementById('btnEditEvent').href = `/dashboard/propiedades/agenda/eventos/${event.id}/editar/`;
+    document.getElementById('btnEditEvent').href = `/dashboard/agenda/eventos/${event.id}/editar/`;
     
     // Mostrar modal
     document.getElementById('eventModal').style.display = 'block';
@@ -848,7 +848,7 @@ function deleteEvent() {
     if (!currentEventId) return;
     
     if (confirm('¿Estás seguro de que deseas eliminar este evento?')) {
-        window.location.href = `/dashboard/propiedades/agenda/eventos/${currentEventId}/borrar/`;
+        window.location.href = `/dashboard/agenda/eventos/${currentEventId}/borrar/`;
     }
 }
 
