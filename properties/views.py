@@ -3568,6 +3568,10 @@ def api_location_details(request):
     from .models import Department, Province, District
 
     names = request.data.get('names', [])
+    # Robustez: si el cliente (IA) envía un string en lugar de lista, lo convertimos
+    if isinstance(names, str):
+        names = [names]
+
     if not names:
         return Response({'results': {}})
 
