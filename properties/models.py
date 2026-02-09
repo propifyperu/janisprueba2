@@ -544,7 +544,7 @@ class Property(TitleCaseMixin, models.Model):
     availability_status = models.CharField(max_length=20, choices=AVAILABILITY_STATUS_CHOICES, default="available", db_index=True, verbose_name="Estado comercial")
     status = models.ForeignKey('PropertyStatus', on_delete=models.PROTECT, blank=True, null=True)
     condition = models.ForeignKey('PropertyCondition', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Condición Física")
-    operation_type = models.ForeignKey('OperationType', on_delete=models.PROTECT, blank=True, null=True, verbose_name="Tipo de Operación")
+    operation_type = models.ForeignKey('OperationType', on_delete=models.PROTECT, blank=True, null=True, verbose_name="Tipo de Operación") #no hace nada
     responsible = models.ForeignKey(
         get_user_model(),
         on_delete=models.SET_NULL,

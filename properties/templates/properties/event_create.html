@@ -126,92 +126,39 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Sección: Contacto -->
+
+                        <!-- Sección: Contacto (Opcional) -->
                         <div class="mb-4">
-                            <h6 class="fw-bold mb-3 text-muted">CONTACTO</h6>
-                            
-                            <!-- Alerta con enlace para crear contacto nuevo -->
-                            <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <div>
-                                    Selecciona un contacto existente o 
-                                    <a href="#" id="toggleNewOwnerForm" class="alert-link fw-bold">crea uno nuevo</a>
-                                </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0 text-muted">CONTACTO (OPCIONAL)</h6>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleContactBtn">
+                            Omitir
+                            </button>
+                        </div>
+
+                        <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <div>Si deseas, registra los datos del cliente. Si no, puedes omitir esta sección.</div>
+                        </div>
+
+                        <div id="contactSection">
+                            <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="{{ form.interesado.id_for_label }}">Nombre</label>
+                                {{ form.interesado }}
                             </div>
-                            
-                            <!-- Selector de contacto existente -->
-                            <div id="existingOwnerSelect" class="row g-3">
-                                <div class="col-12">
-                                    <label class="form-label" for="existing_owner">
-                                        Seleccionar contacto existente <span class="text-danger">*</span>
-                                    </label>
-                                    <select class="form-select" id="existing_owner" name="existing_owner">
-                                        <option value="">-- Selecciona un contacto --</option>
-                                        {% for owner in contactos_existentes %}
-                                            <option value="{{ owner.id }}">
-                                                {{ owner.full_name }}
-                                                {% if owner.display_phone %}({{ owner.display_phone }}){% endif %}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="{{ form.contact_phone.id_for_label }}">Teléfono</label>
+                                {{ form.contact_phone }}
                             </div>
-                            
-                            <!-- Formulario para crear nuevo contacto (oculto por defecto) -->
-                            <div id="newOwnerForm" style="display: none;">
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="{{ owner_form.first_name.id_for_label }}">
-                                            Nombre(s) <span class="text-danger">*</span>
-                                        </label>
-                                        {{ owner_form.first_name }}
-                                        {% if owner_form.first_name.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.first_name.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="{{ owner_form.last_name.id_for_label }}">
-                                            Apellido Paterno <span class="text-danger">*</span>
-                                        </label>
-                                        {{ owner_form.last_name }}
-                                        {% if owner_form.last_name.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.last_name.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="{{ owner_form.maternal_last_name.id_for_label }}">
-                                            Apellido Materno
-                                        </label>
-                                        {{ owner_form.maternal_last_name }}
-                                        {% if owner_form.maternal_last_name.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.maternal_last_name.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="row g-3 mt-2">
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="{{ owner_form.phone.id_for_label }}">
-                                            Teléfono <span class="text-danger">*</span>
-                                        </label>
-                                        {{ owner_form.phone }}
-                                        {% if owner_form.phone.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.phone.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="{{ owner_form.email.id_for_label }}">
-                                            Email
-                                        </label>
-                                        {{ owner_form.email }}
-                                        {% if owner_form.email.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.email.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="{{ form.contact_email.id_for_label }}">Email</label>
+                                {{ form.contact_email }}
+                            </div>
                             </div>
                         </div>
-                        
+                        </div>
+
                         <!-- Sección: Detalles -->
                         <div class="mb-4">
                             <h6 class="fw-bold mb-3 text-muted">DETALLES</h6>
@@ -228,7 +175,7 @@
                                             <option value="">-- Selecciona un inmueble --</option>
                                         {% endif %}
                                         {% for p in form.property.field.queryset %}
-                                            <option value="{{ p.pk }}"{% if form.property.value|stringformat:'s' == p.pk|stringformat:'s' %} selected{% endif %}>{{ p.exact_address }}</option>
+                                            <option value="{{ p.pk }}"{% if form.property.value|stringformat:'s' == p.pk|stringformat:'s' %} selected{% endif %}>{{ p.real_address }}</option>
                                         {% endfor %}
                                     </select>
                                     {% if form.property.errors %}
@@ -240,7 +187,7 @@
                             <div class="row g-3 mt-2">
                                 <div class="col-12">
                                     <label class="form-label" for="{{ form.detalle.id_for_label }}">
-                                        Detalle de la visita
+                                        Detalle del evento
                                     </label>
                                     {{ form.detalle }}
                                     {% if form.detalle.errors %}
@@ -272,29 +219,15 @@
 {% block dashboard_extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const toggleLink = document.getElementById('toggleNewOwnerForm');
-    const newOwnerForm = document.getElementById('newOwnerForm');
-    const existingOwnerSelect = document.getElementById('existingOwnerSelect');
-    const existingOwnerSelectInput = document.getElementById('existing_owner');
-    
-    if (toggleLink && newOwnerForm && existingOwnerSelect) {
-        toggleLink.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            if (newOwnerForm.style.display === 'none') {
-                // Mostrar formulario de nuevo contacto
-                newOwnerForm.style.display = 'block';
-                existingOwnerSelect.style.display = 'none';
-                existingOwnerSelectInput.value = ''; // Limpiar selección
-                existingOwnerSelectInput.disabled = true;
-                toggleLink.textContent = 'selecciona uno existente';
-            } else {
-                // Mostrar selector de contacto existente
-                newOwnerForm.style.display = 'none';
-                existingOwnerSelect.style.display = 'block';
-                existingOwnerSelectInput.disabled = false;
-                toggleLink.textContent = 'crea uno nuevo';
-            }
+    // ✅ Toggle: Contacto (Opcional)
+    const toggleContactBtn = document.getElementById('toggleContactBtn');
+    const contactSection = document.getElementById('contactSection');
+
+    if (toggleContactBtn && contactSection) {
+        toggleContactBtn.addEventListener('click', function() {
+            const isHidden = contactSection.style.display === 'none';
+            contactSection.style.display = isHidden ? 'block' : 'none';
+            toggleContactBtn.textContent = isHidden ? 'Omitir' : 'Agregar';
         });
     }
 

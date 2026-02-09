@@ -1,4 +1,5 @@
 from .models import Property, AgencyConfig
+from django.contrib import messages
 from django.core.files.storage import default_storage
 from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -1377,6 +1378,14 @@ def requirement_delete_view(request, pk):
 # =============================================================================
 # VISTAS PARA AGENDA Y EVENTOS
 # =============================================================================
+AGENT_COLORS = [
+    '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6',
+    '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
+    '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
+]
+
+def agent_color(agent_id: int) -> str:
+    return AGENT_COLORS[int(agent_id) % len(AGENT_COLORS)]
 
 @login_required
 def agenda_calendar_view(request):
@@ -1384,28 +1393,33 @@ def agenda_calendar_view(request):
     from .models import EventType, Event
     from django.contrib.auth import get_user_model
     User = get_user_model()
-    
+
     event_types = EventType.objects.filter(is_active=True).order_by('name')
-    
+
     # Determinar si el usuario puede ver a otros agentes
     is_call_center = request.user.role and request.user.role.name == 'Call Center'
     can_see_all = request.user.is_superuser or is_call_center
-    
+
     agents_with_events = []
     if can_see_all:
         # Obtener agentes que tienen al menos un evento activo
-        agent_ids = Event.objects.filter(is_active=True).values_list('created_by', flat=True).distinct()
-        agents_with_events = User.objects.filter(id__in=agent_ids).only('id', 'first_name', 'last_name', 'username').order_by('id')
-        
-        # Asignar un color a cada agente (generado determinísticamente)
-        colors = [
-            '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6', 
-            '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
-            '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
-        ]
-        
-        for i, agent in enumerate(agents_with_events):
-            agent.calendar_color = colors[i % len(colors)]
+        agent_ids = (
+            Event.objects
+            .filter(is_active=True)
+            .values_list('created_by_id', flat=True)
+            .distinct()
+        )
+
+        agents_with_events = (
+            User.objects
+            .filter(id__in=agent_ids)
+            .only('id', 'first_name', 'last_name', 'username')
+            .order_by('id')
+        )
+
+        # ✅ Color determinístico por agent.id (estable)
+        for agent in agents_with_events:
+            agent.calendar_color = agent_color(agent.id)
 
     return render(request, 'properties/agenda_calendar.html', {
         'event_types': event_types,
@@ -1413,72 +1427,36 @@ def agenda_calendar_view(request):
         'can_see_all': can_see_all
     })
 
-
-@login_required
 @login_required
 def event_create_view(request):
-    """Vista para crear un nuevo evento"""
-    from .forms import EventForm, PropertyOwnerForm
-    from .models import Event, PropertyOwner
+    """Vista para crear un nuevo evento (sin contacto obligatorio)"""
+    from .forms import EventForm
+    from .models import Event
     from django.contrib import messages
-    
+
     if request.method == 'POST':
         form = EventForm(request.POST)
-        owner_form = PropertyOwnerForm(request.POST, request.FILES)
-        
-        # Determinar si se seleccionó un contacto existente o se crea uno nuevo
-        existing_owner_id = request.POST.get('existing_owner', '').strip()
-        
-        contact_instance = None
-        
-        if existing_owner_id:
-            # Usar contacto existente
-            try:
-                contact_instance = PropertyOwner.objects.get(id=existing_owner_id)
-            except PropertyOwner.DoesNotExist:
-                messages.error(request, 'El contacto seleccionado no existe.')
-                return render(request, 'properties/event_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
-        else:
-            # Crear nuevo contacto solo si el formulario contiene cambios reales
-            if owner_form.is_valid() and owner_form.has_changed():
-                contact_instance = owner_form.save(commit=False)
-                contact_instance.created_by = request.user
-                contact_instance.save()
-                owner_form.save_m2m()  # Para tags
-            else:
-                messages.error(request, 'Por favor selecciona un contacto existente o completa los datos del contacto.')
-                return render(request, 'properties/event_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
-        
+
         if form.is_valid():
             event = form.save(commit=False)
-            
+
             # Reasignación de agente (solo superuser o Call Center)
             is_call_center = request.user.role and request.user.role.name == 'Call Center'
             if (request.user.is_superuser or is_call_center) and form.cleaned_data.get('created_by'):
                 event.created_by = form.cleaned_data.get('created_by')
             else:
                 event.created_by = request.user
-            
-            event.contact = contact_instance  # Asignar el contacto
+
             event.save()
             messages.success(request, f'Evento "{event.titulo}" creado exitosamente.')
             return redirect('properties:agenda_calendar')
+
     else:
         form = EventForm()
-        owner_form = PropertyOwnerForm()
-    
+
     return render(request, 'properties/event_create.html', {
         'form': form,
-        'owner_form': owner_form,
-        'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+        # ✅ ya no mandamos owner_form ni contactos_existentes
     })
 
 
@@ -1492,16 +1470,20 @@ def event_edit_view(request, pk):
     
     # Solo el creador o superusuario puede editar
     if not (request.user.is_superuser or event.created_by == request.user):
-        from django.contrib import messages
         messages.error(request, 'No tienes permiso para editar este evento.')
         return redirect('properties:agenda_calendar')
     
     if request.method == 'POST':
         form = EventForm(request.POST, instance=event)
         if form.is_valid():
-            form.save()
-            from django.contrib import messages
-            messages.success(request, f'Evento "{event.titulo}" actualizado exitosamente.')
+            obj = form.save(commit=False)
+
+            # ✅ nunca permitas que se vuelva NULL
+            if not obj.created_by_id:
+                obj.created_by = event.created_by
+
+            obj.save()
+            messages.success(request, f'Evento "{obj.titulo}" actualizado exitosamente.')
             return redirect('properties:agenda_calendar')
     else:
         form = EventForm(instance=event)
@@ -1534,39 +1516,35 @@ def api_events_json(request):
     from .models import Event
     from django.http import JsonResponse
     
-    # Si es superusuario o Call Center, puede ver todos los eventos (o filtrar por agente)
     is_call_center = request.user.role and request.user.role.name == 'Call Center'
     can_see_all = request.user.is_superuser or is_call_center
-    
+
     agent_id = request.GET.get('agent_id')
-    
+
     if can_see_all:
         if agent_id:
-            events = Event.objects.filter(is_active=True, created_by_id=agent_id).select_related('event_type', 'property', 'created_by')
+            events = Event.objects.filter(
+                is_active=True,
+                created_by_id=agent_id
+            ).select_related('event_type', 'property', 'created_by')
         else:
-            events = Event.objects.filter(is_active=True).select_related('event_type', 'property', 'created_by')
+            events = Event.objects.filter(
+                is_active=True
+            ).select_related('event_type', 'property', 'created_by')
     else:
-        events = Event.objects.filter(is_active=True, created_by=request.user).select_related('event_type', 'property', 'created_by')
-    
-    # Colores para agentes
-    colors_list = [
-        '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6', 
-        '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
-        '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
-    ]
-    
-    # Mapeo de IDs a colores para consistencia
-    agent_ids_distinct = sorted(list(Event.objects.filter(is_active=True).values_list('created_by_id', flat=True).distinct()))
-    agent_color_map = {uid: colors_list[i % len(colors_list)] for i, uid in enumerate(agent_ids_distinct)}
-    
+        events = Event.objects.filter(
+            is_active=True,
+            created_by=request.user
+        ).select_related('event_type', 'property', 'created_by')
+
     events_data = []
     for event in events:
-        # Si puede ver todo, el color es por agente, sino por tipo de evento
-        if can_see_all:
-            color = agent_color_map.get(event.created_by_id, event.event_type.color)
+        # ✅ MISMA lógica que el sidebar
+        if can_see_all and event.created_by_id:
+            color = agent_color(event.created_by_id)
         else:
             color = event.event_type.color
-            
+
         events_data.append({
             'id': event.id,
             'title': event.titulo,
@@ -1585,7 +1563,7 @@ def api_events_json(request):
                 'created_by_id': event.created_by.id if event.created_by else None,
             }
         })
-    
+
     return JsonResponse(events_data, safe=False)
 
 
@@ -3568,6 +3546,10 @@ def api_location_details(request):
     from .models import Department, Province, District
 
     names = request.data.get('names', [])
+    # Robustez: si el cliente (IA) envía un string en lugar de lista, lo convertimos
+    if isinstance(names, str):
+        names = [names]
+
     if not names:
         return Response({'results': {}})
 

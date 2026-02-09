@@ -590,20 +590,33 @@ class RequirementEditForm(forms.ModelForm):
 
 class EventForm(forms.ModelForm):
     """Formulario para crear/editar eventos"""
+    CONTACT_BLOCK_RE = r"--- CONTACTO ---.*?--- FIN CONTACTO ---\s*"
+    # ✅ Campos extra (NO se guardan en otra tabla)
+    contact_phone = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 999 999 999'}),
+        label='Teléfono'
+    )
+    contact_email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Ej: correo@dominio.com'}),
+        label='Email'
+    )
     class Meta:
         from .models import Event
         model = Event
         fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
-                  'detalle', 'property', 'created_by']
+                  'interesado','detalle', 'property', 'created_by']
         widgets = {
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
-            'fecha_evento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha_evento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
             'hora_inicio': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'hora_fin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'detalle': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'property': forms.Select(attrs={'class': 'form-select'}),
             'created_by': forms.Select(attrs={'class': 'form-select'}),
+            'interesado': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del contacto (opcional)'}),
         }
         labels = {
             'event_type': 'Tipo de evento',
@@ -611,33 +624,100 @@ class EventForm(forms.ModelForm):
             'fecha_evento': 'Fecha del evento',
             'hora_inicio': 'Hora de inicio',
             'hora_fin': 'Hora de término',
-            'detalle': 'Detalle de la visita',
+            'interesado': 'Nombre',
+            'detalle': 'Detalle del evento',
             'property': 'Inmueble',
             'created_by': 'Agente Asignado',
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Cargar solo propiedades activas
+
         from .models import Property, EventType
         from django.contrib.auth import get_user_model
         User = get_user_model()
+
         self.fields['property'].queryset = Property.objects.filter(is_active=True).order_by('-created_at')
         self.fields['property'].required = False
+
         self.fields['event_type'].queryset = EventType.objects.filter(is_active=True).order_by('name')
-        
-        # Cargar solo usuarios activos para asignar
+
         self.fields['created_by'].queryset = User.objects.filter(is_active=True).order_by('first_name')
         self.fields['created_by'].required = False
-        
+
+        # ✅ Fecha en formato HTML date
+        self.fields['fecha_evento'].widget.format = '%Y-%m-%d'
+        if self.instance and self.instance.pk and self.instance.fecha_evento:
+            self.initial['fecha_evento'] = self.instance.fecha_evento.strftime('%Y-%m-%d')
+
+        # ✅ En edit: no permitir que cambien created_by (ya lo venimos manejando)
+        if self.instance and self.instance.pk:
+            self.fields['created_by'].widget = forms.HiddenInput()
+            if self.instance.created_by_id:
+                self.initial['created_by'] = self.instance.created_by_id
+
+            # ✅ Pre-cargar phone/email desde el bloque dentro de detalle
+            detalle = self.instance.detalle or ""
+            m = re.search(r"--- CONTACTO ---\s*Nombre:\s*(.*?)\s*Teléfono:\s*(.*?)\s*Email:\s*(.*?)\s*--- FIN CONTACTO ---", detalle, re.S)
+            if m:
+                # Nombre (interesado)
+                self.initial['interesado'] = (m.group(1) or "").strip()
+                self.initial['contact_phone'] = (m.group(2) or "").strip()
+                self.initial['contact_email'] = (m.group(3) or "").strip()
+
     def clean(self):
         cleaned_data = super().clean()
+
         hora_inicio = cleaned_data.get('hora_inicio')
         hora_fin = cleaned_data.get('hora_fin')
-        
+
         if hora_inicio and hora_fin and hora_fin <= hora_inicio:
             raise forms.ValidationError('La hora de término debe ser posterior a la hora de inicio.')
 
+        # ✅ En edit: asegurar created_by
+        if self.instance and self.instance.pk and not cleaned_data.get('created_by'):
+            cleaned_data['created_by'] = self.instance.created_by
+
+        return cleaned_data
+
+    def _build_contact_block(self, name, phone, email):
+        name = (name or "").strip()
+        phone = (phone or "").strip()
+        email = (email or "").strip()
+
+        if not (name or phone or email):
+            return ""
+
+        return (
+            "--- CONTACTO ---\n"
+            f"Nombre: {name}\n"
+            f"Teléfono: {phone}\n"
+            f"Email: {email}\n"
+            "--- FIN CONTACTO ---\n\n"
+        )
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+
+        # ✅ Limpiar bloque anterior si existía
+        detalle_actual = obj.detalle or ""
+        detalle_sin_bloque = re.sub(self.CONTACT_BLOCK_RE, "", detalle_actual, flags=re.S).lstrip()
+
+        # ✅ Tomar data de form
+        name = self.cleaned_data.get('interesado', '')
+        phone = self.cleaned_data.get('contact_phone', '')
+        email = self.cleaned_data.get('contact_email', '')
+
+        contact_block = self._build_contact_block(name, phone, email)
+
+        # ✅ Guardar bloque + detalle limpio
+        obj.detalle = (contact_block + detalle_sin_bloque).strip() if (contact_block or detalle_sin_bloque) else ""
+
+        if commit:
+            obj.save()
+            self.save_m2m()
+
+        return obj
 
 class AgencyConfigForm(forms.ModelForm):
     class Meta:

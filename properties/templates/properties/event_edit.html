@@ -117,15 +117,6 @@
                             <h6 class="fw-bold mb-3 text-muted">DETALLES</h6>
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.interesado.id_for_label }}">
-                                        Interesado
-                                    </label>
-                                    {{ form.interesado }}
-                                    {% if form.interesado.errors %}
-                                        <div class="text-danger small mt-1">{{ form.interesado.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6">
                                     <label class="form-label" for="{{ form.property.id_for_label }}">
                                         Inmueble
                                     </label>
@@ -139,7 +130,7 @@
                             <div class="row g-3 mt-2">
                                 <div class="col-12">
                                     <label class="form-label" for="{{ form.detalle.id_for_label }}">
-                                        Detalle de la visita
+                                        Detalle del evento
                                     </label>
                                     {{ form.detalle }}
                                     {% if form.detalle.errors %}
