@@ -1413,72 +1413,36 @@ def agenda_calendar_view(request):
         'can_see_all': can_see_all
     })
 
-
-@login_required
 @login_required
 def event_create_view(request):
-    """Vista para crear un nuevo evento"""
-    from .forms import EventForm, PropertyOwnerForm
-    from .models import Event, PropertyOwner
+    """Vista para crear un nuevo evento (sin contacto obligatorio)"""
+    from .forms import EventForm
+    from .models import Event
     from django.contrib import messages
-    
+
     if request.method == 'POST':
         form = EventForm(request.POST)
-        owner_form = PropertyOwnerForm(request.POST, request.FILES)
-        
-        # Determinar si se seleccionó un contacto existente o se crea uno nuevo
-        existing_owner_id = request.POST.get('existing_owner', '').strip()
-        
-        contact_instance = None
-        
-        if existing_owner_id:
-            # Usar contacto existente
-            try:
-                contact_instance = PropertyOwner.objects.get(id=existing_owner_id)
-            except PropertyOwner.DoesNotExist:
-                messages.error(request, 'El contacto seleccionado no existe.')
-                return render(request, 'properties/event_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
-        else:
-            # Crear nuevo contacto solo si el formulario contiene cambios reales
-            if owner_form.is_valid() and owner_form.has_changed():
-                contact_instance = owner_form.save(commit=False)
-                contact_instance.created_by = request.user
-                contact_instance.save()
-                owner_form.save_m2m()  # Para tags
-            else:
-                messages.error(request, 'Por favor selecciona un contacto existente o completa los datos del contacto.')
-                return render(request, 'properties/event_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
-        
+
         if form.is_valid():
             event = form.save(commit=False)
-            
+
             # Reasignación de agente (solo superuser o Call Center)
             is_call_center = request.user.role and request.user.role.name == 'Call Center'
             if (request.user.is_superuser or is_call_center) and form.cleaned_data.get('created_by'):
                 event.created_by = form.cleaned_data.get('created_by')
             else:
                 event.created_by = request.user
-            
-            event.contact = contact_instance  # Asignar el contacto
+
             event.save()
             messages.success(request, f'Evento "{event.titulo}" creado exitosamente.')
             return redirect('properties:agenda_calendar')
+
     else:
         form = EventForm()
-        owner_form = PropertyOwnerForm()
-    
+
     return render(request, 'properties/event_create.html', {
         'form': form,
-        'owner_form': owner_form,
-        'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+        # ✅ ya no mandamos owner_form ni contactos_existentes
     })
 
 

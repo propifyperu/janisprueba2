@@ -127,91 +127,6 @@
                             </div>
                         </div>
                         
-                        <!-- Sección: Contacto -->
-                        <div class="mb-4">
-                            <h6 class="fw-bold mb-3 text-muted">CONTACTO</h6>
-                            
-                            <!-- Alerta con enlace para crear contacto nuevo -->
-                            <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <div>
-                                    Selecciona un contacto existente o 
-                                    <a href="#" id="toggleNewOwnerForm" class="alert-link fw-bold">crea uno nuevo</a>
-                                </div>
-                            </div>
-                            
-                            <!-- Selector de contacto existente -->
-                            <div id="existingOwnerSelect" class="row g-3">
-                                <div class="col-12">
-                                    <label class="form-label" for="existing_owner">
-                                        Seleccionar contacto existente <span class="text-danger">*</span>
-                                    </label>
-                                    <select class="form-select" id="existing_owner" name="existing_owner">
-                                        <option value="">-- Selecciona un contacto --</option>
-                                        {% for owner in contactos_existentes %}
-                                            <option value="{{ owner.id }}">
-                                                {{ owner.full_name }}
-                                                {% if owner.display_phone %}({{ owner.display_phone }}){% endif %}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <!-- Formulario para crear nuevo contacto (oculto por defecto) -->
-                            <div id="newOwnerForm" style="display: none;">
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="{{ owner_form.first_name.id_for_label }}">
-                                            Nombre(s) <span class="text-danger">*</span>
-                                        </label>
-                                        {{ owner_form.first_name }}
-                                        {% if owner_form.first_name.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.first_name.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="{{ owner_form.last_name.id_for_label }}">
-                                            Apellido Paterno <span class="text-danger">*</span>
-                                        </label>
-                                        {{ owner_form.last_name }}
-                                        {% if owner_form.last_name.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.last_name.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="{{ owner_form.maternal_last_name.id_for_label }}">
-                                            Apellido Materno
-                                        </label>
-                                        {{ owner_form.maternal_last_name }}
-                                        {% if owner_form.maternal_last_name.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.maternal_last_name.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="row g-3 mt-2">
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="{{ owner_form.phone.id_for_label }}">
-                                            Teléfono <span class="text-danger">*</span>
-                                        </label>
-                                        {{ owner_form.phone }}
-                                        {% if owner_form.phone.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.phone.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="{{ owner_form.email.id_for_label }}">
-                                            Email
-                                        </label>
-                                        {{ owner_form.email }}
-                                        {% if owner_form.email.errors %}
-                                            <div class="text-danger small mt-1">{{ owner_form.email.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
                         <!-- Sección: Detalles -->
                         <div class="mb-4">
                             <h6 class="fw-bold mb-3 text-muted">DETALLES</h6>
@@ -240,7 +155,7 @@
                             <div class="row g-3 mt-2">
                                 <div class="col-12">
                                     <label class="form-label" for="{{ form.detalle.id_for_label }}">
-                                        Detalle de la visita
+                                        Detalle del evento
                                     </label>
                                     {{ form.detalle }}
                                     {% if form.detalle.errors %}
