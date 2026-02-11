@@ -14,3 +14,4 @@ site.zip
 backup_data.json
 token.json
 ```
+!.env.example
