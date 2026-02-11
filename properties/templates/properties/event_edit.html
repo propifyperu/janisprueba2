@@ -75,6 +75,17 @@
                                         <div class="text-danger small mt-1">{{ form.titulo.errors }}</div>
                                     {% endif %}
                                 </div>
+                                {% if request.user.is_superuser or request.user.role and request.user.role.name == 'Call Center' %}
+                                <div class="col-md-12">
+                                    <label class="form-label" for="{{ form.assigned_agent.id_for_label }}">
+                                        Agente Asignado
+                                    </label>
+                                    {{ form.assigned_agent }}
+                                    {% if form.assigned_agent.errors %}
+                                        <div class="text-danger small mt-1">{{ form.assigned_agent.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                         

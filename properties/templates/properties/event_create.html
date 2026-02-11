@@ -48,6 +48,24 @@
                     </h5>
                 </div>
                 <div class="card-body">
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>Por favor corrige los siguientes errores:</h6>
+                            <ul class="mb-0 ps-3">
+                                {% for field, errors in form.errors.items %}
+                                    <li>
+                                        {% if field == '__all__' %}
+                                            <strong>Error general:</strong>
+                                        {% else %}
+                                            <strong>{{ field|title }}:</strong>
+                                        {% endif %}
+                                        {{ errors|join:", " }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
                     {% if form.non_field_errors %}
                         <div class="alert alert-danger">
                             {{ form.non_field_errors }}
@@ -81,12 +99,12 @@
                                 </div>
                                 {% if request.user.is_superuser or request.user.role and request.user.role.name == 'Call Center' %}
                                 <div class="col-md-12">
-                                    <label class="form-label" for="{{ form.created_by.id_for_label }}">
+                                    <label class="form-label" for="{{ form.assigned_agent.id_for_label }}">
                                         Agente Asignado
                                     </label>
-                                    {{ form.created_by }}
-                                    {% if form.created_by.errors %}
-                                        <div class="text-danger small mt-1">{{ form.created_by.errors }}</div>
+                                    {{ form.assigned_agent }}
+                                    {% if form.assigned_agent.errors %}
+                                        <div class="text-danger small mt-1">{{ form.assigned_agent.errors }}</div>
                                     {% endif %}
                                 </div>
                                 {% endif %}

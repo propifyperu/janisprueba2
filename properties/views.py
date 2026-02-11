@@ -1378,14 +1378,21 @@ def requirement_delete_view(request, pk):
 # =============================================================================
 # VISTAS PARA AGENDA Y EVENTOS
 # =============================================================================
-AGENT_COLORS = [
-    '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6',
-    '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
-    '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
-]
-
 def agent_color(agent_id: int) -> str:
-    return AGENT_COLORS[int(agent_id) % len(AGENT_COLORS)]
+    """
+    Genera un color único y consistente para cada agente usando HSL y el ángulo áureo.
+    Esto asegura que cada ID tenga un color distinto y evita colisiones visuales.
+    """
+    if not agent_id:
+        return '#616161'
+    # Ángulo áureo para distribuir colores uniformemente en el círculo cromático
+    hue = (agent_id * 137.508) % 360
+    # Variar la saturación y luminosidad en función del ID para mayor diferenciación
+    saturation = 45 + (agent_id % 5) * 8  # Saturación entre 45% y 85%
+    lightness = 30 + (agent_id % 8) * 6   # Luminosidad entre 30% y 78%
+
+    return f"hsl({hue:.1f}, {saturation}%, {lightness}%)"
+
 
 @login_required
 def agenda_calendar_view(request):
@@ -1406,7 +1413,7 @@ def agenda_calendar_view(request):
         agent_ids = (
             Event.objects
             .filter(is_active=True)
-            .values_list('created_by_id', flat=True)
+            .values_list('assigned_agent_id', flat=True)
             .distinct()
         )
 
@@ -1436,16 +1443,20 @@ def event_create_view(request):
 
     if request.method == 'POST':
         form = EventForm(request.POST)
+        # ✅ SOLUCIÓN AL "PEGADO": Si el form valida created_by, lo hacemos opcional
+        # porque lo seteamos manualmente abajo.
+        if 'created_by' in form.fields:
+            form.fields['created_by'].required = False
 
         if form.is_valid():
             event = form.save(commit=False)
+            
+            # ✅ Auditoría: Quién crea el registro (SIEMPRE es el usuario actual)
+            event.created_by = request.user
 
-            # Reasignación de agente (solo superuser o Call Center)
-            is_call_center = request.user.role and request.user.role.name == 'Call Center'
-            if (request.user.is_superuser or is_call_center) and form.cleaned_data.get('created_by'):
-                event.created_by = form.cleaned_data.get('created_by')
-            else:
-                event.created_by = request.user
+            # ✅ Agente Asignado: Si no viene en el form (None), se asigna al creador
+            if not event.assigned_agent:
+                event.assigned_agent = request.user
 
             event.save()
             messages.success(request, f'Evento "{event.titulo}" creado exitosamente.')
@@ -1469,18 +1480,26 @@ def event_edit_view(request, pk):
     event = get_object_or_404(Event, pk=pk)
     
     # Solo el creador o superusuario puede editar
-    if not (request.user.is_superuser or event.created_by == request.user):
+    # OJO: También permitimos editar al agente asignado
+    if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
         messages.error(request, 'No tienes permiso para editar este evento.')
         return redirect('properties:agenda_calendar')
     
     if request.method == 'POST':
         form = EventForm(request.POST, instance=event)
+        if 'created_by' in form.fields:
+            form.fields['created_by'].required = False
+            
         if form.is_valid():
             obj = form.save(commit=False)
 
             # ✅ nunca permitas que se vuelva NULL
             if not obj.created_by_id:
                 obj.created_by = event.created_by
+            
+            # Si se borró el agente asignado por error, restaurar o asignar al editor
+            if not obj.assigned_agent_id:
+                obj.assigned_agent = event.assigned_agent or request.user
 
             obj.save()
             messages.success(request, f'Evento "{obj.titulo}" actualizado exitosamente.')
@@ -1499,7 +1518,7 @@ def event_delete_view(request, pk):
     event = get_object_or_404(Event, pk=pk)
     
     # Solo el creador o superusuario puede eliminar
-    if not (request.user.is_superuser or event.created_by == request.user):
+    if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
         from django.contrib import messages
         messages.error(request, 'No tienes permiso para eliminar este evento.')
         return redirect('properties:agenda_calendar')
@@ -1525,24 +1544,28 @@ def api_events_json(request):
         if agent_id:
             events = Event.objects.filter(
                 is_active=True,
-                created_by_id=agent_id
-            ).select_related('event_type', 'property', 'created_by')
+                assigned_agent_id=agent_id
+            ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent')
         else:
             events = Event.objects.filter(
                 is_active=True
-            ).select_related('event_type', 'property', 'created_by')
+            ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent')
     else:
         events = Event.objects.filter(
             is_active=True,
-            created_by=request.user
-        ).select_related('event_type', 'property', 'created_by')
+            assigned_agent=request.user
+        ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent')
 
     events_data = []
     for event in events:
-        # ✅ MISMA lógica que el sidebar
-        if can_see_all and event.created_by_id:
-            color = agent_color(event.created_by_id)
+        # ✅ Lógica de Color: Prioridad al Agente Asignado para coincidir con la leyenda
+        if can_see_all and event.assigned_agent_id:
+            color = agent_color(event.assigned_agent_id)
+        elif can_see_all and event.created_by_id:
+            # Fallback: si no hay agente asignado, usar el color del creador
+            color = event.event_type.color
         else:
+            # Vista de agente normal o sin usuarios: color del tipo de evento
             color = event.event_type.color
 
         events_data.append({
@@ -1561,6 +1584,9 @@ def api_events_json(request):
                 'property_code': event.property.code if event.property else '',
                 'created_by': event.created_by.get_full_name() if event.created_by else '',
                 'created_by_id': event.created_by.id if event.created_by else None,
+                'property_agent': event.property.assigned_agent.get_full_name() if event.property and event.property.assigned_agent else '',
+                'assigned_agent': event.assigned_agent.get_full_name() if event.assigned_agent else '',
+                'assigned_agent_id': event.assigned_agent_id if event.assigned_agent else None,
             }
         })
 
