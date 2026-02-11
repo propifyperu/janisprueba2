@@ -1406,6 +1406,12 @@ class Event(TitleCaseMixin, models.Model):
     # Auditoría
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, 
                                    related_name='created_events', verbose_name='Creado por')
+    
+    # Agente responsable de asistir al evento
+    assigned_agent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                       null=True, blank=True, related_name='assigned_events',
+                                       verbose_name='Agente Asignado')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
@@ -1490,5 +1496,3 @@ class RequirementMatch(models.Model):
 
     def __str__(self):
         return f"Req {self.requirement_id} - Prop {self.property_id} => {self.score}%"
-
-

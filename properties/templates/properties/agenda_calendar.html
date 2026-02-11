@@ -574,7 +574,7 @@
             <div class="event-detail-row" id="modalInteresadoRow">
                 <i class="fas fa-user"></i>
                 <div class="event-detail-content">
-                    <div class="event-detail-label">Interesado</div>
+                    <div class="event-detail-label">Cliente / Interesado</div>
                     <div class="event-detail-value" id="modalEventInteresado"></div>
                 </div>
             </div>
@@ -585,6 +585,20 @@
                     <div class="event-detail-value" id="modalEventProperty"></div>
                 </div>
             </div>
+            <div class="event-detail-row" id="modalPropertyAgentRow">
+                <i class="fas fa-user-tie"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Captador (Propiedad)</div>
+                    <div class="event-detail-value" id="modalEventPropertyAgent"></div>
+                </div>
+            </div>
+            <div class="event-detail-row" id="modalAssignedAgentRow">
+                <i class="fas fa-user-check"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Agente Asignado</div>
+                    <div class="event-detail-value" id="modalEventAssignedAgent"></div>
+                </div>
+            </div>
             <div class="event-detail-row" id="modalDetalleRow">
                 <i class="fas fa-align-left"></i>
                 <div class="event-detail-content">
@@ -593,7 +607,7 @@
                 </div>
             </div>
             <div class="event-detail-row" id="modalCreatedByRow">
-                <i class="fas fa-user-circle"></i>
+                <i class="fas fa-pen-nib"></i>
                 <div class="event-detail-content">
                     <div class="event-detail-label">Creado por</div>
                     <div class="event-detail-value" id="modalEventCreatedBy"></div>
@@ -674,7 +688,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         let filteredEvents = allEvents;
                         if (canSeeAll && selectedAgents.length > 0) {
                             filteredEvents = allEvents.filter(evt => {
-                                return selectedAgents.includes(evt.extendedProps.created_by_id);
+                                return selectedAgents.includes(evt.extendedProps.assigned_agent_id);
                             });
                         } else if (canSeeAll && selectedAgents.length === 0) {
                             // Si ninguno está seleccionado y puede ver todos, no mostrar ninguno o mostrar todos?
@@ -816,6 +830,22 @@ function showEventModal(event) {
         document.getElementById('modalPropertyRow').style.display = 'none';
     }
     
+    // Agente Asignado (Propiedad)
+    if (props.property_agent) {
+        document.getElementById('modalEventPropertyAgent').textContent = props.property_agent;
+        document.getElementById('modalPropertyAgentRow').style.display = 'flex';
+    } else {
+        document.getElementById('modalPropertyAgentRow').style.display = 'none';
+    }
+
+    // Agente Asignado (Evento)
+    if (props.assigned_agent) {
+        document.getElementById('modalEventAssignedAgent').textContent = props.assigned_agent;
+        document.getElementById('modalAssignedAgentRow').style.display = 'flex';
+    } else {
+        document.getElementById('modalAssignedAgentRow').style.display = 'none';
+    }
+
     // Detalle
     if (props.detalle) {
         document.getElementById('modalEventDetalle').textContent = props.detalle;
