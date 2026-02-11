@@ -1,27 +1,14 @@
-version: '3.8'
 services:
-  opensearch:
-    image: opensearchproject/opensearch:2.8.0
-    container_name: opensearch
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: propify-sqlserver
     environment:
-      - discovery.type=single-node
-      - "plugins.security.disabled=true"
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - opensearch-data:/usr/share/opensearch/data
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
     ports:
-      - "9200:9200"
-      - "9600:9600"
-    networks:
-      - searchnet
+      - "1433:1433"
+    volumes:
+      - propify_sqlserver_data:/var/opt/mssql
 
 volumes:
-  opensearch-data:
-
-networks:
-  searchnet:
-    driver: bridge
+  propify_sqlserver_data:
