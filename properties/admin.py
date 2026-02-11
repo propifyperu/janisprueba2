@@ -520,7 +520,7 @@ class EventTypeAdmin(admin.ModelAdmin):
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ('code', 'titulo', 'event_type', 'fecha_evento', 'hora_inicio', 'hora_fin', 'created_by', 'created_at')
+    list_display = ('code', 'titulo', 'event_type', 'fecha_evento','assigned_agent', 'hora_inicio', 'hora_fin', 'created_by', 'created_at')
     list_filter = ('event_type', 'fecha_evento', 'is_active', 'created_at')
     search_fields = ('code', 'titulo', 'interesado', 'property__code')
     readonly_fields = ('code', 'created_at', 'updated_at')

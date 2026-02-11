@@ -606,7 +606,7 @@ class EventForm(forms.ModelForm):
         from .models import Event
         model = Event
         fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
-                  'interesado','detalle', 'property', 'created_by']
+                  'interesado','assigned_agent','detalle', 'property', 'created_by']
         widgets = {
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
@@ -616,6 +616,7 @@ class EventForm(forms.ModelForm):
             'detalle': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'property': forms.Select(attrs={'class': 'form-select'}),
             'created_by': forms.Select(attrs={'class': 'form-select'}),
+            'assigned_agent': forms.Select(attrs={'class': 'form-select'}),
             'interesado': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del contacto (opcional)'}),
         }
         labels = {
@@ -627,7 +628,8 @@ class EventForm(forms.ModelForm):
             'interesado': 'Nombre',
             'detalle': 'Detalle del evento',
             'property': 'Inmueble',
-            'created_by': 'Agente Asignado',
+            'created_by': 'Creado por',
+            'assigned_agent': 'Agente Asignado',
         }
     
     def __init__(self, *args, **kwargs):
@@ -644,6 +646,10 @@ class EventForm(forms.ModelForm):
 
         self.fields['created_by'].queryset = User.objects.filter(is_active=True).order_by('first_name')
         self.fields['created_by'].required = False
+
+        # ✅ Configurar assigned_agent
+        self.fields['assigned_agent'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
+        self.fields['assigned_agent'].required = False
 
         # ✅ Fecha en formato HTML date
         self.fields['fecha_evento'].widget.format = '%Y-%m-%d'
