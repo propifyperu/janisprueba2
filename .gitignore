@@ -6,6 +6,7 @@ db.sqlite3
 *.log
 staticfiles/
 .env
+.env.*
 .DS_Store
 *.txt
 *.exe

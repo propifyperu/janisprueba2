@@ -14,11 +14,14 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde .env
-load_dotenv()
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths...
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# 1) Elegimos archivo env
+ENV_FILE = os.environ.get("ENV_FILE", ".env.local")
+
+# 2) Cargamos SOLO ese archivo y sobrescribimos (para que cambie al vuelo)
+load_dotenv(dotenv_path=BASE_DIR / ENV_FILE, override=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -47,7 +50,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "django_filters",
-    "rest_framework_simplejwt.token_blacklist",
     "prueba",
     "properties.apps.PropertiesConfig",
     "security",
@@ -57,6 +59,10 @@ INSTALLED_APPS = [
     "storages",
     "notifications",
 ]
+# Activar token_blacklist solo si se pide por env (evita migración rota en SQL Server local)
+if os.environ.get("ENABLE_TOKEN_BLACKLIST", "False").lower() in ("1", "true", "yes"):
+    INSTALLED_APPS.append("rest_framework_simplejwt.token_blacklist")
+
 # Facebook Pixel ID (opcional, para campañas)
 import os
 FACEBOOK_PIXEL_ID = os.environ.get('FACEBOOK_PIXEL_ID', '')
@@ -108,14 +114,24 @@ WSGI_APPLICATION = "janis_core3.wsgi.application"
 _db_user = os.environ.get('DB_USER', 'sqladmin') or 'sqladmin'
 _db_host = os.environ.get('DB_HOST', 'janis-server.database.windows.net')
 _server_short = _db_host.split('.')[0] if _db_host else _db_host
-if '@' not in _db_user and _server_short:
-    _db_user = f"{_db_user}@{_server_short}"
+
+# Solo aplicar el formato user@server cuando sea Azure SQL (database.windows.net)
+if _db_host and "database.windows.net" in _db_host.lower():
+    if '@' not in _db_user and _server_short:
+        _db_user = f"{_db_user}@{_server_short}"
+
+_db_name = os.environ.get('DB_NAME')
+if not _db_name:
+    if DEBUG:
+        _db_name = 'propify_local'
+    else:
+        raise RuntimeError("DB_NAME no definido en staging/prod.")
 
 DATABASES = {
     'default': {
         # Leer credenciales desde variables de entorno para producción
         'ENGINE': os.environ.get('DB_ENGINE', 'mssql'),
-        'NAME': os.environ.get('DB_NAME', 'dbpropify'),
+        'NAME': _db_name,
         'USER': _db_user,
         'PASSWORD': os.environ.get('DB_PASS', os.environ.get('DB_PASSWORD', '')),
         'HOST': _db_host,
