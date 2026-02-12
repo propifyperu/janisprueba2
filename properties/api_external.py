@@ -6,6 +6,35 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Case, When, Value, IntegerField
 from .models import Property
 from .serializers import PropertySerializer
+from rest_framework.parsers import JSONParser
+import json
+import re
+
+class ForgivingJSONParser(JSONParser):
+    """
+    Parser que intenta corregir JSON malformado (ej: faltan comillas en listas).
+    """
+    def parse(self, stream, media_type=None, parser_context=None):
+        content = stream.read().decode(parser_context.get('encoding', 'utf-8'))
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            
+            fixed = re.sub(r'(?<=\{|\,)\s*([a-zA-Z0-9_]+)\s*:', r'"\1":', content) # corregir claves sin comillas: { key: -> {"key":
+            
+            
+            def fix_value(match): # corregir valores string sin comillas
+                val = match.group(1)
+                if val in ('true', 'false', 'null') or re.match(r'^-?\d+(\.\d+)?$', val):
+                    return match.group(0)
+                return f'"{val}"'
+
+            fixed = re.sub(r'(?<=[:\[,])\s*([a-zA-Z0-9_\u00C0-\u00FF]+)\s*(?=[,\]\}])', fix_value, fixed)
+            
+            try:
+                return json.loads(fixed)
+            except Exception:
+                return {}
 
 class ExternalPropertySerializer(PropertySerializer):
     class Meta(PropertySerializer.Meta):
@@ -29,6 +58,7 @@ class ExternalPropertyMatchView(APIView):
     {"keywords": ["piscina", "playa", "asia"], "user_ids": [1, 5]}, solo devuelve 3
     """
     permission_classes = [permissions.AllowAny]
+    parser_classes = [ForgivingJSONParser]
 
     def post(self, request, *args, **kwargs):
         data = request.data
