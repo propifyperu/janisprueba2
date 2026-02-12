@@ -1,6 +1,7 @@
 ﻿from django.urls import path, include
 from . import views
 from .api import PropertyViewSet, DocumentTypeViewSet, RequirementViewSet
+from .api_external import ExternalPropertyListView, ExternalPropertyMatchView
 from rest_framework.routers import DefaultRouter
 
 app_name = 'properties'
@@ -43,10 +44,13 @@ urlpatterns = [
     path('api/events/', views.api_events_json, name='api_events'),
     # APIs
     path('api/document-types-legacy/', views.api_document_types, name='api_document_types_legacy'),
+    path('api/external/properties/', ExternalPropertyListView.as_view(), name='external_properties_list'),
+    path('api/external/properties/match/', ExternalPropertyMatchView.as_view(), name='external_properties_match'),
     path('api/property-subtypes/', views.api_property_subtypes, name='api_property_subtypes'),
     path('api/provinces/', views.api_provinces, name='api_provinces'),
     path('api/districts/', views.api_districts, name='api_districts'),
     path('api/location-details/', views.api_location_details, name='api_location_details'),
+    #path('api/utils/requirement-options/', views.RequirementOptionsView.as_view(), name='api_requirement_options'),
     path('api/urbanizations/', views.api_urbanizations, name='api_urbanizations'),
     #path('api/document-types/', views.api_document_types, name='api_document_types'),
     path('api/image-types/', views.api_image_types, name='api_image_types'),
