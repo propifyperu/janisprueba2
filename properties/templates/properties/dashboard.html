@@ -502,7 +502,7 @@
     }
 
     .status-label {
-        font-size: 0.65rem;
+        font-size: 0.85rem;
         font-weight: 600;
         color: var(--color-secondary-dark);
         background: rgba(39, 152, 150, 0.12);
@@ -598,7 +598,7 @@
     .property-card .price {
         color: var(--color-secondary);
         font-weight: 700;
-        font-size: 1rem;
+        font-size: 1.7rem;
         padding-right: 16px;
     }
 
@@ -607,12 +607,12 @@
     }
 
     .badge-status {
-        background: rgba(4, 125, 125, 0.12);
-        color: var(--color-primary);
-        font-weight: 600;
+        background: #079b9b;
+        color: var(--color-on-dark);
+        font-weight: 700;
         border-radius: 999px;
         padding: 0.1rem 0.4rem;
-        font-size: 0.65rem;
+        font-size: 0.85rem;
     }
 
     /* Estilo para el contenedor de la parte inferior para separar info de acciones */
@@ -1082,29 +1082,29 @@
                     <div onclick="openPropertyDetail({{ property.id }})" class="main-card-property">
                         <article class="property-card pr-md-3" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
                             <div class="property-card-media">
-                                {% with images=property.prefetched_images %}
-                                    {% if images %}
-                                        {% with first=images|first %}
-                                            {% if first.image %}
-                                                <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
-                                            {% else %}
-                                                <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
-                                            {% endif %}
-                                        {% endwith %}
+                            {% with images=property.prefetched_images %}
+                                {% if images %}
+                                {% with first=images|first %}
+                                    {% if first.image %}
+                                    <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
                                     {% else %}
-                                        <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
+                                    <img src="{{ MEDIA_URL }}properties/logoproperty.png" alt="Propiedad" loading="lazy">
                                     {% endif %}
                                 {% endwith %}
+                                {% else %}
+                                <img src="{{ MEDIA_URL }}properties/logoproperty.png" alt="Propiedad" loading="lazy">
+                                {% endif %}
+                            {% endwith %}
                             </div>
                             <div class="property-card-body">
                                 <div class="property-card-top">
                                     <div class="d-flex align-items-center gap-2">
+                                        <span class="badge-status">{{ property.code }}</span>
                                         <span class="badge-status">{{ property.property_type.name }}</span>
                                         <span class="status-label">{{ property.status.name }}</span>
                                     </div>
                                     {% load money %}
 
-                                    <div class="princing-title mt-3">Precio total:</div>
                                     <div class="price">
                                     {{ property.currency.symbol }} {{ property.price|money_us }}
                                     </div>
@@ -1137,24 +1137,6 @@
                                             {% if property.garage_spaces %}
                                             <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
                                             {% endif %}
-                                        </div>
-                                        <div class="property-contacts">
-                                            <div>
-                                                <span><i class="fas fa-user-tie"></i>Propietario: 
-                                                    {% if user.is_superuser %}
-                                                        {{ property.owner.full_name }}
-                                                    {% else %}
-                                                        <span style="color: #888; font-style: italic; font-weight: normal;">Vista No Autorizada</span>
-                                                    {% endif %}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <span><i class="fas fa-user-check"></i>Resp:
-                                                    {% if property.responsible %}
-                                                        {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
-                                                    {% else %} Sin asignar {% endif %}
-                                                </span>
-                                            </div>
                                         </div>
                                     </div>
                                     
@@ -1193,7 +1175,6 @@
                                     </div>
                                     {% load money %}
 
-                                    <div class="princing-title mt-3">Precio total:</div>
                                     <div class="price">
                                     {{ property.currency.symbol }} {{ property.price|money_us }}
                                     </div>
@@ -1219,13 +1200,6 @@
                                     <div class="property-info-stack">
                                         
                                         <div class="property-contacts">
-                                            <span><i class="fas fa-user-tie"></i>Propietario: 
-                                                {% if user.is_superuser %}
-                                                    {{ property.owner.full_name }}
-                                                {% else %}
-                                                    <span style="color: #888; font-style: italic; font-weight: normal;">Vista No Autorizada</span>
-                                                {% endif %}
-                                            </span>
                                             <span><i class="fas fa-user-check"></i>Responsable:
                                                 {% if property.responsible %}
                                                     {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
