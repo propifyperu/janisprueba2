@@ -114,13 +114,15 @@ class ExternalPropertyMatchView(APIView):
                 word = str(word).strip()
                 if not word: continue
                 
-                # asignacion de pesos: código (10 pts), título (5 pts), dirección (3 pts), amenities (2 pts), descripción (1 pt)
+                # asignacion de pesos: código (20 pts), dirección (15 pts), título (10 pts), amenities (5 pts), descripción (2 pt)
                 score = score + \
-                    Case(When(code__icontains=word, then=Value(10)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(title__icontains=word, then=Value(5)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(exact_address__icontains=word, then=Value(3)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(amenities__icontains=word, then=Value(2)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(description__icontains=word, then=Value(1)), default=Value(0), output_field=IntegerField())
+                    Case(When(code__icontains=word, then=Value(20)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(exact_address__icontains=word, then=Value(15)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(real_address__icontains=word, then=Value(15)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(urbanization__icontains=word, then=Value(15)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(title__icontains=word, then=Value(10)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(amenities__icontains=word, then=Value(5)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(description__icontains=word, then=Value(2)), default=Value(0), output_field=IntegerField())
 
             
             results = [] # intentar filtrar por usuarios si se proporcionaron
@@ -136,6 +138,51 @@ class ExternalPropertyMatchView(APIView):
                 results = list(qs)
 
             serializer = ExternalPropertySerializer(results, many=True, context={'request': request})
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+class ExternalPropertyByUsersView(APIView):
+    """
+    Endpoint externo para obtener TODAS las propiedades de una lista de usuarios.
+    Método: POST
+    Body: {"user_ids": [2, 7, 1]}
+    """
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [ForgivingJSONParser]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            data = request.data
+            
+            if isinstance(data, str):
+                data = forgiving_json_loads(data)
+
+            user_ids = []
+
+            if isinstance(data, dict):
+                user_ids = data.get('user_ids', [])
+            
+            if isinstance(user_ids, str):
+                user_ids = user_ids.strip('[]')
+                user_ids = [uid.strip().strip('"\'') for uid in user_ids.split(',') if uid.strip()]
+            
+            if isinstance(user_ids, list):
+                flat_ids = []
+                for item in user_ids:
+                    if isinstance(item, list):
+                        flat_ids.extend(item)
+                    else:
+                        flat_ids.append(item)
+                user_ids = flat_ids
+
+            if not user_ids:
+                return Response([])
+
+            
+            qs = Property.objects.filter(is_active=True, created_by_id__in=user_ids).order_by('-created_at') # devolver todas las propiedades activas de estos usuarios
+            
+            serializer = ExternalPropertySerializer(qs, many=True, context={'request': request})
             return Response(serializer.data)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
