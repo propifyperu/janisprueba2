@@ -1,7 +1,7 @@
 ﻿from django.urls import path, include
 from . import views
 from .api import PropertyViewSet, DocumentTypeViewSet, RequirementViewSet
-from .api_external import ExternalPropertyListView, ExternalPropertyMatchView
+from .api_external import ExternalPropertyListView, ExternalPropertyMatchView, ExternalPropertyByUsersView
 from rest_framework.routers import DefaultRouter
 
 app_name = 'properties'
@@ -46,6 +46,7 @@ urlpatterns = [
     path('api/document-types-legacy/', views.api_document_types, name='api_document_types_legacy'),
     path('api/external/properties/', ExternalPropertyListView.as_view(), name='external_properties_list'),
     path('api/external/properties/match/', ExternalPropertyMatchView.as_view(), name='external_properties_match'),
+    path('api/external/properties/by-users/', ExternalPropertyByUsersView.as_view(), name='external_properties_by_users'),
     path('api/property-subtypes/', views.api_property_subtypes, name='api_property_subtypes'),
     path('api/provinces/', views.api_provinces, name='api_provinces'),
     path('api/districts/', views.api_districts, name='api_districts'),
