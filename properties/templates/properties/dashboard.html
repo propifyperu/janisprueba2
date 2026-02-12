@@ -416,7 +416,31 @@
         border-radius: 12px;
         overflow: hidden;
         box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        position: relative;
         }
+
+    .availability-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 10;
+
+        border-radius: 999px;
+        padding: 0.18rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        cursor: pointer;
+
+        background: #eef6f6;
+        color: #16343b;
+        border: 1px solid rgba(4, 125, 125, 0.25);
+    }
+
+    .availability-badge[data-status="available"] { background:#e9f9ef; border-color:#2ea44f33; color:#146c2e; }
+    .availability-badge[data-status="reserved"] { background:#fff7e6; border-color:#f59e0b33; color:#92400e; }
+    .availability-badge[data-status="sold"] { background:#ffecec; border-color:#ef444433; color:#991b1b; }
+    .availability-badge[data-status="unavailable"] { background:#f3f4f6; border-color:#64748b33; color:#334155; }
+    .availability-badge[data-status="paused"] { background:#f1f5f9; border-color:#0f172a33; color:#0f172a; }
 
 
     .property-card:hover,
@@ -1098,6 +1122,27 @@
                             </div>
                             <div class="property-card-body">
                                 <div class="property-card-top">
+                                    <div class="dropdown availability-dropdown" onclick="event.stopPropagation();">
+                                        <button
+                                            class="availability-badge dropdown-toggle"
+                                            type="button"
+                                            data-bs-toggle="dropdown"
+                                            aria-expanded="false"
+                                            data-property-id="{{ property.id }}"
+                                            data-status="{{ property.availability_status|default:'available' }}"
+                                            id="availBtn{{ property.id }}"
+                                        >
+                                            {{ property.get_availability_status_display }}
+                                        </button>
+
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="availBtn{{ property.id }}">
+                                            <li><a class="dropdown-item js-avail" href="#" data-value="available">Disponible</a></li>
+                                            <li><a class="dropdown-item js-avail" href="#" data-value="reserved">Reservada</a></li>
+                                            <li><a class="dropdown-item js-avail" href="#" data-value="sold">Vendida</a></li>
+                                            <li><a class="dropdown-item js-avail" href="#" data-value="unavailable">No disponible</a></li>
+                                            <li><a class="dropdown-item js-avail" href="#" data-value="paused">Pausada</a></li>
+                                        </ul>
+                                    </div>
                                     <div class="d-flex align-items-center gap-2">
                                         <span class="badge-status">{{ property.code }}</span>
                                         <span class="badge-status">{{ property.property_type.name }}</span>
@@ -1229,6 +1274,26 @@
                     {% endfor %}
                 </div>
                 {% endif %}
+        </div>
+        <div class="modal fade" id="availabilityConfirmModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar cambio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="mb-2" id="availabilityConfirmText"></p>
+                    <div class="alert alert-warning d-none mb-0" id="availabilityConfirmAlert"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">No</button>
+                    <button type="button" class="btn btn-primary" id="availabilityConfirmYes">Sí, cambiar</button>
+                </div>
+                </div>
+            </div>
         </div>
     </main>
 </div>
@@ -2088,5 +2153,152 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
 
         window.location.href = url;
     }
+
+    // ---- Availability dropdown logic (confirm + optional PATCH) ----
+(function () {
+  const STATUS_LABEL = {
+    available: "Disponible",
+    reserved: "Reservada",
+    sold: "Vendida",
+    unavailable: "No disponible",
+    paused: "Pausada",
+  };
+
+  const HIDE_FROM_SEARCH = new Set(["unavailable", "paused"]);
+
+  // Ajusta esta URL a tu endpoint real:
+  // EJ: /properties/api/<id>/availability/
+  function buildAvailabilityUrl(propertyId) {
+    const urlTemplate = "{% url 'properties:property_availability_api' 0 %}";
+    return urlTemplate.replace("/0/", `/${propertyId}/`);
+  }
+
+  function getCookie(name) {
+    const cookies = document.cookie ? document.cookie.split("; ") : [];
+    for (const c of cookies) {
+      const [k, ...v] = c.split("=");
+      if (k === name) return decodeURIComponent(v.join("="));
+    }
+    return "";
+  }
+
+  function updateBadgeUI(btn, newValue) {
+    btn.dataset.status = newValue;
+    btn.textContent = STATUS_LABEL[newValue] || newValue;
+  }
+
+  function openConfirmModal({ propertyId, btn, fromValue, toValue }) {
+    const modalEl = document.getElementById("availabilityConfirmModal");
+    const textEl = document.getElementById("availabilityConfirmText");
+    const alertEl = document.getElementById("availabilityConfirmAlert");
+    const yesBtn = document.getElementById("availabilityConfirmYes");
+
+    const fromLabel = STATUS_LABEL[fromValue] || fromValue;
+    const toLabel = STATUS_LABEL[toValue] || toValue;
+
+    textEl.textContent = `¿Estás seguro de cambiar el estado de la propiedad de "${fromLabel}" a "${toLabel}"?`;
+
+    if (HIDE_FROM_SEARCH.has(toValue)) {
+      alertEl.classList.remove("d-none");
+      alertEl.innerHTML = `
+        <strong>Importante:</strong> Si cambias a <strong>${toLabel}</strong>, la propiedad
+        <strong>ya no estará disponible para búsquedas</strong> y dejará de mostrarse como disponible en el sistema.
+      `;
+    } else {
+      alertEl.classList.add("d-none");
+      alertEl.textContent = "";
+    }
+
+    // Bootstrap modal
+    let modalInstance = null;
+    if (window.bootstrap?.Modal) {
+      modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modalInstance.show();
+    } else {
+      // fallback
+      const ok = window.confirm(textEl.textContent + (HIDE_FROM_SEARCH.has(toValue) ? "\n\nIMPORTANTE: dejará de aparecer en búsquedas." : ""));
+      if (!ok) return;
+      return doUpdate({ propertyId, btn, toValue, closeModal: null });
+    }
+
+    // Evitar listeners duplicados
+    yesBtn.onclick = async () => {
+      yesBtn.disabled = true;
+      yesBtn.textContent = "Cambiando...";
+
+      try {
+        await doUpdate({ propertyId, btn, toValue, closeModal: () => modalInstance.hide() });
+      } finally {
+        yesBtn.disabled = false;
+        yesBtn.textContent = "Sí, cambiar";
+      }
+    };
+  }
+
+  async function doUpdate({ propertyId, btn, toValue, closeModal }) {
+    // 1) UI optimista (si quieres, comenta esta línea y solo actualiza al éxito)
+    updateBadgeUI(btn, toValue);
+
+    // 2) Persistir (si no existe el endpoint, esto fallará pero al menos ya ves la UI)
+    try {
+      const resp = await fetch(buildAvailabilityUrl(propertyId), {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({ availability_status: toValue }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || ("HTTP " + resp.status));
+      }
+
+      // opcional: si backend devuelve label o status normalizado
+      const data = await resp.json().catch(() => null);
+      if (data?.availability_status) {
+        updateBadgeUI(btn, data.availability_status);
+      }
+
+      if (closeModal) closeModal();
+    } catch (e) {
+      // rollback UI si falló el backend
+      // (si prefieres NO rollback, quita esto)
+      const prev = btn.dataset.prevStatus;
+      if (prev) updateBadgeUI(btn, prev);
+
+      alert(e.message || "No se pudo actualizar el estado.");
+      console.error("Availability update error:", e);
+    }
+  }
+
+  // Delegación: sirve para todos los dropdowns
+  document.addEventListener("click", (e) => {
+    const item = e.target.closest(".js-avail");
+    if (!item) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const dropdown = item.closest(".availability-dropdown");
+    const btn = dropdown?.querySelector(".availability-badge");
+    if (!btn) return;
+
+    const propertyId = btn.dataset.propertyId;
+    const toValue = item.dataset.value;
+
+    const fromValue = (btn.dataset.status || "available").trim();
+    if (!propertyId || !toValue) return;
+
+    // guardar para rollback si falla backend
+    btn.dataset.prevStatus = fromValue;
+
+    if (fromValue === toValue) return; // no cambies si ya es el mismo
+
+    openConfirmModal({ propertyId, btn, fromValue, toValue });
+  }, true);
+})();
 </script>
 {% endblock %}

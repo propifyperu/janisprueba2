@@ -282,7 +282,7 @@ class PropertyOwnerAdmin(admin.ModelAdmin):
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display = ('code','condition','operation_type','real_address','exact_address','responsible', 'title', 'property_type','availability_status', 'unit_location', 'status', 'price', 'owner', 'is_active', 'created_at')
+    list_display = ('code','condition','availability_status','real_address','exact_address','responsible', 'title', 'property_type','availability_status', 'unit_location', 'status', 'price', 'owner', 'is_active', 'created_at')
     list_filter = ('is_active', 'status', 'property_type', 'created_at', 'department', 'unit_location')
     search_fields = ('code', 'title', 'owner__first_name', 'owner__last_name', 'description')
     readonly_fields = ('created_at', 'updated_at', 'code', 'codigo_unico_propiedad')
@@ -293,7 +293,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('code', 'codigo_unico_propiedad', 'title', 'description')
         }),
         ('Clasificación', {
-            'fields': ('property_type', 'property_subtype', 'condition', 'operation_type', 'status')
+            'fields': ('property_type', 'property_subtype', 'condition', 'operation_type', 'status','availability_status')
         }),
         ('Propietario y Responsable', {
             'fields': ('owner', 'responsible', 'created_by')

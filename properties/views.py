@@ -238,6 +238,34 @@ def agency_config_view(request):
         'config': config
     })
 
+@login_required
+@require_http_methods(["PATCH"])
+def property_availability_api(request, pk):
+    from .models import Property
+
+    prop = get_object_or_404(Property, pk=pk)
+
+    # permiso básico (ajusta a tu lógica real)
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"detail": "No tienes permisos para cambiar el estado. Solo Superadmin puede hacerlo.", "code": "not_allowed"},
+            status=403
+        )
+
+    payload = json.loads(request.body.decode("utf-8") or "{}")
+    new_status = payload.get("availability_status")
+
+    allowed = {"available", "reserved", "sold", "unavailable", "paused"}
+    if new_status not in allowed:
+        return JsonResponse({"detail": "Invalid status"}, status=400)
+
+    prop.availability_status = new_status
+    prop.save(update_fields=["availability_status"])
+
+    return JsonResponse({
+        "availability_status": prop.availability_status,
+        "availability_label": prop.get_availability_status_display(),
+    })
 
 @login_required
 @require_http_methods(["GET", "POST"])
