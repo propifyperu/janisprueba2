@@ -5,12 +5,20 @@ from django.dispatch import receiver
 from django.core.cache import cache
 import logging
 from django.db import transaction
+from .models import Property
 
 from .models import Requirement
 from . import matching as matching_module
 
 logger = logging.getLogger(__name__)
 
+INACTIVE_AVAILABILITY = {"unavailable", "paused"}
+
+@receiver(post_save, sender=Property)
+def sync_is_active_with_availability(sender, instance: Property, **kwargs):
+    should_be_active = instance.availability_status not in INACTIVE_AVAILABILITY
+    if instance.is_active != should_be_active:
+        Property.objects.filter(pk=instance.pk).update(is_active=should_be_active)
 
 @receiver(post_save, sender=Requirement)
 def requirement_post_save_recalculate_matches(sender, instance: Requirement, created, **kwargs):

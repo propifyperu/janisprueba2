@@ -77,4 +77,5 @@ urlpatterns = [
     path('images/blob/<int:pk>/', views.image_blob_view, name='image_blob'),
     path('search/', views.search_view, name='search'),
     path('', views.PropertyDashboardView.as_view(), name='dashboard_root'),
+    path("api/<int:pk>/availability/", views.property_availability_api, name="property_availability_api"),
 ]

@@ -1,8 +1,11 @@
 from django.contrib import admin
 from .models import CustomUser, Area, Role, UserProfile, RoleFieldPermission
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 @admin.register(CustomUser)
-class CustomUserAdmin(admin.ModelAdmin):
+class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'email', 'first_name', 'last_name', 'area', 'role', 'is_active', 'is_verified','is_superuser')
     list_filter = ('is_active', 'is_verified', 'is_active_agent', 'area', 'role', 'date_joined')
     search_fields = ('username', 'email', 'first_name', 'last_name', 'phone')
