@@ -143,14 +143,20 @@ class ExternalPropertyMatchView(APIView):
             results = [] # intentar filtrar por usuarios si se proporcionaron
             if user_ids:
                 qs = Property.objects.filter(is_active=True, created_by_id__in=user_ids)
-                qs = qs.annotate(match_score=score).filter(match_score__gt=0).order_by('-match_score')[:3]
+                qs = qs.annotate(match_score=score).filter(match_score__gt=0).order_by('-match_score')[:5]
                 results = list(qs)
 
-            
-            if not results: # fallback global si no hay resultados (o no se filtró por usuario)
+            # Fallback global inteligente:
+            # Si no hay resultados, O si los resultados encontrados son "débiles" (score bajo < 20),
+            # buscamos en toda la base de datos para ver si hay algo mejor.
+            if not results or (results and getattr(results[0], 'match_score', 0) < 20):
                 qs = Property.objects.filter(is_active=True)
-                qs = qs.annotate(match_score=score).filter(match_score__gt=0).order_by('-match_score')[:3]
-                results = list(qs)
+                qs = qs.annotate(match_score=score).filter(match_score__gt=0).order_by('-match_score')[:5]
+                global_results = list(qs)
+                
+                
+                if global_results and (not results or getattr(global_results[0], 'match_score', 0) > getattr(results[0], 'match_score', 0)): # Si la búsqueda global trajo mejores resultados (o los únicos), usarlos
+                    results = global_results
 
             serializer = ExternalPropertySerializer(results, many=True, context={'request': request})
             return Response(serializer.data)
