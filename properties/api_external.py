@@ -100,6 +100,18 @@ class ExternalPropertyMatchView(APIView):
                     else:
                         flat_keywords.append(item)
                 keywords = flat_keywords
+            
+            if isinstance(keywords, list): # limpieza avanzada: separar por espacios y eliminar stopwords (artículos, pronombres)
+                processed_keywords = []
+                STOPWORDS = {'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'y', 'o', 'en', 'con', 'por'}
+                for k in keywords:
+                    
+                    words = str(k).split() # separar frases por espacios (ej: "urbanizacion terrazas" -> ["urbanizacion", "terrazas"])
+                    for w in words:
+                        clean_w = w.strip().strip('"\'.,')
+                        if clean_w and clean_w.lower() not in STOPWORDS:
+                            processed_keywords.append(clean_w)
+                keywords = processed_keywords
 
             if isinstance(user_ids, str):
                 user_ids = user_ids.strip('[]')
@@ -110,32 +122,88 @@ class ExternalPropertyMatchView(APIView):
 
             score = Value(0, output_field=IntegerField())
 
-            for word in keywords:
+            for idx, word in enumerate(keywords):
                 word = str(word).strip()
                 if not word: continue
                 
-                # asignacion de pesos: código (10 pts), título (5 pts), dirección (3 pts), amenities (2 pts), descripción (1 pt)
+                
+                multiplier = 3 if idx == 0 else (2 if idx == 1 else 1) # importancia por orden: 1ra palabra (x3), 2da (x2), resto (x1)
+                
+                # asignacion de pesos: código (20 pts), dirección (15 pts), título (10 pts), amenities (5 pts), descripción (2 pt)
                 score = score + \
-                    Case(When(code__icontains=word, then=Value(10)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(title__icontains=word, then=Value(5)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(exact_address__icontains=word, then=Value(3)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(amenities__icontains=word, then=Value(2)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(description__icontains=word, then=Value(1)), default=Value(0), output_field=IntegerField())
+                    Case(When(code__icontains=word, then=Value(20 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(exact_address__icontains=word, then=Value(15 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(real_address__icontains=word, then=Value(15 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(urbanization__icontains=word, then=Value(15 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(title__icontains=word, then=Value(10 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(amenities__icontains=word, then=Value(5 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(description__icontains=word, then=Value(2 * multiplier)), default=Value(0), output_field=IntegerField())
 
             
             results = [] # intentar filtrar por usuarios si se proporcionaron
             if user_ids:
                 qs = Property.objects.filter(is_active=True, created_by_id__in=user_ids)
-                qs = qs.annotate(match_score=score).filter(match_score__gt=0).order_by('-match_score')[:3]
+                qs = qs.annotate(match_score=score).filter(match_score__gt=0).order_by('-match_score')[:5]
                 results = list(qs)
 
-            
-            if not results: # fallback global si no hay resultados (o no se filtró por usuario)
+            # Fallback global inteligente:
+            # Si no hay resultados, O si los resultados encontrados son "débiles" (score bajo < 20),
+            # buscamos en toda la base de datos para ver si hay algo mejor.
+            if not results or (results and getattr(results[0], 'match_score', 0) < 20):
                 qs = Property.objects.filter(is_active=True)
-                qs = qs.annotate(match_score=score).filter(match_score__gt=0).order_by('-match_score')[:3]
-                results = list(qs)
+                qs = qs.annotate(match_score=score).filter(match_score__gt=0).order_by('-match_score')[:5]
+                global_results = list(qs)
+                
+                
+                if global_results and (not results or getattr(global_results[0], 'match_score', 0) > getattr(results[0], 'match_score', 0)): # Si la búsqueda global trajo mejores resultados (o los únicos), usarlos
+                    results = global_results
 
             serializer = ExternalPropertySerializer(results, many=True, context={'request': request})
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+class ExternalPropertyByUsersView(APIView):
+    """
+    Endpoint externo para obtener TODAS las propiedades de una lista de usuarios.
+    Método: POST
+    Body: {"user_ids": [2, 7, 1]}
+    """
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [ForgivingJSONParser]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            data = request.data
+            
+            if isinstance(data, str):
+                data = forgiving_json_loads(data)
+
+            user_ids = []
+
+            if isinstance(data, dict):
+                user_ids = data.get('user_ids', [])
+            
+            if isinstance(user_ids, str):
+                user_ids = user_ids.strip('[]')
+                user_ids = [uid.strip().strip('"\'') for uid in user_ids.split(',') if uid.strip()]
+            
+            if isinstance(user_ids, list):
+                flat_ids = []
+                for item in user_ids:
+                    if isinstance(item, list):
+                        flat_ids.extend(item)
+                    else:
+                        flat_ids.append(item)
+                user_ids = flat_ids
+
+            if not user_ids:
+                return Response([])
+
+            
+            qs = Property.objects.filter(is_active=True, created_by_id__in=user_ids).order_by('-created_at') # devolver todas las propiedades activas de estos usuarios
+            
+            serializer = ExternalPropertySerializer(qs, many=True, context={'request': request})
             return Response(serializer.data)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
