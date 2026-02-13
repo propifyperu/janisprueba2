@@ -100,6 +100,18 @@ class ExternalPropertyMatchView(APIView):
                     else:
                         flat_keywords.append(item)
                 keywords = flat_keywords
+            
+            if isinstance(keywords, list): # limpieza avanzada: separar por espacios y eliminar stopwords (artículos, pronombres)
+                processed_keywords = []
+                STOPWORDS = {'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'y', 'o', 'en', 'con', 'por'}
+                for k in keywords:
+                    
+                    words = str(k).split() # separar frases por espacios (ej: "urbanizacion terrazas" -> ["urbanizacion", "terrazas"])
+                    for w in words:
+                        clean_w = w.strip().strip('"\'.,')
+                        if clean_w and clean_w.lower() not in STOPWORDS:
+                            processed_keywords.append(clean_w)
+                keywords = processed_keywords
 
             if isinstance(user_ids, str):
                 user_ids = user_ids.strip('[]')
@@ -110,19 +122,22 @@ class ExternalPropertyMatchView(APIView):
 
             score = Value(0, output_field=IntegerField())
 
-            for word in keywords:
+            for idx, word in enumerate(keywords):
                 word = str(word).strip()
                 if not word: continue
                 
+                
+                multiplier = 3 if idx == 0 else (2 if idx == 1 else 1) # importancia por orden: 1ra palabra (x3), 2da (x2), resto (x1)
+                
                 # asignacion de pesos: código (20 pts), dirección (15 pts), título (10 pts), amenities (5 pts), descripción (2 pt)
                 score = score + \
-                    Case(When(code__icontains=word, then=Value(20)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(exact_address__icontains=word, then=Value(15)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(real_address__icontains=word, then=Value(15)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(urbanization__icontains=word, then=Value(15)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(title__icontains=word, then=Value(10)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(amenities__icontains=word, then=Value(5)), default=Value(0), output_field=IntegerField()) + \
-                    Case(When(description__icontains=word, then=Value(2)), default=Value(0), output_field=IntegerField())
+                    Case(When(code__icontains=word, then=Value(20 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(exact_address__icontains=word, then=Value(15 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(real_address__icontains=word, then=Value(15 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(urbanization__icontains=word, then=Value(15 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(title__icontains=word, then=Value(10 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(amenities__icontains=word, then=Value(5 * multiplier)), default=Value(0), output_field=IntegerField()) + \
+                    Case(When(description__icontains=word, then=Value(2 * multiplier)), default=Value(0), output_field=IntegerField())
 
             
             results = [] # intentar filtrar por usuarios si se proporcionaron
