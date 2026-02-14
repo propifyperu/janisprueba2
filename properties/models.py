@@ -550,6 +550,13 @@ class Property(TitleCaseMixin, models.Model):
     status = models.ForeignKey('PropertyStatus', on_delete=models.PROTECT, blank=True, null=True)
     condition = models.ForeignKey('PropertyCondition', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Condición Física")
     operation_type = models.ForeignKey('OperationType', on_delete=models.PROTECT, blank=True, null=True, verbose_name="Tipo de Operación") #no hace nada
+
+    # Gestion de wordpress
+    wp_post_id = models.IntegerField(null=True, blank=True, db_index=True)
+    wp_slug = models.SlugField(null=True, blank=True)
+    wp_last_sync = models.DateTimeField(null=True, blank=True)
+
+    
     responsible = models.ForeignKey(
         get_user_model(),
         on_delete=models.SET_NULL,
@@ -801,6 +808,11 @@ class PropertyImage(TitleCaseMixin, models.Model):
     sensible = models.BooleanField(default=False, verbose_name='Sensible')
     uploaded_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    # ✅ Cache WP (2B)
+    wp_media_id = models.IntegerField(null=True, blank=True, db_index=True)
+    wp_source_url = models.URLField(max_length=1000, null=True, blank=True)
+    wp_last_sync = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'property_images'

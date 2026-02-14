@@ -328,3 +328,9 @@ LOGGING = {
        }
    }
 }
+
+WP_BASE_URL = os.getenv("WP_BASE_URL", "").rstrip("/")
+WP_USER = os.getenv("WP_USER", "")
+WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD", "")
+WP_TIMEOUT = int(os.getenv("WP_TIMEOUT", "30"))
+INTERNAL_SYNC_KEY = os.getenv("INTERNAL_SYNC_KEY", "")
