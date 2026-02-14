@@ -6,6 +6,11 @@ import random
 import string
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField
 from cryptography.fernet import Fernet
+from PIL import Image, ImageOps
+from io import BytesIO
+from django.core.files.base import ContentFile
+import os
+
 def _normalize_title_case(value: str | None) -> str | None:
     """Return value in title case with single spaces."""
     if not isinstance(value, str):
@@ -804,8 +809,67 @@ class PropertyImage(TitleCaseMixin, models.Model):
     def __str__(self):
         return f"Imagen {self.id} - {self.property.code}"
 
+    def process_watermark(self):
+        """Aplica una marca de agua a la imagen antes de guardarla."""
+        if not self.image:
+            return
+
+        watermark_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'watermark.png')
+        
+        if not os.path.exists(watermark_path):
+            print(f"No se encontró el archivo: {watermark_path}")
+            return
+
+        try:
+            self.image.open()
+            img = Image.open(self.image)
+            img = ImageOps.exif_transpose(img) # corregir orientación si viene de móvil
+
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+
+            # Abrir y preparar marca de agua
+            watermark = Image.open(watermark_path).convert("RGBA")
+            
+            # Escalar marca de agua (ej. 50% del ancho de la imagen)
+            target_width = int(img.width * 0.30)
+            if target_width > 0:
+                aspect_ratio = watermark.width / watermark.height
+                target_height = int(target_width / aspect_ratio)
+                watermark = watermark.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+                # Posición: Centro
+                position = ((img.width - watermark.width) // 2, (img.height - watermark.height) // 2)
+
+                # Componer
+                transparent = Image.new('RGBA', img.size, (0, 0, 0, 0))
+                transparent.paste(watermark, position, mask=watermark)
+                output_img = Image.alpha_composite(img, transparent)
+
+                output_io = BytesIO()
+                ext = os.path.splitext(self.image.name)[1].lower()
+                if ext == '.png':
+                    fmt = 'PNG'
+                elif ext == '.webp':
+                    fmt = 'WEBP'
+                else:
+                    fmt = 'JPEG'
+
+                if fmt == 'JPEG':
+                    output_img = output_img.convert('RGB')
+                output_img.save(output_io, format=fmt, quality=90)
+
+                # Actualizar archivo en el campo (save=False evita loop infinito)
+                self.image.save(os.path.basename(self.image.name), ContentFile(output_io.getvalue()), save=False)
+                print(f"✅ [Watermark] Aplicada correctamente a {self.image.name}")
+        except Exception as e:
+            print(f"❌ [Watermark] Error: {e}")
+
     def save(self, *args, **kwargs):
         self._apply_title_case()
+        # Aplicar marca de agua solo al crear (cuando se sube por primera vez)
+        if not self.pk and self.image:
+            self.process_watermark()
         return super().save(*args, **kwargs)
 
 

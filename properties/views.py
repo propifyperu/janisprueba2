@@ -1018,7 +1018,7 @@ class ContactCreateView(LoginRequiredMixin, CreateView):
 
 
 class MyPropertiesView(LoginRequiredMixin, ListView):
-    """Lista de propiedades creadas por el usuario actualmente logueado (activas)."""
+    """Lista de propiedades asignadas al usuario actualmente logueado (activas)."""
     model = Property
     template_name = 'properties/my_properties.html'
     context_object_name = 'properties'
@@ -1027,7 +1027,7 @@ class MyPropertiesView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         from django.db.models import Count
         return Property.objects.filter(
-            created_by=self.request.user, 
+            assigned_agent=self.request.user, 
             is_active=True
         ).annotate(
             visit_count=Count('property_events')
@@ -1795,7 +1795,7 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         # Si el usuario es agente, mostrar solo sus propiedades y asignadas
         if self.request.user.role and self.request.user.role.code_name == 'agent':
             queryset = queryset.filter(
-                Q(created_by=self.request.user) | Q(assigned_agent=self.request.user)
+                assigned_agent=self.request.user
             )
 
         # Búsqueda general por texto (campo `q`) - busca en título, descripción, código, direcciones, amenities y tags
