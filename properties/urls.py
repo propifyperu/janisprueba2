@@ -74,4 +74,5 @@ urlpatterns = [
     path('search/', views.search_view, name='search'),
     path('', views.PropertyDashboardView.as_view(), name='dashboard_root'),
     path("api/<int:pk>/availability/", views.property_availability_api, name="property_availability_api"),
+    path("api/", include("properties.wordpress.urls")),
 ]
