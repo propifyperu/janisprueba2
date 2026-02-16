@@ -112,7 +112,7 @@ class WordPressSyncService:
                 "img_id": img.id,
             }
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [executor.submit(resolve_or_import, img) for img in imgs]
 
             for future in as_completed(futures):
@@ -148,8 +148,28 @@ class WordPressSyncService:
             })
         
     def sync_one(self, prop):
-        
         self._validate_min_wp_fields(prop)
+
+        slug = f"propify-{prop.id}"
+
+        if not prop.wp_post_id:
+            found = self.client.find_property_by_slug(slug)
+            if found:
+                wp_existing = found[0]
+                wp_id = wp_existing.get("id")
+                wp_slug = wp_existing.get("slug")
+
+                # backfill local inmediato (sin depender de prop.save)
+                prop.__class__.objects.filter(id=prop.id).update(
+                    wp_post_id=wp_id,
+                    wp_slug=wp_slug,
+                    wp_last_sync=timezone.now(),
+                )
+
+                # refrescar objeto en memoria
+                prop.wp_post_id = wp_id
+                prop.wp_slug = wp_slug
+
         taxonomy_ids, warnings = self._resolve_taxonomies(prop)
         featured_id, gallery_ids = self._upload_images(prop)
 
@@ -159,17 +179,26 @@ class WordPressSyncService:
             featured_media_id=featured_id,
             gallery_media_ids=gallery_ids,
         )
+        payload["slug"] = slug
 
         if prop.wp_post_id:
             wp_obj = self.client.update_property(prop.wp_post_id, payload)
         else:
             wp_obj = self.client.create_property(payload)
 
-        with transaction.atomic():
+            prop.__class__.objects.filter(id=prop.id).update(
+                wp_post_id=wp_obj.get("id"),
+                wp_slug=wp_obj.get("slug"),
+                wp_last_sync=timezone.now(),
+            )
             prop.wp_post_id = wp_obj.get("id")
             prop.wp_slug = wp_obj.get("slug")
-            prop.wp_last_sync = timezone.now()
-            prop.save(update_fields=["wp_post_id", "wp_slug", "wp_last_sync"])
+
+        prop.__class__.objects.filter(id=prop.id).update(
+            wp_post_id=wp_obj.get("id"),
+            wp_slug=wp_obj.get("slug"),
+            wp_last_sync=timezone.now(),
+        )
 
         return {"wp": wp_obj, "warnings": warnings, "payload": payload}
 

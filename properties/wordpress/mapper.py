@@ -45,11 +45,13 @@ def property_to_wp_payload(
             lat, lng = parts[0], parts[1]
 
     internal_code = (p.codigo_unico_propiedad or p.code or "").strip()
-
+    internal_slug = f"propify-{p.id}"
+    
     payload = {
         "title": p.title or "",
         "content": p.description or "",
         "status": "publish" if (p.is_active and not p.is_draft) else "draft",
+        "slug": internal_slug,
     }
 
     # taxonomies (property_type, property_status, etc)
