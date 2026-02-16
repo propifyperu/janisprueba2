@@ -2803,6 +2803,71 @@ def edit_property_view(request, pk):
             except Exception:
                 pass
 
+            # ===================== ELIMINAR IMÁGENES MARCADAS =====================
+            deleted_images_ids = []
+            for val in request.POST.getlist('deleted_images'):
+                deleted_images_ids.extend(val.split(','))
+            # Capturar tanto 'deleted_images' como 'deleted_images[]' por si el JS usa array syntax
+            raw_deleted_images = request.POST.getlist('deleted_images') + request.POST.getlist('deleted_images[]')
+            
+            for val in raw_deleted_images:
+                if val:
+                    deleted_images_ids.extend(str(val).split(','))
+            
+            if deleted_images_ids:
+                print(f"DEBUG: Procesando eliminación de imágenes: {deleted_images_ids}")
+
+            for img_id in deleted_images_ids:
+                if str(img_id).strip().isdigit():
+                    try:
+                        img = PropertyImage.objects.get(pk=int(img_id), property=property_obj)
+                        # Borrar archivo físico explícitamente
+                        if img.image:
+                            img.image.delete(save=False)
+                        img.delete()
+                    except PropertyImage.DoesNotExist:
+                        pass
+
+            # ===================== ELIMINAR VIDEOS MARCADOS =====================
+            deleted_videos_ids = []
+            for val in request.POST.getlist('deleted_videos'):
+                deleted_videos_ids.extend(val.split(','))
+            raw_deleted_videos = request.POST.getlist('deleted_videos') + request.POST.getlist('deleted_videos[]')
+            
+            for val in raw_deleted_videos:
+                if val:
+                    deleted_videos_ids.extend(str(val).split(','))
+
+            for vid_id in deleted_videos_ids:
+                if str(vid_id).strip().isdigit():
+                    try:
+                        vid = PropertyVideo.objects.get(pk=int(vid_id), property=property_obj)
+                        if vid.video:
+                            vid.video.delete(save=False)
+                        vid.delete()
+                    except PropertyVideo.DoesNotExist:
+                        pass
+
+            # ===================== ELIMINAR DOCUMENTOS MARCADOS =====================
+            deleted_docs_ids = []
+            for val in request.POST.getlist('deleted_documents'):
+                deleted_docs_ids.extend(val.split(','))
+            raw_deleted_docs = request.POST.getlist('deleted_documents') + request.POST.getlist('deleted_documents[]')
+            
+            for val in raw_deleted_docs:
+                if val:
+                    deleted_docs_ids.extend(str(val).split(','))
+
+            for doc_id in deleted_docs_ids:
+                if str(doc_id).strip().isdigit():
+                    try:
+                        doc = PropertyDocument.objects.get(pk=int(doc_id), property=property_obj)
+                        if doc.file:
+                            doc.file.delete(save=False)
+                        doc.delete()
+                    except PropertyDocument.DoesNotExist:
+                        pass
+
             # Procesar posibles archivos subidos desde el formulario de edición (imágenes/videos/documentos)
             images_files = request.FILES.getlist('images')
             image_types = request.POST.getlist('image_types')
