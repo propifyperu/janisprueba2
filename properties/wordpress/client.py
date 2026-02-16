@@ -117,3 +117,5 @@ class WordPressClient:
 
     def import_media_from_url(self, url: str):
         return self.post("/wp-json/propify/v1/media-from-url", json={"url": url})
+    def find_property_by_slug(self, slug: str):
+        return self.get("/wp-json/wp/v2/properties", params={"slug": slug, "per_page": 1})
