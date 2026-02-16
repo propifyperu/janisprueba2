@@ -282,7 +282,7 @@ class PropertyOwnerAdmin(admin.ModelAdmin):
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display = ('code','condition','availability_status','real_address','exact_address','responsible', 'title', 'property_type','availability_status', 'unit_location', 'status', 'price', 'owner', 'is_active', 'created_at')
+    list_display = ('id','code','condition','availability_status','real_address','exact_address','responsible', 'title', 'property_type','availability_status', 'unit_location', 'status', 'price', 'owner', 'is_active', 'created_at','wp_post_id','wp_slug','wp_last_sync')
     list_filter = ('is_active', 'status', 'property_type', 'created_at', 'department', 'unit_location')
     search_fields = ('code', 'title', 'owner__first_name', 'owner__last_name', 'description')
     readonly_fields = ('created_at', 'updated_at', 'code', 'codigo_unico_propiedad')
@@ -334,7 +334,7 @@ class PropertyAdmin(admin.ModelAdmin):
 
 @admin.register(PropertyImage)
 class PropertyImageAdmin(admin.ModelAdmin):
-    list_display = ('property', 'image_type', 'caption', 'order', 'is_primary', 'uploaded_at')
+    list_display = ('id','property', 'order', 'is_primary', 'uploaded_at','wp_media_id','wp_source_url','wp_last_sync')
     list_filter = ('is_primary', 'image_type', 'uploaded_at')
     search_fields = ('property__code', 'caption')
     ordering = ('property', 'order')

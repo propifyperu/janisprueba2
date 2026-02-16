@@ -203,6 +203,7 @@ class SimplePropertyListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         # Mostrar solo propiedades activas (no borradores)
         return Property.objects.filter(is_active=True).order_by('-created_at')
+    
 from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView, ListView, CreateView

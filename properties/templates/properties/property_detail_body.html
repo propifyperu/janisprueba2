@@ -17,6 +17,24 @@
         <a href="{% url 'properties:generate_pdf' property.pk %}" class="btn btn-dark ms-2" title="Generar Resumen" target="_blank">
             <i class="fas fa-file-pdf me-1"></i>Generar Resumen
         </a>
+        <button
+            type="button"
+            id="btnSyncWP"
+            class="btn btn-success ms-2"
+            data-sync-url="/dashboard/api/internal/wp/sync/{{ property.id }}/"
+            title="Subir a WordPress"
+        >
+            <i class="fas fa-cloud-upload-alt me-1"></i>Subir a WP
+        </button>
+        <button
+            type="button"
+            id="btnDeleteWP"
+            class="btn btn-danger ms-2"
+            data-delete-url="/dashboard/api/internal/wp/property/{{ property.id }}/delete/"
+            title="Eliminar de WordPress"
+            >
+            <i class="fas fa-trash-alt me-1"></i>Eliminar de WP
+        </button>
     </div>
 
     <div class="row g-2">
@@ -434,6 +452,60 @@
                         </div>
                      </div>
                  </div>
+                 <!-- ✅ Modal Confirmación Subir a WP -->
+                <div class="modal fade" id="wpConfirmModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="fas fa-cloud-upload-alt me-2"></i>Subir a WordPress</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            ¿Seguro que deseas subir esta propiedad a WordPress?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-success" id="btnWpConfirmOk">
+                            <i class="fas fa-check me-1"></i>Sí, subir
+                            </button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ Toasts -->
+                <div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index:11000; margin-top: 90px;">
+                    <div id="wpToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                        <div class="toast-body" id="wpToastBody">...</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ Modal Confirmación Eliminar de WP -->
+                <div class="modal fade" id="wpDeleteConfirmModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title text-danger">
+                            <i class="fas fa-trash-alt me-2"></i>Eliminar de WordPress
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            ¿Seguro que deseas <strong>eliminar</strong> esta propiedad de WordPress?
+                            <div class="small text-muted mt-1">Esto no se puede deshacer.</div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-danger" id="btnWpDeleteConfirmOk">
+                            <i class="fas fa-trash-alt me-1"></i>Sí, eliminar
+                            </button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
 
 <script>
 function copyPropertyDescription(btn) {
@@ -450,4 +522,201 @@ function copyPropertyDescription(btn) {
         console.error('Error al copiar: ', err);
     });
 }
+</script>
+
+<script>
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+function showToast(message, variant) {
+  const toastEl = document.getElementById("wpToast");
+  const bodyEl = document.getElementById("wpToastBody");
+
+  toastEl.className = "toast align-items-center border-0";
+  const map = {
+    success: "text-bg-success",
+    danger: "text-bg-danger",
+    warning: "text-bg-warning",
+    info: "text-bg-info",
+  };
+  toastEl.classList.add(map[variant] || "text-bg-dark");
+
+  bodyEl.textContent = message;
+
+  const t = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3500 });
+  t.show();
+}
+
+function confirmWithModal() {
+  return new Promise((resolve) => {
+    const modalEl = document.getElementById("wpConfirmModal");
+    const okBtn = document.getElementById("btnWpConfirmOk");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    const onOk = () => {
+      okBtn.removeEventListener("click", onOk);
+      modal.hide();
+      resolve(true);
+    };
+
+    const onHidden = () => {
+      modalEl.removeEventListener("hidden.bs.modal", onHidden);
+      okBtn.removeEventListener("click", onOk);
+      resolve(false);
+    };
+
+    okBtn.addEventListener("click", onOk);
+    modalEl.addEventListener("hidden.bs.modal", onHidden);
+
+    modal.show();
+  });
+}
+
+(function () {
+  const btn = document.getElementById("btnSyncWP");
+  if (!btn) return;
+
+  const originalHtml = btn.innerHTML;
+  const syncUrl = btn.getAttribute("data-sync-url");
+  const csrftoken = getCookie("csrftoken");
+
+  let isLoading = false;
+
+  btn.addEventListener("click", async () => {
+    if (isLoading) return;
+
+    const ok = await confirmWithModal();
+    if (!ok) return;
+
+    isLoading = true;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Subiendo...';
+
+    try {
+      const resp = await fetch(syncUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken,
+        },
+        body: JSON.stringify({})
+      });
+
+      const data = await resp.json().catch(() => ({}));
+
+      if (resp.ok) {
+        showToast("✅ Subido correctamente a WordPress.", "success");
+      } else {
+        const msg = data.message || data.detail || "Error al subir a WordPress.";
+        showToast("⚠️ " + msg, "warning");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Error de conexión. Intenta nuevamente.", "danger");
+    } finally {
+      isLoading = false;
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  });
+})();
+</script>
+
+<script>
+function confirmDeleteWithModal() {
+  return new Promise((resolve) => {
+    const modalEl = document.getElementById("wpDeleteConfirmModal");
+    const okBtn = document.getElementById("btnWpDeleteConfirmOk");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    const onOk = () => {
+      okBtn.removeEventListener("click", onOk);
+      modal.hide();
+      resolve(true);
+    };
+
+    const onHidden = () => {
+      modalEl.removeEventListener("hidden.bs.modal", onHidden);
+      okBtn.removeEventListener("click", onOk);
+      resolve(false);
+    };
+
+    okBtn.addEventListener("click", onOk);
+    modalEl.addEventListener("hidden.bs.modal", onHidden);
+
+    modal.show();
+  });
+}
+
+(function () {
+  const btn = document.getElementById("btnDeleteWP");
+  if (!btn) return;
+
+  const originalHtml = btn.innerHTML;
+  const deleteUrl = btn.getAttribute("data-delete-url");
+  const csrftoken = getCookie("csrftoken");
+
+  let isLoading = false;
+
+  btn.addEventListener("click", async () => {
+    if (isLoading) return;
+
+    const ok = await confirmDeleteWithModal();
+    if (!ok) return;
+
+    isLoading = true;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Eliminando...';
+
+    try {
+      const resp = await fetch(deleteUrl + "?force=true", {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken,
+        }
+      });
+
+      const data = await resp.json().catch(() => ({}));
+
+      if (resp.ok) {
+        // Si tu service devuelve algo como {ok:true, deleted:true/false, message:"..."} lo usamos
+        if (data.deleted === false || data.not_found === true) {
+          showToast("⚠️ Tu propiedad no está subida en WP.", "warning");
+        } else {
+          showToast("✅ Eliminado correctamente de WordPress.", "success");
+        }
+      } else {
+        const msg = data.message || data.detail || "Error al eliminar de WordPress.";
+        // caso típico: si backend responde 404 o 400 por no existir
+        if ((resp.status === 404) || (typeof msg === "string" && msg.toLowerCase().includes("not found"))) {
+          showToast("⚠️ Tu propiedad no está subida en WP.", "warning");
+        } else {
+          showToast("❌ " + msg, "danger");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Error de conexión. Intenta nuevamente.", "danger");
+    } finally {
+      isLoading = false;
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  });
+})();
 </script>
