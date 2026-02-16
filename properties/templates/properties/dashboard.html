@@ -5,7 +5,893 @@
 
 {% block title %}Explorar Propiedades - Propify{% endblock %}
 {% block dashboard_extra_css %}
-<link rel="stylesheet" href="{% static 'css/properties/dashboard.css' %}">
+<style>
+    /* SIDEBAR */
+    /* Contenedor botones mobile */
+.mobile-filters-toggle {
+    display: none;
+    padding: 0.75rem;
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 1050;
+    border-bottom: 1px solid #eee;
+}
+
+/* Sidebar desktop */
+.filter-sidebar {
+    flex-shrink: 0;
+}
+
+/* Mobile */
+@media (max-width: 1192px) {
+
+    .mobile-filters-toggle {
+        display: block;
+    }
+
+    .filter-sidebar {
+        position: fixed;
+        top: 14vh;
+        left: 0;
+        height: calc(100vh - var(--navbar-height));
+        width: 100%;
+        max-width: 360px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1200;
+        border-bottom: none;
+    }
+
+    .filter-sidebar.open {
+        transform: translateX(0);
+    }
+    .property-contacts {
+        display: block !important;
+    }
+}
+
+    :root {
+        --color-accent: #2ea44f; /* verde principal */
+        --color-accent-dark: #258e45; /* hover / oscuro */
+    }
+    
+    .age-warning {
+        color: #b91c1c; /* rojo suave */
+        background: rgba(185,28,28,0.04);
+        border-left: 3px solid #b91c1c;
+        padding: 6px 10px;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+        display: none;
+    }
+
+    /* Redefinir la estructura para Sidebar de Filtros fixed e Izquierda Scrollable */
+    .dashboard-main-container {
+        display: flex;
+        /* Aseguramos que ocupe todo el alto disponible restando el navbar */
+        height: calc(100vh - var(--navbar-height));
+        margin: 0; /* Ya no necesitamos márgenes negativos por el fix en base_dashboard */
+        overflow: hidden;
+        background-color: #fff;
+    }
+
+    .filter-sidebar {
+        width: 356px;
+        flex-shrink: 0;
+        background: #fff;
+        border-right: 1px solid rgba(4, 125, 125, 0.15);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        /* Alargamos el filtro hasta el borde inferior */
+        height: 100%;
+        padding: 1.25rem;
+        z-index: 1001;
+    }
+
+    .filter-sidebar form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .dashboard-view-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background-color: #fdfdfd;
+        height: 100%;
+    }
+
+    .map-container-main {
+        flex-shrink: 0;
+        /* Alargamos el mapa para que ocupe gran parte de la pantalla verticalmente */
+        height: 90vh;
+        min-height: 600px;
+        position: relative;
+        border-bottom: 2px solid rgba(4, 125, 125, 0.08);
+    }
+
+    #propertyMap {
+        width: 100%;
+        height: 100%;
+    }
+
+    .filter-sidebar .filter-control {
+        min-width: 0;
+        margin-bottom: 0.25rem;
+    }
+
+    .filter-sidebar .filter-control label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+        color: #4a5a5a;
+    }
+
+    .filter-sidebar .form-control, 
+    .filter-sidebar .form-select {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.85rem;
+        border-color: rgba(4, 125, 125, 0.2);
+    }
+
+    .filter-sidebar .filter-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .filter-sidebar .filter-actions .btn {
+        flex: 1;
+        min-width: 80px;
+        font-size: 0.75rem;
+        padding: 0.4rem;
+    }
+
+    .layer-toggle-bar {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 1px solid rgba(4, 125, 125, 0.2);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .layer-toggle-title {
+        font-size: 0.7rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .layer-toggle-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    #propertyMap {
+        width: 100%;
+        height: 100%;
+        min-height: 500px;
+    }
+
+    .advanced-filters {
+        display: none;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 4px;
+        margin-top: 0.25rem;
+    }
+
+    .advanced-filters.show {
+        display: flex;
+    }
+
+    .adv-control {
+        min-width: 0;
+    }
+
+    /* Ajuste para que la sección de resultados sea scrollable si el top ocupa mucho */
+    .results-section {
+        flex: none;
+        padding: 1.5rem 2rem;
+    }
+
+    .layer-toggle-options .form-check-input {
+        border-color: rgba(4, 125, 125, 0.5);
+        cursor: pointer;
+    }
+
+    .layer-toggle-options .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    /* Mejorar visibilidad del check en navegadores modernos y agregar foco */
+    .layer-toggle-options .form-check-input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--color-primary);
+    }
+
+    .layer-toggle-options .form-check-input:checked {
+        background-color: var(--color-primary) !important;
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 0 0 0.15rem rgba(4,125,125,0.12);
+    }
+
+    .layer-toggle-options .form-check-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(4,125,125,0.18);
+    }
+
+    /* Mostrar un checkbox personalizado y observable (usa la etiqueta como contenedor) */
+    .layer-toggle-options .form-check {
+        position: relative;
+        padding-left: 28px;
+    }
+
+    .layer-toggle-options .form-check-input {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        opacity: 0; /* mantener accesible pero oculto */
+        cursor: pointer;
+    }
+
+    .layer-toggle-options .form-check-input + .form-check-label {
+        position: relative;
+        cursor: pointer;
+        padding-left: 4px; /* espacio ya reservado por .form-check */
+    }
+
+    .layer-toggle-options .form-check-input + .form-check-label::before {
+        content: '';
+        position: absolute;
+        left: -28px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(4,125,125,0.5);
+        border-radius: 4px;
+        background: #fff;
+        box-sizing: border-box;
+    }
+
+    .layer-toggle-options .form-check-input:checked + .form-check-label::before {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .layer-toggle-options .form-check-input:checked + .form-check-label::after {
+        content: '\2713';
+        position: absolute;
+        left: -23px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #fff;
+        font-weight: 700;
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    .layer-toggle-options .form-check-input:focus + .form-check-label::before {
+        box-shadow: 0 0 0 0.18rem rgba(4,125,125,0.16);
+    }
+
+    /* Colorizar las etiquetas de cada capa según su color de marcador */
+    .layer-toggle-options input.layer-toggle-input[data-layer="schools"] + .form-check-label {
+        color: #1e88e5;
+        font-weight: 700;
+    }
+
+    .layer-toggle-options input.layer-toggle-input[data-layer="hospitals"] + .form-check-label {
+        color: #d81b60;
+        font-weight: 700;
+    }
+
+    .layer-toggle-options input.layer-toggle-input[data-layer="malls"] + .form-check-label {
+        color: #8e24aa;
+        font-weight: 700;
+    }
+
+    .layer-toggle-options .form-check-label {
+        cursor: pointer;
+        font-weight: 600;
+        color: #16343b;
+    }
+
+    .map-wrapper {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* Estilos para el switcher de vista */
+    .view-switcher {
+        display: flex;
+        background: #f0f4f4;
+        padding: 4px;
+        border-radius: 8px;
+        margin: 1rem 1.25rem 0.5rem;
+        gap: 4px;
+    }
+
+    .view-btn {
+        flex: 1;
+        border: none;
+        background: transparent;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #4a5a5a;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .view-btn.active {
+        background: #fff;
+        color: var(--sidebar-accent);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    /* Manejo de visibilidad de secciones */
+    .view-mode-properties .map-container-main {
+        display: none !important;
+    }
+
+    .view-mode-map .results-section {
+        display: none !important;
+    }
+
+    .view-mode-properties .results-section {
+        display: block !important;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .view-mode-map .map-container-main {
+        flex: 1;
+        height: 100% !important;
+    }
+
+    #propertyMap {
+        width: 100%;
+        height: 100%;
+        min-height: 420px;
+    }
+
+    .results-section {
+        background: linear-gradient(180deg, rgba(4, 125, 125, 0.04) 0%, rgba(39, 152, 150, 0.08) 100%);
+        padding: 1rem 1.25rem;
+        border-top: 1px solid rgba(4, 125, 125, 0.12);
+        box-shadow: 0 -8px 28px rgba(4, 125, 125, 0.12);
+    }
+
+    .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .results-header h2 {
+        font-size: 1.1rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--color-secondary-dark);
+        margin-bottom: 0;
+    }
+
+    .property-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .property-card {
+        display: flex;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        position: relative;
+        }
+
+    .availability-badge {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        z-index: 10;
+
+        border-radius: 999px;
+        padding: 0.18rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        cursor: pointer;
+
+        background: #eef6f6;
+        color: #16343b;
+        border: 1px solid rgba(4, 125, 125, 0.25);
+    }
+
+    .wp-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        border-radius: 999px;
+        padding: 0.14rem 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+
+        background: #e9f9ef;
+        border: 1px solid #2ea44f33;
+        color: #146c2e;
+
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .wp-badge .wp-check {
+        font-size: 0.9em;
+        font-weight: 900;
+    }
+    
+    /* NUEVO: badge encima de botones, alineado a la derecha */
+    .property-actions .wp-badge {
+        align-self: flex-end;
+        margin-bottom: 2px;
+    }
+
+    .availability-badge[data-status="available"] { background:#e9f9ef; border-color:#2ea44f33; color:#146c2e; }
+    .availability-badge[data-status="reserved"] { background:#fff7e6; border-color:#f59e0b33; color:#92400e; }
+    .availability-badge[data-status="sold"] { background:#ffecec; border-color:#ef444433; color:#991b1b; }
+    .availability-badge[data-status="unavailable"] { background:#f3f4f6; border-color:#64748b33; color:#334155; }
+    .availability-badge[data-status="paused"] { background:#f1f5f9; border-color:#0f172a33; color:#0f172a; }
+
+
+    .property-card:hover,
+    .property-card.active {
+        /* transform: translateY(-1px); */
+        box-shadow: 0 4px 16px rgba(4, 125, 125, 0.12);
+        border-color: rgba(4, 125, 125, 0.4);
+    }
+
+
+    .property-card > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .property-card-media {
+        flex: 0 0 260px;
+        max-width: 260px;
+        position: relative;
+        }
+
+    .property-card-media:hover {
+        transform: scale(1.05);
+    }
+    .property-card .property-card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 1rem !important; 
+        box-sizing: border-box;
+        min-width: 0;
+    }
+
+    .property-card-body > * + * {
+        margin-top: 0.5rem;
+    }   
+
+
+    .property-card-media a {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    .property-card-media img {
+        height: 264px;
+        max-height: 264px;
+        width: 264px;
+        max-width: 264px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .property-card-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-secondary);
+        font-size: 1rem;
+    }
+
+    .property-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        justify-content: center;
+        padding: 16px;
+    }
+
+    .property-card-top {
+         display: flex;
+         flex-direction: column;
+         gap: 0.25rem;
+    }       
+    .property-card-top-mb {
+        display: block;
+    }
+
+    .property-card-top .badge-status {
+        margin-right: 0.2rem;
+    }
+
+    .status-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--color-secondary-dark);
+        background: rgba(39, 152, 150, 0.12);
+        padding: 0.1rem 0.4rem;
+        border-radius: 999px;
+    }
+
+    .property-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #16343b;
+    }
+
+    .property-location {
+        font-size: 0.8rem;
+        color: var(--color-muted);
+        /* display: flex;
+        align-items: center;
+        gap: 0.3rem; */
+    }
+
+    /* Línea de ubicación principal (distrito, provincia) mostrada junto al icono */
+    .property-location-main {
+        font-size: 0.8rem;
+        color: #3b5454;
+        font-weight: 400;
+        margin: 0;
+    }
+
+    .property-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem 0.6rem;
+        font-size: 0.7rem;
+        color: #16343b;
+    }
+
+    .property-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: rgba(4, 125, 125, 0.05);
+        border-radius: 3px;
+        padding: 0.1rem 0.35rem;
+    }
+
+    .property-meta span i {
+        color: var(--color-secondary);
+        font-size: 0.65rem;
+    }
+
+    .property-contacts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.2rem 0.6rem;
+        font-size: 0.7rem;
+        color: var(--color-muted);
+        margin-bottom: 0;
+    }
+
+    .property-contacts span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .property-contacts span i {
+        color: var(--color-primary);
+        font-size: 0.65rem;
+    }
+
+    .property-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.25rem;
+        white-space: nowrap;
+    }
+
+    .property-actions .btn {
+        padding: 0.15rem 0.45rem;
+        font-size: 0.65rem;
+        width: 100%;
+        text-align: left;
+    }
+
+    .property-actions .last-update {
+        color: var(--color-muted);
+        font-size: 0.6rem;
+        white-space: nowrap;
+    }
+
+    .property-card .price {
+        color: var(--color-secondary);
+        font-weight: 700;
+        font-size: 1.7rem;
+        padding-right: 16px;
+    }
+
+    .princing-title {
+        font-size: 13px;
+    }
+
+    .badge-status {
+        background: #079b9b;
+        color: var(--color-on-dark);
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 0.1rem 0.4rem;
+        font-size: 0.85rem;
+    }
+
+    /* Estilo para el contenedor de la parte inferior para separar info de acciones */
+    .property-card-footer {
+        margin-top: auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 0.75rem;
+    }
+
+    .property-info-stack {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 0;
+    }
+
+    .empty-state {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background: rgba(4, 125, 125, 0.08);
+        text-align: center;
+    }
+
+    .filter-actions .btn-outline-secondary {
+        color: #047d7d;
+        border-color: #047d7d;
+        background-color: rgba(4, 125, 125, 0.1);
+        font-weight: 600;
+    }
+
+    .filter-actions .btn-outline-secondary:hover,
+    .filter-actions .btn-outline-secondary:focus {
+        background-color: #047d7d;
+        border-color: #047d7d;
+        color: #ffffff;
+    }
+
+    /* Hacer visible el botón de aplicar filtros usando variable CSS */
+    .filter-actions .btn.btn-primary {
+        background-color: var(--color-accent);
+        border-color: var(--color-accent);
+        color: #ffffff;
+        font-weight: 700;
+        box-shadow: 0 6px 18px rgba(46,164,79,0.12);
+    }
+
+    .filter-actions .btn.btn-primary:hover,
+    .filter-actions .btn.btn-primary:focus {
+        background-color: var(--color-accent-dark);
+        border-color: var(--color-accent-dark);
+        color: #ffffff;
+    }
+
+    @media (max-width: 1192px) {
+        .dashboard-main-container {
+            flex-direction: column;
+            overflow: visible;
+            height: auto;
+            min-height: 100vh;
+            overflow: visible;
+            flex-direction: column;
+        }
+
+        .map-container-main {
+            height: 50vh;
+            min-height: 300px;
+        }
+
+        .btn-filter-mb {
+            width: 100%;
+            display: block;
+            margin-bottom: 8px !important;
+        }
+        .dashboard-view-area {
+            min-height: 500px;
+            overflow: visible;
+        }
+
+        .property-card-body {
+            display: none !important;
+        }
+
+        .property-card-body-mb, .info-details-card-body-mb {
+            display: inline-table !important;
+        }
+
+        .info-details-card-body-mb {
+            min-width: 350px !important;
+        }
+
+        #propertyMap {
+            height: 400px;
+        }
+
+        .layer-toggle-bar {
+            position: relative;
+            top: 0;
+            right: 0;
+            margin: 0.5rem;
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+
+        .filter-sidebar .filter-actions {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        .property-card-media {
+            width: 164px !important;
+            height: 148px !important;
+        }
+        .property-card {
+            display: grid;
+            grid-template-columns: 170px 1fr !important;
+            gap: 0.75rem;
+            align-items: stretch;
+            background-color: #fff;
+            border-radius: 0.6rem;
+            padding: 0.5rem;
+            border: 1px solid rgba(4, 125, 125, 0.16);
+            box-shadow: 0 2px 8px rgba(4, 125, 125, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.25s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            min-height: 120px;
+        }
+        .property-card-footer {
+            display: block !important;
+            margin-top: 16px !important;
+        }
+
+        .property-actions {
+            display: flex;
+            flex-direction: column !important;
+            align-items: flex-end !important;
+            gap: 0.25rem !important;
+            margin-top: 16px;
+        }
+
+        /* Los botones se quedan en fila */
+        .property-actions .d-flex {
+            justify-content: flex-end;
+        }
+
+        .princing-title {
+            font-size: 12px;
+        }
+        .property-card .price {
+            font-size: 1.14rem !important;
+        }
+
+        .property-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #16343b;
+            white-space: unset;
+            overflow: unset;
+            text-overflow: unset;
+        }
+
+    }
+
+    @media (max-width: 576px) {
+        
+        .property-card {
+            padding: 1rem;
+        }
+        .results-section {
+            padding: 1rem 0.75rem 5rem;
+        }
+    }
+    /* Colapse */
+    @media (min-width: 1192px) {
+        .filter-sidebar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #fff;
+        }   
+        .results-section {
+            padding: 1rem 0.75rem 3rem;
+        }
+    }
+
+.property-card-body-mb, .info-details-card-body-mb {
+    display: none;
+}
+
+.filter-body {
+    transition: 
+        max-height 0.35s ease,
+        opacity 0.2s ease;
+    overflow: hidden;
+}
+
+/* Estado colapsado */
+.filter-sidebar.collapsed .filter-body {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* View switcher siempre visible */
+.view-switcher {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 2;
+}
+
+/* Buttons */
+.main-card-property {
+    width: 100%;
+    cursor: pointer;
+}
+    
+</style>
 {% endblock %}
 
 {% block dashboard_content %}
@@ -335,6 +1221,12 @@
                                     </div>
                                     
                                     <div class="property-actions">
+                                        {% if property.wp_post_id %}
+                                            <span class="wp-badge" title="Publicada en WP">
+                                                <span class="wp-check">✓</span> WP
+                                            </span>
+                                        {% endif %}
+
                                         <div class="d-flex gap-1">
                                             <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
                                             {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
@@ -403,6 +1295,12 @@
                                     </div>
                                     
                                     <div class="property-actions">
+                                        {% if property.wp_post_id %}
+                                            <span class="wp-badge" title="Publicada en WP">
+                                                <span class="wp-check">✓</span> WP
+                                            </span>
+                                        {% endif %}
+
                                         <div class="d-flex gap-1">
                                             <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
                                             {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
