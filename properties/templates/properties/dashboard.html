@@ -421,8 +421,8 @@
 
     .availability-badge {
         position: absolute;
-        top: 12px;
-        right: 12px;
+        top: 0px;
+        right: 0px;
         z-index: 10;
 
         border-radius: 999px;
@@ -434,6 +434,35 @@
         background: #eef6f6;
         color: #16343b;
         border: 1px solid rgba(4, 125, 125, 0.25);
+    }
+
+    .wp-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        border-radius: 999px;
+        padding: 0.14rem 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+
+        background: #e9f9ef;
+        border: 1px solid #2ea44f33;
+        color: #146c2e;
+
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .wp-badge .wp-check {
+        font-size: 0.9em;
+        font-weight: 900;
+    }
+    
+    /* NUEVO: badge encima de botones, alineado a la derecha */
+    .property-actions .wp-badge {
+        align-self: flex-end;
+        margin-bottom: 2px;
     }
 
     .availability-badge[data-status="available"] { background:#e9f9ef; border-color:#2ea44f33; color:#146c2e; }
@@ -779,11 +808,17 @@
 
         .property-actions {
             display: flex;
-            flex-direction: row !important;
-            align-items: center !important;
-            gap: 0.5rem !important;
+            flex-direction: column !important;
+            align-items: flex-end !important;
+            gap: 0.25rem !important;
             margin-top: 16px;
         }
+
+        /* Los botones se quedan en fila */
+        .property-actions .d-flex {
+            justify-content: flex-end;
+        }
+
         .princing-title {
             font-size: 12px;
         }
@@ -1186,6 +1221,12 @@
                                     </div>
                                     
                                     <div class="property-actions">
+                                        {% if property.wp_post_id %}
+                                            <span class="wp-badge" title="Publicada en WP">
+                                                <span class="wp-check">✓</span> WP
+                                            </span>
+                                        {% endif %}
+
                                         <div class="d-flex gap-1">
                                             <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
                                             {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
@@ -1254,6 +1295,12 @@
                                     </div>
                                     
                                     <div class="property-actions">
+                                        {% if property.wp_post_id %}
+                                            <span class="wp-badge" title="Publicada en WP">
+                                                <span class="wp-check">✓</span> WP
+                                            </span>
+                                        {% endif %}
+
                                         <div class="d-flex gap-1">
                                             <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
                                             {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
