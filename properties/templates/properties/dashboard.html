@@ -890,6 +890,55 @@
     width: 100%;
     cursor: pointer;
 }
+
+.results-tabs{
+  display:flex;
+  gap:8px;
+  background:#ffffffcc;
+  border:1px solid rgba(4,125,125,0.12);
+  padding:6px;
+  border-radius:10px;
+  margin: 0.25rem 0 0.9rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.results-tab{
+  border:none;
+  background:transparent;
+  padding:8px 12px;
+  border-radius:8px;
+  font-weight:800;
+  font-size:0.85rem;
+  color:#4a5a5a;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex: 0 0 auto;
+}
+
+.results-tab.active{
+  background:#fff;
+  color: var(--sidebar-accent);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.results-tab-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:26px;
+  height:20px;
+  padding:0 8px;
+  border-radius:999px;
+  font-size:0.75rem;
+  font-weight:900;
+  background: rgba(4,125,125,0.10);
+  color:#16343b;
+}
+
+.results-panel { }
     
 </style>
 {% endblock %}
@@ -1125,203 +1174,47 @@
 
         <!-- Resultados -->
         <div class="results-section">
-            <div class="results-header">
-                <h2 class="mb-0 text-uppercase">Resultados</h2>
-                <span class="badge-status">{{ property_count }} propiedades</span>
-            </div>
-                {% if property_count == 0 %}
-                <div class="empty-results">
-                    <p class="mb-2 fw-semibold">No encontramos propiedades con estos filtros.</p>
-                    <p class="mb-3">Ajusta los criterios o crea una nueva propiedad.</p>
-                    <a href="{% url 'properties:create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Registrar propiedad</a>
-                </div>
-                {% else %}
-                <div class="property-cards" id="propertyCards">
-                    {% for property in properties %}
-                    <div onclick="openPropertyDetail({{ property.id }})" class="main-card-property">
-                        <article class="property-card pr-md-3" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
-                            <div class="property-card-media">
-                            {% with images=property.prefetched_images %}
-                                {% if images %}
-                                {% with first=images|first %}
-                                    {% if first.image %}
-                                    <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
-                                    {% else %}
-                                    <img src="{{ MEDIA_URL }}properties/logoproperty.png" alt="Propiedad" loading="lazy">
-                                    {% endif %}
-                                {% endwith %}
-                                {% else %}
-                                <img src="{{ MEDIA_URL }}properties/logoproperty.png" alt="Propiedad" loading="lazy">
-                                {% endif %}
-                            {% endwith %}
-                            </div>
-                            <div class="property-card-body">
-                                <div class="property-card-top">
-                                    <div class="dropdown availability-dropdown" onclick="event.stopPropagation();">
-                                        <button
-                                            class="availability-badge dropdown-toggle"
-                                            type="button"
-                                            data-bs-toggle="dropdown"
-                                            aria-expanded="false"
-                                            data-property-id="{{ property.id }}"
-                                            data-status="{{ property.availability_status|default:'available' }}"
-                                            id="availBtn{{ property.id }}"
-                                        >
-                                            {{ property.get_availability_status_display }}
-                                        </button>
 
-                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="availBtn{{ property.id }}">
-                                            <li><a class="dropdown-item js-avail" href="#" data-value="available">Disponible</a></li>
-                                            <li><a class="dropdown-item js-avail" href="#" data-value="reserved">Reservada</a></li>
-                                            <li><a class="dropdown-item js-avail" href="#" data-value="sold">Vendida</a></li>
-                                            <li><a class="dropdown-item js-avail" href="#" data-value="unavailable">No disponible</a></li>
-                                            <li><a class="dropdown-item js-avail" href="#" data-value="paused">Pausada</a></li>
-                                        </ul>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge-status">{{ property.code }}</span>
-                                        <span class="badge-status">{{ property.property_type.name }}</span>
-                                        <span class="status-label">{{ property.status.name }}</span>
-                                    </div>
-                                    {% load money %}
-
-                                    <div class="price">
-                                    {{ property.currency.symbol }} {{ property.price|money_us }}
-                                    </div>
-                                </div>
-                                
-                                <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
-                                
-                                <p class="property-location mb-0">
-                                    <i class="fas fa-map-marker-alt text-primary"></i>
-                                    <span class="property-location-main">
-                                        {% if property.display_district or property.display_province %}
-                                            {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
-                                        {% else %}
-                                            {{ property.real_address|default:'Ubicación no disponible' }}
-                                        {% endif %}
-                                    </span>
-                                </p>
-
-                                <div class="property-card-footer mr-3">
-                                    <div class="property-info-stack">
-                                        <div class="property-meta">
-                                            <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
-                                            <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
-                                            {% if property.land_area and property.land_area_unit %}
-                                            <span><i class="fas fa-ruler-combined"></i>AT {{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
-                                            {% endif %}
-                                            {% if property.built_area and property.built_area_unit %}
-                                            <span><i class="fas fa-drafting-compass"></i>AC {{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
-                                            {% endif %}
-                                            {% if property.garage_spaces %}
-                                            <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="property-actions">
-                                        {% if property.wp_post_id %}
-                                            <span class="wp-badge" title="Publicada en WP">
-                                                <span class="wp-check">✓</span> WP
-                                            </span>
-                                        {% endif %}
-
-                                        <div class="d-flex gap-1">
-                                            <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
-                                            {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
-                                                <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary" title="Editar"><i class="fas fa-edit"></i></a>
-                                            {% endif %}
-                                            <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info" title="Historial"><i class="fas fa-history"></i></a>
-                                        </div>
-                                        <span class="last-update">Act. {{ property.updated_at|date:"d/m/Y" }}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                            <div class="property-card-body-mb">
-                                <div class="property-card-top-mb">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge-status">{{ property.property_type.name }}</span>
-                                        <span class="status-label">{{ property.status.name }}</span>
-                                    </div>
-                                    <div class="property-meta mt-3">
-                                        <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
-                                        <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
-                                        {% if property.land_area and property.land_area_unit %}
-                                        <span><i class="fas fa-ruler-combined"></i>AT {{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
-                                        {% endif %}
-                                        {% if property.built_area and property.built_area_unit %}
-                                        <span><i class="fas fa-drafting-compass"></i>AC {{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
-                                        {% endif %}
-                                        {% if property.garage_spaces %}
-                                        <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
-                                        {% endif %}
-                                    </div>
-                                    {% load money %}
-
-                                    <div class="price">
-                                    {{ property.currency.symbol }} {{ property.price|money_us }}
-                                    </div>
-                                    
-                                </div>
-                            </div>
-                            <!-- Title more info details  -->
-                            <div class="info-details-card-body-mb">
-                                <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
-                                
-                                <p class="property-location mb-0">
-                                    <i class="fas fa-map-marker-alt text-primary"></i>
-                                    <span class="property-location-main">
-                                        {% if property.display_district or property.display_province %}
-                                            {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
-                                        {% else %}
-                                            {{ property.real_address|default:'Ubicación no disponible' }}
-                                        {% endif %}
-                                    </span>
-                                </p>
-
-                                <div class="property-card-footer d-flex">
-                                    <div class="property-info-stack">
-                                        
-                                        <div class="property-contacts">
-                                            <span><i class="fas fa-user-check"></i>Responsable:
-                                                {% if property.responsible %}
-                                                    {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
-                                                {% else %} Sin asignar {% endif %}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="property-actions">
-                                        {% if property.wp_post_id %}
-                                            <span class="wp-badge" title="Publicada en WP">
-                                                <span class="wp-check">✓</span> WP
-                                            </span>
-                                        {% endif %}
-
-                                        <div class="d-flex gap-1">
-                                            <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
-                                            {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
-                                                <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary" title="Editar"><i class="fas fa-edit"></i></a>
-                                            {% endif %}
-                                            <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info" title="Historial"><i class="fas fa-history"></i></a>
-                                        </div>
-                                        <span class="last-update">Act. {{ property.updated_at|date:"d/m/Y" }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-
-                            </div>
-                        </article>
-                    </div>
-                    
-                    {% endfor %}
-                </div>
-                {% endif %}
+        <div class="results-tabs">
+            <button type="button" class="results-tab active" data-target="published">
+                Publicadas <span class="results-tab-count" id="countPublished"></span>
+            </button>
+            <button type="button" class="results-tab" data-target="drafts">
+                Borradores <span class="results-tab-count" id="countDrafts"></span>
+            </button>
         </div>
+
+        <div class="results-panel" id="panelPublished">
+            <div class="property-cards" id="propertyCardsPublished">
+                {% for property in properties %}
+                    {% if not property.is_draft %}
+                        {% include "properties/partials/_property_card.html" with property=property user=user MEDIA_URL=MEDIA_URL %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="empty-results d-none" id="emptyPublished">
+                <p class="mb-0 text-muted small">No tienes propiedades publicadas con estos filtros.</p>
+            </div>
+        </div>
+
+        <div class="results-panel d-none" id="panelDrafts">
+            <div class="property-cards" id="propertyCardsDrafts">
+                {% for property in properties %}
+                    {% if property.is_draft %}
+                        {% include "properties/partials/_property_card.html" with property=property user=user MEDIA_URL=MEDIA_URL %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="empty-results d-none" id="emptyDrafts">
+                <p class="mb-0 text-muted small">No tienes borradores con estos filtros.</p>
+            </div>
+        </div>
+
+        </div>
+
+
         <div class="modal fade" id="availabilityConfirmModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -2346,6 +2239,69 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
 
     openConfirmModal({ propertyId, btn, fromValue, toValue });
   }, true);
+})();
+</script>
+
+<script>
+(function () {
+  function qs(id){ return document.getElementById(id); }
+
+  const tabButtons = document.querySelectorAll('.results-tab');
+  const panelPublished = qs('panelPublished');
+  const panelDrafts = qs('panelDrafts');
+
+  const cardsPublished = qs('propertyCardsPublished');
+  const cardsDrafts = qs('propertyCardsDrafts');
+
+  const countPublishedEl = qs('countPublished');
+  const countDraftsEl = qs('countDrafts');
+
+  const emptyPublished = qs('emptyPublished');
+  const emptyDrafts = qs('emptyDrafts');
+
+  if (!panelPublished || !panelDrafts || !cardsPublished || !cardsDrafts) return;
+
+  function countCards(container){
+    return container.querySelectorAll('.property-card').length;
+  }
+
+  function setActive(target){
+    const isPublished = target === 'published';
+
+    panelPublished.classList.toggle('d-none', !isPublished);
+    panelDrafts.classList.toggle('d-none', isPublished);
+
+    tabButtons.forEach(b => b.classList.toggle('active', b.dataset.target === target));
+    localStorage.setItem('dashboardResultsTab', target);
+  }
+
+  function refreshCounts(){
+    const pub = countCards(cardsPublished);
+    const drf = countCards(cardsDrafts);
+
+    if (countPublishedEl) countPublishedEl.textContent = pub;
+    if (countDraftsEl) countDraftsEl.textContent = drf;
+
+    if (emptyPublished) emptyPublished.classList.toggle('d-none', pub !== 0);
+    if (emptyDrafts) emptyDrafts.classList.toggle('d-none', drf !== 0);
+
+    // si no hay publicadas, abre drafts; si no hay drafts, abre publicadas
+    const saved = localStorage.getItem('dashboardResultsTab');
+    if (saved && (saved === 'published' || saved === 'drafts')) {
+      setActive(saved);
+      return;
+    }
+    if (pub === 0 && drf > 0) setActive('drafts');
+    else setActive('published');
+  }
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => setActive(btn.dataset.target));
+  });
+
+  document.addEventListener('DOMContentLoaded', refreshCounts);
+  // por si el DOM ya cargó antes:
+  refreshCounts();
 })();
 </script>
 {% endblock %}
