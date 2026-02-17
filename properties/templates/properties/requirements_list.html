@@ -12,18 +12,56 @@
                 <a href="{% url 'properties:requirements_create' %}" class="btn btn-teal"><i class="fas fa-plus me-2"></i>Crear requerimiento</a>
             </div>
 
-            <div class="card">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body p-3">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label small text-muted">Agente</label>
+                            <select name="agent" class="form-select form-select-sm">
+                                <option value="">Todos los agentes</option>
+                                {% for agent in agents %}
+                                <option value="{{ agent.id }}" {% if filters.agent == agent.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ agent.first_name }} {{ agent.last_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-5">
+                            <label class="form-label small text-muted">Fecha Creación</label>
+                            <div class="input-group input-group-sm">
+                                <input type="date" name="date_start" class="form-control" 
+                                       value="{{ filters.date_start }}" title="Desde">
+                                <span class="input-group-text">-</span>
+                                <input type="date" name="date_end" class="form-control" 
+                                       value="{{ filters.date_end }}" title="Hasta">
+                            </div>
+                        </div>
+
+                        <div class="col-md-2 text-end">
+                            <button type="submit" class="btn btn-primary btn-sm w-100 mb-1">
+                                <i class="fas fa-filter me-1"></i> Filtrar
+                            </button>
+                            {% if filters.agent or filters.date_start or filters.date_end %}
+                            <a href="?" class="btn btn-outline-secondary btn-sm w-100">
+                                <i class="fas fa-times me-1"></i> Limpiar
+                            </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+                        <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
                                     <th>Tipo</th>
                                     <th>Provincia</th>
                                     <th>Distrito(s)</th>
                                     <th>Presupuesto</th>
-                                    <th>Área terreno</th>
-                                    <th>Fecha publicación</th>
+                                    <th>Área</th>
                                     <th>Coincidencia</th>
                                     <th>Acciones</th>
                                 </tr>
