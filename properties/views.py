@@ -1049,18 +1049,24 @@ class RequirementListView(LoginRequiredMixin, ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        # Mostrar los requerimientos activos de todos los usuarios (no filtrar por created_by)
-        qs = Requirement.objects.filter(is_active=True).order_by('-created_at')
+        qs = Requirement.objects.filter(is_active=True).select_related('created_by').annotate(
+            match_score=Max('matches__score')
+        ).order_by('-created_at')
         from django.db import OperationalError
         try:
-            q = self.request.GET.get('search', '').strip()
-            if q:
-                qs = qs.filter(
-                    Q(property_type__name__icontains=q) |
-                    Q(property_subtype__name__icontains=q) |
-                    Q(district__name__icontains=q) |
-                    Q(urbanization__name__icontains=q)
-                )
+            
+            agent_id = self.request.GET.get('agent') # filtros adicionales: agente y fecha
+            if agent_id and agent_id.isdigit():
+                qs = qs.filter(created_by_id=agent_id)
+
+            date_start = self.request.GET.get('date_start')
+            if date_start:
+                qs = qs.filter(created_at__date__gte=date_start)
+            
+            date_end = self.request.GET.get('date_end')
+            if date_end:
+                qs = qs.filter(created_at__date__lte=date_end)
+
             return qs
         except OperationalError:
             return Requirement.objects.none()
@@ -1072,27 +1078,17 @@ class RequirementListView(LoginRequiredMixin, ListView):
         y exponemos un diccionario `matches_scores` en el contexto con {requirement_id: score}.
         """
         context = super().get_context_data(**kwargs)
-        reqs = context.get('requirements', [])
-        scores = {}
-        try:
-            for r in reqs:
-                try:
-                    res = matching_module.get_matches_for_requirement(r, limit=1)
-                    if res:
-                        scores[r.id] = res[0]['score']
-                        # attach to object for easy template access
-                        setattr(r, 'match_score', res[0]['score'])
-                    else:
-                        scores[r.id] = None
-                        setattr(r, 'match_score', None)
-                except Exception:
-                    scores[r.id] = None
-                    setattr(r, 'match_score', None)
-        except Exception:
-            # en caso de errores en DB/logic, no romper la página
-            scores = {}
+        
+        
+        from django.contrib.auth import get_user_model # datos para filtros en template
+        User = get_user_model()
+        context['agents'] = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
+        context['filters'] = {
+            'agent': self.request.GET.get('agent', ''),
+            'date_start': self.request.GET.get('date_start', ''),
+            'date_end': self.request.GET.get('date_end', ''),
+        }
 
-        context['matches_scores'] = scores
         return context
 
 
@@ -2803,6 +2799,71 @@ def edit_property_view(request, pk):
                                 pass
             except Exception:
                 pass
+
+            # ===================== ELIMINAR IMÁGENES MARCADAS =====================
+            deleted_images_ids = []
+            for val in request.POST.getlist('deleted_images'):
+                deleted_images_ids.extend(val.split(','))
+            # Capturar tanto 'deleted_images' como 'deleted_images[]' por si el JS usa array syntax
+            raw_deleted_images = request.POST.getlist('deleted_images') + request.POST.getlist('deleted_images[]')
+            
+            for val in raw_deleted_images:
+                if val:
+                    deleted_images_ids.extend(str(val).split(','))
+            
+            if deleted_images_ids:
+                print(f"DEBUG: Procesando eliminación de imágenes: {deleted_images_ids}")
+
+            for img_id in deleted_images_ids:
+                if str(img_id).strip().isdigit():
+                    try:
+                        img = PropertyImage.objects.get(pk=int(img_id), property=property_obj)
+                        # Borrar archivo físico explícitamente
+                        if img.image:
+                            img.image.delete(save=False)
+                        img.delete()
+                    except PropertyImage.DoesNotExist:
+                        pass
+
+            # ===================== ELIMINAR VIDEOS MARCADOS =====================
+            deleted_videos_ids = []
+            for val in request.POST.getlist('deleted_videos'):
+                deleted_videos_ids.extend(val.split(','))
+            raw_deleted_videos = request.POST.getlist('deleted_videos') + request.POST.getlist('deleted_videos[]')
+            
+            for val in raw_deleted_videos:
+                if val:
+                    deleted_videos_ids.extend(str(val).split(','))
+
+            for vid_id in deleted_videos_ids:
+                if str(vid_id).strip().isdigit():
+                    try:
+                        vid = PropertyVideo.objects.get(pk=int(vid_id), property=property_obj)
+                        if vid.video:
+                            vid.video.delete(save=False)
+                        vid.delete()
+                    except PropertyVideo.DoesNotExist:
+                        pass
+
+            # ===================== ELIMINAR DOCUMENTOS MARCADOS =====================
+            deleted_docs_ids = []
+            for val in request.POST.getlist('deleted_documents'):
+                deleted_docs_ids.extend(val.split(','))
+            raw_deleted_docs = request.POST.getlist('deleted_documents') + request.POST.getlist('deleted_documents[]')
+            
+            for val in raw_deleted_docs:
+                if val:
+                    deleted_docs_ids.extend(str(val).split(','))
+
+            for doc_id in deleted_docs_ids:
+                if str(doc_id).strip().isdigit():
+                    try:
+                        doc = PropertyDocument.objects.get(pk=int(doc_id), property=property_obj)
+                        if doc.file:
+                            doc.file.delete(save=False)
+                        doc.delete()
+                    except PropertyDocument.DoesNotExist:
+                        pass
 
             # Procesar posibles archivos subidos desde el formulario de edición (imágenes/videos/documentos)
             images_files = request.FILES.getlist('images')
