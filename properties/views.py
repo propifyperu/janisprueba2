@@ -1049,18 +1049,24 @@ class RequirementListView(LoginRequiredMixin, ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        # Mostrar los requerimientos activos de todos los usuarios (no filtrar por created_by)
-        qs = Requirement.objects.filter(is_active=True).order_by('-created_at')
+        qs = Requirement.objects.filter(is_active=True).select_related('created_by').annotate(
+            match_score=Max('matches__score')
+        ).order_by('-created_at')
         from django.db import OperationalError
         try:
-            q = self.request.GET.get('search', '').strip()
-            if q:
-                qs = qs.filter(
-                    Q(property_type__name__icontains=q) |
-                    Q(property_subtype__name__icontains=q) |
-                    Q(district__name__icontains=q) |
-                    Q(urbanization__name__icontains=q)
-                )
+            
+            agent_id = self.request.GET.get('agent') # filtros adicionales: agente y fecha
+            if agent_id and agent_id.isdigit():
+                qs = qs.filter(created_by_id=agent_id)
+
+            date_start = self.request.GET.get('date_start')
+            if date_start:
+                qs = qs.filter(created_at__date__gte=date_start)
+            
+            date_end = self.request.GET.get('date_end')
+            if date_end:
+                qs = qs.filter(created_at__date__lte=date_end)
+
             return qs
         except OperationalError:
             return Requirement.objects.none()
@@ -1072,27 +1078,17 @@ class RequirementListView(LoginRequiredMixin, ListView):
         y exponemos un diccionario `matches_scores` en el contexto con {requirement_id: score}.
         """
         context = super().get_context_data(**kwargs)
-        reqs = context.get('requirements', [])
-        scores = {}
-        try:
-            for r in reqs:
-                try:
-                    res = matching_module.get_matches_for_requirement(r, limit=1)
-                    if res:
-                        scores[r.id] = res[0]['score']
-                        # attach to object for easy template access
-                        setattr(r, 'match_score', res[0]['score'])
-                    else:
-                        scores[r.id] = None
-                        setattr(r, 'match_score', None)
-                except Exception:
-                    scores[r.id] = None
-                    setattr(r, 'match_score', None)
-        except Exception:
-            # en caso de errores en DB/logic, no romper la página
-            scores = {}
+        
+        
+        from django.contrib.auth import get_user_model # datos para filtros en template
+        User = get_user_model()
+        context['agents'] = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
+        context['filters'] = {
+            'agent': self.request.GET.get('agent', ''),
+            'date_start': self.request.GET.get('date_start', ''),
+            'date_end': self.request.GET.get('date_end', ''),
+        }
 
-        context['matches_scores'] = scores
         return context
 
 
