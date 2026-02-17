@@ -1,0 +1,183 @@
+{% load money %}
+
+<div onclick="openPropertyDetail({{ property.id }})" class="main-card-property">
+  <article class="property-card pr-md-3" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
+
+    <div class="property-card-media">
+      {% with images=property.prefetched_images %}
+        {% if images %}
+          {% with first=images|first %}
+            {% if first.image %}
+              <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
+            {% else %}
+              <img src="{{ MEDIA_URL }}properties/logoproperty.png" alt="Propiedad" loading="lazy">
+            {% endif %}
+          {% endwith %}
+        {% else %}
+          <img src="{{ MEDIA_URL }}properties/logoproperty.png" alt="Propiedad" loading="lazy">
+        {% endif %}
+      {% endwith %}
+    </div>
+
+    <div class="property-card-body">
+      <div class="property-card-top">
+
+        <div class="dropdown availability-dropdown" onclick="event.stopPropagation();">
+          <button
+            class="availability-badge dropdown-toggle"
+            type="button"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+            data-property-id="{{ property.id }}"
+            data-status="{{ property.availability_status|default:'available' }}"
+            id="availBtn{{ property.id }}"
+          >
+            {{ property.get_availability_status_display }}
+          </button>
+
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="availBtn{{ property.id }}">
+            <li><a class="dropdown-item js-avail" href="#" data-value="available">Disponible</a></li>
+            <li><a class="dropdown-item js-avail" href="#" data-value="reserved">Reservada</a></li>
+            <li><a class="dropdown-item js-avail" href="#" data-value="sold">Vendida</a></li>
+            <li><a class="dropdown-item js-avail" href="#" data-value="unavailable">No disponible</a></li>
+            <li><a class="dropdown-item js-avail" href="#" data-value="paused">Pausada</a></li>
+          </ul>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge-status">{{ property.code }}</span>
+          <span class="badge-status">{{ property.property_type.name }}</span>
+          <span class="status-label">{{ property.status.name }}</span>
+        </div>
+
+        <div class="price">
+          {{ property.currency.symbol }} {{ property.price|money_us }}
+        </div>
+      </div>
+
+      <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
+
+      <p class="property-location mb-0">
+        <i class="fas fa-map-marker-alt text-primary"></i>
+        <span class="property-location-main">
+          {% if property.display_district or property.display_province %}
+            {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
+          {% else %}
+            {{ property.real_address|default:'Ubicación no disponible' }}
+          {% endif %}
+        </span>
+      </p>
+
+      <div class="property-card-footer mr-3">
+        <div class="property-info-stack">
+          <div class="property-meta">
+            <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
+            <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
+            {% if property.land_area and property.land_area_unit %}
+              <span><i class="fas fa-ruler-combined"></i>AT {{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
+            {% endif %}
+            {% if property.built_area and property.built_area_unit %}
+              <span><i class="fas fa-drafting-compass"></i>AC {{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
+            {% endif %}
+            {% if property.garage_spaces %}
+              <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="property-actions">
+          {% if property.wp_post_id %}
+            <span class="wp-badge" title="Publicada en WP">
+              <span class="wp-check">✓</span> WP
+            </span>
+          {% endif %}
+
+          <div class="d-flex gap-1">
+            <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
+            {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
+              <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary" title="Editar"><i class="fas fa-edit"></i></a>
+            {% endif %}
+            <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info" title="Historial"><i class="fas fa-history"></i></a>
+          </div>
+
+          <span class="last-update">Act. {{ property.updated_at|date:"d/m/Y" }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="property-card-body-mb">
+      <div class="property-card-top-mb">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge-status">{{ property.property_type.name }}</span>
+          <span class="status-label">{{ property.status.name }}</span>
+        </div>
+
+        <div class="property-meta mt-3">
+          <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
+          <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
+          {% if property.land_area and property.land_area_unit %}
+            <span><i class="fas fa-ruler-combined"></i>AT {{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
+          {% endif %}
+          {% if property.built_area and property.built_area_unit %}
+            <span><i class="fas fa-drafting-compass"></i>AC {{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
+          {% endif %}
+          {% if property.garage_spaces %}
+            <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
+          {% endif %}
+        </div>
+
+        <div class="price">
+          {{ property.currency.symbol }} {{ property.price|money_us }}
+        </div>
+      </div>
+    </div>
+
+    <div class="info-details-card-body-mb">
+      <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
+
+      <p class="property-location mb-0">
+        <i class="fas fa-map-marker-alt text-primary"></i>
+        <span class="property-location-main">
+          {% if property.display_district or property.display_province %}
+            {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
+          {% else %}
+            {{ property.real_address|default:'Ubicación no disponible' }}
+          {% endif %}
+        </span>
+      </p>
+
+      <div class="property-card-footer d-flex">
+        <div class="property-info-stack">
+          <div class="property-contacts">
+            <span><i class="fas fa-user-check"></i>Responsable:
+              {% if property.responsible %}
+                {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
+              {% else %}
+                Sin asignar
+              {% endif %}
+            </span>
+          </div>
+        </div>
+
+        <div class="property-actions">
+          {% if property.wp_post_id %}
+            <span class="wp-badge" title="Publicada en WP">
+              <span class="wp-check">✓</span> WP
+            </span>
+          {% endif %}
+
+          <div class="d-flex gap-1">
+            <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
+            {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
+              <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary" title="Editar"><i class="fas fa-edit"></i></a>
+            {% endif %}
+            <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info" title="Historial"><i class="fas fa-history"></i></a>
+          </div>
+
+          <span class="last-update">Act. {{ property.updated_at|date:"d/m/Y" }}</span>
+        </div>
+      </div>
+    </div>
+
+  </article>
+</div>

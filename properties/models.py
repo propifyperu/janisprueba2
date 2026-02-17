@@ -635,7 +635,7 @@ class Property(TitleCaseMixin, models.Model):
     
     # Auditoría y workflow
     created_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT, blank=True, null=True)
-    assigned_agent = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_properties')
+    assigned_agent = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_properties') #no hace nada borrar
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)

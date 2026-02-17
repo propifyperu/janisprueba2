@@ -1,8 +1,10 @@
 from .models import Property, AgencyConfig
 from django.contrib import messages
+from properties.queryset import visible_properties_for
 from django.core.files.storage import default_storage
 from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
+from users.roles import is_agent
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
@@ -1785,19 +1787,15 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         )
 
         queryset = (
-            Property.objects.filter(is_active=True)
+            Property.objects.all()
             .select_related(
                 'property_type', 'status', 'owner', 'created_by', 'currency',
                 'responsible', 'land_area_unit', 'built_area_unit',
             )
             .prefetch_related(Prefetch("images", queryset=images_qs, to_attr="prefetched_images"))
         )
-        
-        # Si el usuario es agente, mostrar solo sus propiedades y asignadas
-        if self.request.user.role and self.request.user.role.code_name == 'agent':
-            queryset = queryset.filter(
-                Q(created_by=self.request.user) | Q(assigned_agent=self.request.user)
-            )
+
+        queryset = visible_properties_for(self.request.user, queryset)
 
         # Búsqueda general por texto (campo `q`) - busca en título, descripción, código, direcciones, amenities y tags
         q = self.request.GET.get('q', '').strip()
