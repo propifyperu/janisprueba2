@@ -318,7 +318,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Estado y Auditoría', {
-            'fields': ('is_active', 'is_ready_for_sale', 'assigned_agent', 'created_at', 'updated_at'),
+            'fields': ('is_active', 'is_ready_for_sale', 'assigned_agent', 'created_at', 'updated_at','is_draft'),
             'classes': ('collapse',)
         }),
     )

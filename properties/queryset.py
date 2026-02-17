@@ -23,3 +23,5 @@ def visible_properties_for(user, qs):
         Q(is_draft=True, responsible=user)
     )
     
+def my_properties_for(user, qs):
+    return qs.filter(responsible=user).filter(Q(is_draft=False) )
