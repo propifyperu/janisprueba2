@@ -1029,13 +1029,23 @@ class MyPropertiesView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         from django.db.models import Count
-        return Property.objects.filter(
-            assigned_agent=self.request.user, 
-            is_active=True
-        ).annotate(
-            visit_count=Count('property_events')
-        ).order_by('-created_at')
+        from .queryset import my_properties_for
 
+        qs = (
+            Property.objects
+            .select_related(
+                'property_type', 'status', 'owner', 'created_by', 'currency',
+                'responsible', 'land_area_unit', 'built_area_unit',
+            )
+        )
+
+        qs = my_properties_for(self.request.user, qs)
+
+        return (
+            qs.annotate(visit_count=Count('property_events', distinct=True))
+              .order_by('-created_at')
+        )
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Fix for count with pagination (queryset is sliced in context['properties'] usually just page)
