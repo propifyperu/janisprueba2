@@ -36,6 +36,7 @@
                                     <th class="text-center py-3" style="min-width: 250px;">Detalle Propiedad</th>
                                     <th class="text-center py-3" style="min-width: 150px;">Ubicación</th>
                                     <th class="text-center py-3">Estado</th>
+                                    <th class="text-center py-3">Publicada</th>
                                     <th class="text-center py-3">Precio</th>
                                     <th class="text-center py-3">Contrato</th>
                                     <th class="text-center py-3">Vistas Web</th>
@@ -90,12 +91,35 @@
 
                                     <!-- Col 3: Estado -->
                                     <td class="text-center">
-                                        <span class="badge rounded-pill {% if property.is_active %}bg-success bg-opacity-10 text-success{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}">
-                                            {{ property.status.name|default:"Activo" }}
+                                    {% with st=property.availability_status|default:"available" %}
+                                        <span class="badge rounded-pill
+                                        {% if st == 'available' %}bg-success bg-opacity-10 text-success
+                                        {% elif st == 'reserved' %}bg-warning bg-opacity-10 text-warning
+                                        {% elif st == 'sold' %}bg-danger bg-opacity-10 text-danger
+                                        {% elif st == 'paused' or st == 'unavailable' %}bg-secondary bg-opacity-10 text-secondary
+                                        {% else %}bg-light text-dark border{% endif %}">
+                                        {% if st == 'available' %}Disponible
+                                        {% elif st == 'reserved' %}Reservada
+                                        {% elif st == 'sold' %}Vendida
+                                        {% elif st == 'paused' %}Pausada
+                                        {% elif st == 'unavailable' %}No disponible
+                                        {% else %}{{ st }}{% endif %}
                                         </span>
+                                    {% endwith %}
                                     </td>
-
-                                    <!-- Col 4: Precio -->
+                                    <!-- Col 4: Subida (is_active) -->
+                                    <td class="text-center">
+                                    {% if property.is_active %}
+                                        <span class="badge rounded-pill bg-success bg-opacity-10 text-success">
+                                        Sí
+                                        </span>
+                                    {% else %}
+                                        <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary">
+                                        No
+                                        </span>
+                                    {% endif %}
+                                    </td>
+                                    <!-- Col 5: Precio -->
                                     <td class="text-center">
                                         <div class="d-flex flex-column align-items-center">
                                             <div class="fw-bold text-dark text-nowrap">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
@@ -103,7 +127,7 @@
                                         </div>
                                     </td>
 
-                                    <!-- Col 5: Contrato -->
+                                    <!-- Col 6: Contrato -->
                                     <td class="text-center">
                                         <div class="d-flex flex-column text-muted small align-items-center">
                                             <span class="text-nowrap">Comisión: {{ property.financial_info.initial_commission_percentage|default:"-" }}%</span>
@@ -111,7 +135,7 @@
                                         </div>
                                     </td>
 
-                                    <!-- Col 6: Vistas Web -->
+                                    <!-- Col 7: Vistas Web -->
                                     <td class="text-center">
                                         <div class="d-flex flex-column align-items-center">
                                             <span class="fw-bold fs-5 text-secondary">-</span>
@@ -119,7 +143,7 @@
                                         </div>
                                     </td>
 
-                                    <!-- Col 6: Visitas -->
+                                    <!-- Col 8: Visitas -->
                                     <td class="text-center">
                                         <div class="d-flex flex-column align-items-center">
                                             <span class="fw-bold fs-5 text-teal">{{ property.visit_count }}</span>
@@ -127,14 +151,14 @@
                                         </div>
                                     </td>
 
-                                    <!-- Col 7: Reportes -->
+                                    <!-- Col 9: Reportes -->
                                     <td class="text-center">
                                         <a href="#" class="btn btn-sm btn-outline-secondary border-0 text-nowrap">
                                             <i class="fas fa-chart-line me-1"></i> Reportes
                                         </a>
                                     </td>
 
-                                    <!-- Col 8: Actions -->
+                                    <!-- Col 10: Actions -->
                                     <td class="text-center">
                                         <div class="btn-group shadow-sm">
                                             <a href="{% url 'properties:detail' property.pk %}" class="btn btn-sm btn-white border text-secondary" title="Ver Detalle">
