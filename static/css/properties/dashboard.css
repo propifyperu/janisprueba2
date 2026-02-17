@@ -403,6 +403,7 @@
     }
 
     .property-card {
+        height: 100%;
         display: flex;
         background: #fff;
         border-radius: 12px;
@@ -816,6 +817,11 @@
         .results-section {
             padding: 1rem 0.75rem 3rem;
         }
+
+        .main-card-property {
+            height: auto;
+        }
+
     }
 
 .property-card-body-mb, .info-details-card-body-mb {
@@ -847,5 +853,6 @@
 /* Buttons */
 .main-card-property {
     width: 100%;
+    height: 220px;
     cursor: pointer;
 }
