@@ -2185,7 +2185,7 @@ def create_property_view(request):
         ImageType, VideoType, DocumentType, PropertyChange, PropertySubtype, Currency
     )
     from .forms import PropertyForm, PropertyOwnerForm, PropertyFinancialInfoForm
-    
+
     # Listas para selects
     departments = Department.objects.filter(is_active=True).order_by('name')
     level_types = LevelType.objects.filter(is_active=True).order_by('name')
@@ -2198,17 +2198,25 @@ def create_property_view(request):
 
     if request.method == 'POST':
         action = request.POST.get('action')
-        # Si se solicita explícitamente guardar como borrador, NO validar los formularios
-        if action == 'save_draft':
-            draft = None
-            draft_id = request.POST.get('draft_id')
-            if draft_id:
-                try:
-                    # Asegurarse de obtener sólo borradores explícitos (is_draft=True)
-                    draft = Property.objects.get(pk=int(draft_id), created_by=request.user, is_active=False, is_draft=True)
-                except Exception:
-                    draft = None
 
+        # ===================== GUARDAR BORRADOR (SIN VALIDAR) =====================
+        if action == 'save_draft':
+            draft_id = request.POST.get('draft_id')
+            draft = None
+
+            # 1) si viene draft_id, recuperar borrador existente del usuario
+            if draft_id:
+                draft = get_object_or_404(Property, pk=draft_id, created_by=request.user)
+
+            # 2) si existe, normalizar flags y estado
+            if draft is not None:
+                if draft.availability_status != "catchment" or draft.is_draft is not True or draft.is_active is not False:
+                    draft.availability_status = "catchment"
+                    draft.is_active = False
+                    draft.is_draft = True
+                    draft.save(update_fields=["availability_status", "is_active", "is_draft", "updated_at"])
+
+            # 3) si NO existe, crear borrador con placeholders
             if draft is None:
                 # obtener o crear objetos placeholder necesarios para campos obligatorios
                 try:
@@ -2247,6 +2255,7 @@ def create_property_view(request):
                         owner = PropertyOwner.objects.get(pk=existing_owner_id)
                     except Exception:
                         owner = None
+
                 if owner is None:
                     try:
                         owner = PropertyOwner.objects.create(created_by=request.user)
@@ -2256,7 +2265,7 @@ def create_property_view(request):
                 # generar código único temporal para el borrador
                 import time
                 code = f"DRAFT{request.user.id}{int(time.time())}"
-                # crear borrador con valores mínimos
+
                 draft_kwargs = {
                     'code': code,
                     'property_type': prop_type,
@@ -2265,12 +2274,15 @@ def create_property_view(request):
                     'price': 0,
                     'currency': currency,
                     'owner': owner,
+                    'availability_status': 'catchment',   # <-- CLAVE
                     'created_by': request.user,
                     'is_active': False,
                     'is_draft': True,
                 }
+
                 # intentar setear algunos campos opcionales desde POST
-                for fld in ['title', 'description', 'exact_address', 'real_address', 'coordinates', 'department', 'province', 'district', 'urbanization']:
+                for fld in ['title', 'description', 'exact_address', 'real_address', 'coordinates',
+                            'department', 'province', 'district', 'urbanization']:
                     val = request.POST.get(fld)
                     if val:
                         draft_kwargs[fld] = val
@@ -2283,7 +2295,15 @@ def create_property_view(request):
                     logger.exception('Error creando borrador de propiedad: %s', e)
                     draft = None
 
-            # Si tenemos un borrador (nuevo o existente), guardar archivos subidos en él
+            # 4) blindaje final: si por cualquier motivo quedó mal, lo corregimos
+            if draft is not None:
+                if draft.availability_status != "catchment" or draft.is_draft is not True or draft.is_active is not False:
+                    draft.availability_status = "catchment"
+                    draft.is_active = False
+                    draft.is_draft = True
+                    draft.save(update_fields=["availability_status", "is_active", "is_draft", "updated_at"])
+
+            # 5) guardar archivos subidos en ese borrador
             if draft is not None:
                 # imágenes
                 images_files = request.FILES.getlist('images')
@@ -2291,8 +2311,8 @@ def create_property_view(request):
                 image_captions = request.POST.getlist('image_captions')
                 image_orders = request.POST.getlist('image_orders')
                 image_sensibles = request.POST.getlist('image_sensibles')
+
                 for idx, image_file in enumerate(images_files):
-                    # Ignorar inputs vacíos (campo presente pero sin fichero)
                     if not image_file or getattr(image_file, 'size', 0) == 0:
                         continue
 
@@ -2308,13 +2328,14 @@ def create_property_view(request):
                         order = idx + 1
 
                     caption = image_captions[idx] if idx < len(image_captions) else ''
+
                     try:
+                        v = image_sensibles[idx] if idx < len(image_sensibles) else None
+                        sensible_val = str(v) in ('1', 'true', 'on')
+                    except Exception:
                         sensible_val = False
-                        try:
-                            v = image_sensibles[idx] if idx < len(image_sensibles) else None
-                            sensible_val = str(v) in ('1', 'true', 'on')
-                        except Exception:
-                            sensible_val = False
+
+                    try:
                         PropertyImage.objects.create(
                             property=draft,
                             image=image_file,
@@ -2336,87 +2357,87 @@ def create_property_view(request):
                 video_types = request.POST.getlist('video_types')
                 video_titles = request.POST.getlist('video_titles')
                 video_descriptions = request.POST.getlist('video_descriptions')
+
                 for idx, video_file in enumerate(videos_files):
-                    if video_file:
-                        try:
-                            video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
-                            video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
-                        except Exception:
-                            video_type = None
-                        title = video_titles[idx] if idx < len(video_titles) else ''
-                        description = video_descriptions[idx] if idx < len(video_descriptions) else ''
-                        try:
-                            PropertyVideo.objects.create(
-                                property=draft,
-                                video=video_file,
-                                video_type=video_type,
-                                title=title,
-                                description=description,
-                                uploaded_by=request.user
-                            )
-                        except Exception as e:
-                            import logging
-                            logger = logging.getLogger(__name__)
-                            logger.exception('Error guardando video en borrador: %s', e)
-                            from django.contrib import messages
-                            messages.error(request, 'Error al guardar video (borrador). Revisa los logs.')
+                    if not video_file:
+                        continue
+
+                    try:
+                        video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
+                        video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
+                    except Exception:
+                        video_type = None
+
+                    title = video_titles[idx] if idx < len(video_titles) else ''
+                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
+
+                    try:
+                        PropertyVideo.objects.create(
+                            property=draft,
+                            video=video_file,
+                            video_type=video_type,
+                            title=title,
+                            description=description,
+                            uploaded_by=request.user
+                        )
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error guardando video en borrador: %s', e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error al guardar video (borrador). Revisa los logs.')
 
                 # documentos
                 documents_files = request.FILES.getlist('documents')
                 document_types = request.POST.getlist('document_types')
                 document_titles = request.POST.getlist('document_titles')
                 document_descriptions = request.POST.getlist('document_descriptions')
-                for idx, document_file in enumerate(documents_files):
-                    if document_file:
-                        try:
-                            doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
-                            doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
-                        except Exception:
-                            doc_type = None
-                        title = document_titles[idx] if idx < len(document_titles) else ''
-                        description = document_descriptions[idx] if idx < len(document_descriptions) else ''
-                        try:
-                            PropertyDocument.objects.create(
-                                property=draft,
-                                file=document_file,
-                                document_type=doc_type,
-                                title=title,
-                                description=description,
-                                uploaded_by=request.user
-                            )
-                        except Exception as e:
-                            import logging
-                            logger = logging.getLogger(__name__)
-                            logger.exception('Error guardando documento en borrador: %s', e)
-                            from django.contrib import messages
-                            messages.error(request, 'Error al guardar documento (borrador). Revisa los logs.')
 
-            # preparar contexto para re-renderizar el formulario con los recursos ya subidos
-            contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
-            existing_images = list(PropertyImage.objects.filter(property=draft).order_by('order')) if draft else []
-            existing_videos = list(PropertyVideo.objects.filter(property=draft)) if draft else []
-            existing_documents = list(PropertyDocument.objects.filter(property=draft)) if draft else []
-            draft_id_to_pass = draft.pk if draft else ''
+                for idx, document_file in enumerate(documents_files):
+                    if not document_file:
+                        continue
+
+                    try:
+                        doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
+                        doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
+                    except Exception:
+                        doc_type = None
+
+                    title = document_titles[idx] if idx < len(document_titles) else ''
+                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
+
+                    try:
+                        PropertyDocument.objects.create(
+                            property=draft,
+                            file=document_file,
+                            document_type=doc_type,
+                            title=title,
+                            description=description,
+                            uploaded_by=request.user
+                        )
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error guardando documento en borrador: %s', e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error al guardar documento (borrador). Revisa los logs.')
+
             from django.contrib import messages
             messages.success(request, 'Borrador guardado. Puedes gestionarlo desde Borradores.')
-            # Redirigir a la lista de borradores para que el usuario confirme el guardado
             return redirect('properties:drafts')
-        # Validar form y owner_form según el caso
+
+        # ===================== FLUJO NORMAL (VALIDANDO) =====================
         existing_owner_id = request.POST.get('existing_owner')
-        owner_form_valid = True
 
         if existing_owner_id:
-            # Si hay propietario existente, no necesitamos validar owner_form
             owner_form_valid = True
         else:
-            # Si se crea nuevo propietario, validar owner_form y asegurarnos de que tenga cambios
             owner_form_valid = owner_form.is_valid() and owner_form.has_changed()
-        
+
         if form.is_valid() and owner_form_valid:
             if existing_owner_id:
                 owner = PropertyOwner.objects.get(pk=existing_owner_id)
             else:
-                # Guardar nuevo owner sólo si el formulario contenía cambios (owner_form_valid asegura esto)
                 owner = owner_form.save(commit=False)
                 owner.created_by = request.user
                 owner.save()
@@ -2425,17 +2446,25 @@ def create_property_view(request):
             property_obj = form.save(commit=False)
             property_obj.owner = owner
             property_obj.created_by = request.user
-            # Determinar estado según la acción del formulario: solo marcar como activa
-            # si se solicitó expresamente guardar la propiedad activa.
-            property_obj.is_active = True if action == 'save_property' else False
-            # Ajustar flag explícito de borrador
-            property_obj.is_draft = False if action == 'save_property' else True
+
+            # flags según acción
+            is_active = True if action == 'save_property' else False
+            is_draft = False if action == 'save_property' else True
+
+            property_obj.is_active = is_active
+            property_obj.is_draft = is_draft
+
+            # >>> CLAVE: si NO es save_property, entonces debe ser catchment (borrador)
+            if is_draft:
+                property_obj.availability_status = "catchment"
+
             property_obj.save()
             form.save_m2m()
 
             # Registrar cambios iniciales al crear la propiedad (campos con valor)
             try:
-                tracked_fields = ['title', 'price', 'coordinates', 'department', 'province', 'district', 'urbanization', 'exact_address', 'real_address']
+                tracked_fields = ['title', 'price', 'coordinates', 'department', 'province', 'district',
+                                  'urbanization', 'exact_address', 'real_address']
                 for field in tracked_fields:
                     val = getattr(property_obj, field, None)
                     if val not in (None, '', []):
@@ -2461,12 +2490,10 @@ def create_property_view(request):
             image_captions = request.POST.getlist('image_captions')
             image_orders = request.POST.getlist('image_orders')
             image_sensibles = request.POST.getlist('image_sensibles')
-            
+
             primary_image_set = False
-            # Limitar número de imágenes por subida para evitar OOM/timeout
-            # No limitar la cantidad de imágenes aquí; procesarlas todas
+
             for idx, image_file in enumerate(images_files):
-                # Ignorar inputs vacíos (campo presente pero sin fichero)
                 if not image_file or getattr(image_file, 'size', 0) == 0:
                     continue
 
@@ -2475,22 +2502,22 @@ def create_property_view(request):
                     image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
                 except (ImageType.DoesNotExist, ValueError):
                     image_type = None
-                
+
                 try:
                     order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
                 except ValueError:
                     order = idx + 1
-                
+
                 caption = image_captions[idx] if idx < len(image_captions) else ''
                 is_primary = not primary_image_set
-                
+
                 try:
+                    v = image_sensibles[idx] if idx < len(image_sensibles) else None
+                    sensible_val = str(v) in ('1', 'true', 'on')
+                except Exception:
                     sensible_val = False
-                    try:
-                        v = image_sensibles[idx] if idx < len(image_sensibles) else None
-                        sensible_val = str(v) in ('1', 'true', 'on')
-                    except Exception:
-                        sensible_val = False
+
+                try:
                     img = PropertyImage.objects.create(
                         property=property_obj,
                         image=image_file,
@@ -2508,7 +2535,7 @@ def create_property_view(request):
                     from django.contrib import messages
                     messages.error(request, 'Error guardando una imagen. Revisa los logs.')
                     continue
-                # Registrar evento de imagen subida
+
                 try:
                     PropertyChange.objects.create(
                         property=property_obj,
@@ -2517,12 +2544,9 @@ def create_property_view(request):
                         new_value=f"Imagen subida: {img.caption or img.image.name}",
                         changed_by=request.user
                     )
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.exception('Error registrando cambio de imagen para la propiedad %s: %s', property_obj.pk, e)
-                    from django.contrib import messages
-                    messages.error(request, 'Error al registrar evento de imagen. Revisa los logs.')
+                except Exception:
+                    pass
+
                 primary_image_set = True
 
             # ===================== PROCESAR VIDEOS =====================
@@ -2530,80 +2554,78 @@ def create_property_view(request):
             video_types = request.POST.getlist('video_types')
             video_titles = request.POST.getlist('video_titles')
             video_descriptions = request.POST.getlist('video_descriptions')
-            
+
             for idx, video_file in enumerate(videos_files):
-                if video_file:
-                    try:
-                        video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
-                        video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
-                    except (VideoType.DoesNotExist, ValueError):
-                        video_type = None
-                    
-                    title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
-                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
-                    
-                    vid = PropertyVideo.objects.create(
+                if not video_file:
+                    continue
+
+                try:
+                    video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
+                    video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
+                except (VideoType.DoesNotExist, ValueError):
+                    video_type = None
+
+                title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
+                description = video_descriptions[idx] if idx < len(video_descriptions) else ''
+
+                vid = PropertyVideo.objects.create(
+                    property=property_obj,
+                    video=video_file,
+                    video_type=video_type,
+                    title=title,
+                    description=description,
+                    uploaded_by=request.user
+                )
+
+                try:
+                    PropertyChange.objects.create(
                         property=property_obj,
-                        video=video_file,
-                        video_type=video_type,
-                        title=title,
-                        description=description,
-                        uploaded_by=request.user
+                        field='video',
+                        old_value=None,
+                        new_value=f"Video subido: {vid.title}",
+                        changed_by=request.user
                     )
-                    try:
-                        PropertyChange.objects.create(
-                            property=property_obj,
-                            field='video',
-                            old_value=None,
-                            new_value=f"Video subido: {vid.title}",
-                            changed_by=request.user
-                        )
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.exception('Error registrando cambio de video para la propiedad %s: %s', property_obj.pk, e)
-                        from django.contrib import messages
-                        messages.error(request, 'Error al registrar evento de video. Revisa los logs.')
+                except Exception:
+                    pass
 
             # ===================== PROCESAR DOCUMENTOS =====================
             documents_files = request.FILES.getlist('documents')
             document_types = request.POST.getlist('document_types')
             document_titles = request.POST.getlist('document_titles')
             document_descriptions = request.POST.getlist('document_descriptions') or request.POST.getlist('document_descripciones')
-            
+
             for idx, document_file in enumerate(documents_files):
-                if document_file:
-                    try:
-                        doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
-                        doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
-                    except (DocumentType.DoesNotExist, ValueError):
-                        doc_type = None
-                    
-                    title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
-                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
-                    
-                    doc = PropertyDocument.objects.create(
+                if not document_file:
+                    continue
+
+                try:
+                    doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
+                    doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
+                except (DocumentType.DoesNotExist, ValueError):
+                    doc_type = None
+
+                title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
+                description = document_descriptions[idx] if idx < len(document_descriptions) else ''
+
+                doc = PropertyDocument.objects.create(
+                    property=property_obj,
+                    file=document_file,
+                    document_type=doc_type,
+                    title=title,
+                    description=description,
+                    uploaded_by=request.user
+                )
+
+                try:
+                    PropertyChange.objects.create(
                         property=property_obj,
-                        file=document_file,
-                        document_type=doc_type,
-                        title=title,
-                        description=description,
-                        uploaded_by=request.user
+                        field='document',
+                        old_value=None,
+                        new_value=f"Documento subido: {doc.title}",
+                        changed_by=request.user
                     )
-                    try:
-                        PropertyChange.objects.create(
-                            property=property_obj,
-                            field='document',
-                            old_value=None,
-                            new_value=f"Documento subido: {doc.title}",
-                            changed_by=request.user
-                        )
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.exception('Error registrando cambio de documento para la propiedad %s: %s', property_obj.pk, e)
-                        from django.contrib import messages
-                        messages.error(request, 'Error al registrar evento de documento. Revisa los logs.')
+                except Exception:
+                    pass
 
             # ===================== PROCESAR HABITACIONES =====================
             room_levels = request.POST.getlist('room_levels')
@@ -2615,69 +2637,70 @@ def create_property_view(request):
             room_floor_types = request.POST.getlist('room_floor_types')
             room_descriptions = request.POST.getlist('room_descriptions')
             room_orders = request.POST.getlist('room_orders')
-            
+
             for idx in range(len(room_types_list)):
                 room_type_id = room_types_list[idx] if idx < len(room_types_list) and room_types_list[idx] else None
-                if room_type_id:
-                    try:
-                        room_type = RoomType.objects.get(pk=room_type_id)
-                    except RoomType.DoesNotExist:
-                        continue
-                    
-                    try:
-                        level_id = room_levels[idx] if idx < len(room_levels) and room_levels[idx] else None
-                        level = LevelType.objects.get(pk=level_id) if level_id else None
-                    except (LevelType.DoesNotExist, ValueError):
-                        level = None
-                    
-                    try:
-                        floor_type_id = room_floor_types[idx] if idx < len(room_floor_types) and room_floor_types[idx] else None
-                        floor_type = FloorType.objects.get(pk=floor_type_id) if floor_type_id else None
-                    except (FloorType.DoesNotExist, ValueError):
-                        floor_type = None
-                    
-                    try:
-                        width = float(room_widths[idx]) if idx < len(room_widths) and room_widths[idx] else 0
-                    except ValueError:
-                        width = 0
-                    
-                    try:
-                        length = float(room_lengths[idx]) if idx < len(room_lengths) and room_lengths[idx] else 0
-                    except ValueError:
-                        length = 0
-                    
-                    try:
-                        area = float(room_areas[idx]) if idx < len(room_areas) and room_areas[idx] else 0
-                    except ValueError:
-                        area = 0
-                    
-                    try:
-                        order = int(room_orders[idx]) if idx < len(room_orders) and room_orders[idx] else idx
-                    except ValueError:
-                        order = idx
-                    
-                    name = room_names[idx] if idx < len(room_names) else ''
-                    description = room_descriptions[idx] if idx < len(room_descriptions) else ''
-                    
-                    PropertyRoom.objects.create(
-                        property=property_obj,
-                        level=level,
-                        room_type=room_type,
-                        name=name,
-                        width=width,
-                        length=length,
-                        area=area,
-                        floor_type=floor_type,
-                        description=description,
-                        order=order
-                    )
+                if not room_type_id:
+                    continue
+
+                try:
+                    room_type = RoomType.objects.get(pk=room_type_id)
+                except RoomType.DoesNotExist:
+                    continue
+
+                try:
+                    level_id = room_levels[idx] if idx < len(room_levels) and room_levels[idx] else None
+                    level = LevelType.objects.get(pk=level_id) if level_id else None
+                except (LevelType.DoesNotExist, ValueError):
+                    level = None
+
+                try:
+                    floor_type_id = room_floor_types[idx] if idx < len(room_floor_types) and room_floor_types[idx] else None
+                    floor_type = FloorType.objects.get(pk=floor_type_id) if floor_type_id else None
+                except (FloorType.DoesNotExist, ValueError):
+                    floor_type = None
+
+                try:
+                    width = float(room_widths[idx]) if idx < len(room_widths) and room_widths[idx] else 0
+                except ValueError:
+                    width = 0
+
+                try:
+                    length = float(room_lengths[idx]) if idx < len(room_lengths) and room_lengths[idx] else 0
+                except ValueError:
+                    length = 0
+
+                try:
+                    area = float(room_areas[idx]) if idx < len(room_areas) and room_areas[idx] else 0
+                except ValueError:
+                    area = 0
+
+                try:
+                    order = int(room_orders[idx]) if idx < len(room_orders) and room_orders[idx] else idx
+                except ValueError:
+                    order = idx
+
+                name = room_names[idx] if idx < len(room_names) else ''
+                description = room_descriptions[idx] if idx < len(room_descriptions) else ''
+
+                PropertyRoom.objects.create(
+                    property=property_obj,
+                    level=level,
+                    room_type=room_type,
+                    name=name,
+                    width=width,
+                    length=length,
+                    area=area,
+                    floor_type=floor_type,
+                    description=description,
+                    order=order
+                )
 
             from django.contrib import messages
             messages.success(request, 'Propiedad creada exitosamente con imágenes, videos, documentos y ambientes.')
-            from django.urls import reverse
             return redirect(reverse('properties:list'))
+
         else:
-            # Si la validación falla, simplemente re-renderizar el formulario con los errores, sin intentar crear borrador
             contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
             return render(request, 'properties/property_create.html', {
                 'form': form,

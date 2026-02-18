@@ -1,9 +1,6 @@
 # serializers.py
-
 from rest_framework import serializers
 from . import models
-from rest_framework import serializers
-from properties.models import Property
 
 class PropertyImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
@@ -35,23 +32,33 @@ class PropertyVideoSerializer(serializers.ModelSerializer):
 
 class PropertyDocumentSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
-    document_type = serializers.CharField(source="document_type.name", read_only=True)  # 👈 agrega esto
+    document_type = serializers.CharField(source="document_type.name", read_only=True)
+    document_type_id = serializers.IntegerField(source="document_type.id", read_only=True)
+    document_type_code = serializers.CharField(source="document_type.code", read_only=True)
 
     class Meta:
         model = models.PropertyDocument
-        fields = ('id', 'title', 'description', 'document_type', 'file_url', 'is_approved')
+        fields = (
+            "id",
+            "title",
+            "description",
+            "document_type",
+            "document_type_id",
+            "document_type_code",
+            "file_url",
+            "is_approved",
+            # ✅ NUEVOS
+            "reference_number",
+            "valid_from",
+            "valid_to",
+        )
 
     def get_file_url(self, obj):
-        request = self.context.get('request') if self.context else None
-        if obj and getattr(obj, 'file', None):
+        request = self.context.get("request") if self.context else None
+        if obj and getattr(obj, "file", None):
             url = obj.file.url
             return request.build_absolute_uri(url) if request else url
         return None
-
-    class Meta:
-        model = models.PropertyDocument
-        fields = ('id', 'title', 'description', 'document_type', 'file_url', 'is_approved')
-
 
 class PropertyRoomSerializer(serializers.ModelSerializer):
     level = serializers.CharField(source='level.name', read_only=True)
@@ -168,25 +175,29 @@ class PropertyWithDocsSerializer(serializers.ModelSerializer):
         )
 
     def _docs_map(self, obj):
-        """
-        Devuelve el dict {DocumentType.name: file_url o None}
-        """
         request = self.context.get("request")
 
-        # Base: todos los tipos activos => None
         types = models.DocumentType.objects.filter(is_active=True).order_by("name")
-        data = {t.name: None for t in types}
+        data = {t.name: {"file_url": None, "reference_number": None, "valid_from": None, "valid_to": None} for t in types}
 
-        # Fill: documentos existentes
         for d in obj.documents.select_related("document_type").all():
             if not d.document_type:
                 continue
             key = d.document_type.name
+
+            file_url = None
             if getattr(d, "file", None):
                 url = d.file.url
-                data[key] = request.build_absolute_uri(url) if request else url
+                file_url = request.build_absolute_uri(url) if request else url
 
-        return data
+            data[key] = {
+                "file_url": file_url,
+                "reference_number": getattr(d, "reference_number", None),
+                "valid_from": getattr(d, "valid_from", None),
+                "valid_to": getattr(d, "valid_to", None),
+            }
+
+        return data 
     
     def get_created_by(self, obj):
         u = getattr(obj, "created_by", None)
@@ -213,27 +224,34 @@ class PropertyWithDocsSerializer(serializers.ModelSerializer):
         return bool(getattr(obj, "has_study", False))
     
 class PropertyDocumentCreateSerializer(serializers.ModelSerializer):
+    ALLOW_METADATA_ONLY_CODES = {"110", "107"}
+
     document_type = serializers.PrimaryKeyRelatedField(
         queryset=models.DocumentType.objects.filter(is_active=True)
     )
 
     class Meta:
         model = models.PropertyDocument
-        fields = ("document_type", "file")
+        fields = ("document_type", "file", "reference_number", "valid_from", "valid_to")
 
     def validate(self, attrs):
         prop = self.context["property"]
         doc_type = attrs["document_type"]
 
-        # Evitar duplicados por (property, document_type)
         if models.PropertyDocument.objects.filter(property=prop, document_type=doc_type).exists():
             raise serializers.ValidationError({
                 "document_type": "Ya existe un documento de este tipo para esta propiedad."
             })
 
-        # file obligatorio
-        if not attrs.get("file"):
+        # ✅ file requerido SOLO si NO es metadata-only
+        code = (getattr(doc_type, "code", "") or "").strip().lower()
+        if not attrs.get("file") and code not in self.ALLOW_METADATA_ONLY_CODES:
             raise serializers.ValidationError({"file": "Este campo es requerido."})
+
+        vf = attrs.get("valid_from")
+        vt = attrs.get("valid_to")
+        if vf and vt and vt < vf:
+            raise serializers.ValidationError("valid_to no puede ser menor que valid_from.")
 
         return attrs
 
@@ -241,22 +259,19 @@ class PropertyDocumentCreateSerializer(serializers.ModelSerializer):
         prop = self.context["property"]
         request = self.context["request"]
 
-        # ✅ IMPORTANTE: tu BD exige uploaded_by_id NOT NULL
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             raise serializers.ValidationError("Debes estar autenticado para subir documentos.")
 
         validated_data.setdefault("is_approved", False)
 
-        # Opcional: si tu modelo tiene title/description pero no quieres pedirlos,
-        # los puedes autogenerar sin romper nada:
         dt = validated_data["document_type"]
         validated_data.setdefault("title", getattr(dt, "name", "") or "")
         validated_data.setdefault("description", "")
 
         return models.PropertyDocument.objects.create(
             property=prop,
-            uploaded_by=user,   # ✅ CLAVE para tu error
+            uploaded_by=user,
             **validated_data
         )
 
@@ -419,21 +434,32 @@ class RequirementSerializer(serializers.ModelSerializer):
 class PropertyDocumentUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PropertyDocument
-        fields = ("file",)  # ✅ solo reemplazar archivo
+        fields = ("file", "reference_number", "valid_from", "valid_to")
 
     def validate(self, attrs):
-        if not attrs.get("file"):
-            raise serializers.ValidationError({"file": "Este campo es requerido."})
+        vf = attrs.get("valid_from", getattr(self.instance, "valid_from", None))
+        vt = attrs.get("valid_to", getattr(self.instance, "valid_to", None))
+        if vf and vt and vt < vf:
+            raise serializers.ValidationError("valid_to no puede ser menor que valid_from.")
         return attrs
 
     def update(self, instance, validated_data):
         request = self.context["request"]
 
-        if hasattr(instance, "uploaded_by") and getattr(request, "user", None) and request.user.is_authenticated:
+        # si mandan file, reemplaza y resetea aprobación
+        new_file = validated_data.get("file", None)
+        if new_file:
+            instance.file = new_file
+            instance.is_approved = False
+
+        # metadata (si viene)
+        for f in ("reference_number", "valid_from", "valid_to"):
+            if f in validated_data:
+                setattr(instance, f, validated_data[f])
+
+        if getattr(request, "user", None) and request.user.is_authenticated:
             instance.uploaded_by = request.user
 
-        instance.file = validated_data["file"]
-        instance.is_approved = False  # al cambiar archivo, vuelve a revisión
         instance.save()
         return instance
 
