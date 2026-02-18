@@ -29,6 +29,7 @@ from django.urls import re_path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("favicon.ico", RedirectView.as_view(url='/static/favicon.ico', permanent=False)),
     path('users/', include(('users.urls', 'users'), namespace='users')),
     path('dashboard/', include(('properties.urls', 'properties'), namespace='properties')),
     path('', RedirectView.as_view(url='/users/login/', permanent=False)),
