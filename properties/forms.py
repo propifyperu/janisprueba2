@@ -592,6 +592,12 @@ class EventForm(forms.ModelForm):
     """Formulario para crear/editar eventos"""
     CONTACT_BLOCK_RE = r"--- CONTACTO ---.*?--- FIN CONTACTO ---\s*"
     # ✅ Campos extra (NO se guardan en otra tabla)
+    interesado = forms.CharField(
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del contacto (opcional)'}),
+        label='Nombre'
+    )
     contact_phone = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 999 999 999'}),
