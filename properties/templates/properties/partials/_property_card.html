@@ -91,7 +91,17 @@
               <span class="wp-check">✓</span> WP
             </span>
           {% endif %}
-
+          {% if property.is_draft and property.availability_status == "catchment" %}
+            <button
+              type="button"
+              class="btn btn-success btn-sm js-publish-property"
+              data-property-id="{{ property.id }}"
+              onclick="event.stopPropagation();"
+              title="Publicar propiedad"
+            >
+              <i class="fas fa-upload me-1"></i> Publicar
+            </button>
+          {% endif %}
           <div class="d-flex gap-1">
             <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
             {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
@@ -164,6 +174,18 @@
             <span class="wp-badge" title="Publicada en WP">
               <span class="wp-check">✓</span> WP
             </span>
+          {% endif %}
+            {# ✅ SOLO BORRADOR + EN PROCESO DE CAPTACIÓN #}
+            {% if property.is_draft and property.availability_status == "catchment" %}
+            <button
+              type="button"
+              class="btn btn-success btn-sm js-publish-property"
+              data-property-id="{{ property.id }}"
+              onclick="event.stopPropagation();"
+              title="Publicar propiedad"
+            >
+              <i class="fas fa-upload me-1"></i> Publicar
+            </button>
           {% endif %}
 
           <div class="d-flex gap-1">
