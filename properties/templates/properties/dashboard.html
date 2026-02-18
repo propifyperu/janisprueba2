@@ -1235,6 +1235,35 @@
                 </div>
             </div>
         </div>
+        <div class="modal fade" id="publishConfirmModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Publicar propiedad</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p id="publishConfirmText">
+                    Si publicas esta propiedad, será visible para todos y su estado cambiará a Disponible.
+                    </p>
+
+                    <div class="alert alert-danger d-none" id="publishErrorBox"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" id="publishConfirmYes">
+                    Sí, publicar
+                    </button>
+                </div>
+
+                </div>
+            </div>
+        </div>
     </main>
 </div>
 {% endblock %}
@@ -2304,4 +2333,117 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
   refreshCounts();
 })();
 </script>
+
+<script>
+(function () {
+
+  function getCookie(name) {
+    const cookies = document.cookie ? document.cookie.split("; ") : [];
+    for (const c of cookies) {
+      const [k, ...v] = c.split("=");
+      if (k === name) return decodeURIComponent(v.join("="));
+    }
+    return "";
+  }
+
+  function buildPublishUrl(propertyId) {
+    return `/dashboard/api/properties/${propertyId}/publish/`
+  }
+
+  let currentPropertyId = null;
+  let currentButton = null;
+
+async function publishProperty() {
+  const propertyId = currentPropertyId;
+
+  const confirmBtn = document.getElementById("publishConfirmYes");
+  const errorBox = document.getElementById("publishErrorBox");
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = "Publicando...";
+  errorBox.classList.add("d-none");
+  errorBox.textContent = "";
+
+  try {
+    const resp = await fetch(buildPublishUrl(propertyId), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken"),
+        "Accept": "application/json",
+      }
+    });
+
+    const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+
+    let data = null;
+    let text = "";
+
+    if (contentType.includes("application/json")) {
+      data = await resp.json().catch(() => null);
+    } else {
+      text = await resp.text().catch(() => "");
+    }
+
+    if (!resp.ok) {
+      errorBox.classList.remove("d-none");
+
+      // 403 típico: CSRF / no auth
+      if (resp.status === 403) {
+        errorBox.textContent = (data?.detail) || "No autorizado (403). Revisa sesión/CSRF.";
+        return;
+      }
+
+      // Mensaje real DRF
+      if (data?.detail) {
+        errorBox.textContent = data.detail;
+        return;
+      }
+
+      // Si vino HTML o texto, muestra algo útil
+      if (text) {
+        // opcional: recorta HTML para no ensuciar
+        errorBox.textContent = `Error ${resp.status}. (Respuesta no-JSON)`;
+        console.error("Non-JSON response:", text);
+        return;
+      }
+
+      errorBox.textContent = `No se pudo publicar (HTTP ${resp.status}).`;
+      return;
+    }
+
+    // éxito
+    window.location.reload();
+
+  } catch (err) {
+    errorBox.classList.remove("d-none");
+    errorBox.textContent = "Error de red al publicar.";
+    console.error(err);
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = "Sí, publicar";
+  }
+}
+
+  document.addEventListener("click", (e) => {
+    const publishBtn = e.target.closest(".js-publish-property");
+    if (!publishBtn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    currentPropertyId = publishBtn.dataset.propertyId;
+    currentButton = publishBtn;
+
+    const modalEl = document.getElementById("publishConfirmModal");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+    }, true); 
+
+  document.getElementById("publishConfirmYes")
+    ?.addEventListener("click", publishProperty);
+
+})();
+</script>
+
 {% endblock %}

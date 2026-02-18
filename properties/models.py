@@ -508,6 +508,7 @@ AVAILABILITY_STATUS_CHOICES = [
     ("sold", "Vendida"),
     ("unavailable", "No disponible"),
     ("paused", "Pausada"),
+    ("catchment", "En proceso de captacion"),
 ]
 
 REQUIRED_DOC_CODES = [
@@ -951,8 +952,13 @@ class PropertyDocument(TitleCaseMixin, models.Model):
     title_case_fields = ('title',)
     property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='documents')
     document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT, null=True, blank=True)
-    file = models.FileField(upload_to='properties/documents/')
+    file = models.FileField(upload_to='properties/documents/', null=True, blank=True)
     title = EncryptedCharField(max_length=255)
+    # ✅ NUEVO: metadata genérica por documento
+    reference_number = models.CharField(max_length=80, blank=True, null=True, db_index=True)
+    valid_from = models.DateField(blank=True, null=True)
+    valid_to = models.DateField(blank=True, null=True)
+
     description = EncryptedTextField(blank=True)
     uploaded_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
