@@ -249,29 +249,29 @@
                                     <div class="col-4">
                                         <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
                                             <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Com. Inicial</label>
-                                            <span class="fw-bold text-success small">{{ property.initial_commission_percentage|default:"0" }}%</span>
+                                            <span class="fw-bold text-success small">{{ property.financial_info.initial_commission_percentage|default:"0" }}%</span>
                                         </div>
                                     </div>
                                     <div class="col-4">
                                         <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
                                             <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Com. Final</label>
-                                            <span class="fw-bold text-success small">{{ property.final_commission_percentage|default:"0" }}%</span>
+                                            <span class="fw-bold text-success small">{{ property.financial_info.final_commission_percentage|default:"0" }}%</span>
                                         </div>
                                     </div>
                                     <div class="col-4">
                                         <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
                                             <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Cierre</label>
-                                            <span class="fw-bold text-dark small" style="font-size: 0.75rem;">{{ property.currency.symbol }} {{ property.final_amount|floatformat:0|default:"0" }}</span>
+                                            <span class="fw-bold text-dark small" style="font-size: 0.75rem;">{{ property.currency.symbol }} {{ property.financial_info.final_amount|floatformat:0|default:"0" }}</span>
                                         </div>
                                     </div>
                                     <div class="col-12 border-top my-0"></div>
                                     <div class="col-6">
                                          <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Estado Negociación</label>
-                                         <div class="small"><span class="badge bg-warning text-dark py-0">{{ property.negotiation_status.name|default:"-" }}</span></div>
+                                         <div class="small"><span class="badge bg-warning text-dark py-0">{{ property.financial_info.negotiation_status.name|default:"-" }}</span></div>
                                     </div>
                                     <div class="col-6">
                                          <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Tipo de Contrato</label>
-                                         <div class="small fw-bold text-truncate">{{ property.contract_type.name|default:"-" }}</div>
+                                         <div class="small fw-bold text-truncate">{{ property.financial_info.contract_type.name|default:"-" }}</div>
                                     </div>
                                 </div>
                             </div>
