@@ -613,13 +613,33 @@
                     <div class="event-detail-value" id="modalEventCreatedBy"></div>
                 </div>
             </div>
+            <div class="event-detail-row" id="modalSeguimientoRow" style="display:none;">
+                <i class="fas fa-comment-dots"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Seguimiento</div>
+                    <div class="event-detail-value" id="modalEventSeguimiento"></div>
+                </div>
+            </div>
+
+            <div id="followupEditor" style="display:none; margin-top: 10px;">
+                <div class="mb-2 text-muted" style="font-size:12px;">Registrar seguimiento</div>
+                <textarea id="followupText" class="form-control" rows="3" placeholder="Escribe el detalle de la visita..."></textarea>
+                <div class="d-flex justify-content-end gap-2 mt-2">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleFollowup(false)">Cancelar</button>
+                    <button id="btnSaveFollowup" class="btn btn-sm btn-modal-edit" type="button" onclick="saveFollowup()">Guardar seguimiento</button>
+                </div>
+            </div>
         </div>
+
         <div class="event-modal-footer">
             <a href="#" id="btnEditEvent" class="btn-modal btn-modal-edit">
                 <i class="fas fa-edit"></i> Editar
             </a>
             <button onclick="deleteEvent()" class="btn-modal btn-modal-delete">
                 <i class="fas fa-trash"></i> Eliminar
+            </button>
+            <button type="button" class="btn-modal btn-modal-edit" onclick="toggleFollowup(true)">
+                <i class="fas fa-comment"></i> Registrar seguimiento
             </button>
         </div>
     </div>
@@ -861,6 +881,18 @@ function showEventModal(event) {
     } else {
         document.getElementById('modalCreatedByRow').style.display = 'none';
     }
+    // Seguimiento
+    if (props.seguimiento && props.seguimiento.trim() !== "") {
+    document.getElementById('modalEventSeguimiento').textContent = props.seguimiento;
+    document.getElementById('modalSeguimientoRow').style.display = 'flex';
+    } else {
+    document.getElementById('modalSeguimientoRow').style.display = 'none';
+    document.getElementById('modalEventSeguimiento').textContent = '';
+    }
+
+    // reset editor
+    document.getElementById('followupEditor').style.display = 'none';
+    document.getElementById('followupText').value = props.seguimiento || '';
     
     // URL de edición
     document.getElementById('btnEditEvent').href = `/dashboard/agenda/eventos/${event.id}/editar/`;
@@ -898,6 +930,89 @@ function toggleAgentsMobile() {
     }
 
     legend.classList.toggle('show-mobile');
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+function toggleFollowup(show) {
+  const editor = document.getElementById('followupEditor');
+  editor.style.display = show ? 'block' : 'none';
+}
+
+let isSavingFollowup = false;
+
+function setFollowupSavingState(saving) {
+  const btn = document.getElementById('btnSaveFollowup');
+  const textarea = document.getElementById('followupText');
+  if (!btn) return;
+
+  btn.disabled = saving;
+  if (textarea) textarea.disabled = saving;
+
+  if (saving) {
+    btn.dataset.originalText = btn.innerHTML;
+    btn.innerHTML = 'Guardando...';
+  } else {
+    btn.innerHTML = btn.dataset.originalText || 'Guardar seguimiento';
+  }
+}
+
+function saveFollowup() {
+  if (!currentEventId) return;
+  if (isSavingFollowup) return; // 👈 evita doble click / spam
+
+  isSavingFollowup = true;
+  setFollowupSavingState(true);
+
+  const text = document.getElementById('followupText').value || "";
+
+  fetch(`/dashboard/agenda/eventos/${currentEventId}/seguimiento/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "X-CSRFToken": csrftoken
+    },
+    body: new URLSearchParams({ seguimiento: text })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) throw new Error('Respuesta no OK');
+
+    const val = (data.seguimiento || "").trim();
+
+    if (val) {
+      document.getElementById('modalEventSeguimiento').textContent = val;
+      document.getElementById('modalSeguimientoRow').style.display = 'flex';
+    } else {
+      document.getElementById('modalSeguimientoRow').style.display = 'none';
+      document.getElementById('modalEventSeguimiento').textContent = '';
+    }
+
+    toggleFollowup(false);
+    if (calendar) calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error("Error guardando seguimiento:", err);
+    alert("No se pudo guardar el seguimiento. Intenta otra vez.");
+  })
+  .finally(() => {
+    isSavingFollowup = false;
+    setFollowupSavingState(false);
+  });
 }
 
 </script>
