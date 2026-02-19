@@ -1476,7 +1476,7 @@ class Event(TitleCaseMixin, models.Model):
     hora_inicio = models.TimeField(verbose_name='Hora de inicio')
     hora_fin = models.TimeField(verbose_name='Hora de término')
     detalle = models.TextField(blank=True, verbose_name='Detalle de la visita')
-    
+    seguimiento = models.TextField(blank=True, verbose_name="Seguimiento de la visita")
     # Contacto vinculado (reemplaza interesado CharField)
     contact = models.ForeignKey('PropertyOwner', on_delete=models.SET_NULL, null=True, blank=True, 
                                 related_name='events', verbose_name='Contacto')

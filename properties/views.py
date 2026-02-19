@@ -1565,6 +1565,18 @@ def event_delete_view(request, pk):
     messages.success(request, 'Evento eliminado correctamente.')
     return redirect('properties:agenda_calendar')
 
+@login_required
+@require_POST
+def event_save_followup(request, event_id):
+    from .models import Event
+    event = get_object_or_404(Event, pk=event_id)
+
+    # (opcional) seguridad básica: si no puede ver el evento, aquí validas.
+    seguimiento = (request.POST.get("seguimiento") or "").strip()
+    event.seguimiento = seguimiento
+    event.save(update_fields=["seguimiento", "updated_at"])
+
+    return JsonResponse({"ok": True, "seguimiento": event.seguimiento})
 
 @login_required
 def api_events_json(request):
@@ -1624,6 +1636,7 @@ def api_events_json(request):
                 'property_agent': event.property.assigned_agent.get_full_name() if event.property and event.property.assigned_agent else '',
                 'assigned_agent': event.assigned_agent.get_full_name() if event.assigned_agent else '',
                 'assigned_agent_id': event.assigned_agent_id if event.assigned_agent else None,
+                "seguimiento": event.seguimiento or "",
             }
         })
 
