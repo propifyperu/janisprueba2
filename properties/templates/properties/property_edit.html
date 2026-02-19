@@ -620,7 +620,7 @@
                                     <div class="row g-3">
                                         <div class="col-xl-5 col-lg-6">
                                             <label class="form-label">Archivo (reemplazar si desea)</label>
-                                            <input type="file" name="images" class="form-control" accept="image/*">
+                                            <input type="file" name="existing_images_{{ image.id }}" class="form-control" accept="image/*">
                                             <div class="small text-muted mt-1">Archivo actual: 
                                                 {% if image.image %}
                                                     <a href="{{ image.image.url }}" target="_blank">ver</a>
@@ -631,19 +631,19 @@
                                         </div>
                                         <div class="col-md-3 col-lg-2">
                                             <label class="form-label">Tipo</label>
-                                            <select name="image_types" class="form-select" data-selected="{% if image.image_type %}{{ image.image_type.id }}{% endif %}"></select>
+                                            <select name="existing_image_types_{{ image.id }}" class="form-select" data-selected="{% if image.image_type %}{{ image.image_type.id }}{% endif %}"></select>
                                         </div>
                                         <div class="col-md-3 col-lg-2">
                                             <label class="form-label">Ambiente</label>
-                                            <select name="image_ambientes" class="form-select" data-selected="{% if image.image_ambiente %}{{ image.image_ambiente.id }}{% endif %}"></select>
+                                            <select name="existing_image_ambientes_{{ image.id }}" class="form-select" data-selected="{% if image.image_ambiente %}{{ image.image_ambiente.id }}{% endif %}"></select>
                                         </div>
                                         <div class="col-md-2 col-lg-2">
                                             <label class="form-label">Orden</label>
-                                            <input type="number" name="image_orders" class="form-control" min="1" value="{{ image.order|default:forloop.counter }}">
+                                            <input type="number" name="existing_image_orders_{{ image.id }}" class="form-control" min="1" value="{{ image.order|default:forloop.counter }}">
                                         </div>
                                         <div class="col-lg-8 col-md-12">
                                             <label class="form-label">Descripción</label>
-                                            <input type="text" name="image_captions" class="form-control" value="{{ image.caption }}" placeholder="Descripción de la imagen">
+                                            <input type="text" name="existing_image_captions_{{ image.id }}" class="form-control" value="{{ image.caption }}" placeholder="Descripción de la imagen">
                                         </div>
                                         <div class="col-lg-4 col-md-12 d-flex align-items-center justify-content-center">
                                             <div class="image-preview w-100 text-center">
@@ -1793,8 +1793,8 @@ function populateDocumentTypeSelect(select) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('select[name="image_types"]').forEach(populateImageTypeSelect);
-    document.querySelectorAll('select[name="image_ambientes"]').forEach(populateImageAmbienteSelect);
+    document.querySelectorAll('select[name^="image_types"], select[name^="existing_image_types_"]').forEach(populateImageTypeSelect);
+    document.querySelectorAll('select[name^="image_ambientes"], select[name^="existing_image_ambientes_"]').forEach(populateImageAmbienteSelect);
     document.querySelectorAll('select[name="video_types"]').forEach(populateVideoTypeSelect);
     document.querySelectorAll('select[name="document_types"]').forEach(populateDocumentTypeSelect);
 });
@@ -1953,6 +1953,18 @@ document.addEventListener('click', function(e) {
         const btn = e.target;
         const container = btn.closest('.dynamic-form-item');
         if (!container) return;
+
+        // Si es una imagen existente, marcar para eliminar en el backend
+        const existingIdInput = container.querySelector('input[name="existing_image_ids"]');
+        if (existingIdInput) {
+            const form = document.getElementById('propertyForm');
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'deleted_images';
+            hiddenInput.value = existingIdInput.value;
+            form.appendChild(hiddenInput);
+        }
+
         const parent = container.parentNode;
         if (parent && parent.children && parent.children.length > 1) {
             parent.removeChild(container);
