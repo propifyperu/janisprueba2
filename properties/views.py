@@ -2953,17 +2953,23 @@ def edit_property_view(request, pk):
             # Normalizar secuencia de orders tras posibles adiciones
             _normalize_image_orders(property_obj)
 
-            # Actualizar flag `sensible` para imágenes existentes si se enviaron controles separados
             try:
-                imgs = PropertyImage.objects.filter(property=property_obj)
-                for im in imgs:
+                existing_ids = request.POST.getlist('existing_image_ids')
+                for img_id in existing_ids:
                     try:
-                        key = f'existing_image_sensible_{im.id}'
-                        v = request.POST.get(key)
-                        sensible_val = str(v) in ('1', 'true', 'on')
-                        if im.sensible != sensible_val:
-                            PropertyImage.objects.filter(pk=im.pk).update(sensible=sensible_val)
-                    except Exception:
+                        im = PropertyImage.objects.get(pk=img_id, property=property_obj)
+                        
+                        im.caption = request.POST.get(f'existing_image_captions_{img_id}', im.caption)
+                        im.order = int(request.POST.get(f'existing_image_orders_{img_id}', im.order))
+                        im.image_type_id = request.POST.get(f'existing_image_types_{img_id}') or None
+                        im.image_ambiente_id = request.POST.get(f'existing_image_ambientes_{img_id}') or None
+                        im.sensible = request.POST.get(f'existing_image_sensible_{img_id}') == '1'
+
+                        if f'existing_images_{img_id}' in request.FILES:
+                            im.image = request.FILES[f'existing_images_{img_id}']
+                        
+                        im.save()
+                    except (PropertyImage.DoesNotExist, ValueError):
                         continue
             except Exception:
                 pass
