@@ -42,6 +42,7 @@ urlpatterns = [
     path('agenda/eventos/<int:pk>/editar/', views.event_edit_view, name='event_edit'),
     path('agenda/eventos/<int:pk>/borrar/', views.event_delete_view, name='event_delete'),
     path('api/events/', views.api_events_json, name='api_events'),
+    path("agenda/eventos/<int:event_id>/seguimiento/", views.event_save_followup, name="event_followup"),
     # APIs
     path('api/document-types-legacy/', views.api_document_types, name='api_document_types_legacy'),
     path('api/external/properties/', ExternalPropertyListView.as_view(), name='external_properties_list'),
@@ -80,4 +81,5 @@ urlpatterns = [
     path('', views.PropertyDashboardView.as_view(), name='dashboard_root'),
     path("api/<int:pk>/availability/", views.property_availability_api, name="property_availability_api"),
     path("api/", include("properties.wordpress.urls")),
+
 ]
