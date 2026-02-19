@@ -148,10 +148,6 @@
                                 <span class="text-muted opacity-50 d-block" style="font-size: 0.7rem;">Vista No Autorizada</span>
                             {% endif %}
                         </div>
-                        <div>
-                            <strong class="text-dark d-block" style="font-size: 0.75rem;">Responsable</strong>
-                            <span class="text-muted d-block text-truncate">{{ property.responsible.get_full_name|default:property.created_by.get_full_name|default:property.created_by.username }}</span>
-                        </div>
                     </div>
                 </div>
              </div>
