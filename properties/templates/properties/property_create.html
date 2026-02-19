@@ -880,9 +880,11 @@
                             <button type="submit" name="action" value="save_draft" class="btn btn-outline-secondary">
                                 <i class="fas fa-file-alt me-2"></i>Guardar Como Borrador
                             </button>
-                            <button type="submit" name="action" value="save_property" class="btn btn-primary" id="submitBtn" style="background-color: #047d7d; border-color: #047d7d; color: #fff;">
-                                <i class="fas fa-save me-2"></i>Guardar Propiedad Activa
-                            </button>
+                            {% if not is_draft_mode %}
+                                <button type="submit" name="action" value="save_property" class="btn btn-primary">
+                                    Guardar propiedad activa
+                                </button>
+                            {% endif %}
                             <button type="submit" name="action" value="save_and_clone" class="btn btn-success" id="cloneBtn" style="display:none;">
                                 <i class="fas fa-copy me-2"></i>Guardar y clonar propiedad
                             </button>

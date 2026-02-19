@@ -1771,9 +1771,9 @@ def property_timeline_view(request, pk):
 def drafts_list_view(request):
     """Listar borradores (propiedades creadas por el usuario con is_active=False)."""
     # Filtrar por `is_draft=True` y `is_active=False` para listar solo borradores reales
-    drafts = Property.objects.filter(created_by=request.user, is_active=False, is_draft=True).order_by('-created_at')
+    drafts = Property.objects.filter(created_by=request.user, is_draft=True).order_by('-created_at')
     return render(request, 'properties/property_drafts.html', {
-        'drafts': drafts,
+        'properties': drafts,
     })
 
 
@@ -2195,6 +2195,9 @@ def create_property_view(request):
     owner_form = PropertyOwnerForm(request.POST or None)
     financial_form = PropertyFinancialInfoForm(request.POST or None)
     form = PropertyForm(request.POST or None, request.FILES or None)
+
+    mode = request.GET.get("mode")
+    is_draft_mode = mode == "draft"
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -2711,6 +2714,7 @@ def create_property_view(request):
                 'room_types': room_types,
                 'floor_types': floor_types,
                 'contactos_existentes': contactos_existentes,
+                'is_draft_mode': is_draft_mode,
             })
 
     contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
@@ -2723,6 +2727,7 @@ def create_property_view(request):
         'room_types': room_types,
         'floor_types': floor_types,
         'contactos_existentes': contactos_existentes,
+        'is_draft_mode': is_draft_mode,
     })
 
 
