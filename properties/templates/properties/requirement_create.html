@@ -541,10 +541,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        function isTypeCasa(){
+            try{
+                const txt = typeSelect.options[typeSelect.selectedIndex]?.text?.toLowerCase() || '';
+                return txt.includes('casa') || txt.includes('casas');
+            }catch(e){
+                return false;
+            }
+        }
+
         function toggleFloors(){
             const hasDept = dept && dept.value && dept.value !== '';
             const typeIsDept = typeSelect && isTypeDepartamento();
-            if(hasDept || typeIsDept){
+            const typeIsCasa = typeSelect && isTypeCasa();
+            if(!typeIsCasa && (hasDept || typeIsDept)){
                 floorsRow.style.display = '';
             } else {
                 floorsRow.style.display = 'none';
