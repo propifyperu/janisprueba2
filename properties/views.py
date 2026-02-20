@@ -151,6 +151,21 @@ def delete_draft_view(request, pk):
         messages.error(request, 'No se encontró el borrador o no tienes permiso para borrarlo.')
     return HttpResponseRedirect(reverse('properties:drafts'))
 
+@login_required
+@require_POST
+def delete_property_view(request, pk):
+    property_obj = get_object_or_404(Property, pk=pk)
+
+    is_owner = (property_obj.created_by == request.user) # permisos superusuario, creador o responsable
+    is_responsible = (property_obj.responsible == request.user)
+
+    if not (request.user.is_superuser or is_owner or is_responsible):
+        messages.error(request, 'No tienes permiso para eliminar esta propiedad.')
+        return redirect('properties:my_properties')
+
+    Property.objects.filter(pk=pk).update(is_active=False)
+    messages.success(request, 'Propiedad eliminada correctamente.')
+    return redirect('properties:my_properties')
 
 # Vista ULTRA SIMPLE sin templates - SOLO HTML PURO
 def simple_properties_view(request):
