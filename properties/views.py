@@ -994,6 +994,10 @@ class ContactListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         queryset = PropertyOwner.objects.filter(is_active=True)
+                
+        if not self.request.user.is_superuser:
+            queryset = queryset.filter(created_by=self.request.user)
+
         search = self.request.GET.get('search', '').strip()
         if search:
             queryset = queryset.filter(
