@@ -18,6 +18,7 @@ urlpatterns = [
     path('marketing/whatsapp/track/<int:link_id>/', views.track_whatsapp_click, name='track_whatsapp_click'),
     path('crear/', views.create_property_view, name='create'),
     path('mis-propiedades/', views.MyPropertiesView.as_view(), name='my_properties'),
+    path('mis-propiedades/<int:pk>/eliminar/', views.delete_property_view, name='delete_property'),
     path('<int:pk>/', views.PropertyDetailView.as_view(), name='detail'),
     path('<int:pk>/pdf/', views.PropertyPDFView.as_view(), name='generate_pdf'),
     path('borradores/', views.drafts_list_view, name='drafts'),

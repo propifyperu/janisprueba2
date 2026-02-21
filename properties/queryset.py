@@ -24,4 +24,4 @@ def visible_properties_for(user, qs):
     )
     
 def my_properties_for(user, qs):
-    return qs.filter(responsible=user).filter(Q(is_draft=False) )
+    return qs.filter(responsible=user, is_active=True).filter(Q(is_draft=False))

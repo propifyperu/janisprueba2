@@ -170,6 +170,15 @@
                                             <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-sm btn-white border text-info" title="Historial">
                                                 <i class="fas fa-history"></i>
                                             </a>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-white border text-danger" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#deleteModal" 
+                                                    data-delete-url="{% url 'properties:delete_property' property.pk %}" 
+                                                    data-prop-title="{{ property.title|default:'(Sin título)' }}"
+                                                    title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -232,5 +241,48 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal de Confirmación -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteModalLabel">Confirmar Eliminación</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            ¿Estás seguro que deseas eliminar la propiedad <strong id="modalPropTitle"></strong>?
+            <br><br>
+            <small class="text-muted">Esta acción la desactivará del sistema y dejará de ser visible públicamente.</small>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <form id="deleteForm" method="POST" action="">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script>
+    var deleteModal = document.getElementById('deleteModal')
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget
+            var deleteUrl = button.getAttribute('data-delete-url')
+            var propTitle = button.getAttribute('data-prop-title')
+            
+            var modalTitle = deleteModal.querySelector('#modalPropTitle')
+            modalTitle.textContent = propTitle
+
+            var form = deleteModal.querySelector('#deleteForm')
+            form.action = deleteUrl
+        })
+    }
+</script>
 {% endblock %}

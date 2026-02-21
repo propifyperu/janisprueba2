@@ -151,6 +151,21 @@ def delete_draft_view(request, pk):
         messages.error(request, 'No se encontró el borrador o no tienes permiso para borrarlo.')
     return HttpResponseRedirect(reverse('properties:drafts'))
 
+@login_required
+@require_POST
+def delete_property_view(request, pk):
+    property_obj = get_object_or_404(Property, pk=pk)
+
+    is_owner = (property_obj.created_by == request.user) # permisos superusuario, creador o responsable
+    is_responsible = (property_obj.responsible == request.user)
+
+    if not (request.user.is_superuser or is_owner or is_responsible):
+        messages.error(request, 'No tienes permiso para eliminar esta propiedad.')
+        return redirect('properties:my_properties')
+
+    Property.objects.filter(pk=pk).update(is_active=False)
+    messages.success(request, 'Propiedad eliminada correctamente.')
+    return redirect('properties:my_properties')
 
 # Vista ULTRA SIMPLE sin templates - SOLO HTML PURO
 def simple_properties_view(request):
@@ -733,6 +748,8 @@ def matching_matches_view(request, pk: int):
 
     # calcular coincidencias
     results = matching_module.get_matches_for_requirement(req, limit=50)
+    # Filtrar solo propiedades disponibles
+    results = [r for r in results if r.get('property') and r.get('property').availability_status == 'available']
     # cargar pesos por criterio para mostrar el valor máximo posible por criterio
     weights = matching_module._load_weights()
 
@@ -1066,7 +1083,7 @@ class RequirementListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = Requirement.objects.filter(is_active=True).select_related('created_by').annotate(
-            match_score=Max('matches__score')
+            match_score=Max('matches__score', filter=Q(matches__property__availability_status='available'))
         ).order_by('-created_at')
         from django.db import OperationalError
         try:
@@ -1322,8 +1339,8 @@ class MyRequirementsView(LoginRequiredMixin, ListView):
                     "districts",
                 )
                 .annotate(
-                    matches_count=Count('matches', distinct=True),
-                    top_score=Max('matches__score'),
+                    matches_count=Count('matches', filter=Q(matches__property__availability_status='available'), distinct=True),
+                    top_score=Max('matches__score', filter=Q(matches__property__availability_status='available')),
                 )
                 .defer("notes")
                 .order_by('-created_at')
@@ -1479,8 +1496,11 @@ def agenda_calendar_view(request):
 def event_create_view(request):
     """Vista para crear un nuevo evento (sin contacto obligatorio)"""
     from .forms import EventForm
-    from .models import Event
+    from .models import Event, EventType
     from django.contrib import messages
+
+    # Asegurar que existe el tipo de evento 'Otro'
+    EventType.objects.get_or_create(name='Otro', defaults={'color': '#6c757d'})
 
     if request.method == 'POST':
         form = EventForm(request.POST)
