@@ -5,6 +5,7 @@ from django.core.files.storage import default_storage
 from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from users.roles import is_agent
+from django.db.models import Case, When, Value, IntegerField
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
@@ -1880,6 +1881,13 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             except ValueError:
                 pass
 
+        responsible = self.request.GET.get('responsible', '').strip()
+        if responsible:
+            try:
+                queryset = queryset.filter(responsible_id=int(responsible))
+            except ValueError:
+                pass
+
         price_min = self.request.GET.get('price_min', '').strip()
         if price_min:
             try:
@@ -2037,7 +2045,19 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 else:
                     queryset = queryset.filter(status__name__icontains=status)
 
-        return queryset.order_by('-created_at')
+        queryset = queryset.annotate(
+            availability_rank=Case(
+                When(availability_status__iexact='available', then=Value(1)),
+                When(availability_status__iexact='reserved', then=Value(2)),
+                When(availability_status__iexact='paused', then=Value(3)),
+                When(availability_status__iexact='sold', then=Value(4)),
+                When(availability_status__iexact='unavailable', then=Value(5)),
+                default=Value(99),
+                output_field=IntegerField(),
+            )
+        )
+
+        return queryset.order_by('availability_rank', '-updated_at', '-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -2047,6 +2067,17 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         context['property_types'] = PropertyType.objects.filter(is_active=True).order_by('name')
         from .models import PaymentMethod, District, Urbanization, Department, Province
         context['payment_methods'] = PaymentMethod.objects.filter(is_active=True).order_by('order')
+        from users.models import CustomUser  # ajusta si tu import real es distinto
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        context["agents"] = (
+            User.objects
+            .filter(
+                is_active=True,
+                role__name__in=["Agente interno", "Agente externo"],
+            )
+            .order_by("first_name", "last_name", "username")
+        )
         # Obtener distritos de las propiedades ya cargadas en memoria
         # Resolver posibles valores numéricos a nombres usando el modelo District
         raw_districts = [p.district for p in properties if p.district]
@@ -2079,6 +2110,7 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             'property_type': self.request.GET.get('property_type', '').strip(),
             'district': self.request.GET.get('district', '').strip(),
             'payment_method': self.request.GET.get('payment_method', '').strip(),
+            'responsible': self.request.GET.get('responsible', '').strip(),
             'price_min': self.request.GET.get('price_min', '').strip(),
             'price_max': self.request.GET.get('price_max', '').strip(),
         }
