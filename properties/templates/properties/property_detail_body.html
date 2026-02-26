@@ -148,6 +148,25 @@
                                 <span class="text-muted opacity-50 d-block" style="font-size: 0.7rem;">Vista No Autorizada</span>
                             {% endif %}
                         </div>
+                        <div class="mt-2">
+                            <strong class="text-dark d-block" style="font-size: 0.75rem;">Agente asignado</strong>
+
+                            {% if property.responsible %}
+                                <span class="text-muted d-block text-truncate">
+                                {{ property.responsible.get_full_name|default:property.responsible.username }}
+                                </span>
+
+                                {% if property.responsible.phone %}
+                                <span class="text-muted d-block" style="font-size: 0.72rem;">
+                                    <i class="fas fa-phone me-1"></i>{{ property.responsible.phone }}
+                                </span>
+                                {% else %}
+                                <span class="text-dark" style="font-size: 0.72rem;">Sin teléfono</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-dark">Sin asignar</span>
+                            {% endif %}
+                            </div>
                     </div>
                 </div>
              </div>
