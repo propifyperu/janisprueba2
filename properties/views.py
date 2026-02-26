@@ -1501,6 +1501,7 @@ def event_create_view(request):
 
     # Asegurar que existe el tipo de evento 'Otro'
     EventType.objects.get_or_create(name='Otro', defaults={'color': '#6c757d'})
+    visita_type = EventType.objects.filter(name__iexact='Visita').first()
 
     if request.method == 'POST':
         form = EventForm(request.POST)
@@ -1524,7 +1525,16 @@ def event_create_view(request):
             return redirect('properties:agenda_calendar')
 
     else:
-        form = EventForm()
+        initial = {}
+        property_id = request.GET.get("property")
+        if property_id:
+            initial["property"] = property_id
+        
+        initial["assigned_agent"] = request.user.id
+        initial["event_type"] = visita_type.id
+        form = EventForm(initial=initial)
+
+
 
     return render(request, 'properties/event_create.html', {
         'form': form,
