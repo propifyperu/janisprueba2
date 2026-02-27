@@ -1887,6 +1887,10 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 queryset = queryset.filter(responsible_id=int(responsible))
             except ValueError:
                 pass
+        
+        source = self.request.GET.get('source', '').strip()
+        if source:
+            queryset = queryset.filter(source__iexact=source)
 
         price_min = self.request.GET.get('price_min', '').strip()
         if price_min:
@@ -2074,7 +2078,7 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             User.objects
             .filter(
                 is_active=True,
-                role__name__in=["Agente interno", "Agente externo"],
+                role__name__in=["Agente interno", "Agente externo", "Agente remax"],
             )
             .order_by("first_name", "last_name", "username")
         )
@@ -2103,6 +2107,13 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                     districts.append({'id': '', 'name': str(d)})
 
         context['districts_list'] = sorted(districts, key=lambda x: (x.get('name') or ''))
+        context["sources"] = list(
+            Property.objects.exclude(source__isnull=True)
+            .exclude(source="")
+            .values_list("source", flat=True)
+            .distinct()
+            .order_by("source")
+        )
         # ------------
         # filtros UI
         # ------------
@@ -2111,8 +2122,10 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             'district': self.request.GET.get('district', '').strip(),
             'payment_method': self.request.GET.get('payment_method', '').strip(),
             'responsible': self.request.GET.get('responsible', '').strip(),
+            'source': self.request.GET.get('source', '').strip(),
             'price_min': self.request.GET.get('price_min', '').strip(),
             'price_max': self.request.GET.get('price_max', '').strip(),
+            
         }
         # Añadir filtros avanzados actuales para persistir la UI
         context['filters'].update({
