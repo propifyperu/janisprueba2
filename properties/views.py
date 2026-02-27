@@ -1552,8 +1552,7 @@ def event_edit_view(request, pk):
     event = get_object_or_404(Event, pk=pk)
     
     # Solo el creador o superusuario puede editar
-    # OJO: También permitimos editar al agente asignado
-    if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
+    if not request.user.is_superuser:
         messages.error(request, 'No tienes permiso para editar este evento.')
         return redirect('properties:agenda_calendar')
     
@@ -1590,7 +1589,7 @@ def event_delete_view(request, pk):
     event = get_object_or_404(Event, pk=pk)
     
     # Solo el creador o superusuario puede eliminar
-    if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
+    if not request.user.is_superuser:
         from django.contrib import messages
         messages.error(request, 'No tienes permiso para eliminar este evento.')
         return redirect('properties:agenda_calendar')

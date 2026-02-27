@@ -632,12 +632,14 @@
         </div>
 
         <div class="event-modal-footer">
+            {% if request.user.is_superuser %}
             <a href="#" id="btnEditEvent" class="btn-modal btn-modal-edit">
                 <i class="fas fa-edit"></i> Editar
             </a>
             <button onclick="deleteEvent()" class="btn-modal btn-modal-delete">
                 <i class="fas fa-trash"></i> Eliminar
             </button>
+            {% endif %}
             <button type="button" class="btn-modal btn-modal-edit" onclick="toggleFollowup(true)">
                 <i class="fas fa-comment"></i> Registrar seguimiento
             </button>
@@ -895,7 +897,10 @@ function showEventModal(event) {
     document.getElementById('followupText').value = props.seguimiento || '';
     
     // URL de edición
-    document.getElementById('btnEditEvent').href = `/dashboard/agenda/eventos/${event.id}/editar/`;
+    var btnEdit = document.getElementById('btnEditEvent');
+    if (btnEdit) {
+        btnEdit.href = `/dashboard/agenda/eventos/${event.id}/editar/`;
+    }
     
     // Mostrar modal
     document.getElementById('eventModal').style.display = 'block';
