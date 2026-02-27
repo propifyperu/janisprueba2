@@ -1025,6 +1025,18 @@
                 </select>
             </div>
 
+            <div class="filter-control">
+                <label for="filter-source">Origen</label>
+                <select class="form-select form-select-sm" id="filter-source" name="source">
+                    <option value="">Todos</option>
+                    {% for source in sources %}
+                    <option value="{{ source }}" {% if filters.source == source %}selected{% endif %}>
+                        {{ source }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <div class="filter-control row g-1">
                 <div class="col-6">
                     <label for="filter-price-min">Precio Min</label>
