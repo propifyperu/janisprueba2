@@ -1173,7 +1173,6 @@
     <!-- Área de Visualización: Mapa y Resultados (scrollable juntos) -->
     <main class="dashboard-view-area">
         <!-- Mapa -->
-         {% if request.user.role and request.user.role.name != 'Agente Externo'  %}
          <div class="map-container-main">
             <div class="layer-toggle-bar">
                 <span class="layer-toggle-title fw-bold text-primary"><i class="fas fa-layer-group me-1"></i>CAPAS</span>
@@ -1204,7 +1203,6 @@
             </div>
             {% endif %}
         </div>
-         {% endif %}
         
 
         <!-- Resultados -->
