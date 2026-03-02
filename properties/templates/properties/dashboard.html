@@ -963,9 +963,12 @@
     <aside class="filter-sidebar ">
         <!-- Switcher de Vista -->
         <div class="view-switcher mb-3" style="margin: 0 0 1rem 0;">
+            {% if request.user.role and request.user.role.name != 'Agente Externo'  %}
             <button type="button" class="view-btn active" id="btn-view-map" onclick="switchDashboardView('map')">
                 <i class="fas fa-map"></i> Mapa
             </button>
+            {% endif %}
+            
             <button type="button" class="view-btn" id="btn-view-list" onclick="switchDashboardView('properties')">
                 <i class="fas fa-list"></i> Propiedades
             </button>
@@ -1170,7 +1173,8 @@
     <!-- Área de Visualización: Mapa y Resultados (scrollable juntos) -->
     <main class="dashboard-view-area">
         <!-- Mapa -->
-        <div class="map-container-main">
+         {% if request.user.role and request.user.role.name != 'Agente Externo'  %}
+         <div class="map-container-main">
             <div class="layer-toggle-bar">
                 <span class="layer-toggle-title fw-bold text-primary"><i class="fas fa-layer-group me-1"></i>CAPAS</span>
                 <div class="layer-toggle-options">
@@ -1200,6 +1204,8 @@
             </div>
             {% endif %}
         </div>
+         {% endif %}
+        
 
         <!-- Resultados -->
         <div class="results-section">
