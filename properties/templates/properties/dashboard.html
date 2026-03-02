@@ -948,7 +948,7 @@
 {% endblock %}
 
 {% block dashboard_content %}
-<div class="dashboard-main-container view-mode-map" id="dashboard-container">
+<div class="dashboard-main-container view-mode-properties" id="dashboard-container">
     <!-- Sidebar de Filtros: Ocupa toda la altura izquierda -->
      <div class="mobile-filters-toggle mt-3">
         <button id="openFilters" class="btn btn-primary  w-100">
@@ -962,17 +962,17 @@
 
     <aside class="filter-sidebar ">
         <!-- Switcher de Vista -->
+        {% if request.user.role and request.user.role.name != 'Agente Externo'  %}
         <div class="view-switcher mb-3" style="margin: 0 0 1rem 0;">
-            {% if request.user.role and request.user.role.name != 'Agente Externo'  %}
             <button type="button" class="view-btn active" id="btn-view-map" onclick="switchDashboardView('map')">
                 <i class="fas fa-map"></i> Mapa
             </button>
-            {% endif %}
-            
             <button type="button" class="view-btn" id="btn-view-list" onclick="switchDashboardView('properties')">
                 <i class="fas fa-list"></i> Propiedades
             </button>
+            
         </div>
+        {% endif %}
 
         <div class="filter-body">
             <form method="get" id="filter-form">
@@ -1328,13 +1328,8 @@ function switchDashboardView(view) {
         btnMap.classList.remove('active');
     }
     // Guardar preferencia
-    localStorage.setItem('dashboardViewPreferred', view);
+    //localStorage.setItem('dashboardViewPreferred', view);
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const savedView = localStorage.getItem('dashboardViewPreferred') || 'map';
-    switchDashboardView(savedView);
-});
 
 const mapConfig = {
     defaultCenter: { lat: -16.409047, lng: -71.537451 },
@@ -2137,10 +2132,8 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
     return window.matchMedia("(max-width: 1192px)").matches;
   }
 
-  if (isMobile()) {
-    switchDashboardView('properties');
-  }
   document.addEventListener("DOMContentLoaded", function () {
+        localStorage.setItem("dashboardViewPreferred", "properties");
         switchDashboardView('properties');
     });
 
@@ -2152,7 +2145,7 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
 
     /* Open prperty */
     function openPropertyDetail(propertyId) {
-        console.log('💕 Opening property with ID:', propertyId);
+        console.log('Opening property with ID:', propertyId);
 
         const urlTemplate = "{% url 'properties:detail' '0' %}";
         const url = urlTemplate.replace('0', propertyId);
