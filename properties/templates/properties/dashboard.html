@@ -962,17 +962,17 @@
 
     <aside class="filter-sidebar ">
         <!-- Switcher de Vista -->
+        {% if request.user.role and request.user.role.name != 'Agente Externo'  %}
         <div class="view-switcher mb-3" style="margin: 0 0 1rem 0;">
-            {% if request.user.role and request.user.role.name != 'Agente Externo'  %}
             <button type="button" class="view-btn active" id="btn-view-map" onclick="switchDashboardView('map')">
                 <i class="fas fa-map"></i> Mapa
             </button>
-            {% endif %}
-            
             <button type="button" class="view-btn" id="btn-view-list" onclick="switchDashboardView('properties')">
                 <i class="fas fa-list"></i> Propiedades
             </button>
+            
         </div>
+        {% endif %}
 
         <div class="filter-body">
             <form method="get" id="filter-form">
