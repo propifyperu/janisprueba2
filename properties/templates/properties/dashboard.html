@@ -2140,6 +2140,10 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
   if (isMobile()) {
     switchDashboardView('properties');
   }
+  document.addEventListener("DOMContentLoaded", function () {
+        switchDashboardView('properties');
+    });
+
 
   /* const price = Number(document.getElementById('price').innerText);
 
