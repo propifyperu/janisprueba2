@@ -635,7 +635,7 @@
             <a href="#" id="btnEditEvent" class="btn-modal btn-modal-edit">
                 <i class="fas fa-edit"></i> Editar
             </a>
-            <button onclick="deleteEvent()" class="btn-modal btn-modal-delete">
+            <button onclick="deleteEvent()" class="btn-modal btn-modal-delete" id="btnDeleteEvent">
                 <i class="fas fa-trash"></i> Eliminar
             </button>
             <button type="button" class="btn-modal btn-modal-edit" onclick="toggleFollowup(true)">
@@ -897,6 +897,18 @@ function showEventModal(event) {
     // URL de edición
     document.getElementById('btnEditEvent').href = `/dashboard/agenda/eventos/${event.id}/editar/`;
     
+    // ✅ Control de permisos (ocultar botones si no puede modificar)
+    const btnEdit = document.getElementById('btnEditEvent');
+    const btnDelete = document.getElementById('btnDeleteEvent');
+
+    if (props.can_modify) {
+        if(btnEdit) btnEdit.style.display = '';
+        if(btnDelete) btnDelete.style.display = '';
+    } else {
+        if(btnEdit) btnEdit.style.display = 'none';
+        if(btnDelete) btnDelete.style.display = 'none';
+    }
+
     // Mostrar modal
     document.getElementById('eventModal').style.display = 'block';
 }

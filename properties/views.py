@@ -1540,11 +1540,17 @@ def event_edit_view(request, pk):
     
     event = get_object_or_404(Event, pk=pk)
     
-    # Solo el creador o superusuario puede editar
-    # OJO: También permitimos editar al agente asignado
-    if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
-        messages.error(request, 'No tienes permiso para editar este evento.')
-        return redirect('properties:agenda_calendar')
+
+    is_visita = (event.event_type_id == 1) # visita: id 1 - solo superusuario puede editar
+
+    if is_visita:
+        if not request.user.is_superuser:
+            messages.error(request, 'Solo administradores pueden editar eventos de tipo Visita.')
+            return redirect('properties:agenda_calendar')
+    else:
+        if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
+            messages.error(request, 'No tienes permiso para editar este evento.')
+            return redirect('properties:agenda_calendar')
     
     if request.method == 'POST':
         form = EventForm(request.POST, instance=event)
@@ -1578,11 +1584,16 @@ def event_delete_view(request, pk):
     
     event = get_object_or_404(Event, pk=pk)
     
-    # Solo el creador o superusuario puede eliminar
-    if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
-        from django.contrib import messages
-        messages.error(request, 'No tienes permiso para eliminar este evento.')
-        return redirect('properties:agenda_calendar')
+    is_visita = (event.event_type_id == 1) # visita: id 1 - solo superusuario puede eliminar
+
+    if is_visita:
+        if not request.user.is_superuser:
+            messages.error(request, 'Solo administradores pueden eliminar eventos de tipo Visita.')
+            return redirect('properties:agenda_calendar')
+    else:
+        if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
+            messages.error(request, 'No tienes permiso para eliminar este evento.')
+            return redirect('properties:agenda_calendar')
     
     event.delete()
     from django.contrib import messages
@@ -1641,6 +1652,12 @@ def api_events_json(request):
             # Vista de agente normal o sin usuarios: color del tipo de evento
             color = event.event_type.color
 
+        is_visita = (event.event_type_id == 1)
+        if is_visita:
+            can_modify = request.user.is_superuser
+        else:
+            can_modify = (request.user.is_superuser or event.created_by_id == request.user.id or event.assigned_agent_id == request.user.id)
+
         events_data.append({
             'id': event.id,
             'title': event.titulo,
@@ -1651,6 +1668,8 @@ def api_events_json(request):
             'extendedProps': {
                 'code': event.code,
                 'event_type': event.event_type.name,
+                'event_type_id': event.event_type_id,
+                'can_modify': can_modify,  # <--- Nuevo flag para el JS
                 'detalle': event.detalle,
                 'interesado': event.interesado,
                 'property': event.property.exact_address if event.property else '',
