@@ -557,6 +557,10 @@ class Property(TitleCaseMixin, models.Model):
     wp_slug = models.SlugField(null=True, blank=True)
     wp_last_sync = models.DateTimeField(null=True, blank=True)
 
+    source = models.CharField(max_length=50, null=True, blank=True, db_index=True)
+    source_url = models.URLField(max_length=1000, null=True, blank=True)
+    source_published_at = models.DateField(null=True, blank=True, db_index=True)
+
     
     responsible = models.ForeignKey(
         get_user_model(),
