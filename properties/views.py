@@ -2,6 +2,7 @@ from .models import Property, AgencyConfig
 from django.contrib import messages
 from properties.queryset import visible_properties_for
 from django.db import transaction
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.core.files.storage import default_storage
 from .forms import AgencyConfigForm
@@ -15,6 +16,7 @@ from properties.matching import persist_matches_for_requirement
 from .models import Requirement, Property, RequirementMatch
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+import uuid
 from django.urls import reverse
 from django.template.loader import get_template
 from django.db.models import Count, Max
@@ -1142,7 +1144,7 @@ class RequirementListView(LoginRequiredMixin, ListView):
         context["qs_no_page"] = q.urlencode()
 
         return context
-
+    
 @login_required
 def requirement_create_view(request):
     contactos_qs = PropertyOwner.objects.filter(is_active=True).order_by("first_name", "last_name")
@@ -1166,13 +1168,11 @@ def requirement_create_view(request):
                     "contactos_existentes": contactos_qs,
                 })
         else:
-            # crear nuevo SOLO si llenaron algo
             if owner_form.is_valid() and owner_form.has_changed():
                 contact_instance = owner_form.save(commit=False)
                 contact_instance.created_by = request.user
                 contact_instance.save()
                 owner_form.save_m2m()
-            # else: omitido => None
 
         # 2) validar requirement
         if not form.is_valid():
@@ -1184,18 +1184,24 @@ def requirement_create_view(request):
             })
 
         req: Requirement = form.save(commit=False)
-        req.contact = contact_instance  # puede ser None
+        req.contact = contact_instance
 
-        # ✅ assigned_to = el mismo user que crea
         req.assigned_to = request.user
-
-        # ✅ auditoría
         req.created_by = request.user
+
+        # ✅ FIX UNIQUE(uq_requirement_import_row): evitar (NULL, NULL)
+        if not req.import_batch:
+            req.import_batch = "manual"
+        if not req.import_row_sig:
+            req.import_row_sig = uuid.uuid4().hex
+
+        # ✅ NUEVO: si es manual y no vino source_date, setearlo a "hoy"
+        if not req.source_date:
+            req.source_date = timezone.localdate()
 
         req.save()
         form.save_m2m()
 
-        # ✅ motor nuevo (MISMA LÓGICA QUE API)
         try:
             recalculate_requirement_matches(req, limit=10, min_score=80.0)
             messages.success(request, "Requerimiento creado. Se calcularon coincidencias.")
@@ -1204,7 +1210,6 @@ def requirement_create_view(request):
 
         return redirect("properties:requirements_my")
 
-    # GET
     form = RequirementCreateForm()
     owner_form = PropertyOwnerForm()
     return render(request, "properties/requirement_create.html", {
@@ -1212,7 +1217,6 @@ def requirement_create_view(request):
         "owner_form": owner_form,
         "contactos_existentes": contactos_qs,
     })
-
 
 class RequirementUpdateView(LoginRequiredMixin, UpdateView):
     model = Requirement
