@@ -5,6 +5,7 @@ from django.core.files.storage import default_storage
 from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from users.roles import is_agent
+from django.db.models import Case, When, Value, IntegerField
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
@@ -1501,6 +1502,7 @@ def event_create_view(request):
 
     # Asegurar que existe el tipo de evento 'Otro'
     EventType.objects.get_or_create(name='Otro', defaults={'color': '#6c757d'})
+    visita_type = EventType.objects.filter(name__iexact='Visita').first()
 
     if request.method == 'POST':
         form = EventForm(request.POST)
@@ -1524,7 +1526,16 @@ def event_create_view(request):
             return redirect('properties:agenda_calendar')
 
     else:
-        form = EventForm()
+        initial = {}
+        property_id = request.GET.get("property")
+        if property_id:
+            initial["property"] = property_id
+        
+        initial["assigned_agent"] = request.user.id
+        initial["event_type"] = visita_type.id
+        form = EventForm(initial=initial)
+
+
 
     return render(request, 'properties/event_create.html', {
         'form': form,
@@ -1870,6 +1881,17 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             except ValueError:
                 pass
 
+        responsible = self.request.GET.get('responsible', '').strip()
+        if responsible:
+            try:
+                queryset = queryset.filter(responsible_id=int(responsible))
+            except ValueError:
+                pass
+        
+        source = self.request.GET.get('source', '').strip()
+        if source:
+            queryset = queryset.filter(source__iexact=source)
+
         price_min = self.request.GET.get('price_min', '').strip()
         if price_min:
             try:
@@ -2027,7 +2049,19 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 else:
                     queryset = queryset.filter(status__name__icontains=status)
 
-        return queryset.order_by('-created_at')
+        queryset = queryset.annotate(
+            availability_rank=Case(
+                When(availability_status__iexact='available', then=Value(1)),
+                When(availability_status__iexact='reserved', then=Value(2)),
+                When(availability_status__iexact='paused', then=Value(3)),
+                When(availability_status__iexact='sold', then=Value(4)),
+                When(availability_status__iexact='unavailable', then=Value(5)),
+                default=Value(99),
+                output_field=IntegerField(),
+            )
+        )
+
+        return queryset.order_by('availability_rank', '-updated_at', '-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -2037,6 +2071,17 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         context['property_types'] = PropertyType.objects.filter(is_active=True).order_by('name')
         from .models import PaymentMethod, District, Urbanization, Department, Province
         context['payment_methods'] = PaymentMethod.objects.filter(is_active=True).order_by('order')
+        from users.models import CustomUser  # ajusta si tu import real es distinto
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        context["agents"] = (
+            User.objects
+            .filter(
+                is_active=True,
+                role__name__in=["Agente interno", "Agente externo", "Agente remax"],
+            )
+            .order_by("first_name", "last_name", "username")
+        )
         # Obtener distritos de las propiedades ya cargadas en memoria
         # Resolver posibles valores numéricos a nombres usando el modelo District
         raw_districts = [p.district for p in properties if p.district]
@@ -2062,6 +2107,13 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                     districts.append({'id': '', 'name': str(d)})
 
         context['districts_list'] = sorted(districts, key=lambda x: (x.get('name') or ''))
+        context["sources"] = list(
+            Property.objects.exclude(source__isnull=True)
+            .exclude(source="")
+            .values_list("source", flat=True)
+            .distinct()
+            .order_by("source")
+        )
         # ------------
         # filtros UI
         # ------------
@@ -2069,8 +2121,11 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             'property_type': self.request.GET.get('property_type', '').strip(),
             'district': self.request.GET.get('district', '').strip(),
             'payment_method': self.request.GET.get('payment_method', '').strip(),
+            'responsible': self.request.GET.get('responsible', '').strip(),
+            'source': self.request.GET.get('source', '').strip(),
             'price_min': self.request.GET.get('price_min', '').strip(),
             'price_max': self.request.GET.get('price_max', '').strip(),
+            
         }
         # Añadir filtros avanzados actuales para persistir la UI
         context['filters'].update({
