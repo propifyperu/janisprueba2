@@ -1,6 +1,8 @@
 from .models import Property, AgencyConfig
 from django.contrib import messages
 from properties.queryset import visible_properties_for
+from django.db import transaction
+from django.utils.dateparse import parse_date
 from django.core.files.storage import default_storage
 from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -10,6 +12,7 @@ from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
 from properties.matching import persist_matches_for_requirement
+from .models import Requirement, Property, RequirementMatch
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
@@ -27,6 +30,11 @@ from .models import (
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from datetime import date
+from django.db.models import Q
+from rest_framework import status
+from properties.engine_matching.engine import get_matches
+from .forms import PropertyOwnerForm, RequirementCreateForm
 
 
 def link_callback(uri, rel):
@@ -136,6 +144,23 @@ def get_visible_fields_for_user(user):
     # Si no hay permisos específicos, todos los campos son visibles por defecto
     return visible_fields
 
+def match_detail_partial(request, req_id: int, prop_id: int):
+    req = get_object_or_404(Requirement, pk=req_id)
+    prop = get_object_or_404(Property, pk=prop_id)
+
+    rm = RequirementMatch.objects.filter(requirement=req, property=prop).first()
+    if not rm:
+        return render(request, "properties/partials/match_detail_not_ready.html", {
+            "requirement": req,
+            "property": prop,
+        })
+
+    return render(request, "properties/partials/match_detail.html", {
+        "requirement": req,
+        "property": prop,
+        "match": rm,               # match.score, match.details, match.computed_at
+        "details": rm.details or {}
+    })
 
 @login_required
 @require_POST
@@ -741,172 +766,100 @@ def my_uploaded_documents_view(request):
 
 @login_required
 def matching_matches_view(request, pk: int):
-    """Mostrar coincidencias calculadas para un `Requirement` concreto."""
     req = get_object_or_404(Requirement, pk=pk)
-    # manejar flags: only_matches (mostrar solo criterios que coinciden) y export=csv
-    only_matches = bool(request.GET.get('only_matches'))
-    export = request.GET.get('export')
 
-    # calcular coincidencias
-    results = matching_module.get_matches_for_requirement(req, limit=50)
-    # Filtrar solo propiedades disponibles
-    results = [r for r in results if r.get('property') and r.get('property').availability_status == 'available']
-    # cargar pesos por criterio para mostrar el valor máximo posible por criterio
-    weights = matching_module._load_weights()
+    qs = (
+        RequirementMatch.objects
+        .filter(requirement=req)
+        .select_related(
+            "property",
+            "property__currency",
+            "property__property_type",
+            "property__property_subtype",
+        )
+        .order_by("-score", "-computed_at")
+    )
 
-    # Añadir representación legible del valor de la propiedad para cada criterio
-    for r in results:
-        prop = r.get('property')
-        details = r.get('details') or {}
-        for k, v in details.items():
-            try:
-                if k == 'property_type':
-                    pv = prop.property_type.name if getattr(prop, 'property_type', None) else '—'
-                elif k == 'property_subtype':
-                    pv = prop.property_subtype.name if getattr(prop, 'property_subtype', None) else '—'
-                elif k == 'district':
-                    pd = getattr(prop, 'district', None)
-                    if not pd:
-                        pv = '—'
-                    else:
-                        pd_str = str(pd).strip()
-                        # si es número, intentar resolver a District por id
-                        if pd_str.isdigit():
-                            try:
-                                from .models import District
-                                dobj = District.objects.filter(id=int(pd_str)).first()
-                                pv = dobj.name if dobj else pd_str
-                            except Exception:
-                                pv = pd_str
-                        else:
-                            pv = pd_str
-                elif k == 'price':
-                    symbol = prop.currency.symbol if getattr(prop, 'currency', None) else '$'
-                    pv = f"{symbol} {prop.price}" if getattr(prop, 'price', None) is not None else '—'
-                elif k == 'currency':
-                    pv = prop.currency.code if getattr(prop, 'currency', None) else '—'
-                elif k == 'payment_method':
-                    pm = getattr(prop, 'forma_de_pago', None)
-                    try:
-                        pv = pm.name if pm is not None else '—'
-                    except Exception:
-                        pv = str(pm) if pm is not None else '—'
-                elif k == 'bedrooms':
-                    pv = str(getattr(prop, 'bedrooms', '—') or '—')
-                elif k == 'land_area':
-                    pv = str(getattr(prop, 'land_area', '—') or '—')
-                else:
-                    val = getattr(prop, k, None)
-                    if val is None:
-                        pv = '—'
-                    else:
-                        # intentar tomar .name para FKs o convertir a string
-                        pv = getattr(val, 'name', None) or str(val)
-            except Exception:
-                pv = '—'
+    # Si quieres limitar en UI (opcional)
+    limit = int(request.GET.get("limit", 100))
+    qs = qs[:limit]
 
-            # asegurar que `v` sea dict y almacenar la representación
-            if isinstance(v, dict):
-                v['prop_value'] = pv
-                # añadir el peso máximo (valor completo) para este criterio
-                v['max'] = weights.get(k, 0)
-            else:
-                # si v no es dict, convertir a dict para mantener compatibilidad
-                details[k] = {'contrib': 0, 'matched': False, 'info': '', 'prop_value': pv, 'max': weights.get(k, 0)}
+    # Adaptamos a lo que tu template espera (r.score, r.property, r.district_display)
+    results = []
+    for rm in qs:
+        prop = rm.property
 
-        # Resolver nombre legible de distrito para la fila resumen (evita mostrar ids numéricos)
-        pd = getattr(prop, 'district', None)
-        if not pd:
-            district_display = ''
-        else:
-            try:
-                pd_str = str(pd).strip()
-                if pd_str.isdigit():
-                    from .models import District
-                    dobj = District.objects.filter(id=int(pd_str)).first()
-                    district_display = dobj.name if dobj else pd_str
-                else:
-                    district_display = pd_str
-            except Exception:
-                district_display = str(pd)
-
-        # Adjuntar display al resultado para uso en templates
-        r['district_display'] = district_display
-        # Asegurar que exista entrada para método de pago en detalles (es filtro excluyente pero útil mostrarlo)
+        # district_display robusto
+        district_display = "—"
         try:
-            if 'payment_method' not in details:
-                req_pm = getattr(req, 'payment_method', None)
-                prop_pm = getattr(prop, 'forma_de_pago', None)
-                matched_pm = False
-                if req_pm and prop_pm:
-                    try:
-                        matched_pm = req_pm.id == prop_pm.id
-                    except Exception:
-                        matched_pm = str(req_pm) == str(prop_pm)
-                details['payment_method'] = {
-                    'contrib': 0.0,
-                    'matched': matched_pm,
-                    'info': 'match' if matched_pm else 'no_match',
-                    'prop_value': (prop_pm.name if prop_pm else (str(prop_pm) if prop_pm is not None else '—'))
-                }
+            d = getattr(prop, "district_fk", None)
+            if d:
+                district_display = getattr(d, "name", None) or str(d)
         except Exception:
             pass
 
-    # si piden exportar a CSV, generar respuesta
-    if export == 'csv':
-        import csv
-        import io
+        results.append({
+            "score": rm.score,                 # Decimal OK para floatformat
+            "property": prop,
+            "district_display": district_display,
+            "match_id": rm.id,
+        })
 
-        output = io.StringIO()
-        writer = csv.writer(output)
-        # cabecera
-        writer.writerow(['score', 'property_code', 'title', 'price', 'currency', 'district', 'details'])
-
-        for r in results:
-            prop = r['property']
-            details = []
-            for k, v in r['details'].items():
-                # v may be dict with contrib/matched/info
-                if isinstance(v, dict):
-                    if only_matches and not v.get('matched'):
-                        continue
-                    details.append(f"{k}:{v.get('contrib',0):.2f}|m:{int(bool(v.get('matched')))}|{v.get('info','')}")
-                else:
-                    details.append(f"{k}:{v}")
-
-            # resolver nombre de distrito para CSV
-            pd = getattr(prop, 'district', None)
-            if not pd:
-                district_display = ''
-            else:
-                pd_str = str(pd).strip()
-                if pd_str.isdigit():
-                    try:
-                        from .models import District
-                        dobj = District.objects.filter(id=int(pd_str)).first()
-                        district_display = dobj.name if dobj else pd_str
-                    except Exception:
-                        district_display = pd_str
-                else:
-                    district_display = pd_str
-
-            writer.writerow([
-                r['score'],
-                getattr(prop, 'code', ''),
-                getattr(prop, 'title', ''),
-                getattr(prop, 'price', ''),
-                getattr(prop, 'currency').symbol if getattr(prop, 'currency', None) else '',
-                district_display,
-                ';'.join(details)
-            ])
-
-        resp = HttpResponse(output.getvalue(), content_type='text/csv')
-        resp['Content-Disposition'] = f'attachment; filename="matches_requirement_{req.id}.csv"'
-        return resp
-
-    return render(request, 'properties/matching_matches.html', {'requirement': req, 'results': results, 'only_matches': only_matches})
+    return render(
+        request,
+        "properties/matching_matches.html",
+        {
+            "requirement": req,
+            "results": results,
+        }
+    )
 
 # ...existing code...
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def api_recalculate_requirement_matches(request, req_id: int):
+    req = get_object_or_404(Requirement, pk=req_id)
+
+    limit = int(request.query_params.get("limit", 20))
+    min_score = float(request.query_params.get("min_score", 0))
+
+    results = get_matches(req, limit=limit)
+
+    created = 0
+    updated = 0
+    saved = []
+
+    with transaction.atomic():
+        for item in results:
+            prop = item["property"]
+            score = float(item.get("score") or 0)
+            details = item.get("details") or {}
+
+            if score < min_score:
+                continue
+
+            obj, was_created = RequirementMatch.objects.update_or_create(
+                requirement=req,
+                property=prop,
+                defaults={"score": score, "details": details},
+            )
+
+            created += 1 if was_created else 0
+            updated += 0 if was_created else 1
+
+            saved.append({"property_id": prop.id, "score": score})
+
+    return Response(
+        {
+            "requirement_id": req.id,
+            "limit": limit,
+            "min_score": min_score,
+            "created": created,
+            "updated": updated,
+            "saved_preview": saved[:50],
+        },
+        status=status.HTTP_200_OK
+    )
 
 # Vista para editar contacto
 class ContactEditView(LoginRequiredMixin, UpdateView):
@@ -1075,290 +1028,345 @@ class MyPropertiesView(LoginRequiredMixin, ListView):
         context['property_count'] = self.get_queryset().count() 
         return context
 
+def recalculate_requirement_matches(req: Requirement, *, limit: int = 20, min_score: float = 0.0) -> dict:
+    """
+    Reusa EXACTAMENTE la lógica de tu API:
+    - llama get_matches(req, limit=limit)
+    - guarda en RequirementMatch con update_or_create
+    - respeta min_score
+    """
+    results = get_matches(req, limit=limit)
+
+    created = 0
+    updated = 0
+    saved = []
+
+    with transaction.atomic():
+        for item in results:
+            prop = item["property"]
+            score = float(item.get("score") or 0)
+            details = item.get("details") or {}
+
+            if score < float(min_score):
+                continue
+
+            obj, was_created = RequirementMatch.objects.update_or_create(
+                requirement=req,
+                property=prop,
+                defaults={"score": score, "details": details},
+            )
+
+            created += 1 if was_created else 0
+            updated += 0 if was_created else 1
+            saved.append({"property_id": prop.id, "score": score})
+
+    return {
+        "requirement_id": req.id,
+        "limit": limit,
+        "min_score": float(min_score),
+        "created": created,
+        "updated": updated,
+        "saved_preview": saved[:50],
+    }
+
 
 class RequirementListView(LoginRequiredMixin, ListView):
     model = Requirement
-    template_name = 'properties/requirements_list.html'
-    context_object_name = 'requirements'
-    paginate_by = 12
+    template_name = "properties/requirements_list.html"
+    context_object_name = "requirements"
+    paginate_by = 100
 
     def get_queryset(self):
-        qs = Requirement.objects.filter(is_active=True).select_related('created_by').annotate(
-            match_score=Max('matches__score', filter=Q(matches__property__availability_status='available'))
-        ).order_by('-created_at')
-        from django.db import OperationalError
-        try:
-            
-            agent_id = self.request.GET.get('agent') # filtros adicionales: agente y fecha
-            if agent_id and agent_id.isdigit():
-                qs = qs.filter(created_by_id=agent_id)
+        qs = (
+            Requirement.objects
+            .filter(is_active=True)
+            # SOLO desde 01/10/2025 según source_date
+            .filter(source_date__gte=date(2025, 10, 1))
+            .select_related(
+                "created_by",
+                "operation_type",
+                "property_type",
+                "property_subtype",
+                "currency",
+                "payment_method",
+                "property_status",
+                "contact",
+            )
+            .prefetch_related("districts")
+            .annotate(
+                match_score=Max(
+                    "matches__score",
+                    filter=Q(matches__property__availability_status="available"),
+                ),
+                match_count=Count(
+                    "matches",
+                    filter=Q(matches__property__availability_status="available"),
+                    distinct=True,
+                )
+            )
+            .defer("notes", "notes_message_ws")
+            .order_by("-source_date", "-created_at")
+        )
 
-            date_start = self.request.GET.get('date_start')
-            if date_start:
-                qs = qs.filter(created_at__date__gte=date_start)
-            
-            date_end = self.request.GET.get('date_end')
-            if date_end:
-                qs = qs.filter(created_at__date__lte=date_end)
+        agent_id = self.request.GET.get("agent")
+        if agent_id and agent_id.isdigit():
+            qs = qs.filter(created_by_id=int(agent_id))
 
-            return qs
-        except OperationalError:
-            return Requirement.objects.none()
+        # ✅ estos filtros ahora deben ir contra source_date (no created_at)
+        date_start = self.request.GET.get("date_start")
+        if date_start:
+            qs = qs.filter(source_date__gte=date_start)
+
+        date_end = self.request.GET.get("date_end")
+        if date_end:
+            qs = qs.filter(source_date__lte=date_end)
+
+        return qs
 
     def get_context_data(self, **kwargs):
-        """Añadir puntuaciones de matching para cada requerimiento mostrado en la página.
-
-        Calculamos la mejor coincidencia (limit=1) usando `matching.get_matches_for_requirement`
-        y exponemos un diccionario `matches_scores` en el contexto con {requirement_id: score}.
-        """
         context = super().get_context_data(**kwargs)
-        
-        
-        from django.contrib.auth import get_user_model # datos para filtros en template
+
+        from django.contrib.auth import get_user_model
         User = get_user_model()
-        context['agents'] = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
-        context['filters'] = {
-            'agent': self.request.GET.get('agent', ''),
-            'date_start': self.request.GET.get('date_start', ''),
-            'date_end': self.request.GET.get('date_end', ''),
+
+        context["agents"] = User.objects.filter(is_active=True).order_by("first_name", "last_name")
+        context["filters"] = {
+            "agent": self.request.GET.get("agent", ""),
+            "date_start": self.request.GET.get("date_start", ""),
+            "date_end": self.request.GET.get("date_end", ""),
         }
+
+        # ✅ para mantener filtros al paginar (sin romperte la URL)
+        q = self.request.GET.copy()
+        q.pop("page", None)
+        context["qs_no_page"] = q.urlencode()
 
         return context
 
-
 @login_required
 def requirement_create_view(request):
-    from .forms import RequirementSimpleForm, PropertyOwnerForm
-    from .models import PropertyOwner, Requirement
-    from django.contrib import messages
+    contactos_qs = PropertyOwner.objects.filter(is_active=True).order_by("first_name", "last_name")
 
-    if request.method == 'POST':
-        form = RequirementSimpleForm(request.POST)
+    if request.method == "POST":
+        form = RequirementCreateForm(request.POST)
         owner_form = PropertyOwnerForm(request.POST, request.FILES)
-        
-        # Determinar si se seleccionó un contacto existente o se crea uno nuevo
-        existing_owner_id = request.POST.get('existing_owner', '').strip()
-        
+
+        existing_owner_id = (request.POST.get("existing_owner") or "").strip()
+
+        # 1) contacto (OPCIONAL)
         contact_instance = None
-        
+
         if existing_owner_id:
-            # Usar contacto existente
-            try:
-                contact_instance = PropertyOwner.objects.get(id=existing_owner_id)
-            except PropertyOwner.DoesNotExist:
-                messages.error(request, 'El contacto seleccionado no existe.')
-                return render(request, 'properties/requirement_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+            contact_instance = contactos_qs.filter(id=existing_owner_id).first()
+            if not contact_instance:
+                messages.error(request, "El contacto seleccionado no existe.")
+                return render(request, "properties/requirement_create.html", {
+                    "form": form,
+                    "owner_form": owner_form,
+                    "contactos_existentes": contactos_qs,
                 })
         else:
-            # Crear nuevo contacto solo si el formulario contiene cambios reales
+            # crear nuevo SOLO si llenaron algo
             if owner_form.is_valid() and owner_form.has_changed():
                 contact_instance = owner_form.save(commit=False)
                 contact_instance.created_by = request.user
                 contact_instance.save()
-                owner_form.save_m2m()  # Para tags
-            else:
-                messages.error(request, 'Por favor selecciona un contacto existente o completa los datos del contacto.')
-                return render(request, 'properties/requirement_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
-        
-        if form.is_valid():
-            print("FORM VALID?", form.is_valid())
-            print("FORM ERRORS", form.errors)
-            print("POST district", request.POST.getlist("district"))
-            print("POST province", request.POST.get("province"))
-            print("POST property_subtype", request.POST.get("property_subtype"))
-            data = form.cleaned_data
-            req = Requirement()
-            
-            # Reasignación de agente (solo superuser o Call Center)
-            is_call_center = request.user.role and request.user.role.name == 'Call Center'
-            if (request.user.is_superuser or is_call_center) and data.get('assigned_agent'):
-                req.created_by = data.get('assigned_agent')
-            else:
-                req.created_by = request.user
-            
-            req.contact = contact_instance  # Asignar el contacto
-            
-            req.property_type = data.get('property_type')
-            req.property_subtype = data.get('property_subtype')
-            bt = data.get('budget_type')
-            req.budget_type = bt or 'approx'
-            if bt == 'approx':
-                req.budget_approx = data.get('budget_approx')
-                req.budget_min = None
-                req.budget_max = None
-            else:
-                req.budget_min = data.get('budget_min')
-                req.budget_max = data.get('budget_max')
-                req.budget_approx = None
-            # Área de terreno
-            at = data.get('area_type')
-            req.area_type = at or 'approx'
-            if at == 'approx':
-                req.land_area_approx = data.get('land_area_approx')
-                req.land_area_min = None
-                req.land_area_max = None
-            else:
-                req.land_area_min = data.get('land_area_min')
-                req.land_area_max = data.get('land_area_max')
-                req.land_area_approx = None
-            # FRENTERA
-            fm = data.get('frontera_mode')
-            req.frontera_type = fm or 'approx'
-            if fm == 'approx':
-                req.frontera_approx = data.get('frontera_approx')
-                req.frontera_min = None
-                req.frontera_max = None
-            else:
-                req.frontera_min = data.get('frontera_min')
-                req.frontera_max = data.get('frontera_max')
-                req.frontera_approx = None
-            # Moneda
-            req.currency = data.get('currency')
-            req.payment_method = data.get('payment_method')
-            req.status = data.get('status')
-            req.department = data.get('department')
-            req.province = data.get('province')
-            
-            req.bedrooms = data.get('bedrooms')
-            req.bathrooms = data.get('bathrooms')
-            req.half_bathrooms = data.get('half_bathrooms')
-            req.floors = data.get('floors')
-            # Número de pisos (solo aplicable para tipo Casa). Guardar único valor entero si viene.
-            nof = data.get('number_of_floors')
-            try:
-                req.number_of_floors = int(nof) if nof not in (None, '') else None
-            except (ValueError, TypeError):
-                req.number_of_floors = None
-            # Ascensor (solo aplicable para departamentos). Esperamos 'yes'/'no' o vacío.
-            asc = data.get('ascensor') if isinstance(data, dict) else None
-            if asc in ('yes', 'no'):
-                req.ascensor = asc
-            else:
-                # como fallback, leer directamente del POST (caso plantilla custom)
-                asc_post = request.POST.get('ascensor')
-                req.ascensor = asc_post if asc_post in ('yes', 'no') else None
-            req.garage_spaces = data.get('garage_spaces')
-            req.notes = data.get('notes')
-            # Guardar requerimiento primero para luego asignar M2M
-            try:
-                req.save()
-            except Exception:
-                messages.error(request, 'No se puede guardar el requerimiento: error inesperado al guardar.')
-                return render(request, 'properties/requirement_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
+                owner_form.save_m2m()
+            # else: omitido => None
 
-            # Asignar distritos múltiples si vienen
-            districts_sel = data.get('district') or []
-            try:
-                req.districts.set(districts_sel)
-            except Exception:
-                pass
+        # 2) validar requirement
+        if not form.is_valid():
+            messages.error(request, "Revisa los campos del requerimiento.")
+            return render(request, "properties/requirement_create.html", {
+                "form": form,
+                "owner_form": owner_form,
+                "contactos_existentes": contactos_qs,
+            })
 
-            # Asignar preferencias de pisos (M2M)
-            floors_sel = data.get('preferred_floors') or []
-            try:
-                req.preferred_floors.set(floors_sel)
-            except Exception:
-                pass
+        req: Requirement = form.save(commit=False)
+        req.contact = contact_instance  # puede ser None
 
-            # Asignar zonificaciones (M2M) si vienen
-            zon_sel = data.get('zonificacion') or []
-            try:
-                req.zonificaciones.set(zon_sel)
-            except Exception:
-                pass
+        # ✅ assigned_to = el mismo user que crea
+        req.assigned_to = request.user
 
-            # Para compatibilidad, si sólo hay una selección, asignarla al FK `district`
-            try:
-                if hasattr(districts_sel, '__len__') and len(districts_sel) == 1:
-                    req.district = list(districts_sel)[0]
-                else:
-                    req.district = None
-            except Exception:
-                req.district = None
-            from django.db import OperationalError
-            try:
-                req.save()
-            except OperationalError:
-                messages.error(request, 'No se puede guardar el requerimiento: base de datos no preparada. Contacte al administrador.')
-                return render(request, 'properties/requirement_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
-            # Recalcular coincidencias inmediatamente y guardarlas en cache para acceso rápido
-            try:
-                persist_matches_for_requirement(req, limit=50, min_score=50)
-                messages.success(request, 'Requerimiento guardado correctamente. Se calcularon coincidencias.')
-            except Exception:
-                # No romper el flujo principal si el cálculo falla
-                messages.success(request, 'Requerimiento guardado correctamente.')
-            return redirect('properties:requirements_my')
-    else:
-        form = RequirementSimpleForm()
-        owner_form = PropertyOwnerForm()
+        # ✅ auditoría
+        req.created_by = request.user
 
-    return render(request, 'properties/requirement_create.html', {
-        'form': form,
-        'owner_form': owner_form,
-        'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+        req.save()
+        form.save_m2m()
+
+        # ✅ motor nuevo (MISMA LÓGICA QUE API)
+        try:
+            recalculate_requirement_matches(req, limit=10, min_score=80.0)
+            messages.success(request, "Requerimiento creado. Se calcularon coincidencias.")
+        except Exception:
+            messages.success(request, "Requerimiento creado correctamente (sin recalcular coincidencias).")
+
+        return redirect("properties:requirements_my")
+
+    # GET
+    form = RequirementCreateForm()
+    owner_form = PropertyOwnerForm()
+    return render(request, "properties/requirement_create.html", {
+        "form": form,
+        "owner_form": owner_form,
+        "contactos_existentes": contactos_qs,
     })
+
+
+class RequirementUpdateView(LoginRequiredMixin, UpdateView):
+    model = Requirement
+    template_name = "properties/requirement_edit.html"
+
+    def get_form_class(self):
+        from .forms import RequirementUpdateForm
+        return RequirementUpdateForm
+
+    def get_initial(self):
+        initial = super().get_initial()
+        if self.object.assigned_to_id:
+            initial["assigned_agent"] = self.object.assigned_to_id
+        return initial
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        is_call_center = bool(getattr(request.user, "role", None) and request.user.role.name == "Call Center")
+        # puede editar: creador o superuser o callcenter
+        if not (request.user.is_superuser or is_call_center or self.object.created_by_id == request.user.id):
+            messages.error(request, "No tienes permiso para editar este requerimiento.")
+            return redirect("properties:requirements_my")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        req = form.save(commit=False)
+
+        is_call_center = bool(getattr(self.request.user, "role", None) and self.request.user.role.name == "Call Center")
+        assigned_agent = form.cleaned_data.get("assigned_agent")
+
+        if (self.request.user.is_superuser or is_call_center) and assigned_agent:
+            req.assigned_to = assigned_agent
+
+        req.save()
+        form.save_m2m()
+
+        try:
+            persist_matches_for_requirement(req, limit=50, min_score=50)
+        except Exception:
+            pass
+
+        messages.success(self.request, "Requerimiento actualizado correctamente.")
+        return redirect("properties:requirements_detail", pk=req.pk)
 
 
 class MyRequirementsView(LoginRequiredMixin, ListView):
     model = Requirement
-    template_name = 'properties/my_requirements.html'
-    context_object_name = 'requirements'
-    paginate_by = 12
+    template_name = "properties/my_requirements.html"
+    context_object_name = "requirements"
+    paginate_by = 100  # igual que lista masiva
 
     def get_queryset(self):
-        from django.db import OperationalError
-        try:
-            return (
-                Requirement.objects
-                .filter(created_by=self.request.user)
-                .select_related(
-                    "contact",
-                    "property_type",
-                    "province",
-                    "currency",
-                    "property_subtype",
-                    "district",   # tu FK single (fallback)
-                    "department",
-                )
-                .prefetch_related(
-                    "districts",
-                )
-                .annotate(
-                    matches_count=Count('matches', filter=Q(matches__property__availability_status='available'), distinct=True),
-                    top_score=Max('matches__score', filter=Q(matches__property__availability_status='available')),
-                )
-                .defer("notes")
-                .order_by('-created_at')
+        qs = (
+            Requirement.objects
+            .filter(is_active=True)
+            # ✅ SOLO mis requerimientos
+            .filter(created_by=self.request.user)
+            # ✅ SOLO desde 01/10/2025 según source_date (igual que list)
+            .filter(source_date__gte=date(2025, 10, 1))
+            .select_related(
+                "created_by",
+                "operation_type",
+                "property_type",
+                "property_subtype",
+                "currency",
+                "payment_method",
+                "property_status",
+                "contact",
             )
-        except OperationalError:
-            return Requirement.objects.none()
+            .prefetch_related("districts")
+            .annotate(
+                match_score=Max(
+                    "matches__score",
+                    filter=Q(matches__property__availability_status="available"),
+                ),
+                match_count=Count(
+                    "matches",
+                    filter=Q(matches__property__availability_status="available"),
+                    distinct=True,
+                )
+            )
+            .defer("notes", "notes_message_ws")
+            .order_by("-source_date", "-created_at")
+        )
+
+        # ✅ filtro por contacto (reemplaza agent)
+        contact_id = self.request.GET.get("contact")
+        if contact_id and contact_id.isdigit():
+            qs = qs.filter(contact_id=int(contact_id))
+
+        # ✅ filtros contra source_date (igual que list)
+        date_start = self.request.GET.get("date_start")
+        if date_start:
+            qs = qs.filter(source_date__gte=date_start)
+
+        date_end = self.request.GET.get("date_end")
+        if date_end:
+            qs = qs.filter(source_date__lte=date_end)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # ✅ dropdown contactos: solo contactos que aparecen en MIS requerimientos
+        context["contacts"] = (
+            PropertyOwner.objects
+            .filter(requirements__created_by=self.request.user)
+            .distinct()
+            .order_by("first_name", "last_name")
+        )
+
+        context["filters"] = {
+            "contact": self.request.GET.get("contact", ""),
+            "date_start": self.request.GET.get("date_start", ""),
+            "date_end": self.request.GET.get("date_end", ""),
+        }
+
+        # ✅ para mantener filtros al paginar (sin romperte la URL)
+        q = self.request.GET.copy()
+        q.pop("page", None)
+        context["qs_no_page"] = q.urlencode()
+
+        return context
 
 class RequirementDetailView(LoginRequiredMixin, DetailView):
     model = Requirement
     template_name = 'properties/requirement_detail.html'
     context_object_name = 'requirement'
 
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related(
+                "created_by",
+                "assigned_to",
+                "operation_type",
+                "property_type",
+                "property_subtype",
+                "property_status",
+                "currency",
+                "payment_method",
+                "contact",
+            )
+            .prefetch_related("districts")
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         req = self.get_object()
         user = self.request.user
-        # Solo puede ver PII el superuser o el creador del requerimiento
         can_view_pii = user.is_superuser or (req.created_by and req.created_by.id == user.id)
         context['can_view_pii'] = can_view_pii
         return context
