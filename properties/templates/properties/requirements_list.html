@@ -130,7 +130,7 @@
                       <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-secondary">
                         Detalle
                       </a>
-
+                    {% if request.user.is_superuser %}
                       <button
                         type="button"
                         class="btn btn-sm btn-outline-success js-recalc"
@@ -146,6 +146,7 @@
                           Ver Matches
                         </a>
                       {% endif %}
+                    {% endif %}
                     </td>
                 </tr>
               {% empty %}

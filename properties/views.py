@@ -27,7 +27,7 @@ from django.db.models import Prefetch
 from .models import PropertyImage  # <-- AJUSTA si tu modelo se llama diferente
 from .models import (
     Property, PropertyImage, PropertyType, PropertyStatus,
-    PaymentMethod, District, Province, Department, Urbanization, PropertySubtype
+    PaymentMethod, District, Province, Department, Urbanization, PropertySubtype, Currency
 )
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -1149,6 +1149,8 @@ class RequirementListView(LoginRequiredMixin, ListView):
 def requirement_create_view(request):
     contactos_qs = PropertyOwner.objects.filter(is_active=True).order_by("first_name", "last_name")
     all_subtypes = PropertySubtype.objects.select_related("property_type").order_by("name")
+    currencies = Currency.objects.filter(is_active=True).only("id", "symbol")
+    currency_symbols = {str(c.id): (c.symbol or "") for c in currencies}
 
     if request.method == "POST":
         form = RequirementCreateForm(request.POST)
@@ -1168,6 +1170,7 @@ def requirement_create_view(request):
                     "owner_form": owner_form,
                     "contactos_existentes": contactos_qs,
                     "all_subtypes": all_subtypes,
+                    "currency_symbols": currency_symbols,
                 })
         else:
             if owner_form.is_valid() and owner_form.has_changed():
@@ -1184,6 +1187,7 @@ def requirement_create_view(request):
                 "owner_form": owner_form,
                 "contactos_existentes": contactos_qs,
                 "all_subtypes": all_subtypes,
+                "currency_symbols": currency_symbols,
             })
 
         req: Requirement = form.save(commit=False)
@@ -1220,6 +1224,7 @@ def requirement_create_view(request):
         "owner_form": owner_form,
         "contactos_existentes": contactos_qs,
         "all_subtypes": all_subtypes,
+        "currency_symbols": currency_symbols,
     })
 
 class RequirementUpdateView(LoginRequiredMixin, UpdateView):
