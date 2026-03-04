@@ -122,7 +122,7 @@ class PropertyConditionAdmin(admin.ModelAdmin):
 
 @admin.register(OperationType)
 class OperationTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'order', 'is_active', 'created_at')
+    list_display = ('id','name', 'code', 'order', 'is_active', 'created_at')
     list_filter = ('is_active',)
     search_fields = ('name', 'code')
     ordering = ('order', 'name')
@@ -145,7 +145,7 @@ class CurrencyAdmin(admin.ModelAdmin):
 
 @admin.register(PaymentMethod)
 class PaymentMethodAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'order', 'is_active', 'created_at')
+    list_display = ('id','name', 'code', 'order', 'is_active', 'created_at')
     list_filter = ('is_active',)
     search_fields = ('name', 'code')
     ordering = ('order', 'name')
@@ -282,7 +282,7 @@ class PropertyOwnerAdmin(admin.ModelAdmin):
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display = ('id','source','source_url','source_published_at','code','condition','availability_status','exact_address','responsible','assigned_agent', 'title', 'property_type', 'status', 'price', 'owner', 'is_active', 'created_at','created_by','wp_post_id','wp_slug','wp_last_sync','is_draft','is_ready_for_sale')
+    list_display = ('id','ascensor','source','source_url','source_published_at','operation_type','district','district_fk','urbanization','code','condition','availability_status','exact_address','responsible','assigned_agent', 'title', 'property_type', 'status', 'price', 'owner', 'is_active', 'created_at','created_by','wp_post_id','wp_slug','wp_last_sync','is_draft','is_ready_for_sale')
     list_filter = ('is_active', 'status', 'property_type', 'created_at', 'department', 'unit_location')
     search_fields = ('code', 'title', 'owner__first_name', 'owner__last_name', 'description')
     readonly_fields = ('created_at', 'updated_at', 'code', 'codigo_unico_propiedad')
@@ -406,11 +406,50 @@ class PropertyWhatsAppLinkAdmin(admin.ModelAdmin):
 
 @admin.register(Requirement)
 class RequirementAdmin(admin.ModelAdmin):
-    list_display = ('id', 'client_name','created_by', 'phone', 'property_type', 'district', 'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'created_at')
-    list_filter = ('is_active', 'budget_type', 'property_type', 'department')
-    search_fields = ('client_name', 'phone')
-    readonly_fields = ('created_at', 'updated_at')
-    ordering = ('-created_at',)
+    list_display = (
+        "id",
+        "contact",
+        "operation_type",
+        "property_type",
+        "currency",
+        "source_group",
+        "source_date",
+        "is_active",
+        "created_at",
+        "summary_json",
+    )
+
+    list_filter = (
+        "is_active",
+        "operation_type",
+        "property_type",
+        "currency",
+        "payment_method",
+        "source_group",
+    )
+
+    search_fields = (
+        "id",
+        "contact__first_name",
+        "contact__last_name",
+        "contact__maternal_last_name",
+        "notes_message_ws",
+        "notes",
+    )
+
+    ordering = ("-source_date",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            "contact",
+            "operation_type",
+            "property_type",
+            "property_subtype",
+            "currency",
+            "payment_method",
+            "property_status",
+        ).prefetch_related("districts")
 
 @admin.register(RequirementMatch)
 class RequirementMatchAdmin(admin.ModelAdmin):

@@ -76,6 +76,8 @@ urlpatterns = [
     path('matching/weights/', views.matching_weights_view, name='matching_weights'),
     path('configuracion/inmobiliaria/', views.agency_config_view, name='agency_config'),
     path('matching/requirement/<int:pk>/matches/', views.matching_matches_view, name='matching_matches'),
+    path("matching/requirement/<int:req_id>/property/<int:prop_id>/detail/",views.match_detail_partial, name="match_detail_partial",),
+    path("api/requirements/<int:req_id>/matches/recalculate/",views.api_recalculate_requirement_matches ,name="api_recalculate_requirement_matches",),
     # Servir imágenes almacenadas como blob en la tabla `property_images`
     path('images/blob/<int:pk>/', views.image_blob_view, name='image_blob'),
     path('search/', views.search_view, name='search'),
