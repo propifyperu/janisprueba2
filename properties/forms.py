@@ -11,6 +11,7 @@ from .models import (
     PropertyRoom,
     PropertyFinancialInfo,
     AgencyConfig,
+    Requirement,
 )
 
 
@@ -298,37 +299,172 @@ class PropertyRoomForm(forms.ModelForm):
 
 class RequirementForm(forms.ModelForm):
     class Meta:
-        model = None  # se reemplaza en runtime para evitar import circular
+        from .models import Requirement
+        model = Requirement
         fields = [
-            'client_name', 'phone', 'property_type', 'property_subtype',
-            'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'currency',
-            'payment_method', 'status',
-            'department', 'province', 'district', 'urbanization',
-            'bedrooms', 'bathrooms', 'half_bathrooms', 'floors', 'garage_spaces',
-            'notes'
+            "operation_type",
+            "property_type",
+            "property_subtype",
+            "currency",
+            "payment_method",
+            "price_min",
+            "price_max",
+            "antiquity_years_min",
+            "antiquity_years_max",
+            "floors_min",
+            "floors_max",
+            "bedrooms_min",
+            "bedrooms_max",
+            "bathrooms_min",
+            "bathrooms_max",
+            "garage_spaces_min",
+            "garage_spaces_max",
+            "land_area_min",
+            "land_area_max",
+            "built_area_min",
+            "built_area_max",
+            "has_elevator",
+            "pet_friendly",
+            "districts",
         ]
 
     def __init__(self, *args, **kwargs):
-        # Importar aquí para evitar ciclos
-        from .models import Requirement
-        # Asignar el modelo antes de inicializar para que ModelForm construya los campos
-        self._meta.model = Requirement
         super().__init__(*args, **kwargs)
-        # Hacer campos opcionales por defecto
-        for field_name in self.fields:
-            self.fields[field_name].required = False
-        # Widgets básicos
-        self.fields['client_name'].widget = forms.TextInput(attrs={'class': 'form-control'})
-        self.fields['phone'].widget = forms.TextInput(attrs={'class': 'form-control'})
-        self.fields['notes'].widget = forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
 
+        for field in self.fields.values():
+            field.required = False
+            if isinstance(field.widget, forms.Select):
+                field.widget.attrs.update({'class': 'form-select'})
+            else:
+                field.widget.attrs.update({'class': 'form-control'})
+
+        if 'districts' in self.fields:
+            self.fields['districts'].widget = forms.SelectMultiple(attrs={
+                'class': 'form-select',
+                'size': 6
+            })
 
 class DistrictMultipleChoiceField(forms.ModelMultipleChoiceField):
     def label_from_instance(self, obj):
         # Mostrar solo el nombre del distrito (evitar mostrar 'Distrito - Provincia')
         return getattr(obj, 'name', str(obj))
 
+class RequirementCreateForm(forms.ModelForm):
+    class Meta:
+        model = Requirement
+        fields = [
+            # hard filters
+            "operation_type",
+            "property_type",
+            "property_subtype",
+            "property_status",
+            "currency",
+            "payment_method",
 
+            # rangos
+            "price_min", "price_max",
+            "land_area_min", "land_area_max",
+            "built_area_min", "built_area_max",
+            "antiquity_years_min", "antiquity_years_max",
+            "floors_min", "floors_max",
+            "bedrooms_min", "bedrooms_max",
+            "bathrooms_min", "bathrooms_max",
+            "garage_spaces_min", "garage_spaces_max",
+
+            # booleanos
+            "has_elevator",
+            "pet_friendly",
+
+            # m2m
+            "districts",
+
+            # notas
+            "notes",
+            "source_group",
+            "source_date",
+        ]
+
+        widgets = {
+            # selects
+            "operation_type": forms.Select(attrs={"class": "form-select"}),
+            "property_type": forms.Select(attrs={"class": "form-select"}),
+            "property_subtype": forms.Select(attrs={"class": "form-select"}),
+            "property_status": forms.Select(attrs={"class": "form-select"}),
+            "currency": forms.Select(attrs={"class": "form-select"}),
+            "payment_method": forms.Select(attrs={"class": "form-select"}),
+
+            # decimals (min/max)
+            "price_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+            "price_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+
+            "land_area_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+            "land_area_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+
+            "built_area_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+            "built_area_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+
+            "antiquity_years_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+            "antiquity_years_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+
+            "floors_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+            "floors_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+
+            "bedrooms_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+            "bedrooms_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+
+            "bathrooms_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+            "bathrooms_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+
+            "garage_spaces_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+            "garage_spaces_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
+
+            # booleans
+            "has_elevator": forms.Select(attrs={"class": "form-select"}),
+            "pet_friendly": forms.Select(attrs={"class": "form-select"}),
+
+            # m2m districts
+            "districts": forms.SelectMultiple(attrs={"class": "form-select", "multiple": "multiple"}),
+
+            # notes
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "source_group": forms.TextInput(attrs={"class": "form-control"}),
+            "source_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # todo opcional
+        for f in self.fields.values():
+            f.required = False
+
+        # property_subtype pesado: lo dejamos vacío y lo cargamos por JS
+        try:
+            from .models import PropertySubtype
+            self.fields["property_subtype"].queryset = PropertySubtype.objects.none()
+
+            type_id = None
+            if self.is_bound:
+                type_id = (self.data.get("property_type") or "").strip()
+            elif self.instance and self.instance.property_type_id:
+                type_id = str(self.instance.property_type_id)
+
+            if type_id:
+                self.fields["property_subtype"].queryset = (
+                    PropertySubtype.objects.filter(is_active=True, property_type_id=type_id)
+                    .only("id", "name")
+                    .order_by("name")
+                )
+        except Exception:
+            pass
+
+
+class RequirementUpdateForm(RequirementCreateForm):
+    """Mismo form, sirve para editar."""
+    pass
+
+
+""""
 class RequirementSimpleForm(forms.Form):
     # Ya no se usa client_name ni phone directamente, sino contact FK
     property_type = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
@@ -522,26 +658,42 @@ class RequirementSimpleForm(forms.Form):
     def clean_budget_max(self):
         return self._clean_decimal("budget_max")
 
+        """
+
+"""
 class RequirementEditForm(forms.ModelForm):
-    """Formulario para editar un `Requirement` desde la UI.
+    Formulario para editar un `Requirement` desde la UI.
 
     Incluye el campo M2M `districts` (selección múltiple) en lugar del FK `district`.
-    """
+
     class Meta:
         from .models import Requirement
         model = Requirement
         fields = [
-            'client_name', 'phone', 'property_type', 'property_subtype',
-            'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'currency',
-            'payment_method', 'status',
-            'department', 'province', 'districts',
-            'bedrooms', 'bathrooms', 'half_bathrooms', 'floors', 'garage_spaces',
-            'preferred_floors',
-            'zonificaciones',
-            'frontera_type', 'frontera_approx', 'frontera_min', 'frontera_max',
-            'number_of_floors',
-            'ascensor',
-            'notes', 'area_type', 'land_area_approx', 'land_area_min', 'land_area_max'
+            "operation_type",
+            "property_type",
+            "property_subtype",
+            "currency",
+            "payment_method",
+            "price_min",
+            "price_max",
+            "bedrooms_min",
+            "bedrooms_max",
+            "bathrooms_min",
+            "bathrooms_max",
+            "garage_spaces_min",
+            "garage_spaces_max",
+            "land_area_min",
+            "land_area_max",
+            "built_area_min",
+            "built_area_max",
+            "antiquity_years_min",
+            "antiquity_years_max",
+            "floors_min",
+            "floors_max",
+            "has_elevator",
+            "pet_friendly",
+            "districts",
         ]
 
     assigned_agent = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
@@ -582,7 +734,7 @@ class RequirementEditForm(forms.ModelForm):
                 self.fields['assigned_agent'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
         except Exception:
             pass
-
+"""
 
 # =============================================================================
 # FORMULARIOS PARA AGENDA Y EVENTOS
