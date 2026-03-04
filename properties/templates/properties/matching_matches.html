@@ -2,6 +2,17 @@
 {% load static %}
 
 {% block dashboard_content %}
+<style>
+  /* ✅ barras suaves y consistentes */
+  .score-wrap { width: 55px; } /* 👈 mitad (antes 110px) */
+  .score-progress { height: 8px; border-radius: 999px; background: #eef2f6; overflow: hidden; }
+  .score-bar { height: 100%; border-radius: 999px; }
+  .score-green { background: #198754; }   /* bootstrap success */
+  .score-yellow { background: #ffc107; }  /* bootstrap warning */
+  .score-red { background: #f19999; }     /* rojito suave */
+  .legend-dot { width: 18px; height: 6px; border-radius: 999px; display: inline-block; }
+</style>
+
 <div class="container-fluid py-4">
   <div class="row justify-content-center">
     <div class="col-12 col-xl-10">
@@ -17,15 +28,32 @@
 
       <div class="card">
         <div class="card-body">
-          <p class="small text-muted mb-3">Resultados ordenados por puntuación (0-100).</p>
+
+          <!-- ✅ Solo leyenda (se movió aquí, reemplazando el texto anterior) -->
+          <div class="d-flex justify-content-start mb-3">
+            <div class="small text-muted">
+              <span class="me-2">
+                <span class="legend-dot score-green"></span>
+                <span class="ms-1">95–100%</span>
+              </span>
+              <span class="me-2">
+                <span class="legend-dot score-yellow"></span>
+                <span class="ms-1">85–95%</span>
+              </span>
+              <span>
+                <span class="legend-dot score-red"></span>
+                <span class="ms-1">70–85%</span>
+              </span>
+            </div>
+          </div>
 
           <!-- Desktop -->
           <div class="table-responsive d-none d-md-block" style="max-height: 70vh; overflow-y: auto;">
             <table class="table table-hover align-middle mb-0">
               <thead class="sticky-top bg-white" style="z-index:1;">
                 <tr>
-                  <th style="width:140px;">Score</th>
-                  <th>Dirección exacta</th>
+                  <th style="width:160px;">Coincidencia</th>
+                  <th>Forma de Pago</th>
                   <th>Título</th>
                   <th style="width:140px;">Precio</th>
                   <th style="width:160px;">Distrito</th>
@@ -37,13 +65,22 @@
                 {% for r in results %}
                   <tr>
                     <td>
-                      <div class="d-flex align-items-center">
-                        <span class="badge bg-success">Encontrada</span>
-                        <span class="ms-2 fw-bold text-dark">{{ r.score|floatformat:2 }}%</span>
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="score-wrap">
+                          <div class="score-progress">
+                            {% if r.score >= 95 %}
+                              <div class="score-bar score-green" style="width: {{ r.score|floatformat:0 }}%"></div>
+                            {% elif r.score >= 85 %}
+                              <div class="score-bar score-yellow" style="width: {{ r.score|floatformat:0 }}%"></div>
+                            {% else %}
+                              <div class="score-bar score-red" style="width: {{ r.score|floatformat:0 }}%"></div>
+                            {% endif %}
+                          </div>
+                        </div>
                       </div>
                     </td>
 
-                    <td>{{ r.property.exact_address|default:"—" }}</td>
+                    <td>{{ r.property.forma_de_pago|default:"—" }}</td>
                     <td>{{ r.property.title|default:"—" }}</td>
                     <td>
                       {% if r.property.currency %}{{ r.property.currency.symbol }}{% else %}$ {% endif %}
@@ -89,14 +126,20 @@
                   <div class="d-flex justify-content-between align-items-start mb-2">
                     <div>
                       <div class="fw-bold">{{ r.property.title|default:"(Sin título)" }}</div>
-                      <div class="text-muted small">{{ r.property.exact_address|default:"Sin dirección" }}</div>
+                      <div class="text-muted small">{{ r.property.forma_de_pago|default:"Sin forma de pago" }}</div>
                     </div>
 
-                    <div style="width:70px">
-                      <div class="progress" style="height:6px">
-                        <div class="progress-bar bg-success" style="width: {{ r.score|floatformat:0 }}%"></div>
+                    <!-- ✅ SOLO barrita (sin %) -->
+                    <div class="score-wrap">
+                      <div class="score-progress">
+                        {% if r.score >= 95 %}
+                          <div class="score-bar score-green" style="width: {{ r.score|floatformat:0 }}%"></div>
+                        {% elif r.score >= 85 %}
+                          <div class="score-bar score-yellow" style="width: {{ r.score|floatformat:0 }}%"></div>
+                        {% else %}
+                          <div class="score-bar score-red" style="width: {{ r.score|floatformat:0 }}%"></div>
+                        {% endif %}
                       </div>
-                      <div class="small text-center mt-1">{{ r.score|floatformat:1 }}%</div>
                     </div>
                   </div>
 
