@@ -27,7 +27,7 @@ from django.db.models import Prefetch
 from .models import PropertyImage  # <-- AJUSTA si tu modelo se llama diferente
 from .models import (
     Property, PropertyImage, PropertyType, PropertyStatus,
-    PaymentMethod, District, Province, Department, Urbanization
+    PaymentMethod, District, Province, Department, Urbanization, PropertySubtype
 )
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -1148,6 +1148,7 @@ class RequirementListView(LoginRequiredMixin, ListView):
 @login_required
 def requirement_create_view(request):
     contactos_qs = PropertyOwner.objects.filter(is_active=True).order_by("first_name", "last_name")
+    all_subtypes = PropertySubtype.objects.select_related("property_type").order_by("name")
 
     if request.method == "POST":
         form = RequirementCreateForm(request.POST)
@@ -1166,6 +1167,7 @@ def requirement_create_view(request):
                     "form": form,
                     "owner_form": owner_form,
                     "contactos_existentes": contactos_qs,
+                    "all_subtypes": all_subtypes,
                 })
         else:
             if owner_form.is_valid() and owner_form.has_changed():
@@ -1181,6 +1183,7 @@ def requirement_create_view(request):
                 "form": form,
                 "owner_form": owner_form,
                 "contactos_existentes": contactos_qs,
+                "all_subtypes": all_subtypes,
             })
 
         req: Requirement = form.save(commit=False)
@@ -1216,6 +1219,7 @@ def requirement_create_view(request):
         "form": form,
         "owner_form": owner_form,
         "contactos_existentes": contactos_qs,
+        "all_subtypes": all_subtypes,
     })
 
 class RequirementUpdateView(LoginRequiredMixin, UpdateView):

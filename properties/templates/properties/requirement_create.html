@@ -12,9 +12,7 @@
         --primary-color: #047D7D;
         --secondary-color: #279896;
     }
-    .form-label {
-        font-weight: 500;
-    }
+    .form-label { font-weight: 500; }
     .form-section {
         border: 1px solid #e3e6f0;
         border-radius: 0.5rem;
@@ -147,9 +145,26 @@
                                                 <label class="form-label">Tipo</label>
                                                 {{ form.property_type }}
                                             </div>
+
+                                            {# ✅ CAMBIO: Subtipo dependiente de Tipo (sin endpoint) #}
                                             <div class="col-md-4">
                                                 <label class="form-label">Subtipo</label>
-                                                {{ form.property_subtype }}
+                                                <select
+                                                    name="{{ form.property_subtype.html_name }}"
+                                                    id="{{ form.property_subtype.id_for_label }}"
+                                                    class="form-select"
+                                                >
+                                                    <option value="">---------</option>
+                                                    {% for st in all_subtypes %}
+                                                        <option
+                                                            value="{{ st.id }}"
+                                                            data-type="{{ st.property_type_id }}"
+                                                            {% if form.is_bound and form.property_subtype.value|stringformat:"s" == st.id|stringformat:"s" %}selected{% endif %}
+                                                        >
+                                                            {{ st.name }}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
                                             </div>
                                         </div>
 
@@ -433,6 +448,36 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('Select2 init failed', e);
     }
 })();
+
+/* ✅ Subtipo dependiente de Tipo (filtrado client-side, sin endpoint) */
+document.addEventListener("DOMContentLoaded", function () {
+    const typeSel = document.getElementById("{{ form.property_type.id_for_label }}");
+    const subSel  = document.getElementById("{{ form.property_subtype.id_for_label }}");
+    if (!typeSel || !subSel) return;
+
+    function filterSubtypes() {
+        const typeId = typeSel.value;
+        let hasSelectedValid = false;
+
+        Array.from(subSel.options).forEach(opt => {
+            const optType = opt.getAttribute("data-type");
+            if (!optType) { // opción "---------"
+                opt.hidden = false;
+                return;
+            }
+            const visible = !!typeId && optType === typeId;
+            opt.hidden = !visible;
+
+            if (visible && opt.selected) hasSelectedValid = true;
+        });
+
+        if (!hasSelectedValid) subSel.value = "";
+        subSel.disabled = !typeId; // 👈 opcional: deshabilita si no hay tipo
+    }
+
+    typeSel.addEventListener("change", filterSubtypes);
+    filterSubtypes();
+});
 </script>
 
 <script>
