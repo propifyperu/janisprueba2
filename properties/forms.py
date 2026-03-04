@@ -419,8 +419,8 @@ class RequirementCreateForm(forms.ModelForm):
             "garage_spaces_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "inputmode": "decimal"}),
 
             # booleans
-            "has_elevator": forms.Select(attrs={"class": "form-select"}),
-            "pet_friendly": forms.Select(attrs={"class": "form-select"}),
+            "has_elevator": forms.NullBooleanSelect(attrs={"class": "form-select"}),
+            "pet_friendly": forms.NullBooleanSelect(attrs={"class": "form-select"}),
 
             # m2m districts
             "districts": forms.SelectMultiple(attrs={"class": "form-select", "multiple": "multiple"}),
@@ -437,6 +437,19 @@ class RequirementCreateForm(forms.ModelForm):
         # todo opcional
         for f in self.fields.values():
             f.required = False
+
+        self.fields["operation_type"].required = True
+        self.fields["property_type"].required = True
+        self.fields["price_min"].required = True
+        self.fields["price_max"].required = True
+        self.fields["operation_type"].initial = 1
+
+        try:
+            self.fields["operation_type"].queryset = (
+                self.fields["operation_type"].queryset.exclude(name__iexact="venta")
+            )
+        except Exception:
+            pass
 
         # property_subtype pesado: lo dejamos vacío y lo cargamos por JS
         try:
@@ -455,6 +468,17 @@ class RequirementCreateForm(forms.ModelForm):
                     .only("id", "name")
                     .order_by("name")
                 )
+        except Exception:
+            pass
+
+        try:
+            cur_field = self.fields.get("currency")
+            if cur_field:
+                cur_field.widget.attrs.setdefault("id", "id_currency")  # por si acaso
+                cur_field.widget.choices = [
+                    (c.id, getattr(c, "name", str(c))) for c in cur_field.queryset
+                ]
+                # Django no permite data-* por choice directo, pero sí por JS leyendo un map.
         except Exception:
             pass
 
