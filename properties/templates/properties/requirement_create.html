@@ -138,12 +138,18 @@
                                     <div class="accordion-body">
                                         <div class="row g-2">
                                             <div class="col-md-4">
-                                                <label class="form-label">Operación</label>
+                                                <label class="form-label">Operación *</label>
                                                 {{ form.operation_type }}
+                                                {% if form.operation_type.errors %}
+                                                <div class="text-danger small">{{ form.operation_type.errors }}</div>
+                                                {% endif %}
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label">Tipo</label>
+                                                <label class="form-label">Tipo *</label>
                                                 {{ form.property_type }}
+                                                {% if form.property_type.errors %}
+                                                <div class="text-danger small">{{ form.property_type.errors }}</div>
+                                                {% endif %}
                                             </div>
 
                                             {# ✅ CAMBIO: Subtipo dependiente de Tipo (sin endpoint) #}
@@ -205,12 +211,18 @@
 
                                         <div class="row g-2 mt-2">
                                             <div class="col-md-6">
-                                                <label class="form-label">Precio mínimo</label>
+                                                <label class="form-label" id="label_price_min">Precio mínimo *</label>
                                                 {{ form.price_min }}
+                                                {% if form.price_min.errors %}
+                                                <div class="text-danger small">{{ form.price_min.errors }}</div>
+                                                {% endif %}
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label">Precio máximo</label>
+                                                <label class="form-label" id="label_price_max">Precio máximo *</label>
                                                 {{ form.price_max }}
+                                                {% if form.price_max.errors %}
+                                                <div class="text-danger small">{{ form.price_max.errors }}</div>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -229,22 +241,22 @@
 
                                         <div class="row g-2">
                                             <div class="col-md-6">
-                                                <label class="form-label">Área terreno min</label>
+                                                <label class="form-label">Área terreno min (m2)</label>
                                                 {{ form.land_area_min }}
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label">Área terreno max</label>
+                                                <label class="form-label">Área terreno max (m2)</label>
                                                 {{ form.land_area_max }}
                                             </div>
                                         </div>
 
                                         <div class="row g-2 mt-1">
                                             <div class="col-md-6">
-                                                <label class="form-label">Área construida min</label>
+                                                <label class="form-label">Área construida min (m2)</label>
                                                 {{ form.built_area_min }}
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label">Área construida max</label>
+                                                <label class="form-label">Área construida max (m2)</label>
                                                 {{ form.built_area_max }}
                                             </div>
                                         </div>
@@ -500,6 +512,29 @@ document.addEventListener('DOMContentLoaded', function(){
             });
         }
     }catch(e){ console.warn('requirement form binding failed', e); }
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const curSel = document.getElementById("{{ form.currency.id_for_label }}");
+  const lblMin = document.getElementById("label_price_min");
+  const lblMax = document.getElementById("label_price_max");
+
+  const symbols = {{ currency_symbols|safe }}; // {"1":"S/","2":"$"...}
+
+  function applyCurrencyLabel(){
+    if(!curSel || !lblMin || !lblMax) return;
+    const sym = symbols[String(curSel.value || "")] || "";
+    const suffix = sym ? ` (${sym})` : "";
+    lblMin.textContent = `Precio mínimo${suffix} *`;
+    lblMax.textContent = `Precio máximo${suffix} *`;
+  }
+
+  if(curSel){
+    curSel.addEventListener("change", applyCurrencyLabel);
+    applyCurrencyLabel();
+  }
 });
 </script>
 {% endblock %}
