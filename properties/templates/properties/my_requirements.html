@@ -139,8 +139,8 @@
                       type="button"
                       class="btn btn-sm btn-outline-success js-recalc"
                       data-req="{{ r.id }}"
-                      data-limit="15"
-                      data-min-score="70"
+                      data-limit="10"
+                      data-min-score="80"
                     >
                       Recalcular
                     </button>
@@ -197,9 +197,35 @@
 
     </div>
   </div>
+  <div id="toastContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 2000;">
+    <div id="recalcToast" class="toast align-items-center text-bg-warning border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="recalcToastBody"></div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
+  const NO_MATCHES_MSG =
+    "No se encontraron matches para este requerimiento.<br><br>" +
+    "<strong>Tip:</strong> amplía tu búsqueda (precio, distritos, área, dormitorios/baños) y vuelve a recalcular.<br>" +
+    "También puedes editar el requerimiento desde el detalle.";
+
+  function showToast(htmlMessage, variant = "warning") {
+    const toastEl = document.getElementById("recalcToast");
+    const bodyEl = document.getElementById("recalcToastBody");
+    if (!toastEl || !bodyEl) return;
+
+    // variants: warning, success, danger, info
+    toastEl.className = `toast align-items-center text-bg-${variant} border-0`;
+    bodyEl.innerHTML = htmlMessage;
+
+    const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 6000 });
+    toast.show();
+  }
+
   function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -220,8 +246,8 @@
     if (!btn) return;
 
     const reqId = btn.dataset.req;
-    const limit = btn.dataset.limit || 15;
-    const minScore = btn.dataset.minScore || 70;
+    const limit = btn.dataset.limit || 10;
+    const minScore = btn.dataset.minScore || 80;
 
     btn.disabled = true;
     const oldText = btn.textContent;
@@ -231,24 +257,32 @@
       const url = `/dashboard/api/requirements/${reqId}/matches/recalculate/?limit=${encodeURIComponent(limit)}&min_score=${encodeURIComponent(minScore)}`;
       const resp = await fetch(url, {
         method: "POST",
-        headers: {
-          "X-CSRFToken": getCookie("csrftoken"),
-        },
+        headers: { "X-CSRFToken": getCookie("csrftoken") },
       });
 
       if (!resp.ok) {
         const txt = await resp.text();
-        alert("Error recalculando: " + txt);
+        showToast("Error recalculando: " + (txt || "respuesta inválida"), "danger");
         return;
+      }
+
+      const data = await resp.json();
+      const totalSaved = (Number(data.created || 0) + Number(data.updated || 0));
+
+      if (totalSaved === 0) {
+        showToast(NO_MATCHES_MSG, "warning");
+      } else {
+        showToast(`Listo: se guardaron <strong>${totalSaved}</strong> coincidencias.`, "success");
       }
 
       window.location.reload();
     } catch (err) {
-      alert("Error recalculando.");
+      showToast("Error recalculando.", "danger");
     } finally {
       btn.disabled = false;
       btn.textContent = oldText;
     }
   });
 </script>
+
 {% endblock %}
