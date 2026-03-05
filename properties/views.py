@@ -830,6 +830,7 @@ def api_recalculate_requirement_matches(request, req_id: int):
     created = 0
     updated = 0
     saved = []
+    new_prop_ids = set()
 
     with transaction.atomic():
         for item in results:
@@ -846,10 +847,27 @@ def api_recalculate_requirement_matches(request, req_id: int):
                 defaults={"score": score, "details": details},
             )
 
+            new_prop_ids.add(prop.id)
             created += 1 if was_created else 0
             updated += 0 if was_created else 1
-
             saved.append({"property_id": prop.id, "score": score})
+
+        qs_old = RequirementMatch.objects.filter(requirement=req)
+        if new_prop_ids:
+            qs_old.exclude(property_id__in=new_prop_ids).delete()
+        else:
+            qs_old.delete()
+
+    total_saved = created + updated
+
+    if total_saved == 0:
+        messages.warning(
+            request,
+            "No se encontraron matches para este requerimiento.\n"
+            "Edita tu búsqueda (precio, distritos, dormitorios/baños) y vuelve a recalcular.\n"
+        )
+    else:
+        messages.success(request, f"Listo: se guardaron {total_saved} coincidencias.")
 
     return Response(
         {
@@ -858,6 +876,7 @@ def api_recalculate_requirement_matches(request, req_id: int):
             "min_score": min_score,
             "created": created,
             "updated": updated,
+            "total_saved": total_saved,
             "saved_preview": saved[:50],
         },
         status=status.HTTP_200_OK
@@ -1227,8 +1246,8 @@ def requirement_create_view(request):
             if total_saved == 0:
                 messages.warning(
                     request,
-                    "No se encontraron matches para este requerimiento.\n\n"
-                    "Amplía tu búsqueda (precio, distritos, área, dormitorios/baños) y vuelve a recalcular.\n\n"
+                    "No se encontraron matches para este requerimiento.\n"
+                    "Edita tu búsqueda (precio, distritos, dormitorios/baños) y vuelve a recalcular.\n"
                 )
             else:
                 messages.success(request, "Requerimiento creado. Se calcularon coincidencias.")
@@ -1335,9 +1354,8 @@ def requirement_update_view(request, pk):
             if total_saved == 0:
                 messages.warning(
                     request,
-                    "No se encontraron matches para este requerimiento.\n\n"
-                    "Amplía tu búsqueda (precio, distritos, área, dormitorios/baños) y vuelve a recalcular.\n\n"
-                    "Puedes ajustar el requerimiento desde Detalle."
+                    "No se encontraron matches para este requerimiento.\n"
+                    "Edita tu búsqueda (precio, distritos, dormitorios/baños) y vuelve a recalcular.\n"
                 )
             else:
                 messages.success(request, f"Requerimiento actualizado. Se guardaron {total_saved} coincidencias.")
