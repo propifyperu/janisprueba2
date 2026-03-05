@@ -36,7 +36,7 @@ from datetime import date
 from django.db.models import Q
 from rest_framework import status
 from properties.engine_matching.engine import get_matches
-from .forms import PropertyOwnerForm, RequirementCreateForm
+from .forms import PropertyOwnerForm, RequirementCreateForm, RequirementUpdateForm
 
 
 def link_callback(uri, rel):
@@ -1042,6 +1042,7 @@ def recalculate_requirement_matches(req: Requirement, *, limit: int = 20, min_sc
     created = 0
     updated = 0
     saved = []
+    new_prop_ids = set()
 
     with transaction.atomic():
         for item in results:
@@ -1057,10 +1058,19 @@ def recalculate_requirement_matches(req: Requirement, *, limit: int = 20, min_sc
                 property=prop,
                 defaults={"score": score, "details": details},
             )
-
+            new_prop_ids.add(prop.id)
             created += 1 if was_created else 0
             updated += 0 if was_created else 1
             saved.append({"property_id": prop.id, "score": score})
+
+        qs_old = RequirementMatch.objects.filter(requirement=req)
+        if new_prop_ids:
+            qs_old.exclude(property_id__in=new_prop_ids).delete()
+        else:
+            # si no se guardó nada nuevo, entonces el requerimiento quedó sin matches
+            qs_old.delete()
+
+    total_saved = created + updated
 
     return {
         "requirement_id": req.id,
@@ -1068,6 +1078,7 @@ def recalculate_requirement_matches(req: Requirement, *, limit: int = 20, min_sc
         "min_score": float(min_score),
         "created": created,
         "updated": updated,
+        "total_saved": total_saved,
         "saved_preview": saved[:50],
     }
 
@@ -1210,8 +1221,17 @@ def requirement_create_view(request):
         form.save_m2m()
 
         try:
-            recalculate_requirement_matches(req, limit=10, min_score=80.0)
-            messages.success(request, "Requerimiento creado. Se calcularon coincidencias.")
+            res = recalculate_requirement_matches(req, limit=10, min_score=80.0)
+            total_saved = int(res.get("created", 0)) + int(res.get("updated", 0))
+
+            if total_saved == 0:
+                messages.warning(
+                    request,
+                    "No se encontraron matches para este requerimiento.\n\n"
+                    "Amplía tu búsqueda (precio, distritos, área, dormitorios/baños) y vuelve a recalcular.\n\n"
+                )
+            else:
+                messages.success(request, "Requerimiento creado. Se calcularon coincidencias.")
         except Exception:
             messages.success(request, "Requerimiento creado correctamente (sin recalcular coincidencias).")
 
@@ -1227,50 +1247,119 @@ def requirement_create_view(request):
         "currency_symbols": currency_symbols,
     })
 
-class RequirementUpdateView(LoginRequiredMixin, UpdateView):
-    model = Requirement
-    template_name = "properties/requirement_edit.html"
+@login_required
+def requirement_update_view(request, pk):
+    req = get_object_or_404(Requirement, pk=pk)
 
-    def get_form_class(self):
-        from .forms import RequirementUpdateForm
-        return RequirementUpdateForm
+    # permisos (igual que tu dispatch)
+    is_call_center = bool(getattr(request.user, "role", None) and request.user.role.name == "Call Center")
+    if not (request.user.is_superuser or is_call_center or req.created_by_id == request.user.id):
+        messages.error(request, "No tienes permiso para editar este requerimiento.")
+        return redirect("properties:requirements_my")
 
-    def get_initial(self):
-        initial = super().get_initial()
-        if self.object.assigned_to_id:
-            initial["assigned_agent"] = self.object.assigned_to_id
-        return initial
+    contactos_qs = PropertyOwner.objects.filter(is_active=True).order_by("first_name", "last_name")
+    all_subtypes = PropertySubtype.objects.select_related("property_type").order_by("name")
+    currencies = Currency.objects.filter(is_active=True).only("id", "symbol")
+    currency_symbols = {str(c.id): (c.symbol or "") for c in currencies}
 
-    def dispatch(self, request, *args, **kwargs):
-        self.object = self.get_object()
+    if request.method == "POST":
+        form = RequirementUpdateForm(request.POST, instance=req)
+        owner_form = PropertyOwnerForm(request.POST, request.FILES)
 
-        is_call_center = bool(getattr(request.user, "role", None) and request.user.role.name == "Call Center")
-        # puede editar: creador o superuser o callcenter
-        if not (request.user.is_superuser or is_call_center or self.object.created_by_id == request.user.id):
-            messages.error(request, "No tienes permiso para editar este requerimiento.")
-            return redirect("properties:requirements_my")
+        existing_owner_id = (request.POST.get("existing_owner") or "").strip()
 
-        return super().dispatch(request, *args, **kwargs)
+        # ---- CONTACTO: misma lógica que create, pero SIN reventar el contacto actual si no mandas nada ----
+        contact_instance = req.contact  # default: mantener el actual
 
-    def form_valid(self, form):
-        req = form.save(commit=False)
+        if existing_owner_id:
+            contact_instance = contactos_qs.filter(id=existing_owner_id).first()
+            if not contact_instance:
+                messages.error(request, "El contacto seleccionado no existe.")
+                return render(request, "properties/requirement_create.html", {
+                    "form": form,
+                    "owner_form": owner_form,
+                    "contactos_existentes": contactos_qs,
+                    "all_subtypes": all_subtypes,
+                    "currency_symbols": currency_symbols,
+                    "selected_owner_id": str(getattr(req, "contact_id", "") or ""),
+                    "is_edit": True,
+                    "submit_text": "Actualizar",
+                })
+        else:
+            # si el form de owner tiene cambios reales => crea nuevo contacto
+            if owner_form.is_valid() and owner_form.has_changed():
+                new_contact = owner_form.save(commit=False)
+                new_contact.created_by = request.user
+                new_contact.save()
+                owner_form.save_m2m()
+                contact_instance = new_contact
 
-        is_call_center = bool(getattr(self.request.user, "role", None) and self.request.user.role.name == "Call Center")
-        assigned_agent = form.cleaned_data.get("assigned_agent")
+        if not form.is_valid():
+            messages.error(request, "Revisa los campos del requerimiento.")
+            return render(request, "properties/requirement_create.html", {
+                "form": form,
+                "owner_form": owner_form,
+                "contactos_existentes": contactos_qs,
+                "all_subtypes": all_subtypes,
+                "currency_symbols": currency_symbols,
+                "selected_owner_id": str(getattr(req, "contact_id", "") or ""),
+                "is_edit": True,
+                "submit_text": "Actualizar",
+            })
 
-        if (self.request.user.is_superuser or is_call_center) and assigned_agent:
-            req.assigned_to = assigned_agent
+        req2: Requirement = form.save(commit=False)
 
-        req.save()
+        # ✅ mantener/asignar contacto
+        req2.contact = contact_instance
+
+        # ✅ BLINDAJES IMPORTANTES (lo que tú dijiste)
+        if not req2.import_batch:
+            req2.import_batch = "manual"
+        if not req2.import_row_sig:
+            req2.import_row_sig = uuid.uuid4().hex
+
+        # ✅ CLAVE: NO permitir que source_date se vuelva NULL por accidente
+        # - si ya tenía, conservar
+        # - si nunca tuvo, setear hoy
+        if not req2.source_date:
+            req2.source_date = req.source_date or timezone.localdate()
+
+        req2.save()
         form.save_m2m()
 
+        # recalcular matches y mensaje ÚNICO
         try:
-            persist_matches_for_requirement(req, limit=50, min_score=50)
-        except Exception:
-            pass
+            res = recalculate_requirement_matches(req2, limit=10, min_score=80.0)
+            total_saved = int(res.get("total_saved") or (res.get("created", 0) + res.get("updated", 0)))
 
-        messages.success(self.request, "Requerimiento actualizado correctamente.")
-        return redirect("properties:requirements_detail", pk=req.pk)
+            if total_saved == 0:
+                messages.warning(
+                    request,
+                    "No se encontraron matches para este requerimiento.\n\n"
+                    "Amplía tu búsqueda (precio, distritos, área, dormitorios/baños) y vuelve a recalcular.\n\n"
+                    "Puedes ajustar el requerimiento desde Detalle."
+                )
+            else:
+                messages.success(request, f"Requerimiento actualizado. Se guardaron {total_saved} coincidencias.")
+        except Exception:
+            messages.success(request, "Requerimiento actualizado correctamente (sin recalcular coincidencias).")
+
+        return redirect("properties:requirements_my")
+
+    # GET
+    form = RequirementUpdateForm(instance=req)
+    owner_form = PropertyOwnerForm()
+
+    return render(request, "properties/requirement_create.html", {
+        "form": form,
+        "owner_form": owner_form,
+        "contactos_existentes": contactos_qs,
+        "all_subtypes": all_subtypes,
+        "currency_symbols": currency_symbols,
+        "selected_owner_id": str(getattr(req, "contact_id", "") or ""),
+        "is_edit": True,
+        "submit_text": "Actualizar",
+    })
 
 
 class MyRequirementsView(LoginRequiredMixin, ListView):
@@ -1383,54 +1472,6 @@ class RequirementDetailView(LoginRequiredMixin, DetailView):
         can_view_pii = user.is_superuser or (req.created_by and req.created_by.id == user.id)
         context['can_view_pii'] = can_view_pii
         return context
-
-
-from django.views.generic.edit import UpdateView
-from django.contrib import messages
-
-
-class RequirementUpdateView(LoginRequiredMixin, UpdateView):
-    model = Requirement
-    template_name = 'properties/requirement_edit.html'
-    form_class = None  # set in get_form_class to avoid import cycles
-
-    def get_form_class(self):
-        from .forms import RequirementEditForm
-        return RequirementEditForm
-
-    def get_initial(self):
-        initial = super().get_initial()
-        if self.object.created_by:
-            initial['assigned_agent'] = self.object.created_by
-        return initial
-
-    def form_valid(self, form):
-        req = form.save(commit=False)
-        # sólo el creador, Call Center o superuser puede editar
-        is_call_center = (self.request.user.role and self.request.user.role.name == 'Call Center')
-        if not (self.request.user.is_superuser or is_call_center or (req.created_by and req.created_by.id == self.request.user.id)):
-            messages.error(self.request, 'No tienes permiso para editar este requerimiento.')
-            return redirect('properties:requirements_my')
-        
-        # Permitir reasignación del agente (created_by) si tiene permisos
-        if (self.request.user.is_superuser or is_call_center) and form.cleaned_data.get('assigned_agent'):
-            req.created_by = form.cleaned_data.get('assigned_agent')
-
-        req.modified_by = self.request.user
-        req.save()
-        # guardar M2M `districts`, `preferred_floors`, `zonificaciones`
-        try:
-            form.save_m2m()
-        except Exception:
-            pass
-
-        try:
-            persist_matches_for_requirement(req, limit=50, min_score=50)
-        except Exception:
-            pass
-
-        messages.success(self.request, 'Requerimiento actualizado correctamente.')
-        return redirect('properties:requirements_detail', pk=req.pk)
 
 
 @login_required

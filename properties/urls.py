@@ -34,7 +34,7 @@ urlpatterns = [
     path('requerimientos/<int:pk>/', views.RequirementDetailView.as_view(), name='requirements_detail'),
     path('requerimientos/crear/', views.requirement_create_view, name='requirements_create'),
     path('requerimientos/mis-requerimientos/', views.MyRequirementsView.as_view(), name='requirements_my'),
-    path('requerimientos/<int:pk>/editar/', views.RequirementUpdateView.as_view(), name='requirements_edit'),
+    path('requerimientos/<int:pk>/editar/', views.requirement_update_view, name='requirements_edit'),
     path('requerimientos/<int:pk>/borrar/', views.requirement_delete_view, name='requirements_delete'),
     path('mis-propiedades/documentos/', views.my_uploaded_documents_view, name='my_uploaded_documents'),
     # Agenda y Eventos

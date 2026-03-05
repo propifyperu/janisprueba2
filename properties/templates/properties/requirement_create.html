@@ -1,7 +1,9 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load static %}
 
-{% block title %}Crear Requerimiento - Propify{% endblock %}
+{% block title %}
+  {% if is_edit %}Editar Requerimiento - Propify{% else %}Crear Requerimiento - Propify{% endif %}
+{% endblock %}
 
 {% block dashboard_extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -79,8 +81,10 @@
                                     <select class="form-select" name="existing_owner" id="existingOwner">
                                         <option value="">-- Seleccionar contacto --</option>
                                         {% for contacto in contactos_existentes %}
-                                            <option value="{{ contacto.id }}">
-                                                {{ contacto.full_name }}{% if contacto.display_phone %} ({{ contacto.display_phone }}){% endif %}
+                                            <option value="{{ contacto.id }}"
+                                            {% if selected_owner_id and selected_owner_id == contacto.id|stringformat:"s" %}selected{% endif %}
+                                            >
+                                            {{ contacto.full_name }}{% if contacto.display_phone %} ({{ contacto.display_phone }}){% endif %}
                                             </option>
                                         {% endfor %}
                                     </select>
@@ -342,7 +346,7 @@
 
                         <div class="text-end mt-3">
                             <button class="btn btn-teal" type="submit" id="submitBtn">
-                                <i class="fas fa-save me-2"></i> Guardar
+                                <i class="fas fa-save me-2"></i> {{ submit_text|default:"Guardar" }}
                             </button>
                         </div>
 
