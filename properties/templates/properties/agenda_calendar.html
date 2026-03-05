@@ -636,7 +636,7 @@
             <a href="#" id="btnEditEvent" class="btn-modal btn-modal-edit">
                 <i class="fas fa-edit"></i> Editar
             </a>
-            <button onclick="deleteEvent()" class="btn-modal btn-modal-delete">
+            <button id="btnDeleteEvent" onclick="deleteEvent()" class="btn-modal btn-modal-delete">
                 <i class="fas fa-trash"></i> Eliminar
             </button>
             {% endif %}
@@ -652,6 +652,8 @@
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
 <script>
+const currentUserId = {{ request.user.id|default:"null" }};
+const isSuperUser = {{ request.user.is_superuser|yesno:"true,false" }};
 let calendar;
 let miniCalendar;
 let currentEventId = null;
@@ -900,6 +902,26 @@ function showEventModal(event) {
     var btnEdit = document.getElementById('btnEditEvent');
     if (btnEdit) {
         btnEdit.href = `/dashboard/agenda/eventos/${event.id}/editar/`;
+    }
+    
+    const btnEdit = document.getElementById('btnEditEvent');
+    const btnDelete = document.getElementById('btnDeleteEvent');
+    
+    // Por defecto ocultamos los botones
+    btnEdit.style.display = 'none';
+    btnDelete.style.display = 'none';
+
+    const eventTypeId = props.event_type_id; 
+    const createdById = props.created_by_id; 
+
+    if (isSuperUser) {  // superusuario puede editar/eliminar todo
+        btnEdit.style.display = 'inline-block';
+        btnDelete.style.display = 'inline-block';
+    } else {
+        if (parseInt(eventTypeId) !== 1 && parseInt(createdById) === parseInt(currentUserId)) { // si no es visita y el usuario es el creador, puede editar/borrar
+            btnEdit.style.display = 'inline-block';
+            btnDelete.style.display = 'inline-block';
+        }
     }
     
     // Mostrar modal
