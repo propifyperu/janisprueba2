@@ -1,162 +1,251 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load static %}
+{% load requirement_extras %}
 
 {% block title %}Requerimientos - Propify{% endblock %}
 
 {% block dashboard_content %}
 <div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-12 col-xl-11">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h1 class="h4 mb-0"><i class="fas fa-clipboard-list me-2"></i>Requerimientos</h1>
-                <a href="{% url 'properties:requirements_create' %}" class="btn btn-teal"><i class="fas fa-plus me-2"></i>Crear requerimiento</a>
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-11">
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0"><i class="fas fa-clipboard-list me-2"></i>Requerimientos</h1>
+        <a href="{% url 'properties:requirements_create' %}" class="btn btn-teal">
+          <i class="fas fa-plus me-2"></i>Crear requerimiento
+        </a>
+      </div>
+
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body p-3">
+          <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-5">
+              <label class="form-label small text-muted">Agente</label>
+              <select name="agent" class="form-select form-select-sm">
+                <option value="">Todos los agentes</option>
+                {% for agent in agents %}
+                  <option value="{{ agent.id }}" {% if filters.agent == agent.id|stringformat:"s" %}selected{% endif %}>
+                    {{ agent.first_name }} {{ agent.last_name }}
+                  </option>
+                {% endfor %}
+              </select>
             </div>
 
-            <div class="card mb-4 shadow-sm">
-                <div class="card-body p-3">
-                    <form method="get" class="row g-3 align-items-end">
-                        <div class="col-md-5">
-                            <label class="form-label small text-muted">Agente</label>
-                            <select name="agent" class="form-select form-select-sm">
-                                <option value="">Todos los agentes</option>
-                                {% for agent in agents %}
-                                <option value="{{ agent.id }}" {% if filters.agent == agent.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ agent.first_name }} {{ agent.last_name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="col-md-5">
-                            <label class="form-label small text-muted">Fecha Creación</label>
-                            <div class="input-group input-group-sm">
-                                <input type="date" name="date_start" class="form-control" 
-                                       value="{{ filters.date_start }}" title="Desde">
-                                <span class="input-group-text">-</span>
-                                <input type="date" name="date_end" class="form-control" 
-                                       value="{{ filters.date_end }}" title="Hasta">
-                            </div>
-                        </div>
-
-                        <div class="col-md-2 text-end">
-                            <button type="submit" class="btn btn-primary btn-sm w-100 mb-1">
-                                <i class="fas fa-filter me-1"></i> Filtrar
-                            </button>
-                            {% if filters.agent or filters.date_start or filters.date_end %}
-                            <a href="?" class="btn btn-outline-secondary btn-sm w-100">
-                                <i class="fas fa-times me-1"></i> Limpiar
-                            </a>
-                            {% endif %}
-                        </div>
-                    </form>
-                </div>
+            <div class="col-md-5">
+              <label class="form-label small text-muted">Fecha Creación</label>
+              <div class="input-group input-group-sm">
+                <input type="date" name="date_start" class="form-control" value="{{ filters.date_start }}" title="Desde">
+                <span class="input-group-text">-</span>
+                <input type="date" name="date_end" class="form-control" value="{{ filters.date_end }}" title="Hasta">
+              </div>
             </div>
 
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Tipo</th>
-                                    <th>Provincia</th>
-                                    <th>Distrito(s)</th>
-                                    <th>Presupuesto</th>
-                                    <th>Área</th>
-                                    <th>Coincidencia</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for r in requirements %}
-                                <tr>
-                                    <td>{{ r.property_type.name|default:'-' }}</td>
-
-                                    <td>
-                                        {% with prov=r.province %}
-                                            {% if prov %}
-                                                {% if prov.name %}{{ prov.name }}{% else %}{{ prov }}{% endif %}
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        {% endwith %}
-                                    </td>
-
-                                    <td>
-                                        {% with ds=r.districts.all %}
-                                            {% if ds %}
-                                                {% for d in ds %}...{% endfor %}
-                                            {% elif r.district %}
-                                                {% if r.district.name %}{{ r.district.name }}{% else %}{{ r.district }}{% endif %}
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        {% endwith %}
-                                    </td>
-
-                                    <td>
-                                        {% with symbol=r.currency.symbol|default:"$" %}
-                                            {% if r.budget_type == 'approx' %}
-                                                {% if r.budget_approx %}{{ symbol }} {{ r.budget_approx }}{% else %}-{% endif %}
-                                            {% else %}
-                                                {% if r.budget_min and r.budget_max %}{{ symbol }} {{ r.budget_min }} - {{ symbol }} {{ r.budget_max }}{% else %}-{% endif %}
-                                            {% endif %}
-                                        {% endwith %}
-                                    </td>
-
-                                    <td>
-                                        {% if r.area_type == 'approx' %}
-                                            {% if r.land_area_approx %}{{ r.land_area_approx }} m²{% else %}-{% endif %}
-                                        {% else %}
-                                            {% if r.land_area_min and r.land_area_max %}{{ r.land_area_min }} - {{ r.land_area_max }} m²{% else %}-{% endif %}
-                                        {% endif %}
-                                    </td>
-
-                                    <td>{{ r.created_at|date:"d/m/Y" }}</td>
-
-                                    <td>
-                                        {% if r.match_score is not None and r.match_score >= 50 %}
-                                            <div class="d-flex align-items-center">
-                                                <span class="badge bg-success">Encontrada</span>
-                                                <span class="ms-2 fw-bold text-dark">{{ r.match_score|floatformat:2 }}%</span>
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-
-                                    <td>
-                                        <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-teal">Ver</a>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="8" class="text-center py-4">No hay requerimientos registrados.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <div class="col-md-2 text-end">
+              <button type="submit" class="btn btn-primary btn-sm w-100 mb-1">
+                <i class="fas fa-filter me-1"></i> Filtrar
+              </button>
+              {% if filters.agent or filters.date_start or filters.date_end %}
+                <a href="?" class="btn btn-outline-secondary btn-sm w-100">
+                  <i class="fas fa-times me-1"></i> Limpiar
+                </a>
+              {% endif %}
             </div>
-
-            {% if is_paginated %}
-            <nav class="mt-3" aria-label="Paginación de requerimientos">
-                <ul class="pagination justify-content-center">
-                    {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
-                    </li>
-                    {% endif %}
-                    {% for num in page_obj.paginator.page_range %}
-                    <li class="page-item {% if page_obj.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-                    {% endfor %}
-                    {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
+          </form>
         </div>
+      </div>
+
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body p-0">
+
+          <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="sticky-top bg-white" style="z-index: 1;">
+                <tr>
+                  <th>Operación</th>
+                  <th>Tipo</th>
+                  <th>Distrito(s)</th>
+                  <th>Precio</th>
+                  <th>Área</th>
+                  <th>Fecha</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+
+              <tbody>
+              {% for r in requirements %}
+                <tr>
+                  <td>{{ r.operation_type.name|default:"-" }}</td>
+
+                  <td>
+                    {{ r.property_type.name|default:"-" }}
+                    {% if r.property_subtype %}
+                      <div class="text-muted small">{{ r.property_subtype.name|default:r.property_subtype }}</div>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% with ds=r.districts.all %}
+                      {% if ds %}
+                        {% for d in ds %}
+                          <span class="badge bg-light text-dark border">{{ d.name|default:d }}</span>
+                        {% endfor %}
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    {% endwith %}
+                  </td>
+
+                  <td>
+                    {% with sym=r.currency.symbol|default:"" %}
+                      {% money_range sym r.price_min r.price_max as ptxt %}
+                      {% if ptxt != "-" %}
+                        <span class="fw-semibold">{{ ptxt }}</span>
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    {% endwith %}
+                  </td>
+
+                  <td>
+                    {# prioridad: land_area, si no hay, built_area #}
+                    {% if r.land_area_min or r.land_area_max %}
+                      {% area_range r.land_area_min r.land_area_max "m²" as atxt %}
+                      <span class="fw-semibold">{{ atxt }}</span>
+                    {% elif r.built_area_min or r.built_area_max %}
+                      {% area_range r.built_area_min r.built_area_max "m²" as btxt %}
+                      <span class="fw-semibold">{{ btxt }}</span>
+                      <div class="text-muted small">construida</div>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if r.source_date %}
+                      {{ r.source_date|date:"d/m/Y" }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                    <td class="text-nowrap">
+                      <a href="{% url 'properties:requirements_detail' r.id %}" class="btn btn-sm btn-outline-secondary">
+                        Detalle
+                      </a>
+                    {% if request.user.is_superuser %}
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-success js-recalc"
+                        data-req="{{ r.id }}"
+                        data-limit="15"
+                        data-min-score="70"
+                      >
+                        Recalcular
+                      </button>
+
+                      {% if r.match_count|default:0 > 0 %}
+                        <a href="{% url 'properties:matching_matches' r.id %}" class="btn btn-sm btn-outline-primary">
+                          Ver Matches
+                        </a>
+                      {% endif %}
+                    {% endif %}
+                    </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center py-4">No hay requerimientos registrados.</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+      {% if is_paginated %}
+        <nav class="mt-3" aria-label="Paginación de requerimientos">
+          <ul class="pagination justify-content-center flex-wrap">
+
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?{{ qs_no_page }}&page={{ page_obj.previous_page_number }}">Anterior</a>
+              </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+              {% if num == 1 or num == page_obj.paginator.num_pages or num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                  <a class="page-link" href="?{{ qs_no_page }}&page={{ num }}">{{ num }}</a>
+                </li>
+              {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+              {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?{{ qs_no_page }}&page={{ page_obj.next_page_number }}">Siguiente</a>
+              </li>
+            {% endif %}
+
+          </ul>
+        </nav>
+      {% endif %}
+
     </div>
+  </div>
 </div>
+
+<script>
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".js-recalc");
+    if (!btn) return;
+
+    const reqId = btn.dataset.req;
+    const limit = btn.dataset.limit || 15;
+    const minScore = btn.dataset.minScore || 70;
+
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = "Recalculando...";
+
+    try {
+      const url = `/dashboard/api/requirements/${reqId}/matches/recalculate/?limit=${encodeURIComponent(limit)}&min_score=${encodeURIComponent(minScore)}`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text();
+        alert("Error recalculando: " + txt);
+        return;
+      }
+
+      // listo: recarga la lista para que actualice match_count y aparezca "Ver Matches"
+      window.location.reload();
+    } catch (err) {
+      alert("Error recalculando.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
+  });
+</script>
 {% endblock %}

@@ -20,14 +20,15 @@ def sync_is_active_with_availability(sender, instance: Property, **kwargs):
     if instance.is_active != should_be_active:
         Property.objects.filter(pk=instance.pk).update(is_active=should_be_active)
 
+"""
 @receiver(post_save, sender=Requirement)
 def requirement_post_save_recalculate_matches(sender, instance: Requirement, created, **kwargs):
-    """Al guardar un Requirement, programar recálculo de coincidencias tras el commit.
+    Al guardar un Requirement, programar recálculo de coincidencias tras el commit.
 
     Usamos `transaction.on_commit` para garantizar que los cambios (incluyendo M2M)
     estén persistidos antes de ejecutar el motor de matching. Esto evita casos
     donde `post_save` se ejecuta antes de `form.save_m2m()` y los filtros quedan incompletos.
-    """
+    
     try:
         req_id = instance.pk
         logger.debug('Requirement post_save schedule recalc for %s (created=%s)', req_id, bool(created))
@@ -133,7 +134,7 @@ try:
     m2m_changed.connect(lambda sender, instance, action, **kw: _m2m_changed_handler(action, instance, **kw), sender=Requirement.zonificaciones.through)
 except Exception:
     logger.exception('Failed to connect m2m_changed handlers for Requirement')
-
+"""
 @receiver(post_save, sender=RequirementMatch)
 def requirement_match_saved(sender, instance, created, **kwargs):
     # Solo dispara evento, nada más

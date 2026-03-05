@@ -948,7 +948,7 @@
 {% endblock %}
 
 {% block dashboard_content %}
-<div class="dashboard-main-container view-mode-map" id="dashboard-container">
+<div class="dashboard-main-container view-mode-properties" id="dashboard-container">
     <!-- Sidebar de Filtros: Ocupa toda la altura izquierda -->
      <div class="mobile-filters-toggle mt-3">
         <button id="openFilters" class="btn btn-primary  w-100">
@@ -962,6 +962,7 @@
 
     <aside class="filter-sidebar ">
         <!-- Switcher de Vista -->
+        {% if request.user.role and request.user.role.name != 'Agente Externo'  %}
         <div class="view-switcher mb-3" style="margin: 0 0 1rem 0;">
             <button type="button" class="view-btn active" id="btn-view-map" onclick="switchDashboardView('map')">
                 <i class="fas fa-map"></i> Mapa
@@ -969,7 +970,9 @@
             <button type="button" class="view-btn" id="btn-view-list" onclick="switchDashboardView('properties')">
                 <i class="fas fa-list"></i> Propiedades
             </button>
+            
         </div>
+        {% endif %}
 
         <div class="filter-body">
             <form method="get" id="filter-form">
@@ -1008,6 +1011,31 @@
                     <option value="">Todos</option>
                     {% for pm in payment_methods %}
                         <option value="{{ pm.id }}" {% if filters.payment_method == pm.id|stringformat:'s' %}selected{% endif %}>{{ pm.name }}</option>
+                    {% endfor %}
+                </select>
+
+            </div>
+            <div class="filter-control">
+                <label for="filter-agent">Agente</label>
+                <select class="form-select form-select-sm" id="filter-agent" name="responsible">
+                    <option value="">Todos</option>
+                    {% for agent in agents %}
+                        <option value="{{ agent.id }}"
+                            {% if filters.responsible == agent.id|stringformat:'s' %}selected{% endif %}>
+                            {{ agent.get_full_name|default:agent.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control">
+                <label for="filter-source">Origen</label>
+                <select class="form-select form-select-sm" id="filter-source" name="source">
+                    <option value="">Todos</option>
+                    {% for source in sources %}
+                    <option value="{{ source }}" {% if filters.source == source %}selected{% endif %}>
+                        {{ source }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
@@ -1145,7 +1173,7 @@
     <!-- Área de Visualización: Mapa y Resultados (scrollable juntos) -->
     <main class="dashboard-view-area">
         <!-- Mapa -->
-        <div class="map-container-main">
+         <div class="map-container-main">
             <div class="layer-toggle-bar">
                 <span class="layer-toggle-title fw-bold text-primary"><i class="fas fa-layer-group me-1"></i>CAPAS</span>
                 <div class="layer-toggle-options">
@@ -1175,6 +1203,7 @@
             </div>
             {% endif %}
         </div>
+        
 
         <!-- Resultados -->
         <div class="results-section">
@@ -1299,13 +1328,8 @@ function switchDashboardView(view) {
         btnMap.classList.remove('active');
     }
     // Guardar preferencia
-    localStorage.setItem('dashboardViewPreferred', view);
+    //localStorage.setItem('dashboardViewPreferred', view);
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const savedView = localStorage.getItem('dashboardViewPreferred') || 'map';
-    switchDashboardView(savedView);
-});
 
 const mapConfig = {
     defaultCenter: { lat: -16.409047, lng: -71.537451 },
@@ -2108,9 +2132,11 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
     return window.matchMedia("(max-width: 1192px)").matches;
   }
 
-  if (isMobile()) {
-    switchDashboardView('properties');
-  }
+  document.addEventListener("DOMContentLoaded", function () {
+        localStorage.setItem("dashboardViewPreferred", "properties");
+        switchDashboardView('properties');
+    });
+
 
   /* const price = Number(document.getElementById('price').innerText);
 
@@ -2119,7 +2145,7 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
 
     /* Open prperty */
     function openPropertyDetail(propertyId) {
-        console.log('💕 Opening property with ID:', propertyId);
+        console.log('Opening property with ID:', propertyId);
 
         const urlTemplate = "{% url 'properties:detail' '0' %}";
         const url = urlTemplate.replace('0', propertyId);
