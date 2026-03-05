@@ -650,8 +650,8 @@
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
 <script>
-const currentUserId = {{ request.user.id|default:"null" }};
-const isSuperUser = {{ request.user.is_superuser|yesno:"true,false" }};
+const currentUserId = "{{ request.user.id|default_if_none:'' }}";
+const isSuperUser = "{{ request.user.is_superuser|yesno:'true,false' }}" === "true";
 let calendar;
 let miniCalendar;
 let currentEventId = null;
@@ -896,11 +896,10 @@ function showEventModal(event) {
     document.getElementById('followupEditor').style.display = 'none';
     document.getElementById('followupText').value = props.seguimiento || '';
     
-    // URL de edición
-    document.getElementById('btnEditEvent').href = `/dashboard/agenda/eventos/${event.id}/editar/`;
-    
     const btnEdit = document.getElementById('btnEditEvent');
     const btnDelete = document.getElementById('btnDeleteEvent');
+
+    btnEdit.href = `/dashboard/agenda/eventos/${event.id}/editar/`;  // configurar URL de edición
     
     // Por defecto ocultamos los botones
     btnEdit.style.display = 'none';
@@ -909,11 +908,13 @@ function showEventModal(event) {
     const eventTypeId = props.event_type_id; 
     const createdById = props.created_by_id; 
 
-    if (isSuperUser) {  // superusuario puede editar/eliminar todo
+    // 1. Superusuario puede editar/eliminar todo
+    if (isSuperUser) {
         btnEdit.style.display = 'inline-block';
         btnDelete.style.display = 'inline-block';
     } else {
-        if (parseInt(eventTypeId) !== 1 && parseInt(createdById) === parseInt(currentUserId)) { // si no es visita y el usuario es el creador, puede editar/borrar
+        // 2. Si NO es visita (ID 1) y el usuario es el creador, puede editar/borrar
+        if (parseInt(eventTypeId) !== 1 && parseInt(createdById) === parseInt(currentUserId || 0)) {
             btnEdit.style.display = 'inline-block';
             btnDelete.style.display = 'inline-block';
         }
