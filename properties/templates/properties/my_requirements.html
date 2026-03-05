@@ -197,35 +197,9 @@
 
     </div>
   </div>
-  <div id="toastContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 2000;">
-    <div id="recalcToast" class="toast align-items-center text-bg-warning border-0" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="d-flex">
-        <div class="toast-body" id="recalcToastBody"></div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script>
-  const NO_MATCHES_MSG =
-    "No se encontraron matches para este requerimiento.<br><br>" +
-    "<strong>Tip:</strong> amplía tu búsqueda (precio, distritos, área, dormitorios/baños) y vuelve a recalcular.<br>" +
-    "También puedes editar el requerimiento desde el detalle.";
-
-  function showToast(htmlMessage, variant = "warning") {
-    const toastEl = document.getElementById("recalcToast");
-    const bodyEl = document.getElementById("recalcToastBody");
-    if (!toastEl || !bodyEl) return;
-
-    // variants: warning, success, danger, info
-    toastEl.className = `toast align-items-center text-bg-${variant} border-0`;
-    bodyEl.innerHTML = htmlMessage;
-
-    const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 6000 });
-    toast.show();
-  }
-
   function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -262,22 +236,13 @@
 
       if (!resp.ok) {
         const txt = await resp.text();
-        showToast("Error recalculando: " + (txt || "respuesta inválida"), "danger");
+        alert("Error recalculando: " + txt);
         return;
-      }
-
-      const data = await resp.json();
-      const totalSaved = (Number(data.created || 0) + Number(data.updated || 0));
-
-      if (totalSaved === 0) {
-        showToast(NO_MATCHES_MSG, "warning");
-      } else {
-        showToast(`Listo: se guardaron <strong>${totalSaved}</strong> coincidencias.`, "success");
       }
 
       window.location.reload();
     } catch (err) {
-      showToast("Error recalculando.", "danger");
+      alert("Error recalculando.");
     } finally {
       btn.disabled = false;
       btn.textContent = oldText;
