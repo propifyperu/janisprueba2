@@ -632,14 +632,12 @@
         </div>
 
         <div class="event-modal-footer">
-            {% if request.user.is_superuser %}
             <a href="#" id="btnEditEvent" class="btn-modal btn-modal-edit">
                 <i class="fas fa-edit"></i> Editar
             </a>
-            <button onclick="deleteEvent()" class="btn-modal btn-modal-delete">
+            <button id="btnDeleteEvent" onclick="deleteEvent()" class="btn-modal btn-modal-delete">
                 <i class="fas fa-trash"></i> Eliminar
             </button>
-            {% endif %}
             <button type="button" class="btn-modal btn-modal-edit" onclick="toggleFollowup(true)">
                 <i class="fas fa-comment"></i> Registrar seguimiento
             </button>
@@ -652,6 +650,8 @@
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
 <script>
+const currentUserId = "{{ request.user.id|default_if_none:'' }}";
+const isSuperUser = "{{ request.user.is_superuser|yesno:'true,false' }}" === "true";
 let calendar;
 let miniCalendar;
 let currentEventId = null;
@@ -896,10 +896,28 @@ function showEventModal(event) {
     document.getElementById('followupEditor').style.display = 'none';
     document.getElementById('followupText').value = props.seguimiento || '';
     
-    // URL de edición
-    var btnEdit = document.getElementById('btnEditEvent');
-    if (btnEdit) {
-        btnEdit.href = `/dashboard/agenda/eventos/${event.id}/editar/`;
+    const btnEdit = document.getElementById('btnEditEvent');
+    const btnDelete = document.getElementById('btnDeleteEvent');
+
+    btnEdit.href = `/dashboard/agenda/eventos/${event.id}/editar/`;  // configurar URL de edición
+    
+    // Por defecto ocultamos los botones
+    btnEdit.style.display = 'none';
+    btnDelete.style.display = 'none';
+
+    const eventTypeId = props.event_type_id; 
+    const createdById = props.created_by_id; 
+
+    // 1. Superusuario puede editar/eliminar todo
+    if (isSuperUser) {
+        btnEdit.style.display = 'inline-block';
+        btnDelete.style.display = 'inline-block';
+    } else {
+        // 2. Si NO es visita (ID 1) y el usuario es el creador, puede editar/borrar
+        if (parseInt(eventTypeId) !== 1 && parseInt(createdById) === parseInt(currentUserId || 0)) {
+            btnEdit.style.display = 'inline-block';
+            btnDelete.style.display = 'inline-block';
+        }
     }
     
     // Mostrar modal

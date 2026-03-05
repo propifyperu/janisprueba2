@@ -1572,9 +1572,12 @@ def event_edit_view(request, pk):
     
     event = get_object_or_404(Event, pk=pk)
     
-    # Solo el creador o superusuario puede editar
-    # OJO: También permitimos editar al agente asignado
-    if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
+    is_visita = (event.event_type_id == 1) # visitas solo superadmin. - resto superadmin o creador
+    if is_visita:
+        if not request.user.is_superuser:
+            messages.error(request, 'Solo el superadministrador puede editar eventos de tipo Visita.')
+            return redirect('properties:agenda_calendar')
+    elif not (request.user.is_superuser or event.created_by == request.user):
         messages.error(request, 'No tienes permiso para editar este evento.')
         return redirect('properties:agenda_calendar')
     
@@ -1610,8 +1613,13 @@ def event_delete_view(request, pk):
     
     event = get_object_or_404(Event, pk=pk)
     
-    # Solo el creador o superusuario puede eliminar
-    if not (request.user.is_superuser or event.created_by == request.user or event.assigned_agent == request.user):
+    is_visita = (event.event_type_id == 1) # visitas solo superadmin. - resto superadmin o creador
+    if is_visita:
+        if not request.user.is_superuser:
+            from django.contrib import messages
+            messages.error(request, 'Solo el superadministrador puede eliminar eventos de tipo Visita.')
+            return redirect('properties:agenda_calendar')
+    elif not (request.user.is_superuser or event.created_by == request.user):
         from django.contrib import messages
         messages.error(request, 'No tienes permiso para eliminar este evento.')
         return redirect('properties:agenda_calendar')
@@ -1683,6 +1691,7 @@ def api_events_json(request):
             'extendedProps': {
                 'code': event.code,
                 'event_type': event.event_type.name,
+                'event_type_id': event.event_type_id,
                 'detalle': event.detalle,
                 'interesado': event.interesado,
                 'property': event.property.exact_address if event.property else '',
