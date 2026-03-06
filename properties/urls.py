@@ -59,6 +59,9 @@ urlpatterns = [
     path('api/image-types/', views.api_image_types, name='api_image_types'),
     path('api/roomtypes/', views.api_roomtypes, name='api_roomtypes'),
     path('api/video-types/', views.api_video_types, name='api_video_types'),
+    #ACM
+    path('acm/', views.acm_detail, name='acm_detail'),
+    
     # WhatsApp
     path('whatsapp/enlaces/<int:property_id>/', views.whatsapp_links_list, name='whatsapp_links'),
     path('whatsapp/enlaces/<int:property_id>/crear/', views.whatsapp_link_create, name='whatsapp_link_create'),
@@ -78,6 +81,9 @@ urlpatterns = [
     path('matching/requirement/<int:pk>/matches/', views.matching_matches_view, name='matching_matches'),
     path("matching/requirement/<int:req_id>/property/<int:prop_id>/detail/",views.match_detail_partial, name="match_detail_partial",),
     path("api/requirements/<int:req_id>/matches/recalculate/",views.api_recalculate_requirement_matches ,name="api_recalculate_requirement_matches",),
+    
+    #PROPUESTA
+    path('propuestas/', views.proposals_list, name='proposals_list'),
     # Servir imágenes almacenadas como blob en la tabla `property_images`
     path('images/blob/<int:pk>/', views.image_blob_view, name='image_blob'),
     path('search/', views.search_view, name='search'),

@@ -3979,3 +3979,113 @@ def api_location_details(request):
         results[term] = matches
 
     return Response({'results': results})
+
+
+def acm_detail(request):
+    context = {
+        "subject_property": {
+            "title": "Casa en Arequipa con Vista al Misti",
+            "address": "Cl Misti 309 Yanahuara, Arequipa",
+            "property_type": "Casa Antigua",
+            "area_m2": 185,
+            "bedrooms": 3,
+            "bathrooms": 2.5,
+            "price": "875,000",
+            "image_url": "https://cdn1.infocasas.com.uy/web/5c585f473e9a0_infocdn__84032162.jpg",
+        }
+    }
+
+    return render(request, "properties/acm_detail.html", context)
+
+
+from django.shortcuts import render
+
+
+def proposals_list(request):
+    tab = request.GET.get("tab", "all")
+
+    # Mock data inicial para encender la vista
+    proposals = [
+        {
+            "id": 1,
+            "image_url": "https://images.unsplash.com/photo-1568605114967-8130f3a36994?q=80&w=1200&auto=format&fit=crop",
+            "property_title": "Casa moderna en Cayma",
+            "display_address": "Cayma, Arequipa",
+            "price": "210,000",
+            "proposal_amount": "205,000",
+            "currency": "USD",
+            "property_type": "Casa",
+            "bedrooms": 4,
+            "bathrooms": 3,
+            "built_area": "180 m²",
+            "garage_spaces": 2,
+            "lead_name": "María Fernanda Salas",
+            "requested_by": "Carlos Ruiz",
+            "message": "Considero que esta propiedad encaja muy bien con el perfil del cliente y su presupuesto.",
+            "status": "Enviada",
+            "status_key": "enviada",
+            "created_at": "Hoy, 10:30 a. m.",
+            "can_review": True,
+            "type": "received",
+        },
+        {
+            "id": 2,
+            "image_url": "https://images.unsplash.com/photo-1570129477492-45c003edd2be?q=80&w=1200&auto=format&fit=crop",
+            "property_title": "Departamento en Yanahuara",
+            "display_address": "Yanahuara, Arequipa",
+            "price": "145,000",
+            "proposal_amount": "140,000",
+            "currency": "USD",
+            "property_type": "Departamento",
+            "bedrooms": 3,
+            "bathrooms": 2,
+            "built_area": "115 m²",
+            "garage_spaces": 1,
+            "lead_name": "Jorge Valdivia",
+            "requested_by": "Lucía Salas",
+            "message": "El cliente busca una opción moderna, con buena iluminación y ubicación céntrica.",
+            "status": "Aceptada",
+            "status_key": "aceptada",
+            "created_at": "Ayer, 4:15 p. m.",
+            "can_review": False,
+            "type": "sent",
+        },
+        {
+            "id": 3,
+            "image_url": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1200&auto=format&fit=crop",
+            "property_title": "Casa familiar en Cerro Colorado",
+            "display_address": "Cerro Colorado, Arequipa",
+            "price": "189,000",
+            "proposal_amount": "182,000",
+            "currency": "USD",
+            "property_type": "Casa",
+            "bedrooms": 4,
+            "bathrooms": 2,
+            "built_area": "160 m²",
+            "garage_spaces": 2,
+            "lead_name": "Andrea Ponce",
+            "requested_by": "María Torres",
+            "message": "La propuesta fue enviada por coincidencia en presupuesto, área y número de habitaciones.",
+            "status": "Rechazada",
+            "status_key": "rechazada",
+            "created_at": "12 feb, 9:20 a. m.",
+            "can_review": False,
+            "type": "received",
+        },
+    ]
+
+    if tab == "received":
+        proposals = [p for p in proposals if p["type"] == "received"]
+    elif tab == "sent":
+        proposals = [p for p in proposals if p["type"] == "sent"]
+    elif tab == "accepted":
+        proposals = [p for p in proposals if p["status_key"] == "aceptada"]
+    elif tab == "declined":
+        proposals = [p for p in proposals if p["status_key"] == "rechazada"]
+
+    context = {
+        "proposals": proposals,
+        "active_tab": tab,
+    }
+    return render(request, "properties/proposals_list.html", context)
+
