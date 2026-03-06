@@ -1,0 +1,619 @@
+{% extends 'properties/base_dashboard.html' %}
+
+{% block dashboard_extra_css %}
+<style>
+	:root {
+		--bg: #f5f7f8;
+		--card: #ffffff;
+		--border: #dde5e7;
+		--text: #1f2937;
+		--muted: #6b7280;
+		--primary: #00b5b5;
+		--primary-soft: #e8f9f8;
+		--gray-soft: #eef2f4;
+		--shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+		--radius-lg: 18px;
+		--radius-md: 14px;
+	}
+
+	* {
+		box-sizing: border-box;
+	}
+
+	body.acm-page {
+		margin: 0;
+		font-family: Inter, Arial, sans-serif;
+		background: var(--bg);
+		color: var(--text);
+	}
+
+	.acm-shell {
+		max-width: 1440px;
+		margin: 0 auto;
+		padding: 28px;
+	}
+
+	.acm-topbar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 24px;
+	}
+
+	.acm-brand {
+		display: flex;
+		gap: 14px;
+		align-items: center;
+	}
+
+	.acm-brand__icon {
+		width: 42px;
+		height: 42px;
+		border-radius: 12px;
+		background: var(--primary);
+		color: #fff;
+		display: grid;
+		place-items: center;
+		font-weight: 700;
+	}
+
+	.acm-brand__title {
+		margin: 0;
+		font-size: 24px;
+	}
+
+	.acm-brand__subtitle {
+		margin: 4px 0 0;
+		color: var(--muted);
+		font-size: 14px;
+	}
+
+	.btn-export {
+		background: var(--primary);
+		color: white;
+		text-decoration: none;
+		padding: 12px 18px;
+		border-radius: 12px;
+		font-weight: 600;
+		box-shadow: var(--shadow);
+	}
+
+	.card {
+		background: var(--card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow);
+	}
+
+	.card__header {
+		padding: 22px 24px 16px;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.card__header h3 {
+		margin: 0;
+		font-size: 24px;
+	}
+
+	.card__header p {
+		margin: 8px 0 0;
+		color: var(--muted);
+		font-size: 14px;
+	}
+
+	.property-summary {
+		display: flex;
+		justify-content: space-between;
+		padding: 24px;
+		margin-bottom: 24px;
+	}
+
+	.property-summary__left {
+		display: flex;
+		gap: 18px;
+		align-items: center;
+	}
+
+	.property-summary__image {
+		width: 280px;
+		height: 210px;
+		object-fit: cover;
+		border-radius: 14px;
+	}
+
+	.property-summary__title {
+		margin: 0;
+		font-size: 36px;
+	}
+
+	.property-summary__address {
+		margin: 8px 0 14px;
+		color: var(--muted);
+	}
+
+	.property-summary__meta {
+		display: flex;
+		gap: 18px;
+		flex-wrap: wrap;
+		color: #4b5563;
+		font-size: 14px;
+	}
+
+	.property-summary__price {
+		text-align: left;
+	}
+
+	.property-summary__price-label {
+		margin: 0;
+		color: var(--muted);
+		font-size: 14px;
+	}
+
+	.property-summary__price-value {
+		margin: 0;
+		font-size: 30px;
+		font-weight: 700;
+	}
+
+	.acm-main-grid {
+		display: grid;
+		grid-template-columns: 2fr 1fr;
+		gap: 24px;
+		margin-bottom: 24px;
+	}
+
+	.map-card__body {
+		padding: 24px;
+	}
+
+	.map-placeholder {
+		position: relative;
+		min-height: 420px;
+		border-radius: 16px;
+		background: #eef7f8;
+		overflow: hidden;
+	}
+
+	.map-radius {
+		position: absolute;
+		inset: 40px 80px;
+		border: 3px dashed #86dde0;
+		border-radius: 50%;
+	}
+
+	.pin {
+		position: absolute;
+		width: 22px;
+		height: 22px;
+		border-radius: 999px;
+		background: #5b6470;
+		box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+	}
+
+	.pin--subject {
+		width: 28px;
+		height: 28px;
+		background: var(--primary);
+		border: 5px solid #dff8f7;
+	}
+
+	.map-card__legend,
+	.chart-legend {
+		display: flex;
+		gap: 18px;
+		flex-wrap: wrap;
+		padding: 16px 24px 22px;
+		color: var(--muted);
+		font-size: 14px;
+	}
+
+	.dot {
+		width: 10px;
+		height: 10px;
+		border-radius: 999px;
+		display: inline-block;
+		margin-right: 8px;
+	}
+
+	.dot--subject {
+		background: var(--primary);
+	}
+
+	.dot--comparable {
+		background: #8b95a1;
+	}
+
+	.line-sample {
+		display: inline-block;
+		width: 24px;
+		height: 0;
+		border-top: 2px dashed #86dde0;
+		margin-right: 8px;
+		vertical-align: middle;
+	}
+
+	.market-analysis {
+		padding-bottom: 24px;
+	}
+
+	.metric-block,
+	.metric-range,
+	.valuation-box,
+	.analysis-notes {
+		margin: 20px 24px 0;
+	}
+
+	.metric-block__label,
+	.metric-range__label,
+	.valuation-box__confidence {
+		display: block;
+		color: var(--muted);
+		font-size: 13px;
+	}
+
+	.metric-block__value {
+		display: block;
+		margin-top: 8px;
+		font-size: 32px;
+	}
+
+	.metric-range {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 16px;
+	}
+
+	.metric-range strong {
+		display: block;
+		margin-top: 6px;
+		font-size: 24px;
+	}
+
+	.valuation-box {
+		background: var(--primary-soft);
+		border: 1px solid #beeceb;
+		border-radius: 16px;
+		padding: 18px;
+	}
+
+	.valuation-box__title {
+		margin: 0;
+		font-weight: 700;
+	}
+
+	.valuation-box__row {
+		display: flex;
+		justify-content: space-between;
+		margin-top: 14px;
+	}
+
+	.valuation-box__row--highlight strong {
+		color: var(--primary);
+	}
+
+	.analysis-notes {
+		background: #f8fafb;
+		border-radius: 14px;
+		padding: 16px 18px;
+	}
+
+	.analysis-notes__title {
+		margin: 0 0 10px;
+		font-weight: 700;
+	}
+
+	.analysis-notes ul {
+		margin: 0;
+		padding-left: 18px;
+		color: var(--muted);
+	}
+
+	.comparables-table-card {
+		margin-bottom: 24px;
+	}
+
+	.table-wrapper {
+		overflow-x: auto;
+	}
+
+	.comparables-table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	.comparables-table th,
+	.comparables-table td {
+		padding: 18px 16px;
+		border-top: 1px solid var(--border);
+		text-align: left;
+		font-size: 14px;
+	}
+
+	.comparables-table th {
+		color: var(--muted);
+		font-size: 12px;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.comparable-property-cell {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.comparable-property-cell img {
+		width: 60px;
+		height: 46px;
+		object-fit: cover;
+		border-radius: 10px;
+	}
+
+	.comparable-property-cell p {
+		margin: 4px 0 0;
+		color: var(--muted);
+		font-size: 12px;
+	}
+
+	.status-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 6px 10px;
+		border-radius: 999px;
+		font-size: 12px;
+		font-weight: 600;
+	}
+
+	.status-badge--sold {
+		background: #f3f4f6;
+		color: #6b7280;
+	}
+
+	.status-badge--active {
+		background: #e9fbef;
+		color: #15803d;
+	}
+
+	.status-badge--pending {
+		background: #fff7db;
+		color: #b45309;
+	}
+
+	.chart-card {
+		padding-bottom: 22px;
+	}
+
+	.chart-placeholder {
+		display: flex;
+		align-items: end;
+		gap: 24px;
+		height: 320px;
+		padding: 30px 24px 10px;
+	}
+
+	.bar {
+		flex: 1;
+		background: #a8b0bb;
+		border-radius: 12px 12px 0 0;
+		min-height: 80px;
+	}
+
+	.bar--subject {
+		background: var(--primary);
+	}
+
+	@media (max-width: 1100px) {
+		.acm-main-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.property-summary {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 20px;
+		}
+
+		.property-summary__price {
+			text-align: left;
+		}
+	}
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="acm-shell">
+	<!-- Top bar -->
+	<header class="acm-topbar"
+		<a href="#" class="btn-export">Exportar informe</a>
+	</header>
+
+	<!-- Property summary -->
+	<section class="card property-summary">
+		<div class="property-summary__left">
+			<img
+				src="{{ subject_property.image_url }}"
+				alt="{{ subject_property.title }}"
+				class="property-summary__image"
+			/>
+
+			<div class="property-summary__content">
+				<h2 class="property-summary__title">{{ subject_property.title }}</h2>
+				<p class="property-summary__address">{{ subject_property.address }}</p>
+
+				<div class="property-summary__meta">
+					<span><i class="fas fa-house me-1"></i>{{ subject_property.property_type }}</span>
+					<span><i class="fas fa-ruler-combined me-1"></i>{{ subject_property.area_m2 }} m²</span>
+					<span><i class="fas fa-bed me-1"></i>{{ subject_property.bedrooms }} Dormitorios</span>
+					<span><i class="fas fa-bath me-1"></i>{{ subject_property.bathrooms }} Baños</span>
+				</div>
+				<div class="property-summary__price mt-4">
+					<p class="property-summary__price-label">Precio listado actual</p>
+					<p class="property-summary__price-value">USD {{ subject_property.price }}</p>
+				</div>
+			</div>
+		</div>
+
+		
+	</section>
+
+	<!-- Main analysis -->
+	<section class="acm-main-grid">
+		<!-- Map / comparables -->
+		<div class="card map-card">
+			<div class="card__header">
+				<h3>Ubicación y comparables</h3>
+				<p>Propiedad principal y listados comparables cercanos</p>
+			</div>
+
+			<div class="map-card__body">
+				<div class="map-placeholder">
+					<div class="map-radius"></div>
+
+					<div class="pin pin--subject" style="top: 52%; left: 50%"></div>
+					<div class="pin" style="top: 45%; left: 35%"></div>
+					<div class="pin" style="top: 48%; left: 41%"></div>
+					<div class="pin" style="top: 63%; left: 44%"></div>
+					<div class="pin" style="top: 39%; left: 56%"></div>
+					<div class="pin" style="top: 57%; left: 66%"></div>
+				</div>
+			</div>
+
+			<div class="map-card__legend">
+				<span><i class="dot dot--subject"></i> Propiedad principal</span>
+				<span><i class="dot dot--comparable"></i> Propiedades comparables</span>
+				<span><i class="line-sample"></i> Radio de búsqueda (1.0 km)</span>
+			</div>
+		</div>
+
+		<!-- Market analysis -->
+		<aside class="card market-analysis">
+			<div class="card__header">
+				<h3>Análisis de mercado</h3>
+				<p>Métricas calculadas en base a propiedades comparables seleccionadas</p>
+			</div>
+
+			<div class="metric-block">
+				<span class="metric-block__label">Precio promedio por m²</span>
+				<strong class="metric-block__value"
+					>${{ market_analysis.avg_price_m2 }}</strong
+				>
+			</div>
+
+			<div class="metric-range">
+				<div>
+					<span class="metric-range__label">Mínimo</span>
+					<strong>${{ market_analysis.min_price }}</strong>
+				</div>
+				<div>
+					<span class="metric-range__label">Máximo</span>
+					<strong>${{ market_analysis.max_price }}</strong>
+				</div>
+			</div>
+
+			<div class="valuation-box">
+				<p class="valuation-box__title">Valoración sugerida</p>
+				<p class="valuation-box__confidence">95% de confianza</p>
+
+				<div class="valuation-box__row">
+					<span>Rango:</span>
+					<strong
+						>${{ market_analysis.range_min }} - ${{ market_analysis.range_max
+						}}</strong
+					>
+				</div>
+
+				<div class="valuation-box__row valuation-box__row--highlight">
+					<span>Precio óptimo:</span>
+					<strong>${{ market_analysis.optimal_price }}</strong>
+				</div>
+			</div>
+
+			<div class="analysis-notes">
+				<p class="analysis-notes__title">Notas del análisis</p>
+				<ul>
+					<li>Valoración basada en datos comparables sólidos</li>
+					<li>Considerar el estado de la propiedad y características únicas</li>
+					<li>Las tendencias del mercado pueden afectar la valoración final</li>
+				</ul>
+			</div>
+		</aside>
+	</section>
+
+	<!-- Comparable properties -->
+	<section class="card comparables-table-card">
+		<div class="card__header">
+			<h3>Propiedades comparables</h3>
+			<p>{{ comparables|length }} propiedades incluidas en el análisis</p>
+		</div>
+
+		<div class="table-wrapper">
+			<table class="comparables-table">
+				<thead>
+					<tr>
+						<th>Incluir</th>
+						<th>Propiedad</th>
+						<th>Área</th>
+						<th>Dormitorios</th>
+						<th>Baños</th>
+						<th>Precio total</th>
+						<th>Precio/m²</th>
+						<th>Distancia</th>
+						<th>Estado</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for item in comparables %}
+					<tr>
+						<td>
+							<input type="checkbox" {% if item.included %}checked{% endif %} />
+						</td>
+						<td>
+							<div class="comparable-property-cell">
+								<img src="{{ item.image_url }}" alt="{{ item.title }}" />
+								<div>
+									<strong>{{ item.title }}</strong>
+									<p>{{ item.address }}</p>
+								</div>
+							</div>
+						</td>
+						<td>{{ item.area_m2 }} m²</td>
+						<td>{{ item.bedrooms }}</td>
+						<td>{{ item.bathrooms }}</td>
+						<td>${{ item.total_price }}</td>
+						<td>${{ item.price_m2 }}</td>
+						<td>{{ item.distance_km }} km</td>
+						<td>
+							<span class="status-badge status-badge--{{ item.status|lower }}">
+								{{ item.status }}
+							</span>
+						</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<!-- Price comparison -->
+	<section class="card chart-card">
+		<div class="card__header">
+			<h3>Comparación de precios</h3>
+			<p>Precio por m² de la propiedad y las comparables</p>
+		</div>
+
+		<div class="chart-placeholder">
+			<div class="bar bar--subject" style="height: 72%"></div>
+			<div class="bar" style="height: 68%"></div>
+			<div class="bar" style="height: 74%"></div>
+			<div class="bar" style="height: 69%"></div>
+			<div class="bar" style="height: 70%"></div>
+			<div class="bar" style="height: 66%"></div>
+		</div>
+
+		<div class="chart-legend">
+			<span><i class="dot dot--subject"></i> Propiedad principal</span>
+			<span><i class="dot dot--comparable"></i> Propiedades comparables</span>
+		</div>
+	</section>
+</div>
+{% endblock %}

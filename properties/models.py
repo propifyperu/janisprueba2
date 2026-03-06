@@ -87,7 +87,7 @@ class Lead(models.Model):
     # Datos comerciales
     # -----------------------
     notes = models.TextField(blank=True)
-    date_entry = models.DateField(null=True, blank=True)
+    date_entry = models.DateTimeField(null=True, blank=True)
 
     id_chatwoot = models.CharField(max_length=100, blank=True, null=True)
 
