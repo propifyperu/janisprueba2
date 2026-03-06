@@ -255,7 +255,6 @@ let MODAL_MODE = 'create';
 let EDIT_DOC_TYPE_ID = null;
 
 function renderOtherDocs(docs) {
-  console.log('Rendering other docs for', docs);
   const MAIN_DOCS = [
     'Titulo_dominio',
     'Partida_registral',
@@ -400,8 +399,6 @@ async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') 
 }
 
 function putStaticData(obj) {
-  console.log('Putting static data', obj);
-  console.log('Putting length', obj.length);
   const tbody = document.getElementById('legalTableBody');
 
 
@@ -521,8 +518,6 @@ document.getElementById('prevPage').addEventListener('click', () => {
 document.addEventListener('click', function (e) {
   const el = e.target.closest('[data-preview-url]');
   if (!el) return;
-
-  console.log('🐶🐶🐶🐶Previewing document', el);
 
   const url = el.dataset.previewUrl;
 
@@ -736,18 +731,21 @@ document.addEventListener('click', e => {
 });
 
 async function populateDocTypeSelect(propertyDocs, canUploadStudy) {
+  console.log('Populating doc type select with', { propertyDocs, canUploadStudy });
   const select = document.querySelector('#uploadForm select[name="doc_type"]');
 
   select.innerHTML = `<option value="">Selecciona</option>`;
 
   const allTypes = await getAllDocumentTypes();
+  console.log('All document types:', allTypes);
 
   allTypes.forEach(type => {
-    if (propertyDocs[type.name]) return;
+    if (propertyDocs[type.name].file_url) return;
 
     const option = document.createElement('option');
     option.value = type.id;
     option.textContent = type.name.replaceAll('_', ' ');
+    console.log('Options:', option.value, option.textContent);
 
     if (
       type.name === 'Estudio_de_titulo' &&
@@ -902,7 +900,7 @@ async function populateEditDocTypeSelect(propertyDocs) {
   const allTypes = await getAllDocumentTypes();
 
   allTypes.forEach(type => {
-    if (!propertyDocs[type.name]) return;
+    if (!propertyDocs[type.name].file_url) return;
 
     const option = document.createElement('option');
     option.value = type.id;
