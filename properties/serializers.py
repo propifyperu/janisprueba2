@@ -1,6 +1,12 @@
 # serializers.py
+from django.contrib.auth import get_user_model
+
+from .models import Lead, LeadStatus, CanalLead, OperationType, Property
 from rest_framework import serializers
 from . import models
+
+
+User = get_user_model()
 
 class PropertyImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
@@ -467,3 +473,73 @@ class DocumentTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.DocumentType
         fields = ("id", "code", "name", "description", "is_active")
+
+class LeadSerializer(serializers.ModelSerializer):
+    operation_types = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=OperationType.objects.all(),
+        required=False
+    )
+    properties = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Property.objects.all(),
+        required=False
+    )
+    assigned_to = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=User.objects.all(),
+        required=False
+    )
+    lead_status = serializers.PrimaryKeyRelatedField(
+        queryset=LeadStatus.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    canal_lead = serializers.PrimaryKeyRelatedField(
+        queryset=CanalLead.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
+    class Meta:
+        model = Lead
+        fields = [
+            "id",
+            "username",
+            "full_name",
+            "phone",
+            "email",
+            "operation_types",
+            "properties",
+            "assigned_to",
+            "lead_status",
+            "canal_lead",
+            "notes",
+            "date_entry",
+            "id_chatwoot",
+            "date_last_message",
+            "user_last_message",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "is_active",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+    def create(self, validated_data):
+        operation_types = validated_data.pop("operation_types", [])
+        properties = validated_data.pop("properties", [])
+        assigned_to = validated_data.pop("assigned_to", [])
+
+        lead = Lead.objects.create(**validated_data)
+
+        if operation_types:
+            lead.operation_types.set(operation_types)
+
+        if properties:
+            lead.properties.set(properties)
+
+        if assigned_to:
+            lead.assigned_to.set(assigned_to)
+
+        return lead

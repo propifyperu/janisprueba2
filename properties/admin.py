@@ -15,12 +15,13 @@ from .models import (
     PropertyFinancialInfo, PropertyRoom, ImageType, VideoType,
     AgencyConfig,
     # WhatsApp
-    PropertyWhatsAppLink, LeadStatus, Lead, WhatsAppConversation, SocialNetwork, WhatsAppNumber, UTMClick,
+    PropertyWhatsAppLink, SocialNetwork, WhatsAppNumber, UTMClick,
     # Agenda
     EventType, Event
 )
 
 from .models import Requirement, RequirementMatch
+from .models import CanalLead, LeadStatus, Lead
 from .models import MatchingWeight, MatchEvent
 
 
@@ -127,6 +128,7 @@ class OperationTypeAdmin(admin.ModelAdmin):
     search_fields = ('name', 'code')
     ordering = ('order', 'name')
 
+ 
 
 @admin.register(PropertyStatus)
 class PropertyStatusAdmin(admin.ModelAdmin):
@@ -458,66 +460,6 @@ class RequirementMatchAdmin(admin.ModelAdmin):
     search_fields = ("requirement__id", "property__code", "property__title")
     autocomplete_fields = ("requirement", "property")
 
-@admin.register(LeadStatus)
-class LeadStatusAdmin(admin.ModelAdmin):
-    list_display = ('name', 'property', 'color', 'order', 'is_active', 'created_at')
-    list_filter = ('is_active', 'property', 'created_at')
-    search_fields = ('name', 'property__code')
-    readonly_fields = ('created_at', 'updated_at')
-    fieldsets = (
-        ('Información', {
-            'fields': ('property', 'name', 'color', 'order', 'is_active')
-        }),
-        ('Auditoría', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    ordering = ('property', 'order')
-
-
-@admin.register(Lead)
-class LeadAdmin(admin.ModelAdmin):
-    list_display = ('phone_number', 'property', 'social_network', 'status', 'assigned_to', 'first_message_at')
-    list_filter = ('status', 'social_network', 'first_message_at', 'property')
-    search_fields = ('phone_number', 'name', 'email', 'property__code')
-    readonly_fields = ('first_message_at', 'created_at', 'updated_at')
-    fieldsets = (
-        ('Información del Lead', {
-            'fields': ('phone_number', 'name', 'email', 'property', 'whatsapp_link', 'social_network')
-        }),
-        ('Estado', {
-            'fields': ('status', 'assigned_to', 'notes')
-        }),
-        ('Fechas', {
-            'fields': ('first_message_at', 'last_message_at', 'created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    ordering = ('-created_at',)
-
-
-@admin.register(WhatsAppConversation)
-class WhatsAppConversationAdmin(admin.ModelAdmin):
-    list_display = ('lead', 'message_type', 'created_at', 'sent_by_user')
-    list_filter = ('message_type', 'created_at', 'media_type')
-    search_fields = ('lead__phone_number', 'message_body', 'property__code')
-    readonly_fields = ('message_id', 'created_at')
-    fieldsets = (
-        ('Información del Mensaje', {
-            'fields': ('lead', 'property', 'message_type', 'sender_name', 'sent_by_user')
-        }),
-        ('Contenido', {
-            'fields': ('message_body', 'media_url', 'media_type')
-        }),
-        ('Auditoría', {
-            'fields': ('message_id', 'created_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    ordering = ('-created_at',)
-
-
 @admin.register(SocialNetwork)
 class SocialNetworkAdmin(admin.ModelAdmin):
     list_display = ('name', 'icon', 'is_active', 'created_at')
@@ -601,3 +543,71 @@ class MatchEventAdmin(admin.ModelAdmin):
 class AgencyConfigAdmin(admin.ModelAdmin):
     list_display = ('nombre_comercial', 'ruc', 'correo_electronico')
 
+@admin.register(CanalLead)
+class CanalLeadAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    ordering = ("name",)
+
+
+@admin.register(LeadStatus)
+class LeadStatusAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    ordering = ("name",)
+
+
+@admin.register(Lead)
+class LeadAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "full_name",
+        "phone",
+        "email",
+        "lead_status",
+        "canal_lead",
+        "date_entry",
+        "created_by",
+        "is_active",
+        "created_at",
+    )
+    list_filter = (
+        "is_active",
+        "lead_status",
+        "canal_lead",
+        "date_entry",
+        "created_at",
+    )
+    search_fields = (
+        "full_name",
+        "phone",
+        "email",
+        "notes",
+        "id_chatwoot",
+    )
+    readonly_fields = ("created_by", "created_at", "updated_at")
+    filter_horizontal = ("operation_types", "properties", "assigned_to")
+    ordering = ("-created_at",)
+
+    fieldsets = (
+        ("Datos básicos", {
+            "fields": ("full_name", "phone", "email")
+        }),
+        ("Relaciones", {
+            "fields": ("operation_types", "properties", "assigned_to", "lead_status", "canal_lead")
+        }),
+        ("Datos comerciales", {
+            "fields": ("notes", "date_entry", "id_chatwoot", "date_last_message", "user_last_message")
+        }),
+        ("Auditoría", {
+            "fields": ("created_by", "created_at", "updated_at", "is_active"),
+            "classes": ("collapse",)
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if not obj.pk and not obj.created_by:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)

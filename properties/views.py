@@ -3686,7 +3686,7 @@ def marketing_whatsapp_links_list(request):
     return render(request, 'properties/marketing_whatsapp_links_list.html', {'links': links})
 
 from django.db.models import Count
-from .models import PropertyWhatsAppLink, Lead, SocialNetwork
+from .models import PropertyWhatsAppLink, SocialNetwork
 from datetime import datetime, timedelta
 import json
 
