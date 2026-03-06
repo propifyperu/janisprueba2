@@ -1,14 +1,18 @@
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
-from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin
 from rest_framework import permissions, filters
 from rest_framework.decorators import action
+from django.db import transaction
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from django.db.models import Exists, OuterRef
 from . import models
 from rest_framework.exceptions import PermissionDenied
+from .models import Lead
+from .serializers import LeadSerializer
 from django.shortcuts import get_object_or_404
 
 
@@ -279,3 +283,28 @@ class DocumentTypeViewSet(GenericViewSet, ListModelMixin):
     serializer_class = DocumentTypeSerializer
     permission_classes = [permissions.AllowAny]
     pagination_class = None
+
+class LeadViewSet(CreateModelMixin, GenericViewSet):
+    queryset = Lead.objects.all()
+    serializer_class = LeadSerializer
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        is_bulk = isinstance(request.data, list)
+
+        if not is_bulk:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(created_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        created_items = []
+
+        for item in request.data:
+            serializer = self.get_serializer(data=item)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(created_by=request.user)
+            created_items.append(serializer.data)
+
+        return Response(created_items, status=status.HTTP_201_CREATED)
