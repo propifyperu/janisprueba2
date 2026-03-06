@@ -591,7 +591,7 @@ def search_view(request):
 
 
 @login_required
-def legal_documents_list_view(request):
+def legal_documents_list(request):
     """Lista dinámica de documentos por propiedad para el área Legal.
 
     - Columnas dinámicas basadas en DocumentType activos.

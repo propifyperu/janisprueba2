@@ -255,6 +255,7 @@ let MODAL_MODE = 'create';
 let EDIT_DOC_TYPE_ID = null;
 
 function renderOtherDocs(docs) {
+  console.log('Rendering other docs for', docs);
   const MAIN_DOCS = [
     'Titulo_dominio',
     'Partida_registral',
@@ -264,7 +265,7 @@ function renderOtherDocs(docs) {
   ];
 
   const others = Object.entries(docs)
-    .filter(([key, val]) => val && !MAIN_DOCS.includes(key));
+    .filter(([key, val]) => val.file_url && !MAIN_DOCS.includes(key));
 
   if (!others.length) {
     return `<span class="text-muted"></span>`;
@@ -478,12 +479,13 @@ function putStaticData(obj) {
 /* helpers */
 
 function docIcon(url) {
-  if (!url) {
+  if (!url.file_url) {
     return `<i class="fas fa-minus-circle text-muted opacity-50"></i>`;
   }
 
   // quitamos dominio y /media/
-  const path = url.split('/media/')[1];
+  const path = url.file_url.split('/media/')[1];
+  //const path = url.file_url
 
   return `
     <i class="fas fa-check-circle text-success cursor-pointer"
@@ -520,9 +522,11 @@ document.addEventListener('click', function (e) {
   const el = e.target.closest('[data-preview-url]');
   if (!el) return;
 
+  console.log('🐶🐶🐶🐶Previewing document', el);
+
   const url = el.dataset.previewUrl;
 
-  window.open(url, '_blank', 'noopener,noreferrer');
+  window.open(url, '_blank');
 });
 
 
