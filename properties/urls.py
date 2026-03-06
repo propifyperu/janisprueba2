@@ -1,6 +1,6 @@
 ﻿from django.urls import path, include
 from . import views
-from .api import PropertyViewSet, DocumentTypeViewSet, RequirementViewSet
+from .api import PropertyViewSet, DocumentTypeViewSet, RequirementViewSet, LeadViewSet
 from .api_external import ExternalPropertyListView, ExternalPropertyMatchView, ExternalPropertyByUsersView
 from rest_framework.routers import DefaultRouter
 
@@ -10,6 +10,7 @@ router = DefaultRouter()
 router.register(r'properties', PropertyViewSet, basename='properties')
 router.register(r'requirements', RequirementViewSet, basename='requirements')
 router.register(r'document-types', DocumentTypeViewSet, basename='document-types')  # 👈 agrega esto
+router.register(r'leads', LeadViewSet, basename='leads')
 
 urlpatterns = [
     path('ultra-simple/', views.simple_properties_view, name='ultra_simple_list'),
@@ -63,9 +64,6 @@ urlpatterns = [
     path('whatsapp/enlaces/<int:property_id>/', views.whatsapp_links_list, name='whatsapp_links'),
     path('whatsapp/enlaces/<int:property_id>/crear/', views.whatsapp_link_create, name='whatsapp_link_create'),
     path('whatsapp/enlaces/<int:link_id>/borrar/', views.whatsapp_link_delete, name='whatsapp_link_delete'),
-    path('whatsapp/leads/', views.leads_list, name='leads_list'),
-    path('whatsapp/leads/<int:property_id>/', views.leads_list, name='leads_list_by_property'),
-    path('whatsapp/leads/detalle/<int:lead_id>/', views.lead_detail, name='lead_detail'),
     path('crm/', views.crm_dashboard, name='crm_dashboard'),
     path('marketing/propiedades/', views.marketing_properties_list, name='marketing_properties_list'),
     path('marketing/propiedades/multimedia', views.marketing_properties_multimedia, name='marketing_properties_multimedia'),

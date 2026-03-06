@@ -12,6 +12,122 @@ from io import BytesIO
 from django.core.files.base import ContentFile
 import os
 
+class CanalLead(models.Model):
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "canal_leads"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class LeadStatus(models.Model):
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "crm_lead_statuses"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Lead(models.Model):
+
+    # -----------------------
+    # Datos básicos
+    # -----------------------
+    username = models.CharField(max_length=150, db_index=True)
+    full_name = models.CharField(max_length=255,blank=True, null=True)
+    phone = models.CharField(max_length=30, db_index=True)
+    email = models.EmailField(blank=True, null=True)
+
+    # -----------------------
+    # Relaciones principales
+    # -----------------------
+    operation_types = models.ManyToManyField(
+        "OperationType",
+        related_name="leads",
+        blank=True
+    )
+
+    properties = models.ManyToManyField(
+        "Property",
+        related_name="leads",
+        blank=True
+    )
+
+    assigned_to = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="crm_leads",
+        blank=True
+    )
+
+    lead_status = models.ForeignKey(
+        "LeadStatus",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="leads"
+    )
+
+    canal_lead = models.ForeignKey(
+        "CanalLead",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="leads"
+    )
+
+    # -----------------------
+    # Datos comerciales
+    # -----------------------
+    notes = models.TextField(blank=True)
+    date_entry = models.DateField(null=True, blank=True)
+
+    id_chatwoot = models.CharField(max_length=100, blank=True, null=True)
+
+    date_last_message = models.DateTimeField(null=True, blank=True)
+
+    USER_LAST_MESSAGE_CHOICES = (
+        ("bot", "Bot"),
+        ("agent", "Agent"),
+        ("lead", "Lead"),
+    )
+
+    user_last_message = models.CharField(
+        max_length=10,
+        choices=USER_LAST_MESSAGE_CHOICES,
+        blank=True,
+        null=True
+    )
+
+    # -----------------------
+    # Auditoría
+    # -----------------------
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="leads_created"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "crm_leads"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.username} - {self.phone}"
+
 def _normalize_title_case(value: str | None) -> str | None:
     """Return value in title case with single spaces."""
     if not isinstance(value, str):
@@ -1180,6 +1296,14 @@ class Requirement(models.Model):
         blank=True
     )
 
+    lead = models.ForeignKey(
+        "Lead",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="requirements"
+    )
+
     # -----------------------
     # Rangos
     # -----------------------
@@ -1565,92 +1689,6 @@ class PropertyWhatsAppLink(models.Model):
             return "#error-generacion-url"
 
 
-class LeadStatus(models.Model):
-    """Estados personalizados para leads de WhatsApp"""
-    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='lead_statuses')
-    name = models.CharField(max_length=100, help_text="Nombre del estado (ej: En Espera, Interesado, etc.)")
-    color = models.CharField(max_length=7, default='#007bff', help_text="Color en formato hex (ej: #007bff para azul)")
-    order = models.PositiveIntegerField(default=0, help_text="Orden de aparición en los filtros")
-    is_active = models.BooleanField(default=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'lead_statuses'
-        ordering = ['order', 'name']
-        unique_together = [['property', 'name']]
-        verbose_name = "Estado de Lead"
-        verbose_name_plural = "Estados de Lead"
-    
-    def __str__(self):
-        return f"{self.property.code} - {self.name}"
-
-
-class Lead(models.Model):
-    """Lead generado desde WhatsApp"""
-    
-    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='whatsapp_leads')
-    whatsapp_link = models.ForeignKey(PropertyWhatsAppLink, on_delete=models.SET_NULL, null=True, blank=True, related_name='leads')
-    
-    phone_number = models.CharField(max_length=20, db_index=True)
-    name = models.CharField(max_length=255, blank=True, null=True)
-    email = models.EmailField(blank=True, null=True)
-    social_network = models.ForeignKey('SocialNetwork', on_delete=models.PROTECT, related_name='leads')
-    
-    status = models.ForeignKey(LeadStatus, on_delete=models.SET_NULL, null=True, blank=True, related_name='leads')
-    notes = models.TextField(blank=True, null=True)
-    
-    first_message_at = models.DateTimeField(auto_now_add=True)
-    last_message_at = models.DateTimeField(null=True, blank=True)
-    assigned_to = models.ForeignKey(get_user_model(), null=True, blank=True, on_delete=models.SET_NULL, related_name='assigned_leads')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'whatsapp_leads'
-        ordering = ['-created_at']
-        unique_together = [['property', 'phone_number']]
-        verbose_name = "Lead de WhatsApp"
-        verbose_name_plural = "Leads de WhatsApp"
-    
-    def __str__(self):
-        return f"{self.phone_number} - {self.property.code} ({self.social_network})"
-
-
-class WhatsAppConversation(models.Model):
-    """Conversación de WhatsApp entre usuario y telefonista"""
-    MESSAGE_TYPE_CHOICES = (
-        ('incoming', 'Entrante'),
-        ('outgoing', 'Saliente'),
-    )
-    
-    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='messages')
-    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='whatsapp_conversations')
-    
-    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES)
-    sender_name = models.CharField(max_length=255, blank=True, null=True)
-    message_body = models.TextField()
-    message_id = models.CharField(max_length=100, unique=True, db_index=True, null=True, blank=True)
-    
-    sent_by_user = models.ForeignKey(get_user_model(), null=True, blank=True, on_delete=models.SET_NULL, related_name='sent_messages')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    # Para mensajes con multimedia
-    media_url = models.URLField(blank=True, null=True)
-    media_type = models.CharField(max_length=20, blank=True, null=True, help_text="image, video, document, audio")
-    
-    class Meta:
-        db_table = 'whatsapp_conversations'
-        ordering = ['created_at']
-        verbose_name = "Conversación de WhatsApp"
-        verbose_name_plural = "Conversaciones de WhatsApp"
-    
-    def __str__(self):
-        return f"{self.lead.phone_number} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
-
 class UTMClick(models.Model):
     """Registro de clics UTM en enlaces de WhatsApp para tracking independiente."""
     whatsapp_link = models.ForeignKey('PropertyWhatsAppLink', on_delete=models.CASCADE, related_name='utm_clicks', db_constraint=False)
@@ -1730,6 +1768,13 @@ class Event(TitleCaseMixin, models.Model):
     hora_fin = models.TimeField(verbose_name='Hora de término')
     detalle = models.TextField(blank=True, verbose_name='Detalle de la visita')
     seguimiento = models.TextField(blank=True, verbose_name="Seguimiento de la visita")
+    lead = models.ForeignKey(
+        "Lead",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="events"
+    )
     # Contacto vinculado (reemplaza interesado CharField)
     contact = models.ForeignKey('PropertyOwner', on_delete=models.SET_NULL, null=True, blank=True, 
                                 related_name='events', verbose_name='Contacto')
