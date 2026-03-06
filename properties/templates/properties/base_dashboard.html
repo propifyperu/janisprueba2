@@ -815,7 +815,7 @@
 
 
             <div class="nav-group">
-                {% url 'properties:legal_documents' as legal_documents_url %}
+                {% url 'properties:legal_documents_list' as legal_documents_url %}
                 <button class="nav-group-toggle{% if 'legal' in request.path or 'documentos' in request.path %} expanded{% endif %}" type="button" data-target="legalSubmenu" aria-controls="legalSubmenu" aria-expanded="{% if 'legal' in request.path or 'documentos' in request.path %}true{% else %}false{% endif %}">
                     <i class="fas fa-gavel"></i>
                     <span>Área Legal</span>

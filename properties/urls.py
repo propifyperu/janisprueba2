@@ -71,7 +71,7 @@ urlpatterns = [
     path('marketing/propiedades/', views.marketing_properties_list, name='marketing_properties_list'),
     path('marketing/propiedades/multimedia', views.marketing_properties_multimedia, name='marketing_properties_multimedia'),
     path('marketing/dashboard/', views.marketing_utm_dashboard, name='marketing_utm_dashboard'),
-    path('legal/documentos/', views.legal_documents_list_view, name='legal_documents'),
+    path('legal/documentos/', views.legal_documents_list, name='legal_documents_list'),
     path('api/', include(router.urls)),
     # Matching
     path('matching/weights/', views.matching_weights_view, name='matching_weights'),
