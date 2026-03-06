@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block body_class %}dashboard-page{% endblock %}
-
+  
 {% block extra_css %}
 {{ block.super }}
 <style>
@@ -749,6 +749,8 @@
             {% url 'properties:marketing_properties_list' as utm_list %}
             {% url 'properties:marketing_properties_multimedia' as multimedia_list %}
             {% url 'users:profile' as profile_url %}
+            {% url 'properties:acm_detail' as acm_url %}
+            {% url 'properties:proposals_list' as proposals_list_url %}
             {% if request.user.is_superuser %}
             {% url 'security:device_list' as security_device_list_url %}
             {% url 'security:role_field_permissions' as role_permissions_url %}
@@ -804,8 +806,13 @@
                     <a class="nav-link {% if request.path == requirements_list_url %}active{% endif %}" href="{{ requirements_list_url }}"><i class="fas fa-list me-2"></i>Lista de requerimientos</a>
                     <a class="nav-link {% if request.path == requirements_create_url %}active{% endif %}" href="{{ requirements_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear requerimiento</a>
                     <a class="nav-link {% if request.path == requirements_my_url %}active{% endif %}" href="{{ requirements_my_url }}"><i class="fas fa-user me-2"></i>Mis requerimientos</a>
+                    <a class="nav-link {% if request.path == proposals_list_url %}active{% endif %} mt-n2 mb-2 ml-n8" href="{{ proposals_list_url }}"><i class="fas fa-user-circle me-2"></i>Propuestas</a>
+
                 </div>
             </div>
+
+            <a class="nav-link {% if request.path == acm_url %}active{% endif %} mt-n2 mb-2 ml-n8" href="{{ acm_url }}"><i class="fas fa-user-circle me-2"></i>ACM</a>
+
 
             <div class="nav-group">
                 {% url 'properties:legal_documents' as legal_documents_url %}
