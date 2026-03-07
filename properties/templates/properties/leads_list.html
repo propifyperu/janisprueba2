@@ -1,25 +1,16 @@
-{% extends 'base.html' %}
+{% extends 'properties/base_dashboard.html' %}
 {% load static %}
 
 {% block title %}Leads WhatsApp{% endblock %}
 
-{% block content %}
+{% block dashboard_content %}
 <div class="container-fluid py-4">
-    <!-- BANNER TEMPORAL: indicar estado del webhook -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="alert alert-info text-center" role="alert">
-                <strong>Prueba:</strong> Webhook Twilio activo (entorno de pruebas).
-            </div>
-        </div>
-    </div>
     <div class="row mb-4">
         <div class="col-md-8">
             <h1 class="mb-2">
                 <i class="fas fa-user-tie" style="color: #25D366;"></i>
                 Leads de WhatsApp
             </h1>
-            <p class="text-muted">Gestiona todos tus leads generados desde WhatsApp</p>
         </div>
         <div class="col-md-4 text-end">
             <a href="{% url 'properties:dashboard_root' %}" class="btn btn-secondary">
@@ -44,24 +35,19 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% if request.user.is_superuser %}
                 <div class="col-md-4">
-                    <label for="social_network" class="form-label">Red Social</label>
-                    <select class="form-select" id="social_network" name="social_network">
-                        <option value="">-- Todas --</option>
-                        <option value="facebook" {% if request.GET.social_network == 'facebook' %}selected{% endif %}>
-                            <i class="fab fa-facebook"></i> Facebook
-                        </option>
-                        <option value="instagram" {% if request.GET.social_network == 'instagram' %}selected{% endif %}>
-                            <i class="fab fa-instagram"></i> Instagram
-                        </option>
-                        <option value="google" {% if request.GET.social_network == 'google' %}selected{% endif %}>
-                            <i class="fab fa-google"></i> Google
-                        </option>
-                        <option value="website" {% if request.GET.social_network == 'website' %}selected{% endif %}>
-                            <i class="fas fa-globe"></i> Website
-                        </option>
+                    <label for="assigned_to" class="form-label">Asignado a</label>
+                    <select class="form-select" id="assigned_to" name="assigned_to">
+                        <option value="">-- Todos --</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}" {% if request.GET.assigned_to == user.id|stringformat:"s" %}selected{% endif %}>
+                                {{ user.get_full_name|default:user.username }}
+                            </option>
+                        {% endfor %}
                     </select>
                 </div>
+                {% endif %}
                 <div class="col-md-4 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-primary flex-grow-1">
                         <i class="fas fa-search"></i> Filtrar
@@ -86,8 +72,6 @@
                         <th>Estado</th>
                         <th>Asignado a</th>
                         <th>Último Mensaje</th>
-                        <th>Primer Mensaje</th>
-                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -95,56 +79,51 @@
                         <tr>
                             <td>
                                 <strong>
-                                    <a href="tel:{{ lead.phone_number }}">{{ lead.phone_number }}</a>
+                                    <a href="tel:{{ lead.phone }}">{{ lead.phone }}</a>
                                 </strong>
                             </td>
-                            <td>{{ lead.name|default:"Sin nombre" }}</td>
                             <td>
-                                <a href="{% url 'properties:detail' lead.property.id %}">
-                                    {{ lead.property.code }}
+                                <a href="{% url 'properties:lead_detail' lead.id %}" class="text-decoration-none text-dark fw-bold">
+                                    {{ lead.full_name|default:lead.username|default:"Sin nombre" }}
                                 </a>
                             </td>
                             <td>
-                                {% if lead.social_network == 'facebook' %}
-                                    <span class="badge bg-primary">Facebook</span>
-                                {% elif lead.social_network == 'instagram' %}
-                                    <span class="badge bg-danger">Instagram</span>
-                                {% elif lead.social_network == 'google' %}
-                                    <span class="badge bg-warning">Google</span>
-                                {% elif lead.social_network == 'website' %}
-                                    <span class="badge bg-info">Website</span>
+                                {% for prop in lead.properties.all %}
+                                    <a href="{% url 'properties:detail' prop.id %}" class="badge bg-light text-dark text-decoration-none border">
+                                        {{ prop.code }}
+                                    </a>
+                                {% empty %}
+                                    <span class="text-muted">-</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% if lead.canal_lead %}
+                                    <span class="badge bg-info text-dark">{{ lead.canal_lead.name }}</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">{{ lead.get_social_network_display }}</span>
+                                    <span class="badge bg-secondary">-</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if lead.status %}
-                                    <span class="badge" style="background-color: {{ lead.status.color }};">
-                                        {{ lead.status.name }}
-                                    </span>
+                                {% if lead.lead_status %}
+                                    <span class="badge bg-primary">{{ lead.lead_status.name }}</span>
                                 {% else %}
                                     <span class="badge bg-secondary">Sin estado</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if lead.assigned_to %}
-                                    {{ lead.assigned_to.first_name }} {{ lead.assigned_to.last_name }}
-                                {% else %}
+                                {% for user in lead.assigned_to.all %}
+                                    <div class="small">{{ user.first_name }} {{ user.last_name }}</div>
+                                {% empty %}
                                     <em class="text-muted">Sin asignar</em>
-                                {% endif %}
+                                {% endfor %}
                             </td>
                             <td>
                                 <small class="text-muted d-block mb-1">
-                                    {{ lead.annotated_last_message_at|date:"d/m/Y H:i" }}
+                                    {{ lead.date_last_message|date:"d/m/Y H:i" }}
                                 </small>
                                 <div class="text-truncate" style="max-width:320px;">
-                                    {{ lead.annotated_last_message|default:"(sin mensajes)" }}
+                                    {{ lead.user_last_message|default:"-" }}
                                 </div>
-                            </td>
-                            <td>
-                                <a href="{% url 'properties:lead_detail' lead.id %}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i> Ver
-                                </a>
                             </td>
                         </tr>
                     {% endfor %}

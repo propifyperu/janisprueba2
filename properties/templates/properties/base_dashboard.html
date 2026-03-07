@@ -782,12 +782,12 @@
             </div>
 
             <div class="nav-group">
-                <button class="nav-group-toggle{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} expanded{% endif %}" type="button" data-target="crmSubmenu" aria-controls="crmSubmenu" aria-expanded="{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %}true{% else %}false{% endif %}">
+                <button class="nav-group-toggle{% if 'leads' in request.path and 'whatsapp' not in request.path %} expanded{% endif %}" type="button" data-target="crmSubmenu" aria-controls="crmSubmenu" aria-expanded="{% if 'leads' in request.path and 'whatsapp' not in request.path %}true{% else %}false{% endif %}">
                     <i class="fas fa-whatsapp"></i>
                     <span>CRM WhatsApp</span>
                     <i class="fas fa-chevron-up toggle-icon"></i>
                 </button>
-                <div class="nav-submenu{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} show{% endif %}" id="crmSubmenu">
+                <div class="nav-submenu{% if 'leads' in request.path and 'whatsapp' not in request.path %} show{% endif %}" id="crmSubmenu">
                     <a class="nav-link {% if 'crm' in request.path %}active{% endif %}" href="{% url 'properties:crm_dashboard' %}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
                     <a class="nav-link {% if 'leads' in request.path and 'whatsapp' not in request.path %}active{% endif %}" href="{{ leads_list_url }}"><i class="fas fa-user-tie me-2"></i>Mis Leads</a>
                 </div>
