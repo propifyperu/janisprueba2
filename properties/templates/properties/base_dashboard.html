@@ -813,9 +813,9 @@
 
             <a class="nav-link {% if request.path == acm_url %}active{% endif %} mt-n2 mb-2 ml-n8" href="{{ acm_url }}"><i class="fas fa-user-circle me-2"></i>ACM</a>
 
-
+            {% if request.user.role and request.user.role.name == 'Abogado' or request.user.role.name == 'Gerente General' or request.user.role.name == 'Desarrollador'%}
             <div class="nav-group">
-                {% url 'properties:legal_documents' as legal_documents_url %}
+                {% url 'properties:legal_documents_list' as legal_documents_url %}
                 <button class="nav-group-toggle{% if 'legal' in request.path or 'documentos' in request.path %} expanded{% endif %}" type="button" data-target="legalSubmenu" aria-controls="legalSubmenu" aria-expanded="{% if 'legal' in request.path or 'documentos' in request.path %}true{% else %}false{% endif %}">
                     <i class="fas fa-gavel"></i>
                     <span>Área Legal</span>
@@ -825,6 +825,7 @@
                     <a class="nav-link {% if request.path == legal_documents_url %}active{% endif %}" href="{{ legal_documents_url }}"><i class="fas fa-file-alt me-2"></i>Lista de Documentos</a>
                 </div>
             </div>
+            {% endif %}
 
             <div class="nav-group">
                 {% url 'properties:agenda_calendar' as agenda_calendar_url %}
