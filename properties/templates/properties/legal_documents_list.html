@@ -264,7 +264,7 @@ function renderOtherDocs(docs) {
   ];
 
   const others = Object.entries(docs)
-    .filter(([key, val]) => val && !MAIN_DOCS.includes(key));
+    .filter(([key, val]) => val.file_url && !MAIN_DOCS.includes(key));
 
   if (!others.length) {
     return `<span class="text-muted"></span>`;
@@ -399,8 +399,6 @@ async function loadLegalDocuments(url = '/dashboard/api/properties/with-docs/') 
 }
 
 function putStaticData(obj) {
-  console.log('Putting static data', obj);
-  console.log('Putting length', obj.length);
   const tbody = document.getElementById('legalTableBody');
 
 
@@ -478,12 +476,13 @@ function putStaticData(obj) {
 /* helpers */
 
 function docIcon(url) {
-  if (!url) {
+  if (!url.file_url) {
     return `<i class="fas fa-minus-circle text-muted opacity-50"></i>`;
   }
 
   // quitamos dominio y /media/
-  const path = url.split('/media/')[1];
+  const path = url.file_url.split('/media/')[1];
+  //const path = url.file_url
 
   return `
     <i class="fas fa-check-circle text-success cursor-pointer"
@@ -522,7 +521,7 @@ document.addEventListener('click', function (e) {
 
   const url = el.dataset.previewUrl;
 
-  window.open(url, '_blank', 'noopener,noreferrer');
+  window.open(url, '_blank');
 });
 
 
@@ -732,18 +731,21 @@ document.addEventListener('click', e => {
 });
 
 async function populateDocTypeSelect(propertyDocs, canUploadStudy) {
+  console.log('Populating doc type select with', { propertyDocs, canUploadStudy });
   const select = document.querySelector('#uploadForm select[name="doc_type"]');
 
   select.innerHTML = `<option value="">Selecciona</option>`;
 
   const allTypes = await getAllDocumentTypes();
+  console.log('All document types:', allTypes);
 
   allTypes.forEach(type => {
-    if (propertyDocs[type.name]) return;
+    if (propertyDocs[type.name].file_url) return;
 
     const option = document.createElement('option');
     option.value = type.id;
     option.textContent = type.name.replaceAll('_', ' ');
+    console.log('Options:', option.value, option.textContent);
 
     if (
       type.name === 'Estudio_de_titulo' &&
@@ -898,7 +900,7 @@ async function populateEditDocTypeSelect(propertyDocs) {
   const allTypes = await getAllDocumentTypes();
 
   allTypes.forEach(type => {
-    if (!propertyDocs[type.name]) return;
+    if (!propertyDocs[type.name].file_url) return;
 
     const option = document.createElement('option');
     option.value = type.id;
