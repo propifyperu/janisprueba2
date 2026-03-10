@@ -85,6 +85,9 @@ urlpatterns = [
     
     #PROPUESTA
     path('propuestas/', views.proposals_list, name='proposals_list'),
+    path('propuestas/crear/', views.proposals_create_view, name='proposals_create'),
+    path("propuestas/<int:proposal_id>/accept/", views.proposal_accept_view, name="proposal_accept"),
+    path("propuestas/<int:proposal_id>/reject/", views.proposal_reject_view, name="proposal_reject"),
     # Servir imágenes almacenadas como blob en la tabla `property_images`
     path('images/blob/<int:pk>/', views.image_blob_view, name='image_blob'),
     path('search/', views.search_view, name='search'),

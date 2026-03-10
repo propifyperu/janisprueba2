@@ -12,6 +12,11 @@ from .models import (
     PropertyFinancialInfo,
     AgencyConfig,
     Requirement,
+    Proposal, 
+    Lead, 
+    RequirementMatch, 
+    Currency, 
+    PaymentMethod,
 )
 
 
@@ -928,3 +933,89 @@ class AgencyConfigForm(forms.ModelForm):
             'correo_electronico': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'contacto@inmobiliaria.com'}),
             'logo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
+
+class PropertyChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        currency = ""
+        if obj.currency:
+            currency = obj.currency.code or obj.currency.symbol or obj.currency.name or ""
+
+        price = ""
+        if obj.price is not None:
+            price = f"{obj.price:,.2f}"
+
+        parts = [obj.code or "", obj.title or "Sin título"]
+
+        if currency or price:
+            parts.append(f"{currency} {price}".strip())
+
+        return " - ".join(part for part in parts if part)
+
+class ProposalCreateForm(forms.ModelForm):
+    property = PropertyChoiceField(
+    queryset=Property.objects.filter(is_active=True).select_related("currency").order_by("code"),
+    widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    class Meta:
+        model = Proposal
+        fields = [
+            "property",
+            "requirement_match",
+            "lead",
+            "currency",
+            "payment_method",
+            "amount",
+            "message",
+        ]
+        widgets = {
+            "requirement_match": forms.Select(attrs={"class": "form-select"}),
+            "lead": forms.Select(attrs={"class": "form-select"}),
+            "currency": forms.Select(attrs={"class": "form-select"}),
+            "payment_method": forms.Select(attrs={"class": "form-select"}),
+            "amount": forms.NumberInput(attrs={
+                "class": "form-control",
+                "placeholder": "Ej. 205000.00",
+                "step": "0.01",
+                "min": "0",
+            }),
+            "message": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 4,
+                "placeholder": "Escribe una observación o mensaje para la propuesta...",
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["lead"].queryset = Lead.objects.filter(is_active=True).order_by("username")
+        self.fields["requirement_match"].queryset = RequirementMatch.objects.select_related(
+            "property", "requirement"
+        ).order_by("-computed_at")
+        self.fields["currency"].queryset = Currency.objects.filter(is_active=True).order_by("name")
+        self.fields["payment_method"].queryset = PaymentMethod.objects.filter(is_active=True).order_by("order", "name")
+
+        self.fields["requirement_match"].required = False
+        self.fields["lead"].required = False
+        self.fields["message"].required = False
+
+        self.fields["property"].label = "Propiedad"
+        self.fields["requirement_match"].label = "Match de requerimiento"
+        self.fields["lead"].label = "Lead"
+        self.fields["currency"].label = "Moneda"
+        self.fields["payment_method"].label = "Forma de pago"
+        self.fields["amount"].label = "Monto propuesto"
+        self.fields["message"].label = "Mensaje"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        property_obj = cleaned_data.get("property")
+        requirement_match = cleaned_data.get("requirement_match")
+
+        if requirement_match and property_obj and requirement_match.property_id != property_obj.id:
+            self.add_error(
+                "requirement_match",
+                "El match seleccionado no pertenece a la propiedad elegida."
+            )
+
+        return cleaned_data
