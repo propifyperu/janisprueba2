@@ -582,7 +582,7 @@ def search_view(request):
 
 
 @login_required
-def legal_documents_list_view(request):
+def legal_documents_list(request):
     """Lista dinámica de documentos por propiedad para el área Legal.
 
     - Columnas dinámicas basadas en DocumentType activos.
@@ -3494,73 +3494,73 @@ def whatsapp_link_delete(request, link_id):
 def leads_list(request, property_id=None):
     """Lista los leads de WhatsApp"""
     from .models import Lead, LeadStatus
-    from .models import WhatsAppConversation
-    from django.db.models import OuterRef, Subquery
+    from django.contrib.auth import get_user_model
 
-    leads = Lead.objects.select_related('property', 'whatsapp_link', 'assigned_to', 'status')
-
-    # Anotar último mensaje y su fecha para mostrar en la lista sin N+1
-    last_msg_qs = WhatsAppConversation.objects.filter(lead=OuterRef('pk')).order_by('-created_at')
-    # Anotaciones con nombres que no colisionen con campos del modelo
-    leads = leads.annotate(
-        annotated_last_message=Subquery(last_msg_qs.values('message_body')[:1]),
-        annotated_last_message_at=Subquery(last_msg_qs.values('created_at')[:1])
-    )
+    leads = Lead.objects.select_related('lead_status', 'canal_lead').prefetch_related('assigned_to', 'properties')
+    
+    if not request.user.is_superuser: # si no es superusuario solo ve sus propios leads
+        leads = leads.filter(assigned_to=request.user)
     
     if property_id:
-        leads = leads.filter(property_id=property_id)
+        leads = leads.filter(properties__id=property_id)
     
     # Filtros
     status = request.GET.get('status')
     if status:
-        leads = leads.filter(status_id=status)
+        leads = leads.filter(lead_status_id=status)
     
-    social_network = request.GET.get('social_network')
-    if social_network:
-        leads = leads.filter(social_network=social_network)
+    if request.user.is_superuser:  # filtro por usuario asignado (superusuario)
+        assigned_to = request.GET.get('assigned_to')
+        if assigned_to:
+            leads = leads.filter(assigned_to__id=assigned_to)
+
+    status_choices = LeadStatus.objects.filter(is_active=True).order_by('name')  # estados para el filtro
     
-    # Obtener estados para el filtro (de todas las propiedades o de la propiedad específica)
-    if property_id:
-        status_choices = LeadStatus.objects.filter(property_id=property_id, is_active=True).order_by('order')
-    else:
-        status_choices = LeadStatus.objects.filter(is_active=True).order_by('property', 'order')
+    users = []     
+    if request.user.is_superuser: # obtener usuarios para el filtro (superusuario)
+        User = get_user_model()
+        users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
     
     return render(request, 'properties/leads_list.html', {
         'leads': leads,
         'status_choices': status_choices,
+        'users': users,
     })
 
 
 @login_required
 def lead_detail(request, lead_id):
     """Detalle de un lead con conversaciones"""
-    from .models import Lead, WhatsAppConversation
+    from .models import Lead, LeadStatus
     
     lead = get_object_or_404(Lead, id=lead_id)
-    conversations = WhatsAppConversation.objects.filter(lead=lead).order_by('created_at')
+    conversations = []
     
     if request.method == 'POST':
         # Actualizar estado o asignar
-        from .models import LeadStatus
         status_id = request.POST.get('status')
         assigned_to = request.POST.get('assigned_to')
         
         if status_id:
             try:
-                lead.status = LeadStatus.objects.get(id=status_id, property=lead.property)
+                lead.lead_status = LeadStatus.objects.get(id=status_id)
             except LeadStatus.DoesNotExist:
                 pass
         
         if assigned_to:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            lead.assigned_to = User.objects.get(id=assigned_to) if assigned_to else None
+            try:
+                user = User.objects.get(id=assigned_to)
+                lead.assigned_to.add(user)
+            except User.DoesNotExist:
+                pass
         
         lead.save()
         return redirect('properties:lead_detail', lead_id=lead_id)
     
     # Obtener los estados personalizados de la propiedad
-    status_choices = lead.property.lead_statuses.filter(is_active=True).order_by('order')
+    status_choices = LeadStatus.objects.filter(is_active=True).order_by('name')
     
     return render(request, 'properties/lead_detail.html', {
         'lead': lead,

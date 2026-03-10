@@ -783,6 +783,18 @@
             </div>
 
             <div class="nav-group">
+                <button class="nav-group-toggle{% if 'leads' in request.path and 'whatsapp' not in request.path %} expanded{% endif %}" type="button" data-target="crmSubmenu" aria-controls="crmSubmenu" aria-expanded="{% if 'leads' in request.path and 'whatsapp' not in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-whatsapp"></i>
+                    <span>CRM WhatsApp</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'leads' in request.path and 'whatsapp' not in request.path %} show{% endif %}" id="crmSubmenu">
+                    <a class="nav-link {% if 'crm' in request.path %}active{% endif %}" href="{% url 'properties:crm_dashboard' %}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
+                    <a class="nav-link {% if 'leads' in request.path and 'whatsapp' not in request.path %}active{% endif %}" href="{{ leads_list_url }}"><i class="fas fa-user-tie me-2"></i>Mis Leads</a>
+                </div>
+            </div>
+
+            <div class="nav-group">
                 {% url 'properties:requirements_list' as requirements_list_url %}
                 {% url 'properties:requirements_create' as requirements_create_url %}
                 {% url 'properties:requirements_my' as requirements_my_url %}
@@ -818,7 +830,7 @@
             </div>
 
             <div class="nav-group">
-                {% url 'properties:legal_documents' as legal_documents_url %}
+                {% url 'properties:legal_documents_list' as legal_documents_url %}
                 <button class="nav-group-toggle{% if 'legal' in request.path or 'documentos' in request.path %} expanded{% endif %}" type="button" data-target="legalSubmenu" aria-controls="legalSubmenu" aria-expanded="{% if 'legal' in request.path or 'documentos' in request.path %}true{% else %}false{% endif %}">
                     <i class="fas fa-gavel"></i>
                     <span>Área Legal</span>
@@ -828,6 +840,7 @@
                     <a class="nav-link {% if request.path == legal_documents_url %}active{% endif %}" href="{{ legal_documents_url }}"><i class="fas fa-file-alt me-2"></i>Lista de Documentos</a>
                 </div>
             </div>
+            {% endif %}
 
             <div class="nav-group">
                 {% url 'properties:agenda_calendar' as agenda_calendar_url %}
