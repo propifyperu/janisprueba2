@@ -8,12 +8,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Q
 from . import models
 from rest_framework.exceptions import PermissionDenied
 from .models import Lead
 from .serializers import LeadSerializer
 from django.shortcuts import get_object_or_404
+from django.core.paginator import Paginator
 
 
 from .models import Property, Requirement
@@ -241,6 +242,39 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
 
         out = PropertyWithDocsSerializer(prop, context={"request": request})
         return Response(out.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='select2-search', permission_classes=[IsAuthenticated])
+    def select2_search(self, request):
+        search_term = request.query_params.get('term', '')
+        page_number = request.query_params.get('page', 1)
+
+        queryset = models.Property.objects.all().order_by('-created_at')
+
+        if search_term:
+            queryset = queryset.filter(
+                Q(code__icontains=search_term) |
+                Q(title__icontains=search_term) |
+                Q(exact_address__icontains=search_term) |
+                Q(real_address__icontains=search_term)
+            )
+
+        paginator = Paginator(queryset, 30)  # 30 resultados por cada uno
+        page_obj = paginator.get_page(page_number)
+
+        results = [
+            {
+                "id": prop.pk,
+                "text": f"{prop.code} - {prop.title or prop.exact_address or 'Sin Título'}"
+            }
+            for prop in page_obj
+        ]
+
+        return Response({
+            'results': results,
+            'pagination': {
+                'more': page_obj.has_next()
+            }
+        })
 
 class RequirementViewSet(ModelViewSet):
     """
