@@ -3,32 +3,23 @@ from django.contrib import messages
 from properties.queryset import visible_properties_for
 from django.db import transaction
 from django.utils import timezone
-from django.utils.dateparse import parse_date
-from django.core.files.storage import default_storage
 from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from users.roles import is_agent
 from django.db.models import Case, When, Value, IntegerField
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
-from properties.matching import persist_matches_for_requirement
-from .models import Requirement, Property, RequirementMatch
+from .models import Requirement, RequirementMatch, Proposal
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
 import uuid
 from django.urls import reverse
 from django.template.loader import get_template
 from django.db.models import Count, Max
 from xhtml2pdf import pisa
-import os
 from django.conf import settings
 from django.db.models import Prefetch
 from .models import PropertyImage  # <-- AJUSTA si tu modelo se llama diferente
-from .models import (
-    Property, PropertyImage, PropertyType, PropertyStatus,
-    PaymentMethod, District, Province, Department, Urbanization, PropertySubtype, Currency
-)
+from .models import ( PropertyType, PropertyStatus, PropertySubtype, Currency, Event)
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -36,7 +27,7 @@ from datetime import date
 from django.db.models import Q
 from rest_framework import status
 from properties.engine_matching.engine import get_matches
-from .forms import PropertyOwnerForm, RequirementCreateForm, RequirementUpdateForm
+from .forms import PropertyOwnerForm, RequirementCreateForm, RequirementUpdateForm, ProposalCreateForm
 
 
 def link_callback(uri, rel):
@@ -1577,29 +1568,30 @@ def agenda_calendar_view(request):
 def event_create_view(request):
     """Vista para crear un nuevo evento (sin contacto obligatorio)"""
     from .forms import EventForm
-    from .models import Event, EventType
+    from .models import Event, EventType, Proposal
     from django.contrib import messages
 
-    # Asegurar que existe el tipo de evento 'Otro'
     EventType.objects.get_or_create(name='Otro', defaults={'color': '#6c757d'})
     visita_type = EventType.objects.filter(name__iexact='Visita').first()
 
+    proposal_id = request.GET.get("proposal")
+    property_id = request.GET.get("property")
+
     if request.method == 'POST':
         form = EventForm(request.POST)
-        # ✅ SOLUCIÓN AL "PEGADO": Si el form valida created_by, lo hacemos opcional
-        # porque lo seteamos manualmente abajo.
+
         if 'created_by' in form.fields:
             form.fields['created_by'].required = False
 
         if form.is_valid():
             event = form.save(commit=False)
-            
-            # ✅ Auditoría: Quién crea el registro (SIEMPRE es el usuario actual)
             event.created_by = request.user
 
-            # ✅ Agente Asignado: Si no viene en el form (None), se asigna al creador
             if not event.assigned_agent:
                 event.assigned_agent = request.user
+
+            if proposal_id:
+                event.proposal_id = proposal_id
 
             event.save()
             messages.success(request, f'Evento "{event.titulo}" creado exitosamente.')
@@ -1607,19 +1599,17 @@ def event_create_view(request):
 
     else:
         initial = {}
-        property_id = request.GET.get("property")
         if property_id:
             initial["property"] = property_id
-        
+
         initial["assigned_agent"] = request.user.id
-        initial["event_type"] = visita_type.id
+        if visita_type:
+            initial["event_type"] = visita_type.id
+
         form = EventForm(initial=initial)
-
-
 
     return render(request, 'properties/event_create.html', {
         'form': form,
-        # ✅ ya no mandamos owner_form ni contactos_existentes
     })
 
 
@@ -3997,95 +3987,123 @@ def acm_detail(request):
 
     return render(request, "properties/acm_detail.html", context)
 
-
-from django.shortcuts import render
-
-
+@login_required
 def proposals_list(request):
     tab = request.GET.get("tab", "all")
 
-    # Mock data inicial para encender la vista
-    proposals = [
-        {
-            "id": 1,
-            "image_url": "https://images.unsplash.com/photo-1568605114967-8130f3a36994?q=80&w=1200&auto=format&fit=crop",
-            "property_title": "Casa moderna en Cayma",
-            "display_address": "Cayma, Arequipa",
-            "price": "210,000",
-            "proposal_amount": "205,000",
-            "currency": "USD",
-            "property_type": "Casa",
-            "bedrooms": 4,
-            "bathrooms": 3,
-            "built_area": "180 m²",
-            "garage_spaces": 2,
-            "lead_name": "María Fernanda Salas",
-            "requested_by": "Carlos Ruiz",
-            "message": "Considero que esta propiedad encaja muy bien con el perfil del cliente y su presupuesto.",
-            "status": "Enviada",
-            "status_key": "enviada",
-            "created_at": "Hoy, 10:30 a. m.",
-            "can_review": True,
-            "type": "received",
-        },
-        {
-            "id": 2,
-            "image_url": "https://images.unsplash.com/photo-1570129477492-45c003edd2be?q=80&w=1200&auto=format&fit=crop",
-            "property_title": "Departamento en Yanahuara",
-            "display_address": "Yanahuara, Arequipa",
-            "price": "145,000",
-            "proposal_amount": "140,000",
-            "currency": "USD",
-            "property_type": "Departamento",
-            "bedrooms": 3,
-            "bathrooms": 2,
-            "built_area": "115 m²",
-            "garage_spaces": 1,
-            "lead_name": "Jorge Valdivia",
-            "requested_by": "Lucía Salas",
-            "message": "El cliente busca una opción moderna, con buena iluminación y ubicación céntrica.",
-            "status": "Aceptada",
-            "status_key": "aceptada",
-            "created_at": "Ayer, 4:15 p. m.",
-            "can_review": False,
-            "type": "sent",
-        },
-        {
-            "id": 3,
-            "image_url": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1200&auto=format&fit=crop",
-            "property_title": "Casa familiar en Cerro Colorado",
-            "display_address": "Cerro Colorado, Arequipa",
-            "price": "189,000",
-            "proposal_amount": "182,000",
-            "currency": "USD",
-            "property_type": "Casa",
-            "bedrooms": 4,
-            "bathrooms": 2,
-            "built_area": "160 m²",
-            "garage_spaces": 2,
-            "lead_name": "Andrea Ponce",
-            "requested_by": "María Torres",
-            "message": "La propuesta fue enviada por coincidencia en presupuesto, área y número de habitaciones.",
-            "status": "Rechazada",
-            "status_key": "rechazada",
-            "created_at": "12 feb, 9:20 a. m.",
-            "can_review": False,
-            "type": "received",
-        },
-    ]
+    visit_events_qs = Event.objects.select_related(
+        "event_type",
+        "assigned_agent",
+        "created_by",
+        "property",
+    ).filter(
+        event_type__name__iexact="Visita"
+    ).order_by("-created_at")
+
+    proposals_qs = (
+        Proposal.objects
+        .select_related(
+            "property",
+            "property__currency",
+            "property__property_type",
+            "property__property_subtype",
+            "property__responsible",
+            "lead",
+            "requested_by_user",
+            "responded_by_user",
+            "currency",
+            "payment_method",
+        )
+        .prefetch_related(
+            "property__images",
+            Prefetch("events", queryset=visit_events_qs, to_attr="visit_events"),
+        )
+        .filter(
+            Q(requested_by_user=request.user) |
+            Q(property__responsible=request.user)
+        )
+        .order_by("-created_at")
+        .distinct()
+    )
 
     if tab == "received":
-        proposals = [p for p in proposals if p["type"] == "received"]
+        proposals_qs = proposals_qs.filter(property__responsible=request.user)
     elif tab == "sent":
-        proposals = [p for p in proposals if p["type"] == "sent"]
-    elif tab == "accepted":
-        proposals = [p for p in proposals if p["status_key"] == "aceptada"]
-    elif tab == "declined":
-        proposals = [p for p in proposals if p["status_key"] == "rechazada"]
+        proposals_qs = proposals_qs.filter(requested_by_user=request.user)
+    else:
+        tab = "all"
 
     context = {
-        "proposals": proposals,
+        "proposals": proposals_qs,
         "active_tab": tab,
     }
     return render(request, "properties/proposals_list.html", context)
 
+
+@login_required
+def proposals_create_view(request):
+    if request.method == "POST":
+        form = ProposalCreateForm(request.POST)
+
+        if form.is_valid():
+            proposal = form.save(commit=False)
+            proposal.requested_by_user = request.user
+            proposal.save()
+
+            messages.success(request, "Propuesta creada correctamente.")
+            return redirect("properties:proposals_list")
+    else:
+        form = ProposalCreateForm()
+
+    context = {
+        "form": form,
+    }
+    return render(request, "properties/proposal_create.html", context)
+
+
+@login_required
+def proposal_accept_view(request, proposal_id):
+    proposal = get_object_or_404(Proposal, id=proposal_id)
+
+    if proposal.property.responsible_id != request.user.id:
+        messages.error(request, "No tienes permiso para responder esta propuesta.")
+        return redirect("properties:proposals_list")
+
+    if request.method == "POST":
+        proposal.status = Proposal.STATUS_ACCEPTED
+        proposal.responded_by_user = request.user
+        proposal.responded_at = timezone.now()
+        proposal.response_message = request.POST.get("response_message", "")
+        proposal.save()
+
+        messages.success(request, "Propuesta aceptada correctamente.")
+        return redirect("properties:proposals_list")
+
+    return redirect("properties:proposals_list")
+
+
+@login_required
+def proposal_reject_view(request, proposal_id):
+    proposal = get_object_or_404(Proposal, id=proposal_id)
+
+    if proposal.property.responsible_id != request.user.id:
+        messages.error(request, "No tienes permiso para responder esta propuesta.")
+        return redirect("properties:proposals_list")
+
+    if request.method == "POST":
+        response_message = request.POST.get("response_message", "").strip()
+
+        if not response_message:
+            messages.error(request, "Debes ingresar el motivo del rechazo.")
+            return redirect(f"{request.path_info.rsplit('/', 2)[0]}/?tab=received")
+
+        proposal.status = Proposal.STATUS_REJECTED
+        proposal.responded_by_user = request.user
+        proposal.responded_at = timezone.now()
+        proposal.response_message = response_message
+        proposal.save()
+
+        messages.success(request, "Propuesta rechazada correctamente.")
+        return redirect("properties:proposals_list")
+
+    return redirect("properties:proposals_list")
