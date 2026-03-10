@@ -1,101 +1,184 @@
 {% extends 'properties/base_dashboard.html' %}
-{% block title %}Bandeja de entrada{% endblock %}
+{% block title %}Bandeja{% endblock %}
+
 {% block dashboard_content %}
-<div id="inbox-full-bleed" class="container-fluid my-2">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0">Bandeja de entrada</h3>
+<div class="container-fluid my-3">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-      <a class="btn btn-outline-secondary me-2" href="{% url 'chat:sent' %}">Enviados</a>
-      <a class="btn btn-primary" href="{% url 'chat:compose' %}">Redactar</a>
+      <h3 class="mb-1">Bandeja</h3>
+      <div class="small text-muted">Aquí ves todos tus hilos de mensajes.</div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'chat:inbox' %}?folder=all" class="btn {% if active_folder == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        Todos
+      </a>
+      <a href="{% url 'chat:inbox' %}?folder=unread" class="btn {% if active_folder == 'unread' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        No leídos
+      </a>
+      <a href="{% url 'chat:inbox' %}?folder=received" class="btn {% if active_folder == 'received' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        Recibidos
+      </a>
+      <a href="{% url 'chat:inbox' %}?folder=sent" class="btn {% if active_folder == 'sent' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        Enviados
+      </a>
+      <a href="{% url 'chat:compose' %}" class="btn btn-success">Redactar</a>
     </div>
   </div>
-    <div class="row g-0">
-      <div class="col-md-3 px-0">
-        <div class="list-group" style="max-height:600px; overflow:auto; border-right:1px solid #e9ecef;">
-          {% for item in threads %}
-            <a href="?selected={{ item.thread.pk }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center inbox-item" title="{{ item.thread.title|default:'Sin asunto' }} - {{ item.last.sender_name }}: {{ item.last.body|truncatechars:120 }}">
-              <div class="inbox-item-left">
-                <div class="inbox-subject">{{ item.thread.title|default:'Sin asunto' }}</div>
-                <div class="inbox-snippet small text-muted">{{ item.last.sender_name }} · {{ item.last.body|truncatechars:60 }}</div>
-              </div>
-              <div class="inbox-date small text-muted">{{ item.thread.updated_at|date:'d/m/Y' }}</div>
-            </a>
-          {% empty %}
-            <div class="alert alert-light">No hay mensajes en la bandeja de entrada.</div>
-          {% endfor %}
-        </div>
-      </div>
 
-      <div class="col-md-9">
-        {% if selected_thread %}
-          <div class="card">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <div class="small text-muted">Para:</div>
-                  <div class="fw-bold mb-2">{% for u in selected_thread.participants.all %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
-                  <div class="small text-muted">Asunto: <strong>{{ selected_thread.title|default:'Sin asunto' }}</strong></div>
-                  <div class="small text-muted">Fecha: {{ selected_thread.updated_at }}</div>
-                </div>
-                <div>
-                  <a class="btn btn-sm btn-outline-secondary" href="{% url 'chat:conversation_detail' selected_thread.pk %}">Ver hilo</a>
-                  <button class="btn btn-sm btn-primary" id="replyTopBtn">Responder</button>
-                </div>
-              </div>
-
-                      <hr />
-                      <script>
-                        // marcar visualmente el item seleccionado en la lista izquierda
-                        (function(){
-                          const params = new URLSearchParams(window.location.search);
-                          const sel = params.get('selected');
-                          if(sel){
-                            const el = document.querySelector('.inbox-item[href="?selected='+sel+'"]');
-                            if(el) el.classList.add('selected');
-                          }
-                          document.querySelectorAll('.inbox-item').forEach(a=>{
-                            a.addEventListener('click', function(){
-                              document.querySelectorAll('.inbox-item.selected').forEach(x=>x.classList.remove('selected'));
-                              this.classList.add('selected');
-                            });
-                          });
-                        })();
-                      </script>
-              <div>
-                {% for m in messages %}
-                  <div class="message-row mb-3">
-                    <div class="small text-muted">De: {{ m.sender_name }} · {{ m.created_at }}</div>
-                    <div class="mt-1">{{ m.body|linebreaksbr }}</div>
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush" style="max-height: 72vh; overflow:auto;">
+            {% for item in threads %}
+              <a href="?folder={{ active_folder }}&selected={{ item.thread.pk }}"
+                 class="list-group-item list-group-item-action {% if selected_thread and selected_thread.pk == item.thread.pk %}active{% endif %}">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div style="min-width:0;">
+                    <div class="fw-semibold text-truncate">
+                      {{ item.thread.title|default:'Sin asunto' }}
+                      {% if item.has_unread %}
+                        <span class="badge bg-danger ms-1">Nuevo</span>
+                      {% endif %}
+                    </div>
+                    <div class="small text-muted text-truncate">
+                      {{ item.last.sender_name }} · {{ item.last.body|default:"(sin texto)"|truncatechars:80 }}
+                    </div>
                   </div>
-                {% endfor %}
-              </div>
-            </div>
+                  <div class="small text-muted text-nowrap">
+                    {{ item.thread.updated_at|date:'d/m/Y' }}
+                  </div>
+                </div>
+              </a>
+            {% empty %}
+              <div class="p-3 text-muted">No hay conversaciones para este filtro.</div>
+            {% endfor %}
           </div>
-        {% else %}
-          <div class="alert alert-light">Seleccione un hilo a la izquierda para ver su detalle.</div>
-        {% endif %}
+        </div>
       </div>
     </div>
 
-    <style>
-      /* mover el contenedor ligeramente a la izquierda para anular el padding del main-content-inner */
-      #inbox-full-bleed { margin-left: -2rem; width: calc(100% + 2rem); padding-left: 0; }
-      /* lista muy delgada a la izquierda, empieza al borde del sidebar principal */
-      .inbox-item { padding-top:0; padding-bottom:0; height:20px; min-height:20px; display:flex; align-items:center; }
-      .inbox-item .inbox-subject { font-size:0.82rem; line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
-      .inbox-item .inbox-snippet { display:none; }
-      .inbox-item .inbox-date { font-size:0.72rem; }
-      .message-row { border-bottom:1px solid #f0f0f0; padding-bottom:10px; }
-      #replyTopBtn { height:28px; padding:2px 8px; }
-      /* detalle: fondo verde suave, más oscuro que el fondo claro pero más claro que la barra lateral */
-      .detail-card { background: rgba(4,125,125,0.06); border: 1px solid rgba(4,125,125,0.08); }
-      /* footer: empujar al fondo garantizando altura mínima del main */
-      main { min-height: calc(100vh - 120px); }
-      /* item seleccionado en lista izquierda */
-      .inbox-item.selected { background: rgba(4,125,125,0.12) !important; color: #043737; }
-      /* asegurar que la columna izquierda no añade padding extra */
-      .col-md-3.px-0 { padding-left:0 !important; padding-right:0 !important; }
-      @media (max-width:767px){ .inbox-item .inbox-subject { max-width:120px; } }
-    </style>
+    <div class="col-lg-8">
+      {% if selected_thread %}
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+              <div>
+                <h5 class="mb-1">{{ selected_thread.title|default:'Sin asunto' }}</h5>
+                <div class="small text-muted mb-1">
+                  Para:
+                  {% for u in selected_thread.participants.all %}
+                    {{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}
+                  {% endfor %}
+                </div>
+                <div class="small text-muted">Última actualización: {{ selected_thread.updated_at }}</div>
+              </div>
+
+              <div class="d-flex gap-2 flex-wrap">
+                <a class="btn btn-outline-secondary btn-sm" href="{% url 'chat:conversation_detail' selected_thread.pk %}">Ver hilo</a>
+                <button class="btn btn-primary btn-sm" id="replyTopBtn" type="button">Responder</button>
+              </div>
+            </div>
+
+            <hr />
+
+            <div style="max-height: 420px; overflow:auto;">
+              {% for m in messages %}
+                <div class="mb-3 pb-3 border-bottom">
+                  <div class="small text-muted mb-1">
+                    <strong>{{ m.sender_name }}</strong> · {{ m.created_at }}
+                  </div>
+                  <div>{{ m.body|linebreaksbr }}</div>
+
+                  {% if m.attachments.all %}
+                    <div class="mt-2">
+                      <div class="small text-muted mb-1">Adjuntos:</div>
+                      <ul class="list-unstyled ms-0 mb-0">
+                        {% for a in m.attachments.all %}
+                          <li><a href="{{ a.file.url }}" target="_blank">{{ a.file.name }}</a></li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% endif %}
+                </div>
+              {% empty %}
+                <div class="text-muted">No hay mensajes en este hilo.</div>
+              {% endfor %}
+            </div>
+
+            <div id="replyBox" style="display:none; margin-top:18px;">
+              <div class="card">
+                <div class="card-body">
+                  <form id="sendMessageForm" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="conversation" value="{{ selected_thread.id }}" />
+
+                    <div class="mb-2">
+                      <textarea name="body" id="replyBody" rows="5" class="form-control" placeholder="Escribe tu respuesta..."></textarea>
+                    </div>
+
+                    <div class="mb-2">
+                      <input type="file" name="attachments" multiple class="form-control" />
+                    </div>
+
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-primary">Enviar</button>
+                      <button type="button" class="btn btn-outline-secondary" id="replyCancel">Cancelar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      {% else %}
+        <div class="card">
+          <div class="card-body text-muted">
+            Selecciona un hilo a la izquierda para ver su detalle.
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
+
+{% if selected_thread %}
+<script>
+document.getElementById('replyTopBtn').addEventListener('click', function() {
+  const box = document.getElementById('replyBox');
+  box.style.display = (box.style.display === 'none') ? 'block' : 'none';
+  if (box.style.display === 'block') {
+    document.getElementById('replyBody').focus();
+  }
+});
+
+document.getElementById('replyCancel').addEventListener('click', function() {
+  document.getElementById('replyBox').style.display = 'none';
+});
+
+document.getElementById('sendMessageForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const form = e.currentTarget;
+  const data = new FormData(form);
+
+  const res = await fetch('{% url "chat:send_message" %}', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: data
+  });
+
+  if (res.ok) {
+    location.reload();
+  } else {
+    const txt = await res.text();
+    alert('Error: ' + txt);
+  }
+});
+</script>
+{% endif %}
 {% endblock %}
