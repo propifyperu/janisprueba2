@@ -14,6 +14,7 @@ from rest_framework.exceptions import PermissionDenied
 from .models import Lead
 from .serializers import LeadSerializer
 from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 
 
@@ -267,6 +268,41 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
                 "text": f"{prop.code} - {prop.title or prop.exact_address or 'Sin Título'}"
             }
             for prop in page_obj
+        ]
+
+        return Response({
+            'results': results,
+            'pagination': {
+                'more': page_obj.has_next()
+            }
+        })
+
+    @action(detail=False, methods=['get'], url_path='select2-agents', permission_classes=[IsAuthenticated])
+    def select2_agents_search(self, request):
+        search_term = request.query_params.get('term', '')
+        page_number = request.query_params.get('page', 1)
+        
+        User = get_user_model()
+        
+        queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name') # buscar usuarios activos
+
+        if search_term:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search_term) |
+                Q(last_name__icontains=search_term) |
+                Q(username__icontains=search_term) |
+                Q(email__icontains=search_term)
+            )
+
+        paginator = Paginator(queryset, 30)
+        page_obj = paginator.get_page(page_number)
+
+        results = [
+            {
+                "id": user.pk,
+                "text": f"{user.get_full_name()} ({user.email})" if user.get_full_name() else user.username
+            }
+            for user in page_obj
         ]
 
         return Response({
