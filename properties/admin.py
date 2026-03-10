@@ -17,7 +17,7 @@ from .models import (
     # WhatsApp
     PropertyWhatsAppLink, SocialNetwork, WhatsAppNumber, UTMClick,
     # Agenda
-    EventType, Event
+    EventType, Event, Proposal
 )
 
 from .models import Requirement, RequirementMatch
@@ -611,3 +611,39 @@ class LeadAdmin(admin.ModelAdmin):
         if not obj.pk and not obj.created_by:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+@admin.register(Proposal)
+class ProposalAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "property",
+        "requirement_match",
+        "lead",
+        "requested_by_user",
+        "responded_by_user",
+        "currency",
+        "payment_method",
+        "amount",
+        "status",
+        "responded_at",
+        "created_at",
+    )
+    list_filter = ("status", "currency", "payment_method", "created_at", "responded_at")
+    search_fields = (
+        "property__code",
+        "property__title",
+        "lead__username",
+        "lead__full_name",
+        "message",
+    )
+    readonly_fields = ("created_at", "updated_at", "responded_at")
+    autocomplete_fields = (
+        "property",
+        "requirement_match",
+        "lead",
+        "requested_by_user",
+        "responded_by_user",
+        "currency",
+        "payment_method",
+    )
+    ordering = ("-created_at",)

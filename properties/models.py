@@ -11,6 +11,7 @@ from PIL import Image, ImageOps
 from io import BytesIO
 from django.core.files.base import ContentFile
 import os
+from django.core.exceptions import ValidationError
 
 class CanalLead(models.Model):
     name = models.CharField(max_length=100)
@@ -1768,6 +1769,15 @@ class Event(TitleCaseMixin, models.Model):
     hora_fin = models.TimeField(verbose_name='Hora de término')
     detalle = models.TextField(blank=True, verbose_name='Detalle de la visita')
     seguimiento = models.TextField(blank=True, verbose_name="Seguimiento de la visita")
+    proposal = models.ForeignKey(
+        'Proposal',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='events',
+        verbose_name='Propuesta'
+    )
+
     lead = models.ForeignKey(
         "Lead",
         on_delete=models.SET_NULL,
@@ -1876,3 +1886,91 @@ class RequirementMatch(models.Model):
 
     def __str__(self):
         return f"Req {self.requirement_id} - Prop {self.property_id} => {self.score}%"
+
+class Proposal(models.Model):
+    STATUS_SENT = "pending"
+    STATUS_ACCEPTED = "accepted"
+    STATUS_REJECTED = "rejected"
+    STATUS_CANCELLED = "cancelled"
+
+    STATUS_CHOICES = (
+        (STATUS_SENT, "Pendiente"),
+        (STATUS_ACCEPTED, "Aceptada"),
+        (STATUS_REJECTED, "Rechazada"),
+        (STATUS_CANCELLED, "Cancelada"),
+    )
+
+    property = models.ForeignKey(
+        "Property",
+        on_delete=models.CASCADE,
+        related_name="proposals",
+    )
+
+    requirement_match = models.ForeignKey(
+        "RequirementMatch",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proposals",
+    )
+
+    lead = models.ForeignKey(
+        "Lead",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proposals",
+    )
+
+    requested_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="proposals_requested",
+    )
+
+    responded_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proposals_responded",
+    )
+
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    currency = models.ForeignKey(
+        "Currency",
+        on_delete=models.PROTECT,
+        related_name="proposals",
+    )
+
+    payment_method = models.ForeignKey(
+        "PaymentMethod",
+        on_delete=models.PROTECT,
+        related_name="proposals",
+    )
+
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_SENT,
+        db_index=True,
+    )
+
+    message = models.TextField(blank=True, null=True)
+    response_message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "proposals"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Proposal {self.id} - {self.property_id} - {self.amount}"
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
