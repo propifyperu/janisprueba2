@@ -87,7 +87,12 @@
                                     <label class="form-label" for="{{ form.assigned_agent.id_for_label }}">
                                         Agente Asignado
                                     </label>
-                                    {{ form.assigned_agent }}
+                                    <select class="form-select" id="{{ form.assigned_agent.id_for_label }}" name="{{ form.assigned_agent.html_name }}">
+                                        <option></option>
+                                        {% if form.instance.assigned_agent %}
+                                            <option value="{{ form.instance.assigned_agent.pk }}" selected>{{ form.instance.assigned_agent.get_full_name|default:form.instance.assigned_agent.username }}</option>
+                                        {% endif %}
+                                    </select>
                                     {% if form.assigned_agent.errors %}
                                         <div class="text-danger small mt-1">{{ form.assigned_agent.errors }}</div>
                                     {% endif %}
@@ -158,8 +163,16 @@
                                         Inmueble
                                     </label>
                                     <select class="form-select" id="{{ form.property.id_for_label }}" name="{{ form.property.html_name }}">
-                                        {% if form.instance.property %}
-                                            <option value="{{ form.instance.property.pk }}" selected>{{ form.instance.property.code }} - {{ form.instance.property.title|default:form.instance.property.real_address|default:'' }}</option>
+                                        <option></option>
+                                        {% if form.property.value %}
+                                            {# On GET, value is the instance's property. On failed POST, it's the submitted value. #}
+                                            {% if form.instance.property and form.property.value|stringformat:"s" == form.instance.property.pk|stringformat:"s" %}
+                                                {# The selected value is the original property, so we have its details. #}
+                                                <option value="{{ form.instance.property.pk }}" selected>{{ form.instance.property.code }} - {{ form.instance.property.title|default:form.instance.property.real_address|default:'' }}</option>
+                                            {% else %}
+                                                {# On a failed POST with a new property, we only have the ID. This makes the form valid. #}
+                                                <option value="{{ form.property.value }}" selected>Propiedad ID: {{ form.property.value }}</option>
+                                            {% endif %}
                                         {% endif %}
                                     </select>
                                     {% if form.property.errors %}
@@ -240,7 +253,28 @@ document.addEventListener('DOMContentLoaded', function () {
     if ($('#{{ form.assigned_agent.id_for_label }}').length) { // inicializar select2 en agente asignado
         $('#{{ form.assigned_agent.id_for_label }}').select2({
             theme: "bootstrap-5",
-            placeholder: 'Buscar agente...',
+            placeholder: 'Busca por nombre, usuario o email',
+            ajax: {
+                url: "/dashboard/api/properties/select2-agents/",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        term: params.term,
+                        page: params.page || 1
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.results,
+                        pagination: {
+                            more: data.pagination.more
+                        }
+                    };
+                },
+                cache: true
+            },
             language: {
                 noResults: function () { return "No se encontraron resultados"; }
             }
