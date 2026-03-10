@@ -158,14 +158,9 @@
                                         Inmueble
                                     </label>
                                     <select class="form-select" id="{{ form.property.id_for_label }}" name="{{ form.property.html_name }}">
-                                        {% if form.property.field.empty_label %}
-                                            <option value="">{{ form.property.field.empty_label }}</option>
-                                        {% else %}
-                                            <option value="">-- Selecciona un inmueble --</option>
+                                        {% if form.instance.property %}
+                                            <option value="{{ form.instance.property.pk }}" selected>{{ form.instance.property.code }} - {{ form.instance.property.title|default:form.instance.property.real_address|default:'' }}</option>
                                         {% endif %}
-                                        {% for p in form.property.field.queryset %}
-                                            <option value="{{ p.pk }}"{% if form.property.value|stringformat:'s' == p.pk|stringformat:'s' %} selected{% endif %}>{{ p.code }} - {{ p.title }} - {{ p.real_address }}</option>
-                                        {% endfor %}
                                     </select>
                                     {% if form.property.errors %}
                                         <div class="text-danger small mt-1">{{ form.property.errors }}</div>
@@ -210,13 +205,34 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-
-    $('#{{ form.property.id_for_label }}').select2({ // inicializar select2 en el campo de propiedad 
+    $('#{{ form.property.id_for_label }}').select2({
         theme: "bootstrap-5",
         placeholder: 'Busca por código, título o dirección',
+        ajax: {
+            url: "/dashboard/api/properties/select2-search/",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    term: params.term,
+                    page: params.page || 1
+                };
+            },
+            processResults: function (data, params) {
+                params.page = params.page || 1;
+                return {
+                    results: data.results,
+                    pagination: {
+                        more: data.pagination.more
+                    }
+                };
+            },
+            cache: true
+        },
         language: {
-            noResults: function () {
-                return "No se encontraron resultados";
+            noResults: function () { return "No se encontraron resultados"; },
+            searching: function() {
+                return "Buscando...";
             }
         }
     });
