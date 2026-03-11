@@ -82,15 +82,22 @@
                                         <div class="text-danger small mt-1">{{ form.titulo.errors }}</div>
                                     {% endif %}
                                 </div>
+                                {% if request.user.is_superuser or request.user.role and request.user.role.name == 'Call Center' %}
                                 <div class="col-md-12">
                                     <label class="form-label" for="{{ form.assigned_agent.id_for_label }}">
                                         Agente Asignado
                                     </label>
-                                    {{ form.assigned_agent }}
+                                    <select class="form-select" id="{{ form.assigned_agent.id_for_label }}" name="{{ form.assigned_agent.html_name }}">
+                                        <option></option>
+                                        {% if form.instance.assigned_agent %}
+                                            <option value="{{ form.instance.assigned_agent.pk }}" selected>{{ form.instance.assigned_agent.get_full_name|default:form.instance.assigned_agent.username }}</option>
+                                        {% endif %}
+                                    </select>
                                     {% if form.assigned_agent.errors %}
                                         <div class="text-danger small mt-1">{{ form.assigned_agent.errors }}</div>
                                     {% endif %}
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
                         
@@ -173,23 +180,6 @@
                                     {% endif %}
                                     <small class="text-muted">Opcional: selecciona el inmueble relacionado</small>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.lead.id_for_label }}">
-                                        Lead (Cliente Potencial)
-                                    </label>
-                                    <select class="form-select" id="{{ form.lead.id_for_label }}" name="{{ form.lead.html_name }}">
-                                        <option></option>
-                                        {% if form.instance.lead %}
-                                            <option value="{{ form.instance.lead.pk }}" selected>{{ form.instance.lead.full_name|default:form.instance.lead.username }} ({{ form.instance.lead.phone }})</option>
-                                        {% elif form.lead.value %}
-                                            <option value="{{ form.lead.value }}" selected>Lead ID: {{ form.lead.value }}</option>
-                                        {% endif %}
-                                    </select>
-                                    {% if form.lead.errors %}
-                                        <div class="text-danger small mt-1">{{ form.lead.errors }}</div>
-                                    {% endif %}
-                                    <small class="text-muted">Opcional: vincula este evento a un lead existente.</small>
-                                </div>
                             </div>
                             <div class="row g-3 mt-2">
                                 <div class="col-12">
@@ -232,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
         theme: "bootstrap-5",
         placeholder: 'Busca por código, título o dirección',
         ajax: {
-            url: "{% url 'properties:api_properties_search' %}",
+            url: "/dashboard/api/properties/select2-search/",
             dataType: 'json',
             delay: 250,
             data: function (params) {
@@ -260,35 +250,36 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    $('#{{ form.lead.id_for_label }}').select2({
-        theme: "bootstrap-5",
-        placeholder: 'Busca por nombre o teléfono del lead',
-        ajax: {
-            url: "{% url 'properties:api_leads_search' %}",
-            dataType: 'json',
-            delay: 250,
-            data: function (params) {
-                return {
-                    term: params.term,
-                    page: params.page || 1
-                };
+    if ($('#{{ form.assigned_agent.id_for_label }}').length) { // inicializar select2 en agente asignado
+        $('#{{ form.assigned_agent.id_for_label }}').select2({
+            theme: "bootstrap-5",
+            placeholder: 'Busca por nombre, usuario o email',
+            ajax: {
+                url: "/dashboard/api/properties/select2-agents/",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        term: params.term,
+                        page: params.page || 1
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.results,
+                        pagination: {
+                            more: data.pagination.more
+                        }
+                    };
+                },
+                cache: true
             },
-            processResults: function (data, params) {
-                params.page = params.page || 1;
-                return {
-                    results: data.results,
-                    pagination: {
-                        more: data.pagination.more
-                    }
-                };
-            },
-            cache: true
-        },
-        language: {
-            noResults: function () { return "No se encontraron leads"; },
-            searching: function() { return "Buscando..."; }
-        }
-    });
+            language: {
+                noResults: function () { return "No se encontraron resultados"; }
+            }
+        });
+    }
 
     const eventForm = document.querySelector('form');
     const submitBtn = eventForm.querySelector('button[type="submit"]');
