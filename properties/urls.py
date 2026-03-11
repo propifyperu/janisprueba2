@@ -26,6 +26,7 @@ urlpatterns = [
     path('borradores/<int:pk>/borrar/', views.delete_draft_view, name='delete_draft'),
     path('<int:pk>/timeline/', views.property_timeline_view, name='timeline'),
     path('<int:pk>/editar/', views.edit_property_view, name='edit'),
+    path('<int:pk>/role-visibility/', views.property_role_visibility_update, name='property_role_visibility_update'),
     path('contactos/', views.ContactListView.as_view(), name='contact_list'),
     path('contactos/crear/', views.ContactCreateView.as_view(), name='contact_create'),
     path('contactos/<int:pk>/', views.ContactDetailView.as_view(), name='contact_detail'),
