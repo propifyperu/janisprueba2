@@ -793,7 +793,7 @@ class EventForm(forms.ModelForm):
         from .models import Event
         model = Event
         fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
-                  'interesado','assigned_agent','detalle', 'property', 'created_by']
+                  'interesado', 'lead', 'assigned_agent','detalle', 'property', 'created_by']
         widgets = {
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
@@ -802,6 +802,7 @@ class EventForm(forms.ModelForm):
             'hora_fin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'detalle': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'property': forms.Select(attrs={'class': 'form-select'}),
+            'lead': forms.Select(attrs={'class': 'form-select'}),
             'created_by': forms.Select(attrs={'class': 'form-select'}),
             'assigned_agent': forms.Select(attrs={'class': 'form-select'}),
             'interesado': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del contacto (opcional)'}),
@@ -815,6 +816,7 @@ class EventForm(forms.ModelForm):
             'interesado': 'Nombre',
             'detalle': 'Detalle del evento',
             'property': 'Inmueble',
+            'lead': 'Lead (Cliente Potencial)',
             'created_by': 'Creado por',
             'assigned_agent': 'Agente Asignado',
         }
@@ -822,12 +824,13 @@ class EventForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        from .models import Property, EventType
+        from .models import Property, EventType, Lead
         from django.contrib.auth import get_user_model
         User = get_user_model()
 
         self.fields['property'].queryset = Property.objects.filter(is_active=True).order_by('-created_at')
         self.fields['property'].required = False
+        self.fields['lead'].required = False
 
         self.fields['event_type'].queryset = EventType.objects.filter(is_active=True).order_by('name')
 

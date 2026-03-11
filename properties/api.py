@@ -1,25 +1,19 @@
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
-from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework import permissions, filters
 from rest_framework.decorators import action
-from django.db import transaction
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Exists, OuterRef
 from . import models
 from rest_framework.exceptions import PermissionDenied
-from .models import Lead
-from .serializers import LeadSerializer
 from django.shortcuts import get_object_or_404
-from django.contrib.auth import get_user_model
-from django.core.paginator import Paginator
 
 
 from .models import Property, Requirement
-from .serializers import PropertySerializer, PropertyWithDocsSerializer, RequirementSerializer, PropertyDocumentCreateSerializer, PropertyDocumentUpdateSerializer, DocumentTypeSerializer
+from .serializers import PropertySerializer, PropertyWithDocsSerializer, RequirementSerializer, PropertyDocumentCreateSerializer, PropertyDocumentUpdateSerializer, DocumentTypeSerializer, LeadSerializer
 
 
 class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
@@ -244,74 +238,6 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
         out = PropertyWithDocsSerializer(prop, context={"request": request})
         return Response(out.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['get'], url_path='select2-search', permission_classes=[IsAuthenticated])
-    def select2_search(self, request):
-        search_term = request.query_params.get('term', '')
-        page_number = request.query_params.get('page', 1)
-
-        queryset = models.Property.objects.all().order_by('-created_at')
-
-        if search_term:
-            queryset = queryset.filter(
-                Q(code__icontains=search_term) |
-                Q(title__icontains=search_term) |
-                Q(exact_address__icontains=search_term) |
-                Q(real_address__icontains=search_term)
-            )
-
-        paginator = Paginator(queryset, 30)  # 30 resultados por cada uno
-        page_obj = paginator.get_page(page_number)
-
-        results = [
-            {
-                "id": prop.pk,
-                "text": f"{prop.code} - {prop.title or prop.exact_address or 'Sin Título'}"
-            }
-            for prop in page_obj
-        ]
-
-        return Response({
-            'results': results,
-            'pagination': {
-                'more': page_obj.has_next()
-            }
-        })
-
-    @action(detail=False, methods=['get'], url_path='select2-agents', permission_classes=[IsAuthenticated])
-    def select2_agents_search(self, request):
-        search_term = request.query_params.get('term', '')
-        page_number = request.query_params.get('page', 1)
-        
-        User = get_user_model()
-        
-        queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name') # buscar usuarios activos
-
-        if search_term:
-            queryset = queryset.filter(
-                Q(first_name__icontains=search_term) |
-                Q(last_name__icontains=search_term) |
-                Q(username__icontains=search_term) |
-                Q(email__icontains=search_term)
-            )
-
-        paginator = Paginator(queryset, 30)
-        page_obj = paginator.get_page(page_number)
-
-        results = [
-            {
-                "id": user.pk,
-                "text": f"{user.get_full_name()} ({user.email})" if user.get_full_name() else user.username
-            }
-            for user in page_obj
-        ]
-
-        return Response({
-            'results': results,
-            'pagination': {
-                'more': page_obj.has_next()
-            }
-        })
-
 class RequirementViewSet(ModelViewSet):
     """
     CRUD completo para Requerimientos.
@@ -343,6 +269,38 @@ class RequirementViewSet(ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'])
+    def selectors(self, request):
+        """
+        Retorna los catálogos (IDs y valores) necesarios para crear/editar Requerimientos.
+        """
+        data = {
+            "property_types": list(models.PropertyType.objects.filter(is_active=True).values("id", "name")),
+            "property_subtypes": list(models.PropertySubtype.objects.filter(is_active=True).values("id", "name", "property_type_id")),
+            "currencies": list(models.Currency.objects.all().values("id", "name", "symbol", "code")),
+            "payment_methods": list(models.PaymentMethod.objects.filter(is_active=True).values("id", "name")),
+            "statuses": list(models.PropertyStatus.objects.filter(is_active=True).values("id", "name")),
+            "departments": list(models.Department.objects.filter(is_active=True).values("id", "name")),
+            "provinces": list(models.Province.objects.filter(is_active=True).values("id", "name", "department_id")),
+            "districts": list(models.District.objects.filter(is_active=True).values("id", "name", "province_id")),
+            "floor_options": list(models.FloorOption.objects.filter(is_active=True).values("id", "name")),
+            "zoning_options": list(models.ZoningOption.objects.filter(is_active=True).values("id", "name")),
+            "number_of_floors_options": [{"id": k, "name": v} for k, v in models.Requirement.NUMBER_OF_FLOORS_CHOICES],
+            "ascensor_options": [{"id": k, "name": v} for k, v in models.Requirement.ASCENSOR_CHOICES],
+            "budget_type_options": [{"id": k, "name": v} for k, v in models.Requirement.BUDGET_TYPE_CHOICES],
+            "area_type_options": [{"id": k, "name": v} for k, v in models.Requirement.AREA_TYPE_CHOICES],
+            "frontera_type_options": [{"id": k, "name": v} for k, v in models.Requirement.FRONTERA_TYPE_CHOICES],
+        }
+
+        # Agregar catálogos opcionales si los modelos existen
+        if hasattr(models, 'LevelType'):
+            data["level_types"] = list(models.LevelType.objects.filter(is_active=True).values("id", "name"))
+        
+        if hasattr(models, 'GarageType'):
+            data["garage_types"] = list(models.GarageType.objects.filter(is_active=True).values("id", "name"))
+
+        return Response(data)
+
     def perform_destroy(self, instance):
         # Soft delete: marcar como inactivo en lugar de borrar físicamente
         instance.is_active = False
@@ -354,27 +312,17 @@ class DocumentTypeViewSet(GenericViewSet, ListModelMixin):
     permission_classes = [permissions.AllowAny]
     pagination_class = None
 
-class LeadViewSet(CreateModelMixin, GenericViewSet):
-    queryset = Lead.objects.all()
+class LeadViewSet(ModelViewSet):
     serializer_class = LeadSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['lead_status', 'canal_lead', 'is_active']
+    search_fields = ['full_name', 'phone', 'email', 'username']
+    ordering_fields = ['created_at', 'updated_at']
 
-    @transaction.atomic
-    def create(self, request, *args, **kwargs):
-        is_bulk = isinstance(request.data, list)
-
-        if not is_bulk:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save(created_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-        created_items = []
-
-        for item in request.data:
-            serializer = self.get_serializer(data=item)
-            serializer.is_valid(raise_exception=True)
-            serializer.save(created_by=request.user)
-            created_items.append(serializer.data)
-
-        return Response(created_items, status=status.HTTP_201_CREATED)
+    def get_queryset(self):
+        user = self.request.user
+        qs = models.Lead.objects.filter(is_active=True)
+        if not user.is_superuser:
+            qs = qs.filter(assigned_to=user)
+        return qs.order_by('-created_at')
