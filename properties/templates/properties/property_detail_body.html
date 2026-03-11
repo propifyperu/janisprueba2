@@ -1,6 +1,26 @@
+<style>
+    .role-visibility-trigger {
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 4px;
+        line-height: 1.2;
+    }
+</style>
 
     <!-- Header de Acciones -->
-    <div class="d-flex justify-content-end mb-2">
+    <div class="d-flex justify-content-end align-items-center flex-wrap gap-2 mb-2">
+        {% if can_manage_role_visibility %}
+        <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm role-visibility-trigger me-auto"
+            data-bs-toggle="modal"
+            data-bs-target="#roleVisibilityModal"
+            title="Visibilidad por roles"
+        >
+            <i class="fas fa-eye me-1"></i>Visibilidad por roles
+        </button>
+        {% endif %}
         <div class="btn-group btn-group-sm">
             {% if user.is_superuser or property.created_by.id == user.id %}
             <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-primary" title="Editar">
@@ -36,7 +56,7 @@
             <i class="fas fa-trash-alt me-1"></i>Eliminar de WP
         </button>
     </div>
-
+  
     <div class="row g-2">
         <!-- COLUMNA IZQUIERDA: Galería y Resumen Clave (Sticky) -->
         <div class="col-lg-3 col-md-4">
@@ -439,7 +459,59 @@
                          </div>
                     </div>
                 </div>
+                {% if can_manage_role_visibility %}
+                <div class="modal fade" id="roleVisibilityModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content">
+                            <form method="post" action="{% url 'properties:property_role_visibility_update' property.pk %}">
+                                {% csrf_token %}
 
+                                <div class="modal-header">
+                                    <h5 class="modal-title">
+                                        <i class="fas fa-eye me-2"></i>Visibilidad por roles
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                </div>
+
+                                <div class="modal-body">
+                                    <div class="row g-2">
+                                        {% for role in visibility_roles %}
+                                        <div class="col-md-4 col-sm-6">
+                                            <div class="form-check">
+                                                <input
+                                                    class="form-check-input"
+                                                    type="checkbox"
+                                                    name="visible_for_roles"
+                                                    value="{{ role.id }}"
+                                                    id="role_visibility_{{ role.id }}"
+                                                    {% if role.id in selected_visible_role_ids %}checked{% endif %}
+                                                >
+                                                <label class="form-check-label small" for="role_visibility_{{ role.id }}">
+                                                    {{ role.area.name|default:"Sin área" }} / {{ role.name }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <div class="small text-muted mt-3">
+                                        Marca o desmarca los roles que pueden ver esta propiedad 
+                                    </div>
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-1"></i>Guardar visibilidad
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                  <!-- ✅ Modal Confirmación Subir a WP -->
                 <div class="modal fade" id="wpConfirmModal" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered">
