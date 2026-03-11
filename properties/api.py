@@ -244,74 +244,6 @@ class PropertyViewSet(GenericViewSet, ListModelMixin, RetrieveModelMixin):
         out = PropertyWithDocsSerializer(prop, context={"request": request})
         return Response(out.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['get'], url_path='select2-search', permission_classes=[IsAuthenticated])
-    def select2_search(self, request):
-        search_term = request.query_params.get('term', '')
-        page_number = request.query_params.get('page', 1)
-
-        queryset = models.Property.objects.all().order_by('-created_at')
-
-        if search_term:
-            queryset = queryset.filter(
-                Q(code__icontains=search_term) |
-                Q(title__icontains=search_term) |
-                Q(exact_address__icontains=search_term) |
-                Q(real_address__icontains=search_term)
-            )
-
-        paginator = Paginator(queryset, 30)  # 30 resultados por cada uno
-        page_obj = paginator.get_page(page_number)
-
-        results = [
-            {
-                "id": prop.pk,
-                "text": f"{prop.code} - {prop.title or prop.exact_address or 'Sin Título'}"
-            }
-            for prop in page_obj
-        ]
-
-        return Response({
-            'results': results,
-            'pagination': {
-                'more': page_obj.has_next()
-            }
-        })
-
-    @action(detail=False, methods=['get'], url_path='select2-agents', permission_classes=[IsAuthenticated])
-    def select2_agents_search(self, request):
-        search_term = request.query_params.get('term', '')
-        page_number = request.query_params.get('page', 1)
-        
-        User = get_user_model()
-        
-        queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name') # buscar usuarios activos
-
-        if search_term:
-            queryset = queryset.filter(
-                Q(first_name__icontains=search_term) |
-                Q(last_name__icontains=search_term) |
-                Q(username__icontains=search_term) |
-                Q(email__icontains=search_term)
-            )
-
-        paginator = Paginator(queryset, 30)
-        page_obj = paginator.get_page(page_number)
-
-        results = [
-            {
-                "id": user.pk,
-                "text": f"{user.get_full_name()} ({user.email})" if user.get_full_name() else user.username
-            }
-            for user in page_obj
-        ]
-
-        return Response({
-            'results': results,
-            'pagination': {
-                'more': page_obj.has_next()
-            }
-        })
-
 class RequirementViewSet(ModelViewSet):
     """
     CRUD completo para Requerimientos.
@@ -342,6 +274,38 @@ class RequirementViewSet(ModelViewSet):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def selectors(self, request):
+        """
+        Retorna los catálogos (IDs y valores) necesarios para crear/editar Requerimientos.
+        """
+        data = {
+            "property_types": list(models.PropertyType.objects.filter(is_active=True).values("id", "name")),
+            "property_subtypes": list(models.PropertySubtype.objects.filter(is_active=True).values("id", "name", "property_type_id")),
+            "currencies": list(models.Currency.objects.all().values("id", "name", "symbol", "code")),
+            "payment_methods": list(models.PaymentMethod.objects.filter(is_active=True).values("id", "name")),
+            "statuses": list(models.PropertyStatus.objects.filter(is_active=True).values("id", "name")),
+            "departments": list(models.Department.objects.filter(is_active=True).values("id", "name")),
+            "provinces": list(models.Province.objects.filter(is_active=True).values("id", "name", "department_id")),
+            "districts": list(models.District.objects.filter(is_active=True).values("id", "name", "province_id")),
+            "floor_options": list(models.FloorOption.objects.filter(is_active=True).values("id", "name")),
+            "zoning_options": list(models.ZoningOption.objects.filter(is_active=True).values("id", "name")),
+            "number_of_floors_options": [{"id": k, "name": v} for k, v in models.Requirement.NUMBER_OF_FLOORS_CHOICES],
+            "ascensor_options": [{"id": k, "name": v} for k, v in models.Requirement.ASCENSOR_CHOICES],
+            "budget_type_options": [{"id": k, "name": v} for k, v in models.Requirement.BUDGET_TYPE_CHOICES],
+            "area_type_options": [{"id": k, "name": v} for k, v in models.Requirement.AREA_TYPE_CHOICES],
+            "frontera_type_options": [{"id": k, "name": v} for k, v in models.Requirement.FRONTERA_TYPE_CHOICES],
+        }
+
+        # Agregar catálogos opcionales si los modelos existen
+        if hasattr(models, 'LevelType'):
+            data["level_types"] = list(models.LevelType.objects.filter(is_active=True).values("id", "name"))
+        
+        if hasattr(models, 'GarageType'):
+            data["garage_types"] = list(models.GarageType.objects.filter(is_active=True).values("id", "name"))
+
+        return Response(data)
 
     def perform_destroy(self, instance):
         # Soft delete: marcar como inactivo en lugar de borrar físicamente

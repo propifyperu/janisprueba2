@@ -493,7 +493,279 @@ class RequirementUpdateForm(RequirementCreateForm):
     pass
 
 
-# ============================================================================
+""""
+class RequirementSimpleForm(forms.Form):
+    # Ya no se usa client_name ni phone directamente, sino contact FK
+    property_type = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    property_subtype = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    budget_type = forms.ChoiceField(choices=(('approx','Aproximado'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    budget_approx = forms.CharField(required=False, widget=forms.TextInput(attrs={'class':'form-control','inputmode': 'decimal'}))
+    budget_min = forms.CharField(required=False, widget=forms.TextInput(attrs={'class':'form-control','inputmode': 'decimal'}))
+    budget_max = forms.CharField(required=False, widget=forms.TextInput(attrs={'class':'form-control','inputmode': 'decimal'}))
+    # Área de terreno
+    area_type = forms.ChoiceField(choices=(('approx','Aproximado'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    land_area_approx = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    land_area_min = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    land_area_max = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    # FRENTERA (modo: aproximada / rango)
+    frontera_mode = forms.ChoiceField(choices=(('approx','Aproximada'),('range','Rango')), required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    frontera_approx = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    frontera_min = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    frontera_max = forms.DecimalField(required=False, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    currency = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    payment_method = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    status = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    department = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    province = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    # Permitir selección múltiple para búsquedas en varios distritos
+    district = DistrictMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
+    # Preferencia de pisos (multi-select)
+    preferred_floors = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
+    # Zonificación (multi-select para búsquedas en varios tipos de suelo)
+    zonificacion = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size':6}))
+    # Cantidad de pisos (solo para casas) — desplegable simple
+    NUMBER_OF_FLOORS_CHOICES = [('', '---------'), ('1', '1 piso'), ('2', '2 pisos'), ('3', '3 pisos'), ('4', '4 pisos'), ('5', '5 pisos')]
+    number_of_floors = forms.ChoiceField(choices=NUMBER_OF_FLOORS_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    # Campo ascensor (solo aplicable para departamentos). Valores: 'yes' / 'no'
+    ASCENSOR_CHOICES = [('', '---------'), ('yes', 'Sí'), ('no', 'No')]
+    ascensor = forms.ChoiceField(choices=ASCENSOR_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    bedrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    half_bathrooms = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    floors = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    garage_spaces = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class':'form-control'}))
+    notes = forms.CharField(required=False, widget=forms.Textarea(attrs={'class':'form-control','rows':3}))
+    assigned_agent = forms.ModelChoiceField(queryset=None, required=False, label="Agente Asignado", widget=forms.Select(attrs={'class': 'form-select'}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        from django.db import OperationalError
+        try:
+            from .models import (
+                PropertyType, PropertySubtype, PaymentMethod, PropertyStatus,
+                Department, Province, District, Currency, FloorOption, ZoningOption
+            )
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+
+            # ✅ LIVIANOS (siempre)
+            self.fields['property_type'].queryset = (
+                PropertyType.objects.filter(is_active=True).only('id', 'name').order_by('name')
+            )
+            self.fields['payment_method'].queryset = (
+                PaymentMethod.objects.filter(is_active=True).only('id', 'name', 'order').order_by('order')
+            )
+            self.fields['status'].queryset = (
+                PropertyStatus.objects.filter(is_active=True).only('id', 'name', 'order').order_by('order')
+            )
+            self.fields['currency'].queryset = (
+                Currency.objects.filter(is_active=True).only('id', 'name').order_by('name')
+            )
+            self.fields['department'].queryset = (
+                Department.objects.filter(is_active=True).only('id', 'name').order_by('name')
+            )
+            self.fields['preferred_floors'].queryset = (
+                FloorOption.objects.filter(is_active=True).only('id', 'name', 'order').order_by('order', 'name')
+            )
+            self.fields['zonificacion'].queryset = (
+                ZoningOption.objects.filter(is_active=True).only('id', 'name', 'order').order_by('order', 'name')
+            )
+
+            self.fields['assigned_agent'].queryset = (
+                User.objects.filter(is_active=True)
+                .only('id', 'first_name', 'last_name')
+                .order_by('first_name', 'last_name')
+            )
+
+            # ✅ PESADOS: VACÍOS EN GET
+            self.fields['property_subtype'].queryset = PropertySubtype.objects.none()
+            self.fields['province'].queryset = Province.objects.none()
+            self.fields['district'].queryset = District.objects.none()
+
+            # ==========================================================
+            # ✅ FIX REAL: SI ES POST (self.is_bound), reconstruir querysets
+            # ==========================================================
+            if self.is_bound:
+                # 1) Subtipo depende de property_type
+                type_id = (self.data.get('property_type') or '').strip()
+                if type_id:
+                    self.fields['property_subtype'].queryset = (
+                        PropertySubtype.objects.filter(is_active=True, property_type_id=type_id)
+                        .only('id', 'name')
+                        .order_by('name')
+                    )
+
+                # 2) Provincia depende de department
+                dept_id = (self.data.get('department') or '').strip()
+                if dept_id:
+                    self.fields['province'].queryset = (
+                        Province.objects.filter(is_active=True, department_id=dept_id)
+                        .only('id', 'name')
+                        .order_by('name')
+                    )
+
+                # 3) District (multi) depende de province
+                prov_id = (self.data.get('province') or '').strip()
+                if prov_id:
+                    self.fields['district'].queryset = (
+                        District.objects.filter(is_active=True, province_id=prov_id)
+                        .only('id', 'name')
+                        .order_by('name')
+                    )
+
+        except OperationalError:
+            # Si DB no está lista, no revientes la página
+            for k in self.fields.keys():
+                f = self.fields.get(k)
+                if hasattr(f, 'queryset') and getattr(f, 'queryset', None) is not None:
+                    try:
+                        f.queryset = f.queryset.model.objects.none()
+                    except Exception:
+                        pass
+
+    def _clean_decimal(self, field_name: str):
+        raw = self.cleaned_data.get(field_name)
+
+        if raw in (None, ''):
+            return None
+        if isinstance(raw, Decimal):
+            return raw
+
+        s = str(raw).strip()
+
+        # 1) eliminar símbolos/monedas y espacios
+        #    deja solo dígitos, punto, coma y signo -
+        s = s.replace(" ", "")
+        s = re.sub(r"[^\d\.,\-]", "", s)  # quita $ S/ etc.
+
+        if s in ("", "-", ".", ","):
+            return None
+
+        # 2) Normalizar separadores:
+        # Caso A: tiene "." y "," => decidir cuál es decimal por la última aparición
+        if "." in s and "," in s:
+            last_dot = s.rfind(".")
+            last_comma = s.rfind(",")
+
+            if last_comma > last_dot:
+                # 1.234,56 -> miles "." y decimal ","
+                s = s.replace(".", "")
+                s = s.replace(",", ".")
+            else:
+                # 1,234.56 -> miles "," y decimal "."
+                s = s.replace(",", "")
+
+        # Caso B: solo "," => puede ser decimal o miles
+        elif "," in s and "." not in s:
+            # si la coma está a 1-2 dígitos del final => decimal (123,45)
+            # si está a 3 dígitos del final => miles (1,234)
+            parts = s.split(",")
+            if len(parts[-1]) in (1, 2):
+                s = s.replace(",", ".")
+            else:
+                s = s.replace(",", "")
+
+        # Caso C: solo "." => puede ser decimal o miles
+        elif "." in s and "," not in s:
+            parts = s.split(".")
+            # si el último grupo tiene 3 dígitos y hay más de 1 punto => miles (1.234.567)
+            if len(parts) > 2 and len(parts[-1]) == 3:
+                s = s.replace(".", "")
+
+        try:
+            return Decimal(s)
+        except (InvalidOperation, ValueError, TypeError):
+            raise forms.ValidationError("Introduzca un número válido.")
+
+    def clean_budget_approx(self):
+        return self._clean_decimal("budget_approx")
+
+    def clean_budget_min(self):
+        return self._clean_decimal("budget_min")
+
+    def clean_budget_max(self):
+        return self._clean_decimal("budget_max")
+
+        """
+
+"""
+class RequirementEditForm(forms.ModelForm):
+    Formulario para editar un `Requirement` desde la UI.
+
+    Incluye el campo M2M `districts` (selección múltiple) en lugar del FK `district`.
+
+    class Meta:
+        from .models import Requirement
+        model = Requirement
+        fields = [
+            "operation_type",
+            "property_type",
+            "property_subtype",
+            "currency",
+            "payment_method",
+            "price_min",
+            "price_max",
+            "bedrooms_min",
+            "bedrooms_max",
+            "bathrooms_min",
+            "bathrooms_max",
+            "garage_spaces_min",
+            "garage_spaces_max",
+            "land_area_min",
+            "land_area_max",
+            "built_area_min",
+            "built_area_max",
+            "antiquity_years_min",
+            "antiquity_years_max",
+            "floors_min",
+            "floors_max",
+            "has_elevator",
+            "pet_friendly",
+            "districts",
+        ]
+
+    assigned_agent = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Aplicar clases Bootstrap a todos los campos
+        for field_name, field in self.fields.items():
+            if isinstance(field.widget, (forms.TextInput, forms.NumberInput, forms.EmailInput, forms.PasswordInput, forms.DecimalField)):
+                field.widget.attrs.update({'class': 'form-control'})
+            elif isinstance(field.widget, (forms.Select, forms.SelectMultiple)):
+                field.widget.attrs.update({'class': 'form-select'})
+            elif isinstance(field.widget, forms.Textarea):
+                field.widget.attrs.update({'class': 'form-control', 'rows': 3})
+            
+            # Hacer campos opcionales por defecto (según la lógica de Janis para matching parcial)
+            field.required = False
+
+        # Configurar querysets y widgets específicos para Select2
+        try:
+            from .models import District, ZoningOption, FloorOption
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            if 'districts' in self.fields:
+                self.fields['districts'].queryset = District.objects.filter(is_active=True).order_by('name')
+                self.fields['districts'].widget.attrs.update({'size': 6})
+            
+            if 'zonificaciones' in self.fields:
+                self.fields['zonificaciones'].queryset = ZoningOption.objects.filter(is_active=True).order_by('order', 'name')
+                self.fields['zonificaciones'].widget.attrs.update({'size': 6})
+                
+            if 'preferred_floors' in self.fields:
+                self.fields['preferred_floors'].queryset = FloorOption.objects.filter(is_active=True).order_by('order', 'name')
+                self.fields['preferred_floors'].widget.attrs.update({'size': 6})
+
+            if 'assigned_agent' in self.fields:
+                self.fields['assigned_agent'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
+        except Exception:
+            pass
+"""
+
+# =============================================================================
 # FORMULARIOS PARA AGENDA Y EVENTOS
 # =============================================================================
 
@@ -521,7 +793,7 @@ class EventForm(forms.ModelForm):
         from .models import Event
         model = Event
         fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
-                  'interesado','assigned_agent','detalle', 'property', 'created_by']
+                  'interesado', 'lead', 'assigned_agent','detalle', 'property', 'created_by']
         widgets = {
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
@@ -530,6 +802,7 @@ class EventForm(forms.ModelForm):
             'hora_fin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'detalle': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'property': forms.Select(attrs={'class': 'form-select'}),
+            'lead': forms.Select(attrs={'class': 'form-select'}),
             'created_by': forms.Select(attrs={'class': 'form-select'}),
             'assigned_agent': forms.Select(attrs={'class': 'form-select'}),
             'interesado': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del contacto (opcional)'}),
@@ -543,6 +816,7 @@ class EventForm(forms.ModelForm):
             'interesado': 'Nombre',
             'detalle': 'Detalle del evento',
             'property': 'Inmueble',
+            'lead': 'Lead (Cliente Potencial)',
             'created_by': 'Creado por',
             'assigned_agent': 'Agente Asignado',
         }
@@ -550,12 +824,13 @@ class EventForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        from .models import Property, EventType
+        from .models import Property, EventType, Lead
         from django.contrib.auth import get_user_model
         User = get_user_model()
 
         self.fields['property'].queryset = Property.objects.filter(is_active=True).order_by('-created_at')
         self.fields['property'].required = False
+        self.fields['lead'].required = False
 
         self.fields['event_type'].queryset = EventType.objects.filter(is_active=True).order_by('name')
 
@@ -688,6 +963,7 @@ class ProposalCreateForm(forms.ModelForm):
         model = Proposal
         fields = [
             "property",
+            "requirement_match",
             "lead",
             "currency",
             "payment_method",
@@ -695,6 +971,7 @@ class ProposalCreateForm(forms.ModelForm):
             "message",
         ]
         widgets = {
+            "requirement_match": forms.Select(attrs={"class": "form-select"}),
             "lead": forms.Select(attrs={"class": "form-select"}),
             "currency": forms.Select(attrs={"class": "form-select"}),
             "payment_method": forms.Select(attrs={"class": "form-select"}),
@@ -715,11 +992,18 @@ class ProposalCreateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields["lead"].queryset = Lead.objects.filter(is_active=True).order_by("username")
+        self.fields["requirement_match"].queryset = RequirementMatch.objects.select_related(
+            "property", "requirement"
+        ).order_by("-computed_at")
         self.fields["currency"].queryset = Currency.objects.filter(is_active=True).order_by("name")
         self.fields["payment_method"].queryset = PaymentMethod.objects.filter(is_active=True).order_by("order", "name")
+
+        self.fields["requirement_match"].required = False
         self.fields["lead"].required = False
         self.fields["message"].required = False
+
         self.fields["property"].label = "Propiedad"
+        self.fields["requirement_match"].label = "Match de requerimiento"
         self.fields["lead"].label = "Lead"
         self.fields["currency"].label = "Moneda"
         self.fields["payment_method"].label = "Forma de pago"
