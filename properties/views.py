@@ -1,6 +1,6 @@
 from .models import Property, AgencyConfig
 from django.contrib import messages
-from properties.queryset import visible_properties_for
+from properties.queryset import visible_properties_for, can_user_see_property
 from django.db import transaction
 from django.utils import timezone
 from .forms import AgencyConfigForm
@@ -8,6 +8,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Case, When, Value, IntegerField
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
+from users.models import Role
 from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
 from .models import Requirement, RequirementMatch, Proposal
 from django.contrib.auth.decorators import login_required
@@ -1761,11 +1762,6 @@ def api_events_json(request):
 # VISTAS PARA APIs Y OTROS ENDPOINTS
 # =============================================================================
 
-from decimal import Decimal, InvalidOperation
-from django.urls import reverse
-from django.conf import settings
-from django.templatetags.static import static
-
 # Vista para el detalle de propiedad
 class PropertyDetailView(LoginRequiredMixin, DetailView):
     model = Property
@@ -1774,18 +1770,19 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Añadir videos, documentos y datos financieros al contexto para la plantilla
         property_obj = self.get_object()
-        # Si el objeto es un borrador (`is_draft=True`), sólo el creador o superuser pueden verlo
+
+        if not can_user_see_property(self.request.user, property_obj):
+            raise Http404()
+
         if getattr(property_obj, 'is_draft', False) and property_obj.created_by and property_obj.created_by != self.request.user and not self.request.user.is_superuser:
             raise Http404()
-        # videos relacionados
+
         try:
             context['property_videos'] = list(property_obj.videos.all())
         except Exception:
             context['property_videos'] = []
 
-        # documentos relacionados
         try:
             from .models import DocumentType
             docs = list(property_obj.documents.all())
@@ -1797,11 +1794,9 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
             context['uploaded_doc_ids'] = []
             context['all_document_types'] = []
 
-        # información financiera (si existe) y items simplificados para la plantilla
         try:
             financial_info = getattr(property_obj, 'financial_info', None)
             context['financial_info'] = financial_info
-            # preparar una lista simple de pares etiqueta/valor para la plantilla
             financial_items = []
             if financial_info:
                 if financial_info.initial_commission_percentage is not None:
@@ -1815,8 +1810,27 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
             context['financial_info'] = None
             context['financial_items'] = []
 
-        # Agregar permisos de campos basados en el rol del usuario
         context['field_permissions'] = get_visible_fields_for_user(self.request.user)
+        context['can_manage_role_visibility'] = self.request.user.is_superuser
+
+        visibility_roles = (
+            Role.objects
+            .select_related("area")
+            .filter(is_active=True)
+            .order_by("area__name", "name")
+        )
+
+        selected_visible_role_ids = list(
+            property_obj.visible_for_roles.values_list("id", flat=True)
+        )
+
+        if not selected_visible_role_ids:
+            selected_visible_role_ids = list(
+                visibility_roles.values_list("id", flat=True)
+            )
+
+        context['visibility_roles'] = visibility_roles
+        context['selected_visible_role_ids'] = selected_visible_role_ids
 
         return context
 
@@ -1827,6 +1841,10 @@ class PropertyPDFView(LoginRequiredMixin, DetailView):
 
     def get(self, request, *args, **kwargs):
         property_obj = self.get_object()
+
+        if not can_user_see_property(request.user, property_obj):
+            raise Http404()
+        
         agency = AgencyConfig.objects.first()
         
         # Resolver nombres de ubicación si son IDs (pueden venir como string numérico desde el formulario)
@@ -1892,6 +1910,25 @@ def property_timeline_view(request, pk):
         'property': property_obj,
         'changes': changes,
     })
+
+
+@login_required
+def property_role_visibility_update(request, pk):
+    property_obj = get_object_or_404(Property, pk=pk)
+
+    if not request.user.is_superuser:
+        messages.error(request, "No tienes permiso para gestionar la visibilidad por roles.")
+        return redirect("properties:detail", pk=pk)
+
+    if request.method == "POST":
+        role_ids = request.POST.getlist("visible_for_roles")
+
+        roles = Role.objects.filter(id__in=role_ids, is_active=True)
+        property_obj.visible_for_roles.set(roles)
+
+        messages.success(request, "Visibilidad por roles actualizada correctamente.")
+
+    return redirect("properties:detail", pk=pk)
 
 
 @login_required

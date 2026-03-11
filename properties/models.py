@@ -770,6 +770,13 @@ class Property(TitleCaseMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    visible_for_roles = models.ManyToManyField(
+        "users.Role",
+        blank=True,
+        related_name="visible_properties",
+        verbose_name="Visible para roles",
+    )
+
     # Flag explícito para marcar un registro como Borrador (editable, no publicado)
     is_draft = models.BooleanField(default=False)
     is_ready_for_sale = models.BooleanField(default=False)
