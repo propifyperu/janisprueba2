@@ -749,7 +749,6 @@
             {% url 'properties:marketing_properties_list' as utm_list %}
             {% url 'properties:marketing_properties_multimedia' as multimedia_list %}
             {% url 'users:profile' as profile_url %}
-            {% url 'properties:acm_detail' as acm_url %}
             {% url 'properties:proposals_list' as proposals_list_url %}
             {% url 'properties:proposals_create' as proposals_create_url %}
             {% if request.user.is_superuser %}
@@ -811,7 +810,14 @@
                 </div>
             </div>
 
-            <a class="nav-link {% if request.path == acm_url %}active{% endif %} mt-n2 mb-2 ml-n8" href="{{ acm_url }}"><i class="fas fa-user-circle me-2"></i>ACM</a>
+            <div class="nav-group">
+                <button class="nav-group-toggle"
+                        type="button"
+                        onclick="window.location.href='https://acm.propifai.com/acm/analisis/'">
+                    <i class="fas fa-chart-line"></i>
+                    <span>ACM</span>
+                </button>
+            </div>
             
             <div class="nav-group">
                 <button class="nav-group-toggle{% if 'propuestas' in request.path %} expanded{% endif %}" type="button" data-target="proposalsSubmenu" aria-controls="proposalsSubmenu" aria-expanded="{% if 'propuestas' in request.path %}true{% else %}false{% endif %}">
