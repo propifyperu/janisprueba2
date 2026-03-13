@@ -513,7 +513,7 @@ class EventAdmin(admin.ModelAdmin):
             'fields': ('fecha_evento', 'hora_inicio', 'hora_fin')
         }),
         ('Detalles', {
-            'fields': ('interesado', 'property', 'detalle')
+            'fields': ('interesado', 'lead', 'property', 'detalle')
         }),
         ('Auditoría', {
             'fields': ('created_by', 'created_at', 'updated_at', 'is_active'),

@@ -4118,6 +4118,64 @@ def proposal_accept_view(request, proposal_id):
 
     return redirect("properties:proposals_list")
 
+@login_required
+def api_leads_search(request):
+    """API para buscar leads via Select2 con paginación."""
+    from django.http import JsonResponse
+    from django.db.models import Q
+    from django.core.paginator import Paginator
+    from .models import Lead
+
+    term = request.GET.get('term', '').strip()
+    page = int(request.GET.get('page', 1))
+    
+    leads_qs = Lead.objects.filter(is_active=True)
+    
+    if term:
+        leads_qs = leads_qs.filter(
+            Q(username__icontains=term) |
+            Q(full_name__icontains=term) |
+            Q(phone__icontains=term) |
+            Q(email__icontains=term)
+        )
+    
+    leads_qs = leads_qs.order_by('-created_at')
+    
+    paginator = Paginator(leads_qs, 20) # 20 resultados por página
+    leads_page = paginator.get_page(page)
+    
+    results = []
+    for lead in leads_page:
+        nombre = lead.full_name or lead.username or "Sin nombre"
+        texto = f"{nombre} ({lead.phone or 'Sin teléfono'})"
+        results.append({'id': lead.id, 'text': texto})
+    
+    return JsonResponse({'results': results, 'pagination': {'more': leads_page.has_next()}})
+
+@login_required
+def api_properties_search(request):
+    """API para buscar propiedades via Select2"""
+    from django.http import JsonResponse
+    from django.db.models import Q
+    from django.core.paginator import Paginator
+    from .models import Property
+
+    term = request.GET.get('term', '').strip()
+    page_number = request.GET.get('page', 1)
+
+    qs = Property.objects.filter(is_active=True)
+
+    if term:
+        qs = qs.filter(Q(code__icontains=term) | Q(title__icontains=term) | Q(exact_address__icontains=term) | Q(real_address__icontains=term))
+
+    qs = qs.order_by('-created_at')
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(page_number)
+
+    results = [{'id': prop.id, 'text': f"{prop.code} - {prop.title or prop.exact_address or 'Sin título'}"} for prop in page_obj]
+
+    return JsonResponse({'results': results, 'pagination': {'more': page_obj.has_next()}})
+
 
 @login_required
 def proposal_reject_view(request, proposal_id):

@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save, m2m_changed
+from django.db.models.signals import post_save, m2m_changed, pre_save
 from properties.models import RequirementMatch
 from notifications.events import on_property_matched
 from django.dispatch import receiver
@@ -7,7 +7,7 @@ import logging
 from django.db import transaction
 from .models import Property
 
-from .models import Requirement
+from .models import Requirement, Event
 from . import matching as matching_module
 
 logger = logging.getLogger(__name__)
@@ -139,3 +139,51 @@ except Exception:
 def requirement_match_saved(sender, instance, created, **kwargs):
     # Solo dispara evento, nada más
     on_property_matched(instance)
+
+@receiver(pre_save, sender=Event)
+def capture_event_old_state(sender, instance, **kwargs): # Captura el estado anterior para detectar cambios de agente
+    if instance.pk:
+        try:
+            old = sender.objects.get(pk=instance.pk)
+            instance._old_assigned_agent = old.assigned_agent
+        except sender.DoesNotExist:
+            instance._old_assigned_agent = None
+    else:
+        instance._old_assigned_agent = None
+
+
+@receiver(post_save, sender=Event)
+def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica al agente asignado cuando se crea una visita o se le asigna una existente.
+    old_agent = getattr(instance, '_old_assigned_agent', None)
+    agent = instance.assigned_agent
+
+    should_notify = (created and agent) or (agent and agent != old_agent)
+
+    if should_notify:
+        try:
+            from notifications.models import Notification
+            from django.contrib.contenttypes.models import ContentType
+            
+            creator = instance.created_by
+
+            if agent == creator:
+                return
+
+            prop_text = f"{instance.property.code}" if instance.property else "Sin propiedad"
+            
+            message_text = (
+                f"Se te ha asignado una visita el {instance.fecha_evento} a las {instance.hora_inicio}. "
+                f"Propiedad: {prop_text}. Título: {instance.titulo}"
+            )
+            
+            Notification.objects.create(
+                user=agent,
+                event_type="EVENT_ASSIGNED",
+                title=f"Nueva Visita: {instance.code}",
+                message=message_text,
+                content_type=ContentType.objects.get_for_model(instance),
+                object_id=instance.id,
+                data={"event_code": instance.code}
+            )
+        except Exception as e:
+            logger.exception(f"Error generando notificación de visita para evento {instance.id}")
