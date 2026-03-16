@@ -1816,6 +1816,7 @@ def api_events_json(request):
                 'property_agent': event.property.assigned_agent.get_full_name() if event.property and event.property.assigned_agent else '',
                 'assigned_agent': event.assigned_agent.get_full_name() if event.assigned_agent else '',
                 'assigned_agent_id': event.assigned_agent_id if event.assigned_agent else None,
+                'status_code': event.status,
             'status': event.status,
             'status_display': event.get_status_display(),
                 "seguimiento": event.seguimiento or "",

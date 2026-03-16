@@ -103,16 +103,7 @@
                                         <div class="text-danger small mt-1">{{ form.titulo.errors }}</div>
                                     {% endif %}
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.status.id_for_label }}">
-                                        Estado de confirmación <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.status }}
-                                    {% if form.status.errors %}
-                                        <div class="text-danger small mt-1">{{ form.status.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6">
+                                <div class="col-md-12">
                                     <label class="form-label" for="{{ form.assigned_agent.id_for_label }}">
                                         Agente Asignado
                                     </label>
