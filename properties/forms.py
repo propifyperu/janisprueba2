@@ -853,6 +853,18 @@ class EventForm(forms.ModelForm):
             self.fields['created_by'].widget = forms.HiddenInput()
             if self.instance.created_by_id:
                 self.initial['created_by'] = self.instance.created_by_id
+            
+            if self.instance.status == 'PENDING':
+                self.fields['status'].choices = [
+                    ('', '--- Selecciona ---'),
+                    ('ACCEPTED', 'Aceptado'),
+                    ('REJECTED', 'Rechazado'),
+                ]
+            else:
+                self.fields['status'].choices = [
+                    ('ACCEPTED', 'Aceptado'),
+                    ('REJECTED', 'Rechazado'),
+                ]
 
             # ✅ Pre-cargar phone/email desde el bloque dentro de detalle
             detalle = self.instance.detalle or ""
@@ -862,6 +874,10 @@ class EventForm(forms.ModelForm):
                 self.initial['interesado'] = (m.group(1) or "").strip()
                 self.initial['contact_phone'] = (m.group(2) or "").strip()
                 self.initial['contact_email'] = (m.group(3) or "").strip()
+        else:
+            # En creación, no pedimos el estado; por defecto el modelo pondrá PENDING
+            if 'status' in self.fields:
+                self.fields.pop('status')
 
     def clean(self):
         cleaned_data = super().clean()
