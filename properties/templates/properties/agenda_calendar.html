@@ -346,6 +346,11 @@
         line-height: 1.2;
     }
     
+    .fc-event.event-rejected {
+        opacity: 0.7;
+        text-decoration: line-through;
+    }
+
     .fc-event:hover {
         opacity: 0.9;
         transform: translateY(-1px);
@@ -726,8 +731,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         failureCallback(error);
                     });
             },
-            eventDidMount: function(info) {
-                console.log('Evento montado en el DOM:', info.event.title);
+            eventContent: function(arg) {
+                let statusHtml = '';
+                let textStyle = '';
+                if (arg.event.extendedProps.status_code === 'REJECTED') {
+                    statusHtml = '<i class="fas fa-times-circle" style="margin-right: 4px; font-size: 13px; color: #ffcccc;" title="Rechazado"></i>';
+                    textStyle = 'text-decoration: line-through; opacity: 0.8;';
+                } else if (arg.event.extendedProps.status_code === 'ACCEPTED') {
+                    statusHtml = '<i class="fas fa-check-circle" style="margin-right: 4px; font-size: 13px; color: #ccffcc;" title="Aceptado"></i>';
+                }
+                let timeHtml = arg.timeText ? `<div class="fc-event-time">${arg.timeText}</div>` : '';
+                let titleHtml = `<div class="fc-event-title" style="${textStyle}">${statusHtml}${arg.event.title}</div>`;
+                return { html: `<div style="overflow: hidden; width: 100%;">${timeHtml}${titleHtml}</div>` };
             },
             eventClick: function(info) {
                 console.log('Click en evento:', info.event.title);
