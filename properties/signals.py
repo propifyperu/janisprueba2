@@ -163,11 +163,9 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
         try:
             from notifications.models import Notification
             from django.contrib.contenttypes.models import ContentType
+            from django.urls import reverse
             
             creator = instance.created_by
-
-            if agent == creator:
-                return
 
             prop_text = f"{instance.property.code}" if instance.property else "Sin propiedad"
             
@@ -183,7 +181,136 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
                 message=message_text,
                 content_type=ContentType.objects.get_for_model(instance),
                 object_id=instance.id,
-                data={"event_code": instance.code}
+                data={
+                    "event_code": instance.code,
+                    "actions": [
+                        {"label": "Aceptar", "url": reverse('properties:event_accept', args=[instance.id]), "method": "POST"},
+                        {"label": "Rechazar", "url": reverse('properties:event_reject', args=[instance.id]), "method": "POST"}
+                    ]
+                }
             )
+            
+            # --- ENVÍO DE MENSAJE WHATSAPP (CHATWOOT) ---
+            if getattr(agent, 'phone', None):
+                import threading
+                import requests
+                import os
+                
+                def _send_chatwoot_whatsapp(phone_number, msg_content):
+                    phone_str = str(phone_number).strip()
+                    
+                    # Validación para asegurar que tenga el prefijo +51
+                    if not phone_str.startswith('+'):
+                        if phone_str.startswith('51') and len(phone_str) == 11:
+                            phone_str = '+' + phone_str
+                        else:
+                            phone_str = '+51' + phone_str
+
+                    user_token = os.getenv('CHATWOOT_USER_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
+                    bot_token = os.getenv('CHATWOOT_BOT_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
+                    
+                    if not user_token or not bot_token:
+                        return
+
+                    user_headers = {
+                        "Content-Type": "application/json",
+                        "api_access_token": user_token 
+                    }
+                    
+                    bot_headers = {
+                        "Content-Type": "application/json",
+                        "api_access_token": bot_token 
+                    }
+                    
+                    base_url = "https://n8n-propify-chatwoot.qqaetr.easypanel.host/api/v1/accounts/2"
+                    
+                    try:
+                        print(f"\n[CHATWOOT] === INICIANDO ENVÍO A {phone_str} ===")
+                        
+                        # Paso 1: Buscar Contacto
+                        search_url = f"{base_url}/contacts/search"
+                        # Pasamos la variable por 'params' para que request codifique el '+' a '%2B' correctamente
+                        print(f"[CHATWOOT] Paso 1: GET {search_url} | params: {{'q': '{phone_str}'}}")
+                        search_response = requests.get(search_url, params={'q': phone_str}, headers=user_headers)
+                        print(f"[CHATWOOT] Paso 1 Respuesta ({search_response.status_code}): {search_response.text}")
+                        
+                        if search_response.status_code not in (200, 201): 
+                            logger.error(f"Chatwoot Paso 1 Error: {search_response.text}")
+                            return
+                        search_payload = search_response.json().get('payload', [])
+                        if not search_payload: 
+                            logger.warning(f"Chatwoot Paso 1: No se encontró contacto para {phone_str}")
+                            return
+                        contact_id = search_payload[0].get('id')
+                        print(f"[CHATWOOT] Paso 1 Éxito -> contact_id: {contact_id}")
+                        
+                        # Paso 2: Buscar Conversación
+                        conv_url = f"{base_url}/contacts/{contact_id}/conversations"
+                        print(f"\n[CHATWOOT] Paso 2: GET {conv_url}")
+                        conv_response = requests.get(conv_url, headers=user_headers)
+                        print(f"[CHATWOOT] Paso 2 Respuesta ({conv_response.status_code}): {conv_response.text}")
+                        
+                        if conv_response.status_code not in (200, 201): 
+                            logger.error(f"Chatwoot Paso 2 Error: {conv_response.text}")
+                            return
+                        conv_payload = conv_response.json().get('payload', [])
+                        if not conv_payload: 
+                            logger.warning(f"Chatwoot Paso 2: El contacto {phone_str} no tiene conversaciones activas.")
+                            return
+                        conversation_id = conv_payload[0].get('id')
+                        print(f"[CHATWOOT] Paso 2 Éxito -> conversation_id: {conversation_id}")
+                        
+                        # Paso 3: Enviar Mensaje
+                        msg_url = f"{base_url}/conversations/{conversation_id}/messages"
+                        payload = {
+                            "content": msg_content,
+                            "message_type": "outgoing",
+                            "content_type": "text",
+                            "private": False
+                        }
+                        print(f"\n[CHATWOOT] Paso 3: POST {msg_url}")
+                        print(f"[CHATWOOT] Paso 3 Payload: {payload}")
+                        msg_response = requests.post(msg_url, json=payload, headers=bot_headers)
+                        print(f"[CHATWOOT] Paso 3 Respuesta ({msg_response.status_code}): {msg_response.text}")
+                        
+                        if msg_response.status_code not in (200, 201):
+                            logger.error(f"Chatwoot Paso 3 Error: {msg_response.text}")
+                            
+                    except Exception as e:
+                        logger.error(f"Error enviando notificación Chatwoot: {e}")
+                        print(f"[CHATWOOT] Error de Python: {e}")
+                    
+                    print("[CHATWOOT] === FIN DEL PROCESO ===\n")
+
+                prop_code = f"{instance.property.code}" if instance.property else "Sin propiedad vinculada"
+                custom_message = (
+                    f"📅 *Nuevo Evento Asignado*\n\n"
+                    f"📌 *Título:* {instance.titulo}\n"
+                    f"🏢 *Propiedad:* {prop_code}\n"
+                    f"🗓 *Fecha:* {instance.fecha_evento}\n"
+                    f"⏰ *Horario:* {instance.hora_inicio} a {instance.hora_fin}\n\n"
+                    f"📝 *Detalles:*\n{instance.detalle or 'Sin detalles adicionales'}\n\n"
+                    f"👉 Ingresa al sistema para *Aceptar* o *Rechazar* este evento."
+                )
+
+                threading.Thread(target=_send_chatwoot_whatsapp, args=(agent.phone, custom_message)).start()
+
         except Exception as e:
             logger.exception(f"Error generando notificación de visita para evento {instance.id}")
+
+@receiver(post_save, sender=Event)
+def update_event_notifications_on_status_change(sender, instance, **kwargs):
+    try:
+        if instance.status != sender.STATUS_PENDING:
+            from notifications.models import Notification
+            from django.contrib.contenttypes.models import ContentType
+            ctype = ContentType.objects.get_for_model(instance)
+            notifs = Notification.objects.filter(content_type=ctype, object_id=instance.id)
+            for n in notifs:
+                if isinstance(n.data, dict) and 'actions' in n.data:
+                    n.data.pop('actions', None)
+                    n.data['status'] = instance.status
+                    n.data['status_display'] = instance.get_status_display()
+                    n.save(update_fields=['data'])
+    except Exception:
+        pass

@@ -131,6 +131,35 @@
             margin-top: 6px;
         }
         
+        /* NOTIFICACIONES */
+        .notif-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .notif-action-btn {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .notif-action-btn:hover { background: #f1f5f9; }
+        .notif-action-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .notif-action-btn.accept { color: #16a34a; border-color: #bbf7d0; background: #f0fdf4; }
+        .notif-action-btn.accept:hover { background: #dcfce7; }
+        .notif-action-btn.reject { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+        .notif-action-btn.reject:hover { background: #fee2e2; }
+        
 
         /* Animations */
         @keyframes fadeIn {
@@ -285,16 +314,43 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 list.innerHTML = data.results.map(n => {
-                    const requirementId = n.data?.requirement_id;
-                    const url = requirementId
-                        ? `/dashboard/matching/requirement/${requirementId}/matches/`
-                        : '#';
+                    let url = '#';
+                    if (n.data?.requirement_id) {
+                        url = `/dashboard/matching/requirement/${n.data.requirement_id}/matches/`;
+                    } else if (n.data?.event_code) {
+                        url = `/dashboard/agenda/`;
+                    }
+
+                    let actionsHtml = '';
+                    if (n.data && n.data.actions && n.data.actions.length > 0) {
+                        actionsHtml = '<div class="notif-actions">';
+                        n.data.actions.forEach(action => {
+                            
+                            let safeUrl = action.url; // corrección para notificaciones antiguas que guardaron la URL incorrecta
+                            if (safeUrl.includes('/dashboard/propiedades/agenda/')) {
+                                safeUrl = safeUrl.replace('/dashboard/propiedades/agenda/', '/dashboard/agenda/');
+                            }
+
+                            const isAccept = action.label.toLowerCase() === 'aceptar';
+                            const icon = isAccept ? '<i class="fas fa-check"></i>' : '<i class="fas fa-times"></i>';
+                            const btnClass = isAccept ? 'accept' : 'reject';
+                            actionsHtml += `<button type="button" class="notif-action-btn ${btnClass}" onclick="event.stopPropagation(); window.executeNotifAction('${safeUrl}', '${action.method}', this, ${n.id})">${icon} ${action.label}</button>`;
+                        });
+                        actionsHtml += '</div>';
+                    }
+                    else if (n.data && n.data.status && n.data.status !== 'PENDING') {
+                        const isAccept = n.data.status === 'ACCEPTED';
+                        const icon = isAccept ? '<i class="fas fa-check-circle me-1"></i>' : '<i class="fas fa-times-circle me-1"></i>';
+                        const color = isAccept ? '#16a34a' : '#dc2626';
+                        actionsHtml = `<div style="font-size: 12px; color: ${color}; font-weight: 500; margin-top: 10px;">${icon} Evento ${n.data.status_display}</div>`;
+                    }
 
                     return `
                         <div class="notif-item ${n.is_read ? '' : 'unread'}"
                             onclick="handleNotificationClick(${n.id}, '${url}')">
                             <div>${n.title}</div>
                             <div>${n.message}</div>
+                            ${actionsHtml}
                             <div class="notif-time">
                                 ${new Date(n.created_at).toLocaleString()}
                             </div>
@@ -365,6 +421,54 @@ document.addEventListener('DOMContentLoaded', function () {
         }).then(() => {
             updateCounter(-1);
             window.location.href = url;
+        });
+    };
+    
+    window.executeNotifAction = function(url, method, btnElement, notifId) {
+        const originalText = btnElement.innerHTML;
+        btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>...';
+        btnElement.disabled = true;
+        
+        
+        const siblingBtns = btnElement.closest('.notif-actions').querySelectorAll('button'); // deshabilitar botones hermanos para evitar doble click
+        siblingBtns.forEach(b => b.disabled = true);
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'X-CSRFToken': getCSRF(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(async r => {
+            if (!r.ok) {
+                let errText = "Error HTTP " + r.status;
+                try { const errJson = await r.json(); errText = errJson.error || errText; } 
+                catch(e) { /* ignore parse error if HTML */ }
+                throw new Error(errText);
+            }
+            return r.json();
+        })
+        .then(data => {
+            if(data.ok) {
+                const actionsContainer = btnElement.closest('.notif-actions');
+                if (actionsContainer) {
+                    const isAccept = data.status === 'ACCEPTED';
+                    const icon = isAccept ? '<i class="fas fa-check-circle me-1"></i>' : '<i class="fas fa-times-circle me-1"></i>';
+                    const color = isAccept ? '#16a34a' : '#dc2626';
+                    actionsContainer.outerHTML = `<div style="font-size: 12px; color: ${color}; font-weight: 500; margin-top: 10px;">${icon} Evento ${data.status_display || "Aceptado"}</div>`;
+                }
+            } else {
+                alert(data.error || "Error al procesar la respuesta.");
+                siblingBtns.forEach(b => b.disabled = false);
+                btnElement.innerHTML = originalText;
+            }
+        })
+        .catch(e => {
+            console.error(e);
+            alert("Ocurrió un error: " + e.message);
+            siblingBtns.forEach(b => b.disabled = false);
+            btnElement.innerHTML = originalText;
         });
     };
 
