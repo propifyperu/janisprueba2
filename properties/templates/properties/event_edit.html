@@ -82,7 +82,16 @@
                                         <div class="text-danger small mt-1">{{ form.titulo.errors }}</div>
                                     {% endif %}
                                 </div>
-                                <div class="col-md-12">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.status.id_for_label }}">
+                                        Estado de confirmación <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.status }}
+                                    {% if form.status.errors %}
+                                        <div class="text-danger small mt-1">{{ form.status.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
                                     <label class="form-label" for="{{ form.assigned_agent.id_for_label }}">
                                         Agente Asignado
                                     </label>
@@ -128,21 +137,50 @@
                             </div>
                         </div>
                         
-                        <!-- Sección: Contacto -->
+                        <!-- Sección: Cliente / Contacto -->
                         <div class="mb-4">
-                            <h6 class="fw-bold mb-3 text-muted">CONTACTO</h6>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.interesado.id_for_label }}">Nombre</label>
-                                    {{ form.interesado }}
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label" for="{{ form.contact_phone.id_for_label }}">Teléfono</label>
-                                    {{ form.contact_phone }}
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label" for="{{ form.contact_email.id_for_label }}">Email</label>
-                                    {{ form.contact_email }}
+                            <h6 class="fw-bold mb-3 text-muted">CLIENTE / INTERESADO</h6>
+                            
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="manualContactToggle" 
+                                    {% if form.instance.interesado and not form.instance.lead %}checked{% endif %}>
+                                <label class="form-check-label" for="manualContactToggle">Ingresar datos manualmente (No usar Lead existente)</label>
+                            </div>
+                        
+                            <!-- Opción A: Selector de Lead -->
+                            <div id="leadSelectRow">
+                                <label class="form-label" for="{{ form.lead.id_for_label }}">
+                                    Lead (Cliente Potencial)
+                                </label>
+                                <select class="form-select" id="{{ form.lead.id_for_label }}" name="{{ form.lead.html_name }}">
+                                    <option></option>
+                                    {% if form.instance.lead %}
+                                        <option value="{{ form.instance.lead.pk }}" selected>{{ form.instance.lead.full_name|default:form.instance.lead.username }} ({{ form.instance.lead.phone }})</option>
+                                    {% elif form.lead.value %}
+                                        <option value="{{ form.lead.value }}" selected>Lead ID: {{ form.lead.value }}</option>
+                                    {% endif %}
+                                </select>
+                                {% if form.lead.errors %}
+                                    <div class="text-danger small mt-1">{{ form.lead.errors }}</div>
+                                {% endif %}
+                                <div class="form-text">Busca un lead registrado por nombre o teléfono.</div>
+                            </div>
+                        
+                            <!-- Opción B: Datos manuales -->
+                            <div id="manualContactRow" style="display: none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="{{ form.interesado.id_for_label }}">Nombre</label>
+                                        {{ form.interesado }}
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="{{ form.contact_phone.id_for_label }}">Teléfono</label>
+                                        {{ form.contact_phone }}
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="{{ form.contact_email.id_for_label }}">Email</label>
+                                        {{ form.contact_email }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -172,23 +210,6 @@
                                         <div class="text-danger small mt-1">{{ form.property.errors }}</div>
                                     {% endif %}
                                     <small class="text-muted">Opcional: selecciona el inmueble relacionado</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.lead.id_for_label }}">
-                                        Lead (Cliente Potencial)
-                                    </label>
-                                    <select class="form-select" id="{{ form.lead.id_for_label }}" name="{{ form.lead.html_name }}">
-                                        <option></option>
-                                        {% if form.instance.lead %}
-                                            <option value="{{ form.instance.lead.pk }}" selected>{{ form.instance.lead.full_name|default:form.instance.lead.username }} ({{ form.instance.lead.phone }})</option>
-                                        {% elif form.lead.value %}
-                                            <option value="{{ form.lead.value }}" selected>Lead ID: {{ form.lead.value }}</option>
-                                        {% endif %}
-                                    </select>
-                                    {% if form.lead.errors %}
-                                        <div class="text-danger small mt-1">{{ form.lead.errors }}</div>
-                                    {% endif %}
-                                    <small class="text-muted">Opcional: vincula este evento a un lead existente.</small>
                                 </div>
                             </div>
                             <div class="row g-3 mt-2">
@@ -228,6 +249,25 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const toggle = document.getElementById('manualContactToggle');
+    const leadRow = document.getElementById('leadSelectRow');
+    const manualRow = document.getElementById('manualContactRow');
+
+    function updateVisibility() {
+        if (toggle.checked) {
+            leadRow.style.display = 'none';
+            manualRow.style.display = 'block';
+        } else {
+            leadRow.style.display = 'block';
+            manualRow.style.display = 'none';
+        }
+    }
+
+    if (toggle) {
+        toggle.addEventListener('change', updateVisibility);
+        updateVisibility();
+    }
+
     $('#{{ form.property.id_for_label }}').select2({
         theme: "bootstrap-5",
         placeholder: 'Busca por código, título o dirección',

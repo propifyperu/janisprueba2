@@ -43,6 +43,8 @@ urlpatterns = [
     path('agenda/eventos/crear/', views.event_create_view, name='event_create'),
     path('agenda/eventos/<int:pk>/editar/', views.event_edit_view, name='event_edit'),
     path('agenda/eventos/<int:pk>/borrar/', views.event_delete_view, name='event_delete'),
+    path('agenda/eventos/<int:event_id>/accept/', views.event_accept_view, name='event_accept'),
+    path('agenda/eventos/<int:event_id>/reject/', views.event_reject_view, name='event_reject'),
     path('api/events/', views.api_events_json, name='api_events'),
     path("agenda/eventos/<int:event_id>/seguimiento/", views.event_save_followup, name="event_followup"),
     # APIs
@@ -54,6 +56,7 @@ urlpatterns = [
     path('api/provinces/', views.api_provinces, name='api_provinces'),
     path('api/districts/', views.api_districts, name='api_districts'),
     path('api/location-details/', views.api_location_details, name='api_location_details'),
+    path('api/events/by-code/<str:event_code>/respond/', views.event_respond_by_code_view, name='event_respond_by_code'),
     path('api/leads/select2-search/', views.api_leads_search, name='api_leads_search'),
     path('api/properties/select2-search/', views.api_properties_search, name='api_properties_search'),
     #path('api/utils/requirement-options/', views.RequirementOptionsView.as_view(), name='api_requirement_options'),
@@ -96,5 +99,6 @@ urlpatterns = [
     path('', views.PropertyDashboardView.as_view(), name='dashboard_root'),
     path("api/<int:pk>/availability/", views.property_availability_api, name="property_availability_api"),
     path("api/", include("properties.wordpress.urls")),
+    path("api/whatsapp/send-hello/", views.send_hello_message_view, name="send_hello_message_view"),
 
 ]

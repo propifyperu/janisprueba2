@@ -1681,6 +1681,71 @@ def event_delete_view(request, pk):
 
 @login_required
 @require_POST
+def event_accept_view(request, event_id):
+    from .models import Event
+    from django.http import JsonResponse
+    event = get_object_or_404(Event, pk=event_id)
+    if event.assigned_agent != request.user and not request.user.is_superuser:
+        return JsonResponse({"error": "No tienes permiso para aceptar este evento."}, status=403)
+    event.status = Event.STATUS_ACCEPTED
+    event.save(update_fields=['status', 'updated_at'])
+    return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' aceptado.", "status": event.status, "status_display": event.get_status_display()})
+
+@login_required
+@require_POST
+def event_reject_view(request, event_id):
+    from .models import Event
+    from django.http import JsonResponse
+    event = get_object_or_404(Event, pk=event_id)
+    if event.assigned_agent != request.user and not request.user.is_superuser:
+        return JsonResponse({"error": "No tienes permiso para rechazar este evento."}, status=403)
+    event.status = Event.STATUS_REJECTED
+    event.save(update_fields=['status', 'updated_at'])
+    return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' rechazado.", "status": event.status, "status_display": event.get_status_display()})
+
+@login_required
+@require_POST
+def event_respond_by_code_view(request, event_code):
+    """
+    Endpoint para aceptar o rechazar un evento usando su código único.
+    Recibe un POST con un JSON: {"action": "accept"} o {"action": "reject"}
+    """
+    import json
+    from .models import Event
+    from django.http import JsonResponse
+    from django.shortcuts import get_object_or_404
+
+    event = get_object_or_404(Event, code=event_code)
+
+    if event.assigned_agent != request.user and not request.user.is_superuser:
+        return JsonResponse({"error": "No tienes permiso para responder a este evento."}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        action = data.get('action')
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({"error": "Cuerpo de la petición inválido. Se esperaba JSON."}, status=400)
+
+    if action == 'accept':
+        event.status = Event.STATUS_ACCEPTED
+        message = f"Evento '{event.titulo}' aceptado."
+    elif action == 'reject':
+        event.status = Event.STATUS_REJECTED
+        message = f"Evento '{event.titulo}' rechazado."
+    else:
+        return JsonResponse({"error": "Acción no válida. Use 'accept' o 'reject'."}, status=400)
+
+    event.save(update_fields=['status', 'updated_at'])
+
+    return JsonResponse({
+        "ok": True,
+        "message": message,
+        "status": event.status,
+        "status_display": event.get_status_display()
+    })
+
+@login_required
+@require_POST
 def event_save_followup(request, event_id):
     from .models import Event
     event = get_object_or_404(Event, pk=event_id)
@@ -1751,6 +1816,8 @@ def api_events_json(request):
                 'property_agent': event.property.assigned_agent.get_full_name() if event.property and event.property.assigned_agent else '',
                 'assigned_agent': event.assigned_agent.get_full_name() if event.assigned_agent else '',
                 'assigned_agent_id': event.assigned_agent_id if event.assigned_agent else None,
+            'status': event.status,
+            'status_display': event.get_status_display(),
                 "seguimiento": event.seguimiento or "",
             }
         })
@@ -4202,3 +4269,85 @@ def proposal_reject_view(request, proposal_id):
         return redirect("properties:proposals_list")
 
     return redirect("properties:proposals_list")
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_hello_message_view(request):
+    import requests
+    import os
+    
+    phone_number = request.data.get('phone_number')
+    if not phone_number:
+        return Response({"ok": False, "error": "El parámetro phone_number es requerido."}, status=status.HTTP_400_BAD_REQUEST)
+
+    phone_str = str(phone_number).strip()
+    if not phone_str.startswith('+'):
+        if phone_str.startswith('51') and len(phone_str) == 11:
+            phone_str = '+' + phone_str
+        else:
+            phone_str = '+51' + phone_str
+
+    user_token = os.getenv('CHATWOOT_USER_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
+    bot_token = os.getenv('CHATWOOT_BOT_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
+    
+    if not user_token or not bot_token:
+        return Response({"ok": False, "error": "Faltan configurar CHATWOOT_USER_TOKEN o CHATWOOT_BOT_TOKEN en el .env"}, status=status.HTTP_400_BAD_REQUEST)
+
+    user_headers = {
+        "Content-Type": "application/json",
+        "api_access_token": user_token 
+    }
+    
+    bot_headers = {
+        "Content-Type": "application/json",
+        "api_access_token": bot_token 
+    }
+    
+    base_url = "https://n8n-propify-chatwoot.qqaetr.easypanel.host/api/v1/accounts/2"
+    
+    try:
+        # 1 buscar contacto
+        search_url = f"{base_url}/contacts/search"
+        search_response = requests.get(search_url, params={'q': phone_str}, headers=user_headers)
+        if search_response.status_code not in (200, 201):
+            return Response({"ok": False, "error": f"Error buscando contacto: {search_response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        search_payload = search_response.json().get('payload', [])
+        if not search_payload:
+            return Response({"ok": False, "error": "No se encontró el contacto con ese número de teléfono."}, status=status.HTTP_404_NOT_FOUND)
+            
+        contact_id = search_payload[0].get('id')
+        
+        # 2 buscar conversación
+        conv_url = f"{base_url}/contacts/{contact_id}/conversations"
+        conv_response = requests.get(conv_url, headers=user_headers)
+        if conv_response.status_code not in (200, 201):
+            return Response({"ok": False, "error": f"Error buscando conversaciones: {conv_response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        conv_payload = conv_response.json().get('payload', [])
+        if not conv_payload:
+            return Response({"ok": False, "error": "El contacto no tiene conversaciones activas."}, status=status.HTTP_404_NOT_FOUND)
+            
+        conversation_id = conv_payload[0].get('id')
+        
+        # 3 enviar mensaje
+        msg_url = f"{base_url}/conversations/{conversation_id}/messages"
+        payload = {
+            "content": "Tienes un evento asignado",
+            "message_type": "outgoing",
+            "content_type": "text",
+            "private": False,
+            "template_params": {
+                "name": "evento_creado_2",
+                "category": "MARKETING",
+                "language": "es_PE"
+            }
+        }
+        
+        response = requests.post(msg_url, json=payload, headers=bot_headers)
+        if response.status_code in (200, 201):
+            return Response({"ok": True, "message": "Mensaje enviado exitosamente."})
+        else:
+            return Response({"ok": False, "error": f"Error {response.status_code}: {response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
