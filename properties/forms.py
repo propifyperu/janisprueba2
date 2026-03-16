@@ -792,11 +792,12 @@ class EventForm(forms.ModelForm):
     class Meta:
         from .models import Event
         model = Event
-        fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
-                  'interesado', 'lead', 'assigned_agent','detalle', 'property', 'created_by']
+        fields = ['event_type', 'titulo', 'status', 'fecha_evento', 'hora_inicio', 'hora_fin', 
+                  'interesado', 'lead', 'assigned_agent', 'detalle', 'property', 'created_by']
         widgets = {
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
             'fecha_evento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
             'hora_inicio': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'hora_fin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
@@ -810,6 +811,7 @@ class EventForm(forms.ModelForm):
         labels = {
             'event_type': 'Tipo de evento',
             'titulo': 'Título',
+            'status': 'Estado',
             'fecha_evento': 'Fecha del evento',
             'hora_inicio': 'Hora de inicio',
             'hora_fin': 'Hora de término',
