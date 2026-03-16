@@ -196,7 +196,7 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
                 import requests
                 import os
                 
-                def _send_chatwoot_whatsapp(phone_number, msg_content):
+                def _send_chatwoot_whatsapp(phone_number, payload_data):
                     phone_str = str(phone_number).strip()
                     
                     # Validación para asegurar que tenga el prefijo +51
@@ -262,15 +262,9 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
                         
                         # Paso 3: Enviar Mensaje
                         msg_url = f"{base_url}/conversations/{conversation_id}/messages"
-                        payload = {
-                            "content": msg_content,
-                            "message_type": "outgoing",
-                            "content_type": "text",
-                            "private": False
-                        }
                         print(f"\n[CHATWOOT] Paso 3: POST {msg_url}")
-                        print(f"[CHATWOOT] Paso 3 Payload: {payload}")
-                        msg_response = requests.post(msg_url, json=payload, headers=bot_headers)
+                        print(f"[CHATWOOT] Paso 3 Payload: {payload_data}")
+                        msg_response = requests.post(msg_url, json=payload_data, headers=bot_headers)
                         print(f"[CHATWOOT] Paso 3 Respuesta ({msg_response.status_code}): {msg_response.text}")
                         
                         if msg_response.status_code not in (200, 201):
@@ -282,18 +276,66 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
                     
                     print("[CHATWOOT] === FIN DEL PROCESO ===\n")
 
-                prop_code = f"{instance.property.code}" if instance.property else "Sin propiedad vinculada"
-                custom_message = (
-                    f"📅 *Nuevo Evento Asignado*\n\n"
-                    f"📌 *Título:* {instance.titulo}\n"
-                    f"🏢 *Propiedad:* {prop_code}\n"
-                    f"🗓 *Fecha:* {instance.fecha_evento}\n"
-                    f"⏰ *Horario:* {instance.hora_inicio} a {instance.hora_fin}\n\n"
-                    f"📝 *Detalles:*\n{instance.detalle or 'Sin detalles adicionales'}\n\n"
-                    f"👉 Ingresa al sistema para *Aceptar* o *Rechazar* este evento."
-                )
+                prop_title = instance.property.title if instance.property and instance.property.title else "Sin título"
+                if len(prop_title) > 20:
+                    prop_title = prop_title[:20] + "..."
+                    
+                prop_code = instance.property.code if instance.property and instance.property.code else "Sin código"
+                event_code = instance.code or "Sin código"
+                event_title = instance.titulo or "Sin título"
+                
+                combined_title = f"{event_title} - {prop_title}"
+                
+                months = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+                if instance.fecha_evento:
+                    day = instance.fecha_evento.day
+                    month = months[instance.fecha_evento.month]
+                    year = instance.fecha_evento.year
+                    event_date = f"{day:02d} de {month} de {year}"
+                else:
+                    event_date = "Fecha no especificada"
 
-                threading.Thread(target=_send_chatwoot_whatsapp, args=(agent.phone, custom_message)).start()
+                event_time = f"{instance.hora_inicio.strftime('%H:%M')} - {instance.hora_fin.strftime('%H:%M')}" if instance.hora_inicio and instance.hora_fin else "Hora no especificada"
+                
+                if instance.contact:
+                    contact_name = instance.contact.full_name
+                elif instance.interesado:
+                    contact_name = instance.interesado
+                elif instance.lead:
+                    contact_name = instance.lead.full_name or instance.lead.username
+                else:
+                    contact_name = "No especificado"
+
+                agent_name = agent.get_full_name() or agent.username if agent else "Sin agente"
+                creator_name = instance.created_by.get_full_name() or instance.created_by.username if instance.created_by else "Sistema"
+                url = "https://propifai.com/dashboard/agenda/"
+
+                payload = {
+                    "content": "🔰 SOLICITUD DE VISITA (PROPIFY)",
+                    "message_type": "outgoing",
+                    "content_type": "text",
+                    "private": False,
+                    "template_params": {
+                        "name": "solicitud_de_visita_agentes",
+                        "category": "UTILITY",
+                        "language": "es_PE",
+                        "processed_params": {
+                            "body": {
+                                "1": combined_title,
+                                "2": event_code,
+                                "3": event_date,
+                                "4": event_time,
+                                "5": prop_code,
+                                "6": creator_name,
+                                "7": agent_name,
+                                "8": contact_name,
+                                "9": url,
+                            }
+                        }
+                    }
+                }
+
+                threading.Thread(target=_send_chatwoot_whatsapp, args=(agent.phone, payload)).start()
 
         except Exception as e:
             logger.exception(f"Error generando notificación de visita para evento {instance.id}")
