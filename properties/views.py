@@ -1584,6 +1584,9 @@ def event_create_view(request):
         if 'created_by' in form.fields:
             form.fields['created_by'].required = False
 
+        if 'status' in form.fields:
+                form.fields['status'].required = False
+
         if form.is_valid():
             event = form.save(commit=False)
             event.created_by = request.user
@@ -1635,6 +1638,9 @@ def event_edit_view(request, pk):
         form = EventForm(request.POST, instance=event)
         if 'created_by' in form.fields:
             form.fields['created_by'].required = False
+        
+        if 'status' in form.fields:
+            form.fields['status'].required = False
             
         if form.is_valid():
             obj = form.save(commit=False)
@@ -1642,6 +1648,10 @@ def event_edit_view(request, pk):
             # ✅ nunca permitas que se vuelva NULL
             if not obj.created_by_id:
                 obj.created_by = event.created_by
+
+            # Si no se envía un estado válido, mantener el que ya tenía guardado
+            if not obj.status:
+                obj.status = event.status
             
             # Si se borró el agente asignado por error, restaurar o asignar al editor
             if not obj.assigned_agent_id:
@@ -1652,6 +1662,8 @@ def event_edit_view(request, pk):
             return redirect('properties:agenda_calendar')
     else:
         form = EventForm(instance=event)
+        if 'status' in form.fields:
+            form.fields['status'].required = False
     
     return render(request, 'properties/event_edit.html', {'form': form, 'event': event})
 
