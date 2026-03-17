@@ -1703,28 +1703,20 @@ def event_reject_view(request, event_id):
     event.save(update_fields=['status', 'updated_at'])
     return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' rechazado.", "status": event.status, "status_display": event.get_status_display()})
 
-@login_required
-@require_POST
-def event_respond_by_code_view(request, event_code):
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def event_respond_by_code_view(request, event_code, action):
     """
     Endpoint para aceptar o rechazar un evento usando su código único.
-    Recibe un POST con un JSON: {"action": "accept"} o {"action": "reject"}
+    Acción se pasa por parámetro en la URL: 'accept' o 'reject'.
     """
-    import json
     from .models import Event
-    from django.http import JsonResponse
     from django.shortcuts import get_object_or_404
 
     event = get_object_or_404(Event, code=event_code)
 
     if event.assigned_agent != request.user and not request.user.is_superuser:
-        return JsonResponse({"error": "No tienes permiso para responder a este evento."}, status=403)
-
-    try:
-        data = json.loads(request.body)
-        action = data.get('action')
-    except (json.JSONDecodeError, AttributeError):
-        return JsonResponse({"error": "Cuerpo de la petición inválido. Se esperaba JSON."}, status=400)
+        return Response({"error": "No tienes permiso para responder a este evento."}, status=status.HTTP_403_FORBIDDEN)
 
     if action == 'accept':
         event.status = Event.STATUS_ACCEPTED
@@ -1733,11 +1725,11 @@ def event_respond_by_code_view(request, event_code):
         event.status = Event.STATUS_REJECTED
         message = f"Evento '{event.titulo}' rechazado."
     else:
-        return JsonResponse({"error": "Acción no válida. Use 'accept' o 'reject'."}, status=400)
+        return Response({"error": "Acción no válida. Use 'accept' o 'reject' en la URL."}, status=status.HTTP_400_BAD_REQUEST)
 
     event.save(update_fields=['status', 'updated_at'])
 
-    return JsonResponse({
+    return Response({
         "ok": True,
         "message": message,
         "status": event.status,
