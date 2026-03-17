@@ -1707,15 +1707,17 @@ def event_reject_view(request, event_id):
     event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
     return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' rechazado.", "status": event.status, "status_display": event.get_status_display()})
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
-def event_respond_by_code_view(request, event_code, action):
+def event_respond_by_code_view(request, event_code, action, rejection_reason=None):
     """
     Endpoint para aceptar o rechazar un evento usando su código único.
     Acción se pasa por parámetro en la URL: 'accept' o 'reject'.
+    El motivo de rechazo puede venir anexado al final del enlace en la URL.
     """
     from .models import Event
     from django.shortcuts import get_object_or_404
+    from urllib.parse import unquote
 
     event = get_object_or_404(Event, code=event_code)
 
@@ -1728,9 +1730,11 @@ def event_respond_by_code_view(request, event_code, action):
         event.save(update_fields=['status', 'updated_at'])
     elif action == 'reject':
         event.status = Event.STATUS_REJECTED
-        rejection_reason = request.data.get('rejection_reason', '').strip()
-        if rejection_reason:
-            event.rejection_reason = rejection_reason
+        
+        reason = rejection_reason or request.GET.get('rejection_reason') or request.data.get('rejection_reason', '')
+        if reason:
+            event.rejection_reason = unquote(str(reason)).strip()
+            
         message = f"Evento '{event.titulo}' rechazado."
         event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
     else:
