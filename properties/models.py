@@ -1822,6 +1822,7 @@ class Event(TitleCaseMixin, models.Model):
         (STATUS_REJECTED, 'Rechazado'),
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, verbose_name='Estado de confirmación')
+    rejection_reason = models.TextField(blank=True, verbose_name='Motivo de rechazo')
     
     class Meta:
         db_table = 'events'
