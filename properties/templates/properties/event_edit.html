@@ -100,6 +100,16 @@
                                         <div class="text-danger small mt-1">{{ form.assigned_agent.errors }}</div>
                                     {% endif %}
                                 </div>
+                                
+                                <div class="col-md-12" id="rejectionReasonRow" style="display: none;">
+                                    <label class="form-label" for="{{ form.rejection_reason.id_for_label }}">
+                                        Motivo de rechazo <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.rejection_reason }}
+                                    {% if form.rejection_reason.errors %}
+                                        <div class="text-danger small mt-1">{{ form.rejection_reason.errors }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                         
@@ -266,6 +276,25 @@ document.addEventListener('DOMContentLoaded', function () {
     if (toggle) {
         toggle.addEventListener('change', updateVisibility);
         updateVisibility();
+    }
+
+    const statusSelect = document.getElementById('{{ form.status.id_for_label }}');
+    const rejectionRow = document.getElementById('rejectionReasonRow');
+    const rejectionInput = document.getElementById('{{ form.rejection_reason.id_for_label }}');
+
+    function toggleRejection() {
+        if (statusSelect && statusSelect.value === 'REJECTED') {
+            rejectionRow.style.display = 'block';
+            if (rejectionInput) rejectionInput.required = true;
+        } else {
+            rejectionRow.style.display = 'none';
+            if (rejectionInput) rejectionInput.required = false;
+        }
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', toggleRejection);
+        toggleRejection(); // disparar al cargar la página
     }
 
     $('#{{ form.property.id_for_label }}').select2({

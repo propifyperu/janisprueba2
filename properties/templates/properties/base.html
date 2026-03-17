@@ -323,7 +323,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     let actionsHtml = '';
                     if (n.data && n.data.actions && n.data.actions.length > 0) {
-                        actionsHtml = '<div class="notif-actions">';
+                        actionsHtml = `<div class="notif-actions" id="actions-${n.id}">`;
+                        let rejectActionUrl = '';
+                        let rejectActionMethod = '';
+
                         n.data.actions.forEach(action => {
                             
                             let safeUrl = action.url; // corrección para notificaciones antiguas que guardaron la URL incorrecta
@@ -332,11 +335,30 @@ document.addEventListener('DOMContentLoaded', function () {
                             }
 
                             const isAccept = action.label.toLowerCase() === 'aceptar';
+                            const isReject = action.label.toLowerCase() === 'rechazar';
                             const icon = isAccept ? '<i class="fas fa-check"></i>' : '<i class="fas fa-times"></i>';
                             const btnClass = isAccept ? 'accept' : 'reject';
-                            actionsHtml += `<button type="button" class="notif-action-btn ${btnClass}" onclick="event.stopPropagation(); window.executeNotifAction('${safeUrl}', '${action.method}', this, ${n.id})">${icon} ${action.label}</button>`;
+                            
+                            if (isReject) {
+                                rejectActionUrl = safeUrl;
+                                rejectActionMethod = action.method;
+                                actionsHtml += `<button type="button" class="notif-action-btn ${btnClass}" onclick="event.stopPropagation(); document.getElementById('actions-${n.id}').style.display='none'; document.getElementById('reject-box-${n.id}').style.display='block';">${icon} ${action.label}</button>`;
+                            } else {
+                                actionsHtml += `<button type="button" class="notif-action-btn ${btnClass}" onclick="event.stopPropagation(); window.executeNotifAction('${safeUrl}', '${action.method}', this, ${n.id})">${icon} ${action.label}</button>`;
+                            }
                         });
                         actionsHtml += '</div>';
+                        
+                        if (rejectActionUrl) {
+                            actionsHtml += `
+                            <div class="notif-reject-box" id="reject-box-${n.id}" style="display:none; margin-top: 10px;">
+                                <textarea class="form-control" style="font-size:12px;" placeholder="Escribe el motivo del rechazo y tu nuevo horario disponible..." rows="2" id="reject-reason-${n.id}" onclick="event.stopPropagation();"></textarea>
+                                <div class="d-flex justify-content-end mt-2 gap-2">
+                                    <button class="btn btn-sm btn-outline-secondary" style="font-size:12px;" onclick="event.stopPropagation(); document.getElementById('reject-box-${n.id}').style.display='none'; document.getElementById('actions-${n.id}').style.display='flex';">Cancelar</button>
+                                    <button class="btn btn-sm btn-danger" style="font-size:12px;" onclick="event.stopPropagation(); window.executeNotifAction('${rejectActionUrl}', '${rejectActionMethod}', this, ${n.id}, true)">Confirmar Rechazo</button>
+                                </div>
+                            </div>`;
+                        }
                     }
                     else if (n.data && n.data.status && n.data.status !== 'PENDING') {
                         const isAccept = n.data.status === 'ACCEPTED';
@@ -424,22 +446,46 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
     
-    window.executeNotifAction = function(url, method, btnElement, notifId) {
+    window.executeNotifAction = function(url, method, btnElement, notifId, isReject=false) {
         const originalText = btnElement.innerHTML;
         btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>...';
         btnElement.disabled = true;
         
+        let bodyData = {};
+        if (isReject) {
+            const reasonInput = document.getElementById(`reject-reason-${notifId}`);
+            if (reasonInput) {
+                const reasonText = reasonInput.value.trim();
+                if (!reasonText) {
+                    alert("Por favor, escribe el motivo del rechazo.");
+                    btnElement.innerHTML = originalText;
+                    btnElement.disabled = false;
+                    return;
+                }
+                bodyData.rejection_reason = reasonText;
+            }
+        }
         
-        const siblingBtns = btnElement.closest('.notif-actions').querySelectorAll('button'); // deshabilitar botones hermanos para evitar doble click
+        const parentContainer = isReject ? btnElement.closest('.notif-reject-box') : btnElement.closest('.notif-actions');
+        
+        const siblingBtns = parentContainer.querySelectorAll('button'); // deshabilitar botones hermanos para evitar doble click
         siblingBtns.forEach(b => b.disabled = true);
 
-        fetch(url, {
+        let fetchOptions = {
             method: method,
             headers: {
-                'X-CSRFToken': getCSRF(),
-                'Content-Type': 'application/json'
+                'X-CSRFToken': getCSRF()
             }
-        })
+        };
+
+        if (Object.keys(bodyData).length > 0) {
+            fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            fetchOptions.body = new URLSearchParams(bodyData).toString();
+        } else {
+            fetchOptions.headers['Content-Type'] = 'application/json';
+        }
+
+        fetch(url, fetchOptions)
         .then(async r => {
             if (!r.ok) {
                 let errText = "Error HTTP " + r.status;
@@ -451,13 +497,15 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .then(data => {
             if(data.ok) {
-                const actionsContainer = btnElement.closest('.notif-actions');
-                if (actionsContainer) {
-                    const isAccept = data.status === 'ACCEPTED';
-                    const icon = isAccept ? '<i class="fas fa-check-circle me-1"></i>' : '<i class="fas fa-times-circle me-1"></i>';
-                    const color = isAccept ? '#16a34a' : '#dc2626';
-                    actionsContainer.outerHTML = `<div style="font-size: 12px; color: ${color}; font-weight: 500; margin-top: 10px;">${icon} Evento ${data.status_display || "Aceptado"}</div>`;
-                }
+                const isAccept = data.status === 'ACCEPTED';
+                const icon = isAccept ? '<i class="fas fa-check-circle me-1"></i>' : '<i class="fas fa-times-circle me-1"></i>';
+                const color = isAccept ? '#16a34a' : '#dc2626';
+                const resultHtml = `<div style="font-size: 12px; color: ${color}; font-weight: 500; margin-top: 10px;">${icon} Evento ${data.status_display || (isAccept ? "Aceptado" : "Rechazado")}</div>`;
+                
+                const origActions = document.getElementById(`actions-${notifId}`);
+                const rejectBox = document.getElementById(`reject-box-${notifId}`);
+                if (origActions) origActions.outerHTML = resultHtml;
+                if (rejectBox) rejectBox.remove();
             } else {
                 alert(data.error || "Error al procesar la respuesta.");
                 siblingBtns.forEach(b => b.disabled = false);

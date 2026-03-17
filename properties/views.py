@@ -1699,19 +1699,25 @@ def event_reject_view(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
     if event.assigned_agent != request.user and not request.user.is_superuser:
         return JsonResponse({"error": "No tienes permiso para rechazar este evento."}, status=403)
+        
+    rejection_reason = (request.POST.get("rejection_reason") or "").strip()
+    
     event.status = Event.STATUS_REJECTED
-    event.save(update_fields=['status', 'updated_at'])
+    event.rejection_reason = rejection_reason
+    event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
     return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' rechazado.", "status": event.status, "status_display": event.get_status_display()})
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
-def event_respond_by_code_view(request, event_code, action):
+def event_respond_by_code_view(request, event_code, action, rejection_reason=None):
     """
     Endpoint para aceptar o rechazar un evento usando su código único.
     Acción se pasa por parámetro en la URL: 'accept' o 'reject'.
+    El motivo de rechazo puede venir anexado al final del enlace en la URL.
     """
     from .models import Event
     from django.shortcuts import get_object_or_404
+    from urllib.parse import unquote
 
     event = get_object_or_404(Event, code=event_code)
 
@@ -1721,13 +1727,19 @@ def event_respond_by_code_view(request, event_code, action):
     if action == 'accept':
         event.status = Event.STATUS_ACCEPTED
         message = f"Evento '{event.titulo}' aceptado."
+        event.save(update_fields=['status', 'updated_at'])
     elif action == 'reject':
         event.status = Event.STATUS_REJECTED
+        
+        reason = rejection_reason or request.GET.get('rejection_reason') or request.data.get('rejection_reason', '')
+        if reason:
+            event.rejection_reason = unquote(str(reason)).strip()
+            
         message = f"Evento '{event.titulo}' rechazado."
+        event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
     else:
         return Response({"error": "Acción no válida. Use 'accept' o 'reject' en la URL."}, status=status.HTTP_400_BAD_REQUEST)
 
-    event.save(update_fields=['status', 'updated_at'])
 
     return Response({
         "ok": True,
@@ -1811,6 +1823,7 @@ def api_events_json(request):
                 'status_code': event.status,
             'status': event.status,
             'status_display': event.get_status_display(),
+                "rejection_reason": event.rejection_reason or "",
                 "seguimiento": event.seguimiento or "",
             }
         })

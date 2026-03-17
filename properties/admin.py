@@ -507,7 +507,7 @@ class EventAdmin(admin.ModelAdmin):
     readonly_fields = ('code', 'created_at', 'updated_at')
     fieldsets = (
         ('Información del Evento', {
-            'fields': ('code', 'event_type', 'titulo', 'status')
+            'fields': ('code', 'event_type', 'titulo', 'status', 'rejection_reason')
         }),
         ('Fecha y Hora', {
             'fields': ('fecha_evento', 'hora_inicio', 'hora_fin')
