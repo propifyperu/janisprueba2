@@ -316,7 +316,7 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
                     "content_type": "text",
                     "private": False,
                     "template_params": {
-                        "name": "solicitud_de_visita_agentes",
+                        "name": "solicitud_de_visita_agentes_oficial",
                         "category": "UTILITY",
                         "language": "es_PE",
                         "processed_params": {
