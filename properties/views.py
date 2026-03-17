@@ -1699,8 +1699,12 @@ def event_reject_view(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
     if event.assigned_agent != request.user and not request.user.is_superuser:
         return JsonResponse({"error": "No tienes permiso para rechazar este evento."}, status=403)
+        
+    rejection_reason = (request.POST.get("rejection_reason") or "").strip()
+    
     event.status = Event.STATUS_REJECTED
-    event.save(update_fields=['status', 'updated_at'])
+    event.rejection_reason = rejection_reason
+    event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
     return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' rechazado.", "status": event.status, "status_display": event.get_status_display()})
 
 @api_view(['POST'])
@@ -1721,13 +1725,17 @@ def event_respond_by_code_view(request, event_code, action):
     if action == 'accept':
         event.status = Event.STATUS_ACCEPTED
         message = f"Evento '{event.titulo}' aceptado."
+        event.save(update_fields=['status', 'updated_at'])
     elif action == 'reject':
         event.status = Event.STATUS_REJECTED
+        rejection_reason = request.data.get('rejection_reason', '').strip()
+        if rejection_reason:
+            event.rejection_reason = rejection_reason
         message = f"Evento '{event.titulo}' rechazado."
+        event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
     else:
         return Response({"error": "Acción no válida. Use 'accept' o 'reject' en la URL."}, status=status.HTTP_400_BAD_REQUEST)
 
-    event.save(update_fields=['status', 'updated_at'])
 
     return Response({
         "ok": True,
@@ -1811,6 +1819,7 @@ def api_events_json(request):
                 'status_code': event.status,
             'status': event.status,
             'status_display': event.get_status_display(),
+                "rejection_reason": event.rejection_reason or "",
                 "seguimiento": event.seguimiento or "",
             }
         })
