@@ -57,6 +57,7 @@ urlpatterns = [
     path('api/districts/', views.api_districts, name='api_districts'),
     path('api/location-details/', views.api_location_details, name='api_location_details'),
     path('api/events/by-code/<str:event_code>/<str:action>/', views.event_respond_by_code_view, name='event_respond_by_code'),
+    path('api/events/by-code/<str:event_code>/<str:action>/<path:rejection_reason>/', views.event_respond_by_code_view, name='event_respond_by_code_with_reason'),
     path('api/leads/select2-search/', views.api_leads_search, name='api_leads_search'),
     path('api/properties/select2-search/', views.api_properties_search, name='api_properties_search'),
     #path('api/utils/requirement-options/', views.RequirementOptionsView.as_view(), name='api_requirement_options'),
