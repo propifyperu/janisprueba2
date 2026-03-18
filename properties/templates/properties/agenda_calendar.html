@@ -519,6 +519,22 @@
         
         <div id="mini-calendar" class="mini-calendar"></div>
 
+        <!-- Contador de Visitas -->
+        <div class="visits-counter-container mb-1 p-3 rounded" style="background-color: #f8f9fa; border: 1px solid #e0e0e0; margin-top: 3rem;">
+            <h6 class="mb-1 text-muted" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Visitas en esta vista</h6>
+            <div class="d-flex align-items-center mb-1">
+                <i class="fas fa-walking text-primary fa-lg me-2" style="color: #047D7D !important;"></i>
+                <span id="visits-counter" style="font-size: 28px; font-weight: 700; color: #047D7D; line-height: 1;">0</span>
+            </div>
+            <div id="visits-date-range" class="text-muted" style="font-size: 12px; font-weight: 500;">-</div>
+            <div class="mt-2 pt-2 border-top">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span style="font-size: 11px; color: #5f6368;">Total Eventos:</span>
+                    <strong id="total-events-counter" style="font-size: 12px; color: #3c4043;">0</strong>
+                </div>
+            </div>
+        </div>
+
         {% if can_see_all and agents_with_events %}
         
 
@@ -820,6 +836,39 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     miniCalendar.render();
+
+    function updateCounters() {
+        if (!calendar) return;
+        const view = calendar.view;
+        const allEvents = calendar.getEvents();
+        
+        let visitsCount = 0;
+        let totalEventsCount = 0;
+        
+        allEvents.forEach(evt => {
+            if (evt.start >= view.activeStart && evt.start < view.activeEnd) { // validar que el evento está dentro del rango visible actualmente
+                totalEventsCount++;
+                const eventTypeStr = (evt.extendedProps.event_type || '').toLowerCase();
+                const eventTypeId = parseInt(evt.extendedProps.event_type_id || 0);
+                
+                if (eventTypeId === 1 || eventTypeStr.includes('visit')) { // identificar si el evento es una "Visita"
+                    visitsCount++;
+                }
+            }
+        });
+        
+        const visitsEl = document.getElementById('visits-counter');
+        if (visitsEl) visitsEl.textContent = visitsCount;
+        
+        const totalEventsEl = document.getElementById('total-events-counter');
+        if (totalEventsEl) totalEventsEl.textContent = totalEventsCount;
+        
+        const rangeEl = document.getElementById('visits-date-range');
+        if (rangeEl) rangeEl.textContent = view.title;
+    }
+
+    calendar.on('datesSet', updateCounters);
+    calendar.on('eventsSet', updateCounters);
 
     // Event listeners para los filtros de agentes
     const agentCheckboxes = document.querySelectorAll('.agent-filter-checkbox');
