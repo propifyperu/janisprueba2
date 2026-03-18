@@ -520,7 +520,7 @@
         <div id="mini-calendar" class="mini-calendar"></div>
 
         <!-- Contador de Visitas -->
-        <div class="visits-counter-container mb-1 p-3 rounded" style="background-color: #f8f9fa; border: 1px solid #e0e0e0; margin-top: 3rem;">
+        <div class="visits-counter-container mb-3 p-3 rounded" style="background-color: #f8f9fa; border: 1px solid #e0e0e0; margin-top:2rem;
             <h6 class="mb-1 text-muted" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Visitas en esta vista</h6>
             <div class="d-flex align-items-center mb-1">
                 <i class="fas fa-walking text-primary fa-lg me-2" style="color: #047D7D !important;"></i>
@@ -534,6 +534,12 @@
                 </div>
             </div>
         </div>
+
+        <!-- Detalle de los eventos contados -->
+        <details class="mb-3 rounded" style="background-color: #f8f9fa; border: 1px solid #e0e0e0;">
+            <summary style="font-size: 11px; font-weight: 700; color: #5f6368; cursor: pointer; padding: 10px; outline: none; user-select: none;"><i class="fas fa-list-ul me-1"></i> Ver eventos contados</summary>
+            <div id="debug-event-list" style="font-size: 11px; max-height: 200px; overflow-y: auto; padding: 0 10px 10px 10px; border-top: 1px solid #e0e0e0;"></div>
+        </details>
 
         {% if can_see_all and agents_with_events %}
         
@@ -774,6 +780,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     miniCalendar.gotoDate(dateInfo.view.currentStart);
                 }
             },
+            slotEventOverlap: false, // Muestra eventos de la misma hora uno al lado del otro
             height: 'auto',
             expandRows: true,
             handleWindowResize: true,
@@ -837,6 +844,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     miniCalendar.render();
 
+    // Función para actualizar los contadores basado en la vista actual
     function updateCounters() {
         if (!calendar) return;
         const view = calendar.view;
@@ -844,16 +852,38 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let visitsCount = 0;
         let totalEventsCount = 0;
+        let countedEventsHtml = '';
         
+        // Obtener el rango exacto de la vista actual en milisegundos (incluyendo días "en gris" renderizados)
+        const viewStart = view.activeStart.getTime();
+        const viewEnd = view.activeEnd.getTime();
+
         allEvents.forEach(evt => {
-            if (evt.start >= view.activeStart && evt.start < view.activeEnd) { // validar que el evento está dentro del rango visible actualmente
+            if (!evt.start) return;
+
+            const evtStart = evt.start.getTime();
+            const evtEnd = evt.end ? evt.end.getTime() : evtStart;
+            
+            // Comprobar intersección estricta con el rango de tiempo visual del calendario
+            const startsBeforeViewEnds = evtStart < viewEnd;
+            const endsAfterViewStarts = evt.end ? (evtEnd > viewStart) : (evtEnd >= viewStart);
+
+            if (startsBeforeViewEnds && endsAfterViewStarts) {
                 totalEventsCount++;
                 const eventTypeStr = (evt.extendedProps.event_type || '').toLowerCase();
                 const eventTypeId = parseInt(evt.extendedProps.event_type_id || 0);
                 
-                if (eventTypeId === 1 || eventTypeStr.includes('visit')) { // identificar si el evento es una "Visita"
+                // Identificar si el evento es una "Visita" (usualmente ID 1)
+                if (eventTypeId === 1 || eventTypeStr.includes('visit')) {
                     visitsCount++;
                 }
+
+                // Construir la lista de los eventos sumados para debug
+                const startStr = evt.start.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' });
+                countedEventsHtml += `<div style="border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 4px;">
+                    <strong style="color: #047d7d;">${evt.title}</strong><br>
+                    <span style="color: #666;">Hora: ${startStr}</span>
+                </div>`;
             }
         });
         
@@ -865,8 +895,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const rangeEl = document.getElementById('visits-date-range');
         if (rangeEl) rangeEl.textContent = view.title;
+
+        const debugListEl = document.getElementById('debug-event-list');
+        if (debugListEl) {
+            debugListEl.innerHTML = countedEventsHtml || '<em style="color:#999;">Ningún evento en este rango</em>';
+        }
     }
 
+    // Escuchar cambios en la vista de fechas y recarga de eventos
     calendar.on('datesSet', updateCounters);
     calendar.on('eventsSet', updateCounters);
 
