@@ -199,12 +199,17 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
                 def _send_chatwoot_whatsapp(phone_number, payload_data):
                     phone_str = str(phone_number).strip()
                     
-                    # Validación para asegurar que tenga el prefijo +51
+                    # 1. FORMATO DEL NÚMERO Y DATOS INICIALES
                     if not phone_str.startswith('+'):
                         if phone_str.startswith('51') and len(phone_str) == 11:
-                            phone_str = '+' + phone_str
+                            phone_with_plus = '+' + phone_str
                         else:
-                            phone_str = '+51' + phone_str
+                            phone_with_plus = '+51' + phone_str
+                    else:
+                        phone_with_plus = phone_str
+                        
+                    clean_source_id = phone_with_plus.replace('+', '')
+                    agent_name_str = agent.get_full_name() or agent.username if agent else "Agente Propify"
 
                     user_token = os.getenv('CHATWOOT_USER_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
                     bot_token = os.getenv('CHATWOOT_BOT_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
@@ -225,42 +230,67 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
                     base_url = "https://n8n-propify-chatwoot.qqaetr.easypanel.host/api/v1/accounts/2"
                     
                     try:
-                        print(f"\n[CHATWOOT] === INICIANDO ENVÍO A {phone_str} ===")
+                        print(f"\n[CHATWOOT] === INICIANDO ENVÍO A {phone_with_plus} ===")
                         
-                        # Paso 1: Buscar Contacto
+                        # 2. BUSCAR / CREAR CONTACTO
                         search_url = f"{base_url}/contacts/search"
-                        # Pasamos la variable por 'params' para que request codifique el '+' a '%2B' correctamente
-                        print(f"[CHATWOOT] Paso 1: GET {search_url} | params: {{'q': '{phone_str}'}}")
-                        search_response = requests.get(search_url, params={'q': phone_str}, headers=user_headers)
+                        print(f"[CHATWOOT] Paso 1: GET {search_url} | params: {{'q': '{phone_with_plus}'}}")
+                        search_response = requests.get(search_url, params={'q': phone_with_plus}, headers=user_headers)
                         print(f"[CHATWOOT] Paso 1 Respuesta ({search_response.status_code}): {search_response.text}")
                         
-                        if search_response.status_code not in (200, 201): 
-                            logger.error(f"Chatwoot Paso 1 Error: {search_response.text}")
+                        contact_id = None
+                        if search_response.status_code in (200, 201):
+                            search_payload = search_response.json().get('payload', [])
+                            if search_payload:
+                                contact_id = search_payload[0].get('id')
+                                print(f"[CHATWOOT] Paso 1 Éxito -> contact_id encontrado: {contact_id}")
+                                print(f"Create a forward nue element")
+                                
+                        if not contact_id:
+                            create_contact_url = f"{base_url}/contacts"
+                            contact_payload = {
+                                "name": agent_name_str,
+                                "phone_number": phone_with_plus
+                            }
+                            print(f"[CHATWOOT] Paso 1b: POST {create_contact_url} | payload: {contact_payload}")
+                            create_response = requests.post(create_contact_url, json=contact_payload, headers=user_headers)
+                            print(f"[CHATWOOT] Paso 1b Respuesta ({create_response.status_code}): {create_response.text}")
+                            
+                            if create_response.status_code in (200, 201):
+                                contact_id = create_response.json().get('payload', {}).get('contact', {}).get('id')
+                                print(f"[CHATWOOT] Paso 1b Éxito -> contact_id creado: {contact_id}")
+                            else:
+                                logger.error(f"Chatwoot Error creando contacto: {create_response.text}")
+                                return
+                                
+                        if not contact_id:
+                            logger.error("Chatwoot: No se pudo obtener ni crear el contact_id.")
                             return
-                        search_payload = search_response.json().get('payload', [])
-                        if not search_payload: 
-                            logger.warning(f"Chatwoot Paso 1: No se encontró contacto para {phone_str}")
-                            return
-                        contact_id = search_payload[0].get('id')
-                        print(f"[CHATWOOT] Paso 1 Éxito -> contact_id: {contact_id}")
                         
-                        # Paso 2: Buscar Conversación
-                        conv_url = f"{base_url}/contacts/{contact_id}/conversations"
-                        print(f"\n[CHATWOOT] Paso 2: GET {conv_url}")
-                        conv_response = requests.get(conv_url, headers=user_headers)
+                        # 3. CREAR CONVERSACIÓN
+                        conv_url = f"{base_url}/conversations"
+                        conv_payload = {
+                            "source_id": clean_source_id,
+                            "contact_id": contact_id,
+                            "inbox_id": 3
+                        }
+                        print(f"\n[CHATWOOT] Paso 2: POST {conv_url} | payload: {conv_payload}")
+                        conv_response = requests.post(conv_url, json=conv_payload, headers=user_headers)
                         print(f"[CHATWOOT] Paso 2 Respuesta ({conv_response.status_code}): {conv_response.text}")
                         
-                        if conv_response.status_code not in (200, 201): 
-                            logger.error(f"Chatwoot Paso 2 Error: {conv_response.text}")
+                        conversation_id = None
+                        if conv_response.status_code in (200, 201):
+                            conversation_id = conv_response.json().get('id')
+                            print(f"[CHATWOOT] Paso 2 Éxito -> conversation_id: {conversation_id}")
+                        else:
+                            logger.error(f"Chatwoot Paso 2 Error creando conversación: {conv_response.text}")
                             return
-                        conv_payload = conv_response.json().get('payload', [])
-                        if not conv_payload: 
-                            logger.warning(f"Chatwoot Paso 2: El contacto {phone_str} no tiene conversaciones activas.")
+                            
+                        if not conversation_id:
+                            logger.error("Chatwoot: No se obtuvo el conversation_id.")
                             return
-                        conversation_id = conv_payload[0].get('id')
-                        print(f"[CHATWOOT] Paso 2 Éxito -> conversation_id: {conversation_id}")
                         
-                        # Paso 3: Enviar Mensaje
+                        # 4. ENVIAR MENSAJE
                         msg_url = f"{base_url}/conversations/{conversation_id}/messages"
                         print(f"\n[CHATWOOT] Paso 3: POST {msg_url}")
                         print(f"[CHATWOOT] Paso 3 Payload: {payload_data}")
