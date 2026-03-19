@@ -331,31 +331,6 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
             creator_name = instance.created_by.get_full_name() or instance.created_by.username if instance.created_by else "Sistema"
             url = "https://propifai.com/dashboard/agenda/"
 
-            payload_template = {
-                "content": "🔰 SOLICITUD DE VISITA (PROPIFY)",
-                "message_type": "outgoing",
-                "content_type": "text",
-                "private": False,
-                "template_params": {
-                    "name": "solicitud_de_visita_agentes_oficial",
-                    "category": "UTILITY",
-                    "language": "es_PE",
-                    "processed_params": {
-                        "body": {
-                            "1": combined_title,
-                            "2": event_code,
-                            "3": event_date,
-                            "4": event_time,
-                            "5": prop_code,
-                            "6": creator_name,
-                            "7": agent_name,
-                            "8": contact_name,
-                            "9": url,
-                        }
-                    }
-                }
-            }
-
             # Enviar notificación y WhatsApp a TODOS los agentes en la lista
             for target_agent in all_targets:
                 is_prop_agent = target_agent in property_agents
@@ -369,11 +344,13 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
                             {"label": "Rechazar", "url": reverse('properties:event_reject', args=[instance.id]), "method": "POST"}
                         ]
                     }
+                    template_name = "solicitud_de_visita_agentes_oficial"
                 else:
                     notif_message = f"Se te ha asignado una visita el {instance.fecha_evento} a las {instance.hora_inicio}. Propiedad: {prop_text}. Título: {instance.titulo}"
                     notif_data = {
                         "event_code": instance.code
                     }
+                    template_name = "solicitud_de_visita_agentes"
 
                 # 1. Notificación en plataforma
                 Notification.objects.create(
@@ -388,7 +365,30 @@ def notify_agent_on_new_event(sender, instance, created, **kwargs): # Notifica a
 
                 # 2. WhatsApp vía Chatwoot
                 if getattr(target_agent, 'phone', None):
-                    payload = dict(payload_template) # Enviamos una copia segura a cada uno
+                    payload = {
+                        "content": "🔰 SOLICITUD DE VISITA (PROPIFY)",
+                        "message_type": "outgoing",
+                        "content_type": "text",
+                        "private": False,
+                        "template_params": {
+                            "name": template_name,
+                            "category": "UTILITY",
+                            "language": "es_PE",
+                            "processed_params": {
+                                "body": {
+                                    "1": combined_title,
+                                    "2": event_code,
+                                    "3": event_date,
+                                    "4": event_time,
+                                    "5": prop_code,
+                                    "6": creator_name,
+                                    "7": agent_name,
+                                    "8": contact_name,
+                                    "9": url,
+                                }
+                            }
+                        }
+                    }
                     threading.Thread(target=_send_chatwoot_whatsapp, args=(target_agent.phone, payload, target_agent)).start()
 
         except Exception as e:
