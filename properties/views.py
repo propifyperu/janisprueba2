@@ -1697,8 +1697,16 @@ def event_accept_view(request, event_id):
     from .models import Event
     from django.http import JsonResponse
     event = get_object_or_404(Event, pk=event_id)
-    if event.assigned_agent != request.user and not request.user.is_superuser:
+    
+    allowed = request.user.is_superuser
+    if event.property and not allowed:
+        allowed = (request.user == getattr(event.property, 'assigned_agent', None)) or (request.user == getattr(event.property, 'responsible', None))
+    elif not event.property and not allowed:
+        allowed = (request.user == event.assigned_agent)
+        
+    if not allowed:
         return JsonResponse({"error": "No tienes permiso para aceptar este evento."}, status=403)
+        
     event.status = Event.STATUS_ACCEPTED
     event.save(update_fields=['status', 'updated_at'])
     return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' aceptado.", "status": event.status, "status_display": event.get_status_display()})
@@ -1709,7 +1717,14 @@ def event_reject_view(request, event_id):
     from .models import Event
     from django.http import JsonResponse
     event = get_object_or_404(Event, pk=event_id)
-    if event.assigned_agent != request.user and not request.user.is_superuser:
+    
+    allowed = request.user.is_superuser
+    if event.property and not allowed:
+        allowed = (request.user == getattr(event.property, 'assigned_agent', None)) or (request.user == getattr(event.property, 'responsible', None))
+    elif not event.property and not allowed:
+        allowed = (request.user == event.assigned_agent)
+        
+    if not allowed:
         return JsonResponse({"error": "No tienes permiso para rechazar este evento."}, status=403)
         
     rejection_reason = (request.POST.get("rejection_reason") or "").strip()
@@ -1733,7 +1748,13 @@ def event_respond_by_code_view(request, event_code, action, rejection_reason=Non
 
     event = get_object_or_404(Event, code=event_code)
 
-    if event.assigned_agent != request.user and not request.user.is_superuser:
+    allowed = request.user.is_superuser
+    if event.property and not allowed:
+        allowed = (request.user == getattr(event.property, 'assigned_agent', None)) or (request.user == getattr(event.property, 'responsible', None))
+    elif not event.property and not allowed:
+        allowed = (request.user == event.assigned_agent)
+
+    if not allowed:
         return Response({"error": "No tienes permiso para responder a este evento."}, status=status.HTTP_403_FORBIDDEN)
 
     if action == 'accept':
