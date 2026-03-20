@@ -1799,6 +1799,7 @@ def api_events_json(request):
     """API para obtener eventos en formato JSON para el calendario"""
     from .models import Event
     from django.http import JsonResponse
+    from django.db.models import Q
     
     is_call_center = request.user.role and request.user.role.name == 'Call Center'
     can_see_all = request.user.is_superuser or is_call_center
@@ -1817,9 +1818,9 @@ def api_events_json(request):
             ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent')
     else:
         events = Event.objects.filter(
-            is_active=True,
-            assigned_agent=request.user
-        ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent')
+            Q(assigned_agent=request.user) | Q(property__responsible=request.user) | Q(property__assigned_agent=request.user),
+            is_active=True
+        ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent').distinct()
 
     events_data = []
     for event in events:
