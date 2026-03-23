@@ -29,7 +29,9 @@ from django.db.models import Q
 from rest_framework import status
 from properties.engine_matching.engine import get_matches
 from .forms import PropertyOwnerForm, RequirementCreateForm, RequirementUpdateForm, ProposalCreateForm
-
+from .ai_services import extraer_datos_requerimiento
+from .models import OperationType, PropertyType, District # Asegúrate de importar tus modelos reales
+from django.views.decorators.csrf import csrf_exempt
 
 def link_callback(uri, rel):
     """
@@ -4391,3 +4393,66 @@ def send_hello_message_view(request):
             return Response({"ok": False, "error": f"Error {response.status_code}: {response.text}"}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({"ok": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+def api_extract_requirement_ai(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            texto = data.get("texto", "")
+            
+            if not texto:
+                return JsonResponse({"error": "Texto vacío"}, status=400)
+
+            extracted = extraer_datos_requerimiento(texto)
+            if not extracted:
+                return JsonResponse({"error": "Error al procesar con IA"}, status=500)
+
+            response_data = {
+                "price_min": extracted.get("presupuesto_min"),
+                "price_max": extracted.get("presupuesto_max"),
+                "land_area_min": extracted.get("area_terreno_min"),
+                "land_area_max": extracted.get("area_terreno_max"),
+                "built_area_min": extracted.get("area_construida_min"),
+                "built_area_max": extracted.get("area_construida_max"),
+                "bedrooms_min": extracted.get("habitaciones_min"),
+                "bedrooms_max": extracted.get("habitaciones_max"),
+                "bathrooms_min": extracted.get("banos_min"),
+                "bathrooms_max": extracted.get("banos_max"),
+                "garage_spaces_min": extracted.get("cocheras_min"),
+                "garage_spaces_max": extracted.get("cocheras_max"),
+                "antiquity_years_min": extracted.get("antiguedad_min"),
+                "antiquity_years_max": extracted.get("antiguedad_max"),
+                "floors_min": extracted.get("pisos_min"),
+                "floors_max": extracted.get("pisos_max"),
+                "has_elevator": extracted.get("tiene_ascensor"),
+                "pet_friendly": extracted.get("acepta_mascotas"),
+                "notes": extracted.get("observaciones", ""),
+                "operation_type_id": "",
+                "property_type_id": "",
+                "district_ids": []
+            }
+
+            # Mapear Operación a ID
+            if extracted.get("operacion"):
+                op = OperationType.objects.filter(name__icontains=extracted["operacion"]).first()
+                if op: response_data["operation_type_id"] = op.id
+
+            # Mapear Tipo a ID
+            if extracted.get("tipo_inmueble"):
+                pt = PropertyType.objects.filter(name__icontains=extracted["tipo_inmueble"]).first()
+                if pt: response_data["property_type_id"] = pt.id
+
+            # Mapear Distritos a IDs
+            if extracted.get("distritos"):
+                for d_name in extracted["distritos"]:
+                    dist = District.objects.filter(name__icontains=d_name).first()
+                    if dist:
+                        response_data["district_ids"].append(dist.id)
+
+            return JsonResponse({"success": True, "data": response_data})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "Método no permitido"}, status=405)
