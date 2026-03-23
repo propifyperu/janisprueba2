@@ -102,5 +102,5 @@ urlpatterns = [
     path("api/<int:pk>/availability/", views.property_availability_api, name="property_availability_api"),
     path("api/", include("properties.wordpress.urls")),
     path("api/whatsapp/send-hello/", views.send_hello_message_view, name="send_hello_message_view"),
-
+    path('api/requerimientos/ia/', views.api_extract_requirement_ai, name='api_extract_requirement_ai'),
 ]

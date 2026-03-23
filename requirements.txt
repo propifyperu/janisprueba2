@@ -20,3 +20,5 @@ azure-identity
 opensearch-py
 twilio
 xhtml2pdf
+
+openai
