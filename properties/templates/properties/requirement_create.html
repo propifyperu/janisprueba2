@@ -51,6 +51,23 @@
                     <form id="requirement-form" method="post" enctype="multipart/form-data">
                         {% csrf_token %}
 
+                        <div class="card shadow-sm mb-4 border-info" style="background-color: #f0f8ff;">
+                            <div class="card-body">
+                                <div class="input-group">
+                                    <textarea id="aiInputText" class="form-control" rows="2" placeholder="Ej: Busco un departamento en Cayma o Yanahuara, min 3 cuartos, presupuesto max 150k..."></textarea>
+                                    <button class="btn btn-info text-white fw-bold" type="button" id="btnProcessAI">
+                                        <i class="fas fa-wand-magic-sparkles me-1"></i> Analizar con IA
+                                    </button>
+                                </div>
+                                <div id="aiLoading" class="mt-2 text-info small" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin me-1"></i> La IA está leyendo el requerimiento...
+                                </div>
+                                <div id="aiSuccess" class="mt-2 text-success small fw-bold" style="display: none;">
+                                    <i class="fas fa-check-circle me-1"></i> ¡Formulario completado! Revisa los campos.
+                                </div>
+                            </div>
+                        </div>
+
                         {# ✅ ERRORES DEL REQUIREMENT FORM (RequirementCreateForm) #}
                         {% if form.errors %}
                         <div class="alert alert-danger">
@@ -539,6 +556,93 @@ document.addEventListener("DOMContentLoaded", function () {
     curSel.addEventListener("change", applyCurrencyLabel);
     applyCurrencyLabel();
   }
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const btnProcess = document.getElementById('btnProcessAI');
+    const aiInput = document.getElementById('aiInputText');
+    const aiLoading = document.getElementById('aiLoading');
+    const aiSuccess = document.getElementById('aiSuccess');
+
+    if (btnProcess) {
+        btnProcess.addEventListener('click', async function() {
+            const texto = aiInput.value.trim();
+            if (!texto) {
+                alert("Por favor, pega un texto primero.");
+                return;
+            }
+
+            btnProcess.disabled = true;
+            aiLoading.style.display = 'block';
+            aiSuccess.style.display = 'none';
+
+            try {
+                const response = await fetch("{% url 'properties:api_extract_requirement_ai' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({ texto: texto })
+                });
+
+                const resData = await response.json();
+
+                if (resData.success) {
+                    const d = resData.data;
+
+                    if (d.operation_type_id) { $('#id_operation_type').val(d.operation_type_id).trigger('change'); }
+                    if (d.property_type_id) { $('#id_property_type').val(d.property_type_id).trigger('change'); }
+                    if (d.district_ids && d.district_ids.length > 0) { $('#id_districts').val(d.district_ids).trigger('change'); }
+                    
+                    if (d.price_min) document.getElementById('id_price_min').value = d.price_min;
+                    if (d.price_max) document.getElementById('id_price_max').value = d.price_max;
+                    if (d.land_area_min) document.getElementById('id_land_area_min').value = d.land_area_min;
+                    if (d.land_area_max) document.getElementById('id_land_area_max').value = d.land_area_max;
+                    if (d.built_area_min) document.getElementById('id_built_area_min').value = d.built_area_min;
+                    if (d.built_area_max) document.getElementById('id_built_area_max').value = d.built_area_max;
+                    
+                    if (d.bedrooms_min !== null && d.bedrooms_min !== undefined) document.getElementById('id_bedrooms_min').value = d.bedrooms_min;
+                    if (d.bedrooms_max !== null && d.bedrooms_max !== undefined) document.getElementById('id_bedrooms_max').value = d.bedrooms_max;
+                    
+                    if (d.bathrooms_min !== null && d.bathrooms_min !== undefined) document.getElementById('id_bathrooms_min').value = d.bathrooms_min;
+                    if (d.bathrooms_max !== null && d.bathrooms_max !== undefined) document.getElementById('id_bathrooms_max').value = d.bathrooms_max;
+                    
+                    if (d.garage_spaces_min !== null && d.garage_spaces_min !== undefined) document.getElementById('id_garage_spaces_min').value = d.garage_spaces_min;
+                    if (d.garage_spaces_max !== null && d.garage_spaces_max !== undefined) document.getElementById('id_garage_spaces_max').value = d.garage_spaces_max;
+
+                    if (d.antiquity_years_min !== null && d.antiquity_years_min !== undefined) document.getElementById('id_antiquity_years_min').value = d.antiquity_years_min;
+                    if (d.antiquity_years_max !== null && d.antiquity_years_max !== undefined) document.getElementById('id_antiquity_years_max').value = d.antiquity_years_max;
+
+                    if (d.floors_min !== null && d.floors_min !== undefined) document.getElementById('id_floors_min').value = d.floors_min;
+                    if (d.floors_max !== null && d.floors_max !== undefined) document.getElementById('id_floors_max').value = d.floors_max;
+
+                    if (d.has_elevator === true) document.getElementById('id_has_elevator').value = 'true';
+                    else if (d.has_elevator === false) document.getElementById('id_has_elevator').value = 'false';
+
+                    if (d.pet_friendly === true) document.getElementById('id_pet_friendly').value = 'true';
+                    else if (d.pet_friendly === false) document.getElementById('id_pet_friendly').value = 'false';
+                    
+                    if (d.notes) {
+                        const notesEl = document.getElementById('id_notes');
+                        notesEl.value = notesEl.value ? notesEl.value + "\n---\nExtraído por IA:\n" + d.notes : "Extraído por IA:\n" + d.notes;
+                    }
+
+                    aiSuccess.style.display = 'block';
+                } else {
+                    alert("Error de IA: " + resData.error);
+                }
+            } catch (err) {
+                alert("Hubo un problema comunicándose con el servidor.");
+                console.error(err);
+            } finally {
+                btnProcess.disabled = false;
+                aiLoading.style.display = 'none';
+            }
+        });
+    }
 });
 </script>
 {% endblock %}
