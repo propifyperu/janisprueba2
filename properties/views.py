@@ -13,6 +13,7 @@ from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpRespons
 from .models import Requirement, RequirementMatch, Proposal
 from django.contrib.auth.decorators import login_required
 import uuid
+from decimal import Decimal, InvalidOperation
 from django.urls import reverse
 from django.template.loader import get_template
 from django.db.models import Count, Max
