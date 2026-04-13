@@ -1,7 +1,9 @@
 ﻿from django.urls import path, include
 from . import views
+
 from .api import PropertyViewSet, DocumentTypeViewSet, RequirementViewSet, LeadViewSet
 from .api_external import ExternalPropertyListView, ExternalPropertyMatchView, ExternalPropertyByUsersView
+
 from rest_framework.routers import DefaultRouter
 
 app_name = 'properties'
