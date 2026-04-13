@@ -1,0 +1,114 @@
+body {
+    background: #0e0e0e;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+}
+.login-container {
+    background: #141414;
+    border-radius: 15px;
+    /* box-shadow: 0 18px 42px rgba(4, 125, 125, 0.28); */
+    overflow: hidden;
+}
+.login-header {
+    background: transparent;
+    color: #f3fdfd;
+    padding: 1.5rem 2rem;
+    text-align: center;
+}
+.login-form {
+    padding: 1.5rem 2rem;
+}
+.login-form label {
+    color: #f5f5f5;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    font-size: 0.9rem;
+}
+.btn-login {
+    background: linear-gradient(135deg, #047d7d 0%, #279896 100%);
+    border: none;
+    color: #f3fdfd;
+    padding: 0.75rem 2rem;
+    width: 100%;
+    font-weight: 500 !important;
+    border-radius: .7rem !important;
+}
+.btn-login:hover {
+    background: linear-gradient(135deg, #046969 0%, #248a88 100%);
+    color: #f3fdfd;
+}
+.form-control {
+    border-radius: 0.85rem;
+    border: 2px solid #464646;
+    padding: 0.7rem 0.95rem;
+    background-color: #2B2B2B !important;
+    color: white !important;
+}
+.form-control:focus {
+    border-color: #44DE88;
+    box-shadow: 0 0 0 0.2rem rgba(4, 125, 125, 0.15);
+}
+.alert {
+    border-radius: 0.85rem;
+    border: none;
+    /* box-shadow: 0 10px 24px rgba(4, 125, 125, 0.18); */
+}
+.text-muted {
+    color: rgb(216 216 216 / 65%) !important;
+}
+.logo-main {
+    max-width: 220px;
+}
+.bg-dark2 {
+    background-color: #141414;
+}
+
+.alert-danger-dark {
+    background-color: rgba(138, 28, 38, 0.25);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(248, 215, 218, 0.15);
+        color: #ffa2ab;
+}
+
+.alert-danger-dark strong {
+    color: #F8D7DA;
+}
+
+.alert-danger-dark .btn-close {
+    filter: invert(1);
+    opacity: 0.7;
+}
+
+.alert-danger-dark .btn-close:hover {
+    opacity: 1;
+}
+
+.alert-dark-mode {
+    background-color: #4b0000;
+    color: #f1f1f1;
+    border-color: #980300 1.5px;
+    }
+
+    .alert-dark-mode .btn-close {
+    filter: invert(1);
+    }
+
+.password-input-wrapper {
+    position: relative;
+}
+
+.password-input-wrapper input {
+    padding-right: 40px;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+}

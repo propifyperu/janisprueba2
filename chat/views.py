@@ -1,145 +1,272 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
-from .models import MailThread, Message, Attachment
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.urls import reverse
+from django.db.models import Q
+
+from .models import MailThread, Message, Attachment
 
 User = get_user_model()
 
 
 @login_required
 def search_users(request):
-    """API simple para buscar usuarios por nombre, apellido o username.
-
-    Query param: `q` (string). Devuelve hasta 30 coincidencias (id, label, email).
-    """
-    q = (request.GET.get('q') or '').strip()
+    q = (request.GET.get("q") or "").strip()
     out = []
-    if not q:
-        return JsonResponse({'results': out})
-    qs = User.objects.exclude(pk=request.user.pk)
-    # buscar en username, first_name, last_name y email
-    from django.db.models import Q
-    qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(email__icontains=q))[:30]
-    for u in qs:
-        label = (u.get_full_name() or u.username)
-        out.append({'id': u.pk, 'label': label, 'email': u.email})
-    return JsonResponse({'results': out})
 
-from django.urls import reverse
-from django.shortcuts import redirect
-from django.db.models import Max
-from django.db.models import Q
+    if not q:
+        return JsonResponse({"results": out})
+
+    qs = User.objects.exclude(pk=request.user.pk)
+    qs = qs.filter(
+        Q(username__icontains=q) |
+        Q(first_name__icontains=q) |
+        Q(last_name__icontains=q) |
+        Q(email__icontains=q)
+    )[:30]
+
+    for u in qs:
+        label = u.get_full_name() or u.username
+        out.append({
+            "id": u.pk,
+            "label": label,
+            "email": u.email,
+        })
+
+    return JsonResponse({"results": out})
 
 
 @login_required
 def conversation_list(request):
-    qs = MailThread.objects.filter(participants=request.user).order_by('-updated_at')
-    return render(request, 'chat/conversation_list.html', {'conversations': qs})
+    return redirect("chat:inbox")
+
+
+@login_required
+def sent(request):
+    return redirect(f"{reverse('chat:inbox')}?folder=sent")
+
+
+@login_required
+def inbox(request):
+    folder = (request.GET.get("folder") or "all").strip().lower()
+    selected = request.GET.get("selected")
+
+    threads_qs = (
+        MailThread.objects
+        .filter(participants=request.user)
+        .prefetch_related("participants", "messages__attachments")
+        .order_by("-updated_at")
+    )
+
+    threads = []
+
+    for thread in threads_qs:
+        last = thread.messages.order_by("-created_at").first()
+        if not last:
+            continue
+
+        has_unread = thread.messages.exclude(sender=request.user).filter(is_read=False).exists()
+        is_received = last.sender_id != request.user.id
+        is_sent = last.sender_id == request.user.id
+
+        if folder == "unread" and not has_unread:
+            continue
+        if folder == "received" and not is_received:
+            continue
+        if folder == "sent" and not is_sent:
+            continue
+
+        threads.append({
+            "thread": thread,
+            "last": last,
+            "has_unread": has_unread,
+            "is_received": is_received,
+            "is_sent": is_sent,
+        })
+
+    selected_thread = None
+    messages = []
+
+    if selected:
+        try:
+            sid = int(selected)
+            selected_thread = MailThread.objects.filter(participants=request.user, pk=sid).first()
+            if selected_thread:
+                messages = selected_thread.messages.select_related("sender").prefetch_related("attachments").order_by("created_at")
+
+                Message.objects.filter(
+                    conversation=selected_thread
+                ).exclude(
+                    sender=request.user
+                ).filter(
+                    is_read=False
+                ).update(is_read=True)
+        except Exception:
+            selected_thread = None
+            messages = []
+
+    context = {
+        "threads": threads,
+        "selected_thread": selected_thread,
+        "messages": messages,
+        "active_folder": folder if folder in ["all", "unread", "received", "sent"] else "all",
+    }
+    return render(request, "chat/inbox.html", context)
 
 
 @login_required
 def conversation_detail(request, pk: int):
     conv = get_object_or_404(MailThread, pk=pk)
+
     if request.user not in conv.participants.all():
-        return HttpResponseBadRequest('No autorizado')
-    messages = conv.messages.select_related('sender').order_by('created_at')
-    return render(request, 'chat/conversation_detail.html', {'conversation': conv, 'messages': messages})
+        return HttpResponseBadRequest("No autorizado")
+
+    Message.objects.filter(
+        conversation=conv
+    ).exclude(
+        sender=request.user
+    ).filter(
+        is_read=False
+    ).update(is_read=True)
+
+    messages = conv.messages.select_related("sender").prefetch_related("attachments").order_by("created_at")
+
+    return render(request, "chat/conversation_detail.html", {
+        "conversation": conv,
+        "messages": messages,
+    })
 
 
 @login_required
 @csrf_exempt
 def send_message(request):
-    if request.method != 'POST':
-        return HttpResponseBadRequest('POST required')
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST required")
+
     try:
-        conv_id = int(request.POST.get('conversation'))
-        body = request.POST.get('body', '').strip()
+        conv_id = int(request.POST.get("conversation"))
+        body = (request.POST.get("body") or "").strip()
     except Exception:
-        return HttpResponseBadRequest('Invalid data')
-    # allow messages that include attachments even without body text
+        return HttpResponseBadRequest("Invalid data")
+
     if not body and not request.FILES:
-        return HttpResponseBadRequest('Empty message')
+        return HttpResponseBadRequest("Empty message")
+
     conv = get_object_or_404(MailThread, pk=conv_id)
+
     if request.user not in conv.participants.all():
-        return HttpResponseBadRequest('No autorizado')
+        return HttpResponseBadRequest("No autorizado")
+
     msg = Message.objects.create(
         conversation=conv,
         sender=request.user,
         sender_name=str(request.user.get_full_name() or request.user.username),
-        sender_role=getattr(request.user, 'role', None) and str(request.user.role) or '',
+        sender_role=getattr(request.user, "role", None) and str(request.user.role) or "",
         body=body,
-        message_type='text',
-        created_at=timezone.now()
+        message_type="text",
+        created_at=timezone.now(),
     )
-    # save attachments if present
+
     try:
-        files = request.FILES.getlist('attachments')
+        files = request.FILES.getlist("attachments")
     except Exception:
         files = []
+
     for f in files:
         try:
-            Attachment.objects.create(message=msg, file=f, content_type=getattr(f, 'content_type', ''), size=getattr(f, 'size', None))
+            Attachment.objects.create(
+                message=msg,
+                file=f,
+                content_type=getattr(f, "content_type", ""),
+                size=getattr(f, "size", None),
+            )
         except Exception:
             pass
-    # update conversation timestamp
+
     conv.updated_at = timezone.now()
-    conv.save()
-    return JsonResponse({'ok': True, 'message_id': msg.id, 'created_at': msg.created_at.isoformat(), 'sender_name': msg.sender_name})
+    conv.save(update_fields=["updated_at"])
+
+    return JsonResponse({
+        "ok": True,
+        "message_id": msg.id,
+        "created_at": msg.created_at.isoformat(),
+        "sender_name": msg.sender_name,
+    })
 
 
 @login_required
 def unread_count(request):
-    qs = Message.objects.filter(conversation__participants=request.user).exclude(sender=request.user).filter(is_read=False)
+    qs = (
+        Message.objects
+        .filter(conversation__participants=request.user)
+        .exclude(sender=request.user)
+        .filter(is_read=False)
+    )
+
     count = qs.count()
     preview = []
-    for m in qs.select_related('conversation', 'sender').order_by('-created_at')[:5]:
+
+    for m in qs.select_related("conversation", "sender").order_by("-created_at")[:5]:
         preview.append({
-            'id': m.id,
-            'conversation_id': m.conversation.id,
-            'title': m.conversation.title or f'Conv {m.conversation.id}',
-            'sender': m.sender_name or (m.sender.get_full_name() if m.sender else ''),
-            'snippet': (m.body or '')[:120],
-            'created_at': m.created_at.isoformat(),
+            "id": m.id,
+            "conversation_id": m.conversation.id,
+            "title": m.conversation.title or f"Conv {m.conversation.id}",
+            "sender": m.sender_name or (m.sender.get_full_name() if m.sender else ""),
+            "snippet": (m.body or "")[:120],
+            "created_at": m.created_at.isoformat(),
         })
-    return JsonResponse({'count': count, 'preview': preview})
+
+    return JsonResponse({
+        "count": count,
+        "preview": preview,
+    })
 
 
 @login_required
 @csrf_exempt
 def mark_read(request):
-    """Marcar mensajes de una conversación como leídos por el usuario actual.
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST required")
 
-    POST: conversation (int)
-    """
-    if request.method != 'POST':
-        return HttpResponseBadRequest('POST required')
     try:
-        conv_id = int(request.POST.get('conversation'))
+        conv_id = int(request.POST.get("conversation"))
     except Exception:
-        return HttpResponseBadRequest('Invalid conversation id')
+        return HttpResponseBadRequest("Invalid conversation id")
+
     conv = get_object_or_404(MailThread, pk=conv_id)
+
     if request.user not in conv.participants.all():
-        return HttpResponseBadRequest('No autorizado')
-    # marcar solo mensajes no enviados por el usuario
-    msgs = Message.objects.filter(conversation=conv).exclude(sender=request.user).filter(is_read=False)
-    updated = msgs.update(is_read=True)
-    return JsonResponse({'ok': True, 'updated': updated})
+        return HttpResponseBadRequest("No autorizado")
+
+    updated = Message.objects.filter(
+        conversation=conv
+    ).exclude(
+        sender=request.user
+    ).filter(
+        is_read=False
+    ).update(is_read=True)
+
+    return JsonResponse({"ok": True, "updated": updated})
 
 
 @login_required
 def fetch_messages(request):
     try:
-        conv_id = int(request.GET.get('conversation'))
-        since = request.GET.get('since')
+        conv_id = int(request.GET.get("conversation"))
+        since = request.GET.get("since")
     except Exception:
-        return HttpResponseBadRequest('Invalid params')
+        return HttpResponseBadRequest("Invalid params")
+
     conv = get_object_or_404(MailThread, pk=conv_id)
+
     if request.user not in conv.participants.all():
-        return HttpResponseBadRequest('No autorizado')
-    qs = conv.messages.select_related('sender').order_by('created_at')
+        return HttpResponseBadRequest("No autorizado")
+
+    qs = conv.messages.select_related("sender").order_by("created_at")
+
     if since:
         try:
             from django.utils.dateparse import parse_datetime
@@ -148,17 +275,37 @@ def fetch_messages(request):
                 qs = qs.filter(created_at__gt=dt)
         except Exception:
             pass
+
     out = []
     for m in qs:
-        out.append({'id': m.id, 'sender_name': m.sender_name or (m.sender.get_full_name() if m.sender else ''), 'body': m.body, 'created_at': m.created_at.isoformat(), 'message_type': m.message_type})
-    return JsonResponse({'messages': out})
+        out.append({
+            "id": m.id,
+            "sender_name": m.sender_name or (m.sender.get_full_name() if m.sender else ""),
+            "body": m.body,
+            "created_at": m.created_at.isoformat(),
+            "message_type": m.message_type,
+        })
+
+    return JsonResponse({"messages": out})
 
 
 @login_required
 def compose(request):
     """Compose an internal message: create (or reuse) a conversation and send message with attachments."""
+    preselected_recipient = None
+    initial_subject = (request.GET.get('subject') or '').strip()
+
+    recipient_id = request.GET.get('recipient')
+    if recipient_id:
+        try:
+            preselected_recipient = User.objects.exclude(pk=request.user.pk).get(
+                pk=int(recipient_id),
+                is_active=True,
+            )
+        except (User.DoesNotExist, ValueError, TypeError):
+            preselected_recipient = None
+
     if request.method == 'POST':
-        # recipients: comma separated user ids (from form select)
         recipient_ids = request.POST.getlist('recipients')
         subject = request.POST.get('subject', '').strip()
         body = request.POST.get('body', '').strip()
@@ -166,20 +313,26 @@ def compose(request):
         if not recipient_ids:
             return HttpResponseBadRequest('Seleccione al menos un destinatario')
 
-        # create conversation including sender + recipients
         participants = [request.user]
         for rid in recipient_ids:
             try:
                 u = User.objects.get(pk=int(rid))
-                participants.append(u)
+                if u.pk != request.user.pk:
+                    participants.append(u)
             except Exception:
                 continue
 
+        unique_participants = []
+        seen_ids = set()
+        for user in participants:
+            if user.pk not in seen_ids:
+                unique_participants.append(user)
+                seen_ids.add(user.pk)
+
         conv = MailThread.objects.create(title=subject or None)
-        conv.participants.add(*participants)
+        conv.participants.add(*unique_participants)
         conv.save()
 
-        # create message
         msg = Message.objects.create(
             conversation=conv,
             sender=request.user,
@@ -190,60 +343,30 @@ def compose(request):
             created_at=timezone.now()
         )
 
-        # attachments
         try:
             files = request.FILES.getlist('attachments')
         except Exception:
             files = []
+
         for f in files:
             try:
-                Attachment.objects.create(message=msg, file=f, content_type=getattr(f, 'content_type', ''), size=getattr(f, 'size', None))
+                Attachment.objects.create(
+                    message=msg,
+                    file=f,
+                    content_type=getattr(f, 'content_type', ''),
+                    size=getattr(f, 'size', None),
+                )
             except Exception:
                 pass
 
         conv.updated_at = timezone.now()
         conv.save()
 
-        return redirect(reverse('chat:sent'))
+        return redirect(reverse('chat:inbox'))
 
-    # GET: render form
     users = User.objects.exclude(pk=request.user.pk).order_by('username')[:200]
-    return render(request, 'chat/compose.html', {'users': users})
-
-
-@login_required
-def inbox(request):
-    """Muestra hilos donde el usuario es participante y el último mensaje NO fue enviado por él (entradas)."""
-    threads = MailThread.objects.filter(participants=request.user).order_by('-updated_at')
-    inbox_threads = []
-    for t in threads:
-        last = t.messages.order_by('-created_at').first()
-        if last and last.sender_id != request.user.id:
-            inbox_threads.append({'thread': t, 'last': last})
-    # soportar hilo seleccionado via ?selected=<id>
-    selected = request.GET.get('selected')
-    selected_thread = None
-    messages = []
-    if selected:
-        try:
-            sid = int(selected)
-            st = MailThread.objects.filter(participants=request.user, pk=sid).first()
-            if st:
-                selected_thread = st
-                messages = st.messages.select_related('sender').order_by('created_at')
-        except Exception:
-            selected_thread = None
-
-    return render(request, 'chat/inbox.html', {'threads': inbox_threads, 'selected_thread': selected_thread, 'messages': messages})
-
-
-@login_required
-def sent(request):
-    """Muestra hilos con mensajes enviados por el usuario (bandeja de salida)."""
-    threads = MailThread.objects.filter(participants=request.user).order_by('-updated_at')
-    sent_threads = []
-    for t in threads:
-        last = t.messages.order_by('-created_at').first()
-        if last and last.sender_id == request.user.id:
-            sent_threads.append({'thread': t, 'last': last})
-    return render(request, 'chat/sent.html', {'threads': sent_threads})
+    return render(request, 'chat/compose.html', {
+        'users': users,
+        'preselected_recipient': preselected_recipient,
+        'initial_subject': initial_subject,
+    })

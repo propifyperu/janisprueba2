@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block body_class %}dashboard-page{% endblock %}
-
+  
 {% block extra_css %}
 {{ block.super }}
 <style>
@@ -718,7 +718,7 @@
                     </div>
                     <div>
                         <div class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-                        <div class="sidebar-user-info-text">{{ request.user.department.name|default:"Sin Departamento" }}</div>
+                        <div class="sidebar-user-info-text">{{ request.user.area.name|default:"Sin Departamento" }}</div>
                         <div class="sidebar-user-info-text">
                             {% if request.user.is_superuser %}
                                 <span class="badge bg-danger">Superusuario</span>
@@ -749,6 +749,8 @@
             {% url 'properties:marketing_properties_list' as utm_list %}
             {% url 'properties:marketing_properties_multimedia' as multimedia_list %}
             {% url 'users:profile' as profile_url %}
+            {% url 'properties:proposals_list' as proposals_list_url %}
+            {% url 'properties:proposals_create' as proposals_create_url %}
             {% if request.user.is_superuser %}
             {% url 'security:device_list' as security_device_list_url %}
             {% url 'security:role_field_permissions' as role_permissions_url %}
@@ -780,12 +782,12 @@
             </div>
 
             <div class="nav-group">
-                <button class="nav-group-toggle{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} expanded{% endif %}" type="button" data-target="crmSubmenu" aria-controls="crmSubmenu" aria-expanded="{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %}true{% else %}false{% endif %}">
+                <button class="nav-group-toggle{% if 'leads' in request.path and 'whatsapp' not in request.path %} expanded{% endif %}" type="button" data-target="crmSubmenu" aria-controls="crmSubmenu" aria-expanded="{% if 'leads' in request.path and 'whatsapp' not in request.path %}true{% else %}false{% endif %}">
                     <i class="fas fa-whatsapp"></i>
                     <span>CRM WhatsApp</span>
                     <i class="fas fa-chevron-up toggle-icon"></i>
                 </button>
-                <div class="nav-submenu{% if 'whatsapp' in request.path or 'leads' in request.path or 'crm' in request.path %} show{% endif %}" id="crmSubmenu">
+                <div class="nav-submenu{% if 'leads' in request.path and 'whatsapp' not in request.path %} show{% endif %}" id="crmSubmenu">
                     <a class="nav-link {% if 'crm' in request.path %}active{% endif %}" href="{% url 'properties:crm_dashboard' %}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
                     <a class="nav-link {% if 'leads' in request.path and 'whatsapp' not in request.path %}active{% endif %}" href="{{ leads_list_url }}"><i class="fas fa-user-tie me-2"></i>Mis Leads</a>
                 </div>
@@ -804,11 +806,35 @@
                     <a class="nav-link {% if request.path == requirements_list_url %}active{% endif %}" href="{{ requirements_list_url }}"><i class="fas fa-list me-2"></i>Lista de requerimientos</a>
                     <a class="nav-link {% if request.path == requirements_create_url %}active{% endif %}" href="{{ requirements_create_url }}"><i class="fas fa-plus-circle me-2"></i>Crear requerimiento</a>
                     <a class="nav-link {% if request.path == requirements_my_url %}active{% endif %}" href="{{ requirements_my_url }}"><i class="fas fa-user me-2"></i>Mis requerimientos</a>
+
                 </div>
             </div>
 
             <div class="nav-group">
-                {% url 'properties:legal_documents' as legal_documents_url %}
+                <button class="nav-group-toggle" type="button">
+                    <i class="fas fa-chart-line"></i>
+                    <span>ACM</span>
+                </button>
+            </div>
+            
+            <div class="nav-group">
+                <button class="nav-group-toggle{% if 'propuestas' in request.path %} expanded{% endif %}" type="button" data-target="proposalsSubmenu" aria-controls="proposalsSubmenu" aria-expanded="{% if 'propuestas' in request.path %}true{% else %}false{% endif %}">
+                    <i class="fas fa-file-signature"></i>
+                    <span>Propuestas</span>
+                    <i class="fas fa-chevron-up toggle-icon"></i>
+                </button>
+                <div class="nav-submenu{% if 'propuestas' in request.path %} show{% endif %}" id="proposalsSubmenu">
+                    <a class="nav-link {% if request.path == proposals_list_url %}active{% endif %}" href="{{ proposals_list_url }}">
+                        <i class="fas fa-list me-2"></i>Mis propuestas
+                    </a>
+                    <a class="nav-link {% if request.path == proposals_create_url %}active{% endif %}" href="{{ proposals_create_url }}">
+                        <i class="fas fa-plus-circle me-2"></i>Crear propuesta
+                    </a>
+                </div>
+            </div>
+
+            <div class="nav-group">
+                {% url 'properties:legal_documents_list' as legal_documents_url %}
                 <button class="nav-group-toggle{% if 'legal' in request.path or 'documentos' in request.path %} expanded{% endif %}" type="button" data-target="legalSubmenu" aria-controls="legalSubmenu" aria-expanded="{% if 'legal' in request.path or 'documentos' in request.path %}true{% else %}false{% endif %}">
                     <i class="fas fa-gavel"></i>
                     <span>Área Legal</span>
@@ -829,7 +855,7 @@
                 </button>
                 <div class="nav-submenu{% if 'agenda' in request.path %} show{% endif %}" id="agendaSubmenu">
                     <a class="nav-link {% if request.path == agenda_calendar_url %}active{% endif %}" href="{{ agenda_calendar_url }}"><i class="fas fa-calendar me-2"></i>Calendario</a>
-                    <a class="nav-link {% if request.path == event_create_url %}active{% endif %}" href="{{ event_create_url }}"><i class="fas fa-calendar-plus me-2"></i>Crear visita</a>
+                    <a class="nav-link {% if request.path == event_create_url %}active{% endif %}" href="{{ event_create_url }}"><i class="fas fa-calendar-plus me-2"></i>Crear evento</a>
                 </div>
             </div>
 

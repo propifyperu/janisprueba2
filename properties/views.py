@@ -1,25 +1,37 @@
 from .models import Property, AgencyConfig
-from django.core.files.storage import default_storage
+from django.contrib import messages
+from properties.queryset import visible_properties_for, can_user_see_property
+from django.db import transaction
+from django.utils import timezone
 from .forms import AgencyConfigForm
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Case, When, Value, IntegerField
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render, get_object_or_404, redirect
+from users.models import Role
 from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpResponseNotFound
-from properties.matching import persist_matches_for_requirement
+from .models import Requirement, RequirementMatch, Proposal
 from django.contrib.auth.decorators import login_required
+import uuid
 from django.urls import reverse
 from django.template.loader import get_template
 from django.db.models import Count, Max
 from xhtml2pdf import pisa
-import os
 from django.conf import settings
 from django.db.models import Prefetch
 from .models import PropertyImage  # <-- AJUSTA si tu modelo se llama diferente
-from .models import (
-    Property, PropertyImage, PropertyType, PropertyStatus,
-    PaymentMethod, District, Province, Department, Urbanization
-)
-
+from .models import ( PropertyType, PropertyStatus, PropertySubtype, Currency, Event)
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from datetime import date
+from django.db.models import Q
+from rest_framework import status
+from properties.engine_matching.engine import get_matches
+from .forms import PropertyOwnerForm, RequirementCreateForm, RequirementUpdateForm, ProposalCreateForm
+from .ai_services import extraer_datos_requerimiento
+from .models import OperationType, PropertyType, District # Asegúrate de importar tus modelos reales
+from django.views.decorators.csrf import csrf_exempt
 
 def link_callback(uri, rel):
     """
@@ -128,6 +140,23 @@ def get_visible_fields_for_user(user):
     # Si no hay permisos específicos, todos los campos son visibles por defecto
     return visible_fields
 
+def match_detail_partial(request, req_id: int, prop_id: int):
+    req = get_object_or_404(Requirement, pk=req_id)
+    prop = get_object_or_404(Property, pk=prop_id)
+
+    rm = RequirementMatch.objects.filter(requirement=req, property=prop).first()
+    if not rm:
+        return render(request, "properties/partials/match_detail_not_ready.html", {
+            "requirement": req,
+            "property": prop,
+        })
+
+    return render(request, "properties/partials/match_detail.html", {
+        "requirement": req,
+        "property": prop,
+        "match": rm,               # match.score, match.details, match.computed_at
+        "details": rm.details or {}
+    })
 
 @login_required
 @require_POST
@@ -144,6 +173,21 @@ def delete_draft_view(request, pk):
         messages.error(request, 'No se encontró el borrador o no tienes permiso para borrarlo.')
     return HttpResponseRedirect(reverse('properties:drafts'))
 
+@login_required
+@require_POST
+def delete_property_view(request, pk):
+    property_obj = get_object_or_404(Property, pk=pk)
+
+    is_owner = (property_obj.created_by == request.user) # permisos superusuario, creador o responsable
+    is_responsible = (property_obj.responsible == request.user)
+
+    if not (request.user.is_superuser or is_owner or is_responsible):
+        messages.error(request, 'No tienes permiso para eliminar esta propiedad.')
+        return redirect('properties:my_properties')
+
+    Property.objects.filter(pk=pk).update(is_active=False)
+    messages.success(request, 'Propiedad eliminada correctamente.')
+    return redirect('properties:my_properties')
 
 # Vista ULTRA SIMPLE sin templates - SOLO HTML PURO
 def simple_properties_view(request):
@@ -198,6 +242,7 @@ class SimplePropertyListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         # Mostrar solo propiedades activas (no borradores)
         return Property.objects.filter(is_active=True).order_by('-created_at')
+    
 from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView, ListView, CreateView
@@ -233,6 +278,34 @@ def agency_config_view(request):
         'config': config
     })
 
+@login_required
+@require_http_methods(["PATCH"])
+def property_availability_api(request, pk):
+    from .models import Property
+
+    prop = get_object_or_404(Property, pk=pk)
+
+    # permiso básico (ajusta a tu lógica real)
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"detail": "No tienes permisos para cambiar el estado. Solo Superadmin puede hacerlo.", "code": "not_allowed"},
+            status=403
+        )
+
+    payload = json.loads(request.body.decode("utf-8") or "{}")
+    new_status = payload.get("availability_status")
+
+    allowed = {"available", "reserved", "sold", "unavailable", "paused"}
+    if new_status not in allowed:
+        return JsonResponse({"detail": "Invalid status"}, status=400)
+
+    prop.availability_status = new_status
+    prop.save(update_fields=["availability_status"])
+
+    return JsonResponse({
+        "availability_status": prop.availability_status,
+        "availability_label": prop.get_availability_status_display(),
+    })
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -512,7 +585,7 @@ def search_view(request):
 
 
 @login_required
-def legal_documents_list_view(request):
+def legal_documents_list(request):
     """Lista dinámica de documentos por propiedad para el área Legal.
 
     - Columnas dinámicas basadas en DocumentType activos.
@@ -689,170 +762,119 @@ def my_uploaded_documents_view(request):
 
 @login_required
 def matching_matches_view(request, pk: int):
-    """Mostrar coincidencias calculadas para un `Requirement` concreto."""
     req = get_object_or_404(Requirement, pk=pk)
-    # manejar flags: only_matches (mostrar solo criterios que coinciden) y export=csv
-    only_matches = bool(request.GET.get('only_matches'))
-    export = request.GET.get('export')
 
-    # calcular coincidencias
-    results = matching_module.get_matches_for_requirement(req, limit=50)
-    # cargar pesos por criterio para mostrar el valor máximo posible por criterio
-    weights = matching_module._load_weights()
+    qs = (
+        RequirementMatch.objects
+        .filter(requirement=req)
+        .select_related(
+            "property",
+            "property__currency",
+            "property__property_type",
+            "property__property_subtype",
+        )
+        .order_by("-score", "-computed_at")
+    )
 
-    # Añadir representación legible del valor de la propiedad para cada criterio
-    for r in results:
-        prop = r.get('property')
-        details = r.get('details') or {}
-        for k, v in details.items():
-            try:
-                if k == 'property_type':
-                    pv = prop.property_type.name if getattr(prop, 'property_type', None) else '—'
-                elif k == 'property_subtype':
-                    pv = prop.property_subtype.name if getattr(prop, 'property_subtype', None) else '—'
-                elif k == 'district':
-                    pd = getattr(prop, 'district', None)
-                    if not pd:
-                        pv = '—'
-                    else:
-                        pd_str = str(pd).strip()
-                        # si es número, intentar resolver a District por id
-                        if pd_str.isdigit():
-                            try:
-                                from .models import District
-                                dobj = District.objects.filter(id=int(pd_str)).first()
-                                pv = dobj.name if dobj else pd_str
-                            except Exception:
-                                pv = pd_str
-                        else:
-                            pv = pd_str
-                elif k == 'price':
-                    symbol = prop.currency.symbol if getattr(prop, 'currency', None) else '$'
-                    pv = f"{symbol} {prop.price}" if getattr(prop, 'price', None) is not None else '—'
-                elif k == 'currency':
-                    pv = prop.currency.code if getattr(prop, 'currency', None) else '—'
-                elif k == 'payment_method':
-                    pm = getattr(prop, 'forma_de_pago', None)
-                    try:
-                        pv = pm.name if pm is not None else '—'
-                    except Exception:
-                        pv = str(pm) if pm is not None else '—'
-                elif k == 'bedrooms':
-                    pv = str(getattr(prop, 'bedrooms', '—') or '—')
-                elif k == 'land_area':
-                    pv = str(getattr(prop, 'land_area', '—') or '—')
-                else:
-                    val = getattr(prop, k, None)
-                    if val is None:
-                        pv = '—'
-                    else:
-                        # intentar tomar .name para FKs o convertir a string
-                        pv = getattr(val, 'name', None) or str(val)
-            except Exception:
-                pv = '—'
+    # Si quieres limitar en UI (opcional)
+    limit = int(request.GET.get("limit", 100))
+    qs = qs[:limit]
 
-            # asegurar que `v` sea dict y almacenar la representación
-            if isinstance(v, dict):
-                v['prop_value'] = pv
-                # añadir el peso máximo (valor completo) para este criterio
-                v['max'] = weights.get(k, 0)
-            else:
-                # si v no es dict, convertir a dict para mantener compatibilidad
-                details[k] = {'contrib': 0, 'matched': False, 'info': '', 'prop_value': pv, 'max': weights.get(k, 0)}
+    # Adaptamos a lo que tu template espera (r.score, r.property, r.district_display)
+    results = []
+    for rm in qs:
+        prop = rm.property
 
-        # Resolver nombre legible de distrito para la fila resumen (evita mostrar ids numéricos)
-        pd = getattr(prop, 'district', None)
-        if not pd:
-            district_display = ''
-        else:
-            try:
-                pd_str = str(pd).strip()
-                if pd_str.isdigit():
-                    from .models import District
-                    dobj = District.objects.filter(id=int(pd_str)).first()
-                    district_display = dobj.name if dobj else pd_str
-                else:
-                    district_display = pd_str
-            except Exception:
-                district_display = str(pd)
-
-        # Adjuntar display al resultado para uso en templates
-        r['district_display'] = district_display
-        # Asegurar que exista entrada para método de pago en detalles (es filtro excluyente pero útil mostrarlo)
+        # district_display robusto
+        district_display = "—"
         try:
-            if 'payment_method' not in details:
-                req_pm = getattr(req, 'payment_method', None)
-                prop_pm = getattr(prop, 'forma_de_pago', None)
-                matched_pm = False
-                if req_pm and prop_pm:
-                    try:
-                        matched_pm = req_pm.id == prop_pm.id
-                    except Exception:
-                        matched_pm = str(req_pm) == str(prop_pm)
-                details['payment_method'] = {
-                    'contrib': 0.0,
-                    'matched': matched_pm,
-                    'info': 'match' if matched_pm else 'no_match',
-                    'prop_value': (prop_pm.name if prop_pm else (str(prop_pm) if prop_pm is not None else '—'))
-                }
+            d = getattr(prop, "district_fk", None)
+            if d:
+                district_display = getattr(d, "name", None) or str(d)
         except Exception:
             pass
 
-    # si piden exportar a CSV, generar respuesta
-    if export == 'csv':
-        import csv
-        import io
+        results.append({
+            "score": rm.score,                 # Decimal OK para floatformat
+            "property": prop,
+            "district_display": district_display,
+            "match_id": rm.id,
+        })
 
-        output = io.StringIO()
-        writer = csv.writer(output)
-        # cabecera
-        writer.writerow(['score', 'property_code', 'title', 'price', 'currency', 'district', 'details'])
-
-        for r in results:
-            prop = r['property']
-            details = []
-            for k, v in r['details'].items():
-                # v may be dict with contrib/matched/info
-                if isinstance(v, dict):
-                    if only_matches and not v.get('matched'):
-                        continue
-                    details.append(f"{k}:{v.get('contrib',0):.2f}|m:{int(bool(v.get('matched')))}|{v.get('info','')}")
-                else:
-                    details.append(f"{k}:{v}")
-
-            # resolver nombre de distrito para CSV
-            pd = getattr(prop, 'district', None)
-            if not pd:
-                district_display = ''
-            else:
-                pd_str = str(pd).strip()
-                if pd_str.isdigit():
-                    try:
-                        from .models import District
-                        dobj = District.objects.filter(id=int(pd_str)).first()
-                        district_display = dobj.name if dobj else pd_str
-                    except Exception:
-                        district_display = pd_str
-                else:
-                    district_display = pd_str
-
-            writer.writerow([
-                r['score'],
-                getattr(prop, 'code', ''),
-                getattr(prop, 'title', ''),
-                getattr(prop, 'price', ''),
-                getattr(prop, 'currency').symbol if getattr(prop, 'currency', None) else '',
-                district_display,
-                ';'.join(details)
-            ])
-
-        resp = HttpResponse(output.getvalue(), content_type='text/csv')
-        resp['Content-Disposition'] = f'attachment; filename="matches_requirement_{req.id}.csv"'
-        return resp
-
-    return render(request, 'properties/matching_matches.html', {'requirement': req, 'results': results, 'only_matches': only_matches})
+    return render(
+        request,
+        "properties/matching_matches.html",
+        {
+            "requirement": req,
+            "results": results,
+        }
+    )
 
 # ...existing code...
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def api_recalculate_requirement_matches(request, req_id: int):
+    req = get_object_or_404(Requirement, pk=req_id)
+
+    limit = int(request.query_params.get("limit", 20))
+    min_score = float(request.query_params.get("min_score", 0))
+
+    results = get_matches(req, limit=limit)
+
+    created = 0
+    updated = 0
+    saved = []
+    new_prop_ids = set()
+
+    with transaction.atomic():
+        for item in results:
+            prop = item["property"]
+            score = float(item.get("score") or 0)
+            details = item.get("details") or {}
+
+            if score < min_score:
+                continue
+
+            obj, was_created = RequirementMatch.objects.update_or_create(
+                requirement=req,
+                property=prop,
+                defaults={"score": score, "details": details},
+            )
+
+            new_prop_ids.add(prop.id)
+            created += 1 if was_created else 0
+            updated += 0 if was_created else 1
+            saved.append({"property_id": prop.id, "score": score})
+
+        qs_old = RequirementMatch.objects.filter(requirement=req)
+        if new_prop_ids:
+            qs_old.exclude(property_id__in=new_prop_ids).delete()
+        else:
+            qs_old.delete()
+
+    total_saved = created + updated
+
+    if total_saved == 0:
+        messages.warning(
+            request,
+            "No se encontraron matches para este requerimiento.\n"
+            "Edita tu búsqueda (precio, distritos, dormitorios/baños) y vuelve a recalcular.\n"
+        )
+    else:
+        messages.success(request, f"Listo: se guardaron {total_saved} coincidencias.")
+
+    return Response(
+        {
+            "requirement_id": req.id,
+            "limit": limit,
+            "min_score": min_score,
+            "created": created,
+            "updated": updated,
+            "total_saved": total_saved,
+            "saved_preview": saved[:50],
+        },
+        status=status.HTTP_200_OK
+    )
 
 # Vista para editar contacto
 class ContactEditView(LoginRequiredMixin, UpdateView):
@@ -958,6 +980,10 @@ class ContactListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         queryset = PropertyOwner.objects.filter(is_active=True)
+                
+        if not self.request.user.is_superuser:
+            queryset = queryset.filter(created_by=self.request.user)
+
         search = self.request.GET.get('search', '').strip()
         if search:
             queryset = queryset.filter(
@@ -985,7 +1011,7 @@ class ContactCreateView(LoginRequiredMixin, CreateView):
 
 
 class MyPropertiesView(LoginRequiredMixin, ListView):
-    """Lista de propiedades creadas por el usuario actualmente logueado (activas)."""
+    """Lista de propiedades asignadas al usuario actualmente logueado (activas)."""
     model = Property
     template_name = 'properties/my_properties.html'
     context_object_name = 'properties'
@@ -993,13 +1019,23 @@ class MyPropertiesView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         from django.db.models import Count
-        return Property.objects.filter(
-            created_by=self.request.user, 
-            is_active=True
-        ).annotate(
-            visit_count=Count('property_events')
-        ).order_by('-created_at')
+        from .queryset import my_properties_for
 
+        qs = (
+            Property.objects
+            .select_related(
+                'property_type', 'status', 'owner', 'created_by', 'currency',
+                'responsible', 'land_area_unit', 'built_area_unit',
+            )
+        )
+
+        qs = my_properties_for(self.request.user, qs)
+
+        return (
+            qs.annotate(visit_count=Count('property_events', distinct=True))
+              .order_by('-created_at')
+        )
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Fix for count with pagination (queryset is sliced in context['properties'] usually just page)
@@ -1007,342 +1043,447 @@ class MyPropertiesView(LoginRequiredMixin, ListView):
         context['property_count'] = self.get_queryset().count() 
         return context
 
+def recalculate_requirement_matches(req: Requirement, *, limit: int = 20, min_score: float = 0.0) -> dict:
+    """
+    Reusa EXACTAMENTE la lógica de tu API:
+    - llama get_matches(req, limit=limit)
+    - guarda en RequirementMatch con update_or_create
+    - respeta min_score
+    """
+    results = get_matches(req, limit=limit)
+
+    created = 0
+    updated = 0
+    saved = []
+    new_prop_ids = set()
+
+    with transaction.atomic():
+        for item in results:
+            prop = item["property"]
+            score = float(item.get("score") or 0)
+            details = item.get("details") or {}
+
+            if score < float(min_score):
+                continue
+
+            obj, was_created = RequirementMatch.objects.update_or_create(
+                requirement=req,
+                property=prop,
+                defaults={"score": score, "details": details},
+            )
+            new_prop_ids.add(prop.id)
+            created += 1 if was_created else 0
+            updated += 0 if was_created else 1
+            saved.append({"property_id": prop.id, "score": score})
+
+        qs_old = RequirementMatch.objects.filter(requirement=req)
+        if new_prop_ids:
+            qs_old.exclude(property_id__in=new_prop_ids).delete()
+        else:
+            # si no se guardó nada nuevo, entonces el requerimiento quedó sin matches
+            qs_old.delete()
+
+    total_saved = created + updated
+
+    return {
+        "requirement_id": req.id,
+        "limit": limit,
+        "min_score": float(min_score),
+        "created": created,
+        "updated": updated,
+        "total_saved": total_saved,
+        "saved_preview": saved[:50],
+    }
+
 
 class RequirementListView(LoginRequiredMixin, ListView):
     model = Requirement
-    template_name = 'properties/requirements_list.html'
-    context_object_name = 'requirements'
-    paginate_by = 12
+    template_name = "properties/requirements_list.html"
+    context_object_name = "requirements"
+    paginate_by = 100
 
     def get_queryset(self):
-        # Mostrar los requerimientos activos de todos los usuarios (no filtrar por created_by)
-        qs = Requirement.objects.filter(is_active=True).order_by('-created_at')
-        from django.db import OperationalError
-        try:
-            q = self.request.GET.get('search', '').strip()
-            if q:
-                qs = qs.filter(
-                    Q(property_type__name__icontains=q) |
-                    Q(property_subtype__name__icontains=q) |
-                    Q(district__name__icontains=q) |
-                    Q(urbanization__name__icontains=q)
+        qs = (
+            Requirement.objects
+            .filter(is_active=True)
+            # SOLO desde 01/10/2025 según source_date
+            .filter(source_date__gte=date(2025, 10, 1))
+            .select_related(
+                "created_by",
+                "operation_type",
+                "property_type",
+                "property_subtype",
+                "currency",
+                "payment_method",
+                "property_status",
+                "contact",
+            )
+            .prefetch_related("districts")
+            .annotate(
+                match_score=Max(
+                    "matches__score",
+                    filter=Q(matches__property__availability_status="available"),
+                ),
+                match_count=Count(
+                    "matches",
+                    filter=Q(matches__property__availability_status="available"),
+                    distinct=True,
                 )
-            return qs
-        except OperationalError:
-            return Requirement.objects.none()
+            )
+            .defer("notes", "notes_message_ws")
+            .order_by("-source_date", "-created_at")
+        )
+
+        agent_id = self.request.GET.get("agent")
+        if agent_id and agent_id.isdigit():
+            qs = qs.filter(created_by_id=int(agent_id))
+
+        # ✅ estos filtros ahora deben ir contra source_date (no created_at)
+        date_start = self.request.GET.get("date_start")
+        if date_start:
+            qs = qs.filter(source_date__gte=date_start)
+
+        date_end = self.request.GET.get("date_end")
+        if date_end:
+            qs = qs.filter(source_date__lte=date_end)
+
+        return qs
 
     def get_context_data(self, **kwargs):
-        """Añadir puntuaciones de matching para cada requerimiento mostrado en la página.
-
-        Calculamos la mejor coincidencia (limit=1) usando `matching.get_matches_for_requirement`
-        y exponemos un diccionario `matches_scores` en el contexto con {requirement_id: score}.
-        """
         context = super().get_context_data(**kwargs)
-        reqs = context.get('requirements', [])
-        scores = {}
-        try:
-            for r in reqs:
-                try:
-                    res = matching_module.get_matches_for_requirement(r, limit=1)
-                    if res:
-                        scores[r.id] = res[0]['score']
-                        # attach to object for easy template access
-                        setattr(r, 'match_score', res[0]['score'])
-                    else:
-                        scores[r.id] = None
-                        setattr(r, 'match_score', None)
-                except Exception:
-                    scores[r.id] = None
-                    setattr(r, 'match_score', None)
-        except Exception:
-            # en caso de errores en DB/logic, no romper la página
-            scores = {}
 
-        context['matches_scores'] = scores
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        context["agents"] = User.objects.filter(is_active=True).order_by("first_name", "last_name")
+        context["filters"] = {
+            "agent": self.request.GET.get("agent", ""),
+            "date_start": self.request.GET.get("date_start", ""),
+            "date_end": self.request.GET.get("date_end", ""),
+        }
+
+        # ✅ para mantener filtros al paginar (sin romperte la URL)
+        q = self.request.GET.copy()
+        q.pop("page", None)
+        context["qs_no_page"] = q.urlencode()
+
         return context
-
-
+    
 @login_required
 def requirement_create_view(request):
-    from .forms import RequirementSimpleForm, PropertyOwnerForm
-    from .models import PropertyOwner, Requirement
-    from django.contrib import messages
+    contactos_qs = PropertyOwner.objects.filter(is_active=True).order_by("first_name", "last_name")
+    all_subtypes = PropertySubtype.objects.select_related("property_type").order_by("name")
+    currencies = Currency.objects.filter(is_active=True).only("id", "symbol")
+    currency_symbols = {str(c.id): (c.symbol or "") for c in currencies}
 
-    if request.method == 'POST':
-        form = RequirementSimpleForm(request.POST)
+    if request.method == "POST":
+        form = RequirementCreateForm(request.POST)
         owner_form = PropertyOwnerForm(request.POST, request.FILES)
-        
-        # Determinar si se seleccionó un contacto existente o se crea uno nuevo
-        existing_owner_id = request.POST.get('existing_owner', '').strip()
-        
+
+        existing_owner_id = (request.POST.get("existing_owner") or "").strip()
+
+        # 1) contacto (OPCIONAL)
         contact_instance = None
-        
+
         if existing_owner_id:
-            # Usar contacto existente
-            try:
-                contact_instance = PropertyOwner.objects.get(id=existing_owner_id)
-            except PropertyOwner.DoesNotExist:
-                messages.error(request, 'El contacto seleccionado no existe.')
-                return render(request, 'properties/requirement_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+            contact_instance = contactos_qs.filter(id=existing_owner_id).first()
+            if not contact_instance:
+                messages.error(request, "El contacto seleccionado no existe.")
+                return render(request, "properties/requirement_create.html", {
+                    "form": form,
+                    "owner_form": owner_form,
+                    "contactos_existentes": contactos_qs,
+                    "all_subtypes": all_subtypes,
+                    "currency_symbols": currency_symbols,
                 })
         else:
-            # Crear nuevo contacto solo si el formulario contiene cambios reales
             if owner_form.is_valid() and owner_form.has_changed():
                 contact_instance = owner_form.save(commit=False)
                 contact_instance.created_by = request.user
                 contact_instance.save()
-                owner_form.save_m2m()  # Para tags
+                owner_form.save_m2m()
+
+        # 2) validar requirement
+        if not form.is_valid():
+            messages.error(request, "Revisa los campos del requerimiento.")
+            return render(request, "properties/requirement_create.html", {
+                "form": form,
+                "owner_form": owner_form,
+                "contactos_existentes": contactos_qs,
+                "all_subtypes": all_subtypes,
+                "currency_symbols": currency_symbols,
+            })
+
+        req: Requirement = form.save(commit=False)
+        req.contact = contact_instance
+
+        req.assigned_to = request.user
+        req.created_by = request.user
+
+        # ✅ FIX UNIQUE(uq_requirement_import_row): evitar (NULL, NULL)
+        if not req.import_batch:
+            req.import_batch = "manual"
+        if not req.import_row_sig:
+            req.import_row_sig = uuid.uuid4().hex
+
+        # ✅ NUEVO: si es manual y no vino source_date, setearlo a "hoy"
+        if not req.source_date:
+            req.source_date = timezone.localdate()
+
+        req.save()
+        form.save_m2m()
+
+        try:
+            res = recalculate_requirement_matches(req, limit=10, min_score=80.0)
+            total_saved = int(res.get("created", 0)) + int(res.get("updated", 0))
+
+            if total_saved == 0:
+                messages.warning(
+                    request,
+                    "No se encontraron matches para este requerimiento.\n"
+                    "Edita tu búsqueda (precio, distritos, dormitorios/baños) y vuelve a recalcular.\n"
+                )
             else:
-                messages.error(request, 'Por favor selecciona un contacto existente o completa los datos del contacto.')
-                return render(request, 'properties/requirement_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+                messages.success(request, "Requerimiento creado. Se calcularon coincidencias.")
+        except Exception:
+            messages.success(request, "Requerimiento creado correctamente (sin recalcular coincidencias).")
+
+        return redirect("properties:requirements_my")
+
+    form = RequirementCreateForm()
+    owner_form = PropertyOwnerForm()
+    return render(request, "properties/requirement_create.html", {
+        "form": form,
+        "owner_form": owner_form,
+        "contactos_existentes": contactos_qs,
+        "all_subtypes": all_subtypes,
+        "currency_symbols": currency_symbols,
+    })
+
+@login_required
+def requirement_update_view(request, pk):
+    req = get_object_or_404(Requirement, pk=pk)
+
+    # permisos (igual que tu dispatch)
+    is_call_center = bool(getattr(request.user, "role", None) and request.user.role.name == "Call Center")
+    if not (request.user.is_superuser or is_call_center or req.created_by_id == request.user.id):
+        messages.error(request, "No tienes permiso para editar este requerimiento.")
+        return redirect("properties:requirements_my")
+
+    contactos_qs = PropertyOwner.objects.filter(is_active=True).order_by("first_name", "last_name")
+    all_subtypes = PropertySubtype.objects.select_related("property_type").order_by("name")
+    currencies = Currency.objects.filter(is_active=True).only("id", "symbol")
+    currency_symbols = {str(c.id): (c.symbol or "") for c in currencies}
+
+    if request.method == "POST":
+        form = RequirementUpdateForm(request.POST, instance=req)
+        owner_form = PropertyOwnerForm(request.POST, request.FILES)
+
+        existing_owner_id = (request.POST.get("existing_owner") or "").strip()
+
+        # ---- CONTACTO: misma lógica que create, pero SIN reventar el contacto actual si no mandas nada ----
+        contact_instance = req.contact  # default: mantener el actual
+
+        if existing_owner_id:
+            contact_instance = contactos_qs.filter(id=existing_owner_id).first()
+            if not contact_instance:
+                messages.error(request, "El contacto seleccionado no existe.")
+                return render(request, "properties/requirement_create.html", {
+                    "form": form,
+                    "owner_form": owner_form,
+                    "contactos_existentes": contactos_qs,
+                    "all_subtypes": all_subtypes,
+                    "currency_symbols": currency_symbols,
+                    "selected_owner_id": str(getattr(req, "contact_id", "") or ""),
+                    "is_edit": True,
+                    "submit_text": "Actualizar",
                 })
-        
-        if form.is_valid():
-            data = form.cleaned_data
-            req = Requirement()
-            
-            # Reasignación de agente (solo superuser o Call Center)
-            is_call_center = request.user.role and request.user.role.name == 'Call Center'
-            if (request.user.is_superuser or is_call_center) and data.get('assigned_agent'):
-                req.created_by = data.get('assigned_agent')
-            else:
-                req.created_by = request.user
-            
-            req.contact = contact_instance  # Asignar el contacto
-            
-            req.property_type = data.get('property_type')
-            req.property_subtype = data.get('property_subtype')
-            bt = data.get('budget_type')
-            req.budget_type = bt or 'approx'
-            if bt == 'approx':
-                req.budget_approx = data.get('budget_approx')
-                req.budget_min = None
-                req.budget_max = None
-            else:
-                req.budget_min = data.get('budget_min')
-                req.budget_max = data.get('budget_max')
-                req.budget_approx = None
-            # Área de terreno
-            at = data.get('area_type')
-            req.area_type = at or 'approx'
-            if at == 'approx':
-                req.land_area_approx = data.get('land_area_approx')
-                req.land_area_min = None
-                req.land_area_max = None
-            else:
-                req.land_area_min = data.get('land_area_min')
-                req.land_area_max = data.get('land_area_max')
-                req.land_area_approx = None
-            # FRENTERA
-            fm = data.get('frontera_mode')
-            req.frontera_type = fm or 'approx'
-            if fm == 'approx':
-                req.frontera_approx = data.get('frontera_approx')
-                req.frontera_min = None
-                req.frontera_max = None
-            else:
-                req.frontera_min = data.get('frontera_min')
-                req.frontera_max = data.get('frontera_max')
-                req.frontera_approx = None
-            # Moneda
-            req.currency = data.get('currency')
-            req.payment_method = data.get('payment_method')
-            req.status = data.get('status')
-            req.department = data.get('department')
-            req.province = data.get('province')
-            
-            req.bedrooms = data.get('bedrooms')
-            req.bathrooms = data.get('bathrooms')
-            req.half_bathrooms = data.get('half_bathrooms')
-            req.floors = data.get('floors')
-            # Número de pisos (solo aplicable para tipo Casa). Guardar único valor entero si viene.
-            nof = data.get('number_of_floors')
-            try:
-                req.number_of_floors = int(nof) if nof not in (None, '') else None
-            except (ValueError, TypeError):
-                req.number_of_floors = None
-            # Ascensor (solo aplicable para departamentos). Esperamos 'yes'/'no' o vacío.
-            asc = data.get('ascensor') if isinstance(data, dict) else None
-            if asc in ('yes', 'no'):
-                req.ascensor = asc
-            else:
-                # como fallback, leer directamente del POST (caso plantilla custom)
-                asc_post = request.POST.get('ascensor')
-                req.ascensor = asc_post if asc_post in ('yes', 'no') else None
-            req.garage_spaces = data.get('garage_spaces')
-            req.notes = data.get('notes')
-            # Guardar requerimiento primero para luego asignar M2M
-            try:
-                req.save()
-            except Exception:
-                messages.error(request, 'No se puede guardar el requerimiento: error inesperado al guardar.')
-                return render(request, 'properties/requirement_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
+        else:
+            # si el form de owner tiene cambios reales => crea nuevo contacto
+            if owner_form.is_valid() and owner_form.has_changed():
+                new_contact = owner_form.save(commit=False)
+                new_contact.created_by = request.user
+                new_contact.save()
+                owner_form.save_m2m()
+                contact_instance = new_contact
 
-            # Asignar distritos múltiples si vienen
-            districts_sel = data.get('district') or []
-            try:
-                req.districts.set(districts_sel)
-            except Exception:
-                pass
+        if not form.is_valid():
+            messages.error(request, "Revisa los campos del requerimiento.")
+            return render(request, "properties/requirement_create.html", {
+                "form": form,
+                "owner_form": owner_form,
+                "contactos_existentes": contactos_qs,
+                "all_subtypes": all_subtypes,
+                "currency_symbols": currency_symbols,
+                "selected_owner_id": str(getattr(req, "contact_id", "") or ""),
+                "is_edit": True,
+                "submit_text": "Actualizar",
+            })
 
-            # Asignar preferencias de pisos (M2M)
-            floors_sel = data.get('preferred_floors') or []
-            try:
-                req.preferred_floors.set(floors_sel)
-            except Exception:
-                pass
+        req2: Requirement = form.save(commit=False)
 
-            # Asignar zonificaciones (M2M) si vienen
-            zon_sel = data.get('zonificacion') or []
-            try:
-                req.zonificaciones.set(zon_sel)
-            except Exception:
-                pass
+        # ✅ mantener/asignar contacto
+        req2.contact = contact_instance
 
-            # Para compatibilidad, si sólo hay una selección, asignarla al FK `district`
-            try:
-                if hasattr(districts_sel, '__len__') and len(districts_sel) == 1:
-                    req.district = list(districts_sel)[0]
-                else:
-                    req.district = None
-            except Exception:
-                req.district = None
-            from django.db import OperationalError
-            try:
-                req.save()
-            except OperationalError:
-                messages.error(request, 'No se puede guardar el requerimiento: base de datos no preparada. Contacte al administrador.')
-                return render(request, 'properties/requirement_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
-            # Recalcular coincidencias inmediatamente y guardarlas en cache para acceso rápido
-            try:
-                persist_matches_for_requirement(req, limit=50, min_score=50)
-                messages.success(request, 'Requerimiento guardado correctamente. Se calcularon coincidencias.')
-            except Exception:
-                # No romper el flujo principal si el cálculo falla
-                messages.success(request, 'Requerimiento guardado correctamente.')
-            return redirect('properties:requirements_my')
-    else:
-        form = RequirementSimpleForm()
-        owner_form = PropertyOwnerForm()
+        # ✅ BLINDAJES IMPORTANTES (lo que tú dijiste)
+        if not req2.import_batch:
+            req2.import_batch = "manual"
+        if not req2.import_row_sig:
+            req2.import_row_sig = uuid.uuid4().hex
 
-    return render(request, 'properties/requirement_create.html', {
-        'form': form,
-        'owner_form': owner_form,
-        'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
+        # ✅ CLAVE: NO permitir que source_date se vuelva NULL por accidente
+        # - si ya tenía, conservar
+        # - si nunca tuvo, setear hoy
+        if not req2.source_date:
+            req2.source_date = req.source_date or timezone.localdate()
+
+        req2.save()
+        form.save_m2m()
+
+        # recalcular matches y mensaje ÚNICO
+        try:
+            res = recalculate_requirement_matches(req2, limit=10, min_score=80.0)
+            total_saved = int(res.get("total_saved") or (res.get("created", 0) + res.get("updated", 0)))
+
+            if total_saved == 0:
+                messages.warning(
+                    request,
+                    "No se encontraron matches para este requerimiento.\n"
+                    "Edita tu búsqueda (precio, distritos, dormitorios/baños) y vuelve a recalcular.\n"
+                )
+            else:
+                messages.success(request, f"Requerimiento actualizado. Se guardaron {total_saved} coincidencias.")
+        except Exception:
+            messages.success(request, "Requerimiento actualizado correctamente (sin recalcular coincidencias).")
+
+        return redirect("properties:requirements_my")
+
+    # GET
+    form = RequirementUpdateForm(instance=req)
+    owner_form = PropertyOwnerForm()
+
+    return render(request, "properties/requirement_create.html", {
+        "form": form,
+        "owner_form": owner_form,
+        "contactos_existentes": contactos_qs,
+        "all_subtypes": all_subtypes,
+        "currency_symbols": currency_symbols,
+        "selected_owner_id": str(getattr(req, "contact_id", "") or ""),
+        "is_edit": True,
+        "submit_text": "Actualizar",
     })
 
 
 class MyRequirementsView(LoginRequiredMixin, ListView):
     model = Requirement
-    template_name = 'properties/my_requirements.html'
-    context_object_name = 'requirements'
-    paginate_by = 12
+    template_name = "properties/my_requirements.html"
+    context_object_name = "requirements"
+    paginate_by = 100  # igual que lista masiva
 
     def get_queryset(self):
-        from django.db import OperationalError
-        try:
-            # Annotate: count y top_score desde DB
-            return (
-                Requirement.objects
-                .filter(created_by=self.request.user)
-                .annotate(
-                    matches_count=Count('matches', distinct=True),
-                    top_score=Max('matches__score'),
-                )
-                .order_by('-created_at')
+        qs = (
+            Requirement.objects
+            .filter(is_active=True)
+            # ✅ SOLO mis requerimientos
+            .filter(created_by=self.request.user)
+            # ✅ SOLO desde 01/10/2025 según source_date (igual que list)
+            .filter(source_date__gte=date(2025, 10, 1))
+            .select_related(
+                "created_by",
+                "operation_type",
+                "property_type",
+                "property_subtype",
+                "currency",
+                "payment_method",
+                "property_status",
+                "contact",
             )
-        except OperationalError:
-            return Requirement.objects.none()
+            .prefetch_related("districts")
+            .annotate(
+                match_score=Max(
+                    "matches__score",
+                    filter=Q(matches__property__availability_status="available"),
+                ),
+                match_count=Count(
+                    "matches",
+                    filter=Q(matches__property__availability_status="available"),
+                    distinct=True,
+                )
+            )
+            .defer("notes", "notes_message_ws")
+            .order_by("-source_date", "-created_at")
+        )
+
+        # ✅ filtro por contacto (reemplaza agent)
+        contact_id = self.request.GET.get("contact")
+        if contact_id and contact_id.isdigit():
+            qs = qs.filter(contact_id=int(contact_id))
+
+        # ✅ filtros contra source_date (igual que list)
+        date_start = self.request.GET.get("date_start")
+        if date_start:
+            qs = qs.filter(source_date__gte=date_start)
+
+        date_end = self.request.GET.get("date_end")
+        if date_end:
+            qs = qs.filter(source_date__lte=date_end)
+
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        matches_map = {}
-        for req in context.get('requirements', []):
-            matches_map[req.pk] = {
-                'count': getattr(req, 'matches_count', 0) or 0,
-                'top_score': getattr(req, 'top_score', None),
-            }
+        # ✅ dropdown contactos: solo contactos que aparecen en MIS requerimientos
+        context["contacts"] = (
+            PropertyOwner.objects
+            .filter(requirements__created_by=self.request.user)
+            .distinct()
+            .order_by("first_name", "last_name")
+        )
 
-        context['matches_map'] = matches_map
+        context["filters"] = {
+            "contact": self.request.GET.get("contact", ""),
+            "date_start": self.request.GET.get("date_start", ""),
+            "date_end": self.request.GET.get("date_end", ""),
+        }
+
+        # ✅ para mantener filtros al paginar (sin romperte la URL)
+        q = self.request.GET.copy()
+        q.pop("page", None)
+        context["qs_no_page"] = q.urlencode()
+
         return context
-
 
 class RequirementDetailView(LoginRequiredMixin, DetailView):
     model = Requirement
     template_name = 'properties/requirement_detail.html'
     context_object_name = 'requirement'
 
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related(
+                "created_by",
+                "assigned_to",
+                "operation_type",
+                "property_type",
+                "property_subtype",
+                "property_status",
+                "currency",
+                "payment_method",
+                "contact",
+            )
+            .prefetch_related("districts")
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         req = self.get_object()
         user = self.request.user
-        # Solo puede ver PII el superuser o el creador del requerimiento
         can_view_pii = user.is_superuser or (req.created_by and req.created_by.id == user.id)
         context['can_view_pii'] = can_view_pii
         return context
-
-
-from django.views.generic.edit import UpdateView
-from django.contrib import messages
-
-
-class RequirementUpdateView(LoginRequiredMixin, UpdateView):
-    model = Requirement
-    template_name = 'properties/requirement_edit.html'
-    form_class = None  # set in get_form_class to avoid import cycles
-
-    def get_form_class(self):
-        from .forms import RequirementEditForm
-        return RequirementEditForm
-
-    def get_initial(self):
-        initial = super().get_initial()
-        if self.object.created_by:
-            initial['assigned_agent'] = self.object.created_by
-        return initial
-
-    def form_valid(self, form):
-        req = form.save(commit=False)
-        # sólo el creador, Call Center o superuser puede editar
-        is_call_center = (self.request.user.role and self.request.user.role.name == 'Call Center')
-        if not (self.request.user.is_superuser or is_call_center or (req.created_by and req.created_by.id == self.request.user.id)):
-            messages.error(self.request, 'No tienes permiso para editar este requerimiento.')
-            return redirect('properties:requirements_my')
-        
-        # Permitir reasignación del agente (created_by) si tiene permisos
-        if (self.request.user.is_superuser or is_call_center) and form.cleaned_data.get('assigned_agent'):
-            req.created_by = form.cleaned_data.get('assigned_agent')
-
-        req.modified_by = self.request.user
-        req.save()
-        # guardar M2M `districts`, `preferred_floors`, `zonificaciones`
-        try:
-            form.save_m2m()
-        except Exception:
-            pass
-
-        try:
-            persist_matches_for_requirement(req, limit=50, min_score=50)
-        except Exception:
-            pass
-
-        messages.success(self.request, 'Requerimiento actualizado correctamente.')
-        return redirect('properties:requirements_detail', pk=req.pk)
 
 
 @login_required
@@ -1370,6 +1511,21 @@ def requirement_delete_view(request, pk):
 # =============================================================================
 # VISTAS PARA AGENDA Y EVENTOS
 # =============================================================================
+def agent_color(agent_id: int) -> str:
+    """
+    Genera un color único y consistente para cada agente usando HSL y el ángulo áureo.
+    Esto asegura que cada ID tenga un color distinto y evita colisiones visuales.
+    """
+    if not agent_id:
+        return '#616161'
+    # Ángulo áureo para distribuir colores uniformemente en el círculo cromático
+    hue = (agent_id * 137.508) % 360
+    # Variar la saturación y luminosidad en función del ID para mayor diferenciación
+    saturation = 45 + (agent_id % 5) * 8  # Saturación entre 45% y 85%
+    lightness = 30 + (agent_id % 8) * 6   # Luminosidad entre 30% y 78%
+
+    return f"hsl({hue:.1f}, {saturation}%, {lightness}%)"
+
 
 @login_required
 def agenda_calendar_view(request):
@@ -1377,28 +1533,33 @@ def agenda_calendar_view(request):
     from .models import EventType, Event
     from django.contrib.auth import get_user_model
     User = get_user_model()
-    
+
     event_types = EventType.objects.filter(is_active=True).order_by('name')
-    
+
     # Determinar si el usuario puede ver a otros agentes
     is_call_center = request.user.role and request.user.role.name == 'Call Center'
     can_see_all = request.user.is_superuser or is_call_center
-    
+
     agents_with_events = []
     if can_see_all:
         # Obtener agentes que tienen al menos un evento activo
-        agent_ids = Event.objects.filter(is_active=True).values_list('created_by', flat=True).distinct()
-        agents_with_events = User.objects.filter(id__in=agent_ids).only('id', 'first_name', 'last_name', 'username').order_by('id')
-        
-        # Asignar un color a cada agente (generado determinísticamente)
-        colors = [
-            '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6', 
-            '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
-            '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
-        ]
-        
-        for i, agent in enumerate(agents_with_events):
-            agent.calendar_color = colors[i % len(colors)]
+        agent_ids = (
+            Event.objects
+            .filter(is_active=True)
+            .values_list('assigned_agent_id', flat=True)
+            .distinct()
+        )
+
+        agents_with_events = (
+            User.objects
+            .filter(id__in=agent_ids)
+            .only('id', 'first_name', 'last_name', 'username')
+            .order_by('id')
+        )
+
+        # ✅ Color determinístico por agent.id (estable)
+        for agent in agents_with_events:
+            agent.calendar_color = agent_color(agent.id)
 
     return render(request, 'properties/agenda_calendar.html', {
         'event_types': event_types,
@@ -1406,72 +1567,55 @@ def agenda_calendar_view(request):
         'can_see_all': can_see_all
     })
 
-
-@login_required
 @login_required
 def event_create_view(request):
-    """Vista para crear un nuevo evento"""
-    from .forms import EventForm, PropertyOwnerForm
-    from .models import Event, PropertyOwner
+    """Vista para crear un nuevo evento (sin contacto obligatorio)"""
+    from .forms import EventForm
+    from .models import Event, EventType, Proposal
     from django.contrib import messages
-    
+
+    EventType.objects.get_or_create(name='Otro', defaults={'color': '#6c757d'})
+    visita_type = EventType.objects.filter(name__iexact='Visita').first()
+
+    proposal_id = request.GET.get("proposal")
+    property_id = request.GET.get("property")
+
     if request.method == 'POST':
         form = EventForm(request.POST)
-        owner_form = PropertyOwnerForm(request.POST, request.FILES)
-        
-        # Determinar si se seleccionó un contacto existente o se crea uno nuevo
-        existing_owner_id = request.POST.get('existing_owner', '').strip()
-        
-        contact_instance = None
-        
-        if existing_owner_id:
-            # Usar contacto existente
-            try:
-                contact_instance = PropertyOwner.objects.get(id=existing_owner_id)
-            except PropertyOwner.DoesNotExist:
-                messages.error(request, 'El contacto seleccionado no existe.')
-                return render(request, 'properties/event_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
-        else:
-            # Crear nuevo contacto solo si el formulario contiene cambios reales
-            if owner_form.is_valid() and owner_form.has_changed():
-                contact_instance = owner_form.save(commit=False)
-                contact_instance.created_by = request.user
-                contact_instance.save()
-                owner_form.save_m2m()  # Para tags
-            else:
-                messages.error(request, 'Por favor selecciona un contacto existente o completa los datos del contacto.')
-                return render(request, 'properties/event_create.html', {
-                    'form': form,
-                    'owner_form': owner_form,
-                    'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
-                })
-        
+
+        if 'created_by' in form.fields:
+            form.fields['created_by'].required = False
+
+        if 'status' in form.fields:
+                form.fields['status'].required = False
+
         if form.is_valid():
             event = form.save(commit=False)
-            
-            # Reasignación de agente (solo superuser o Call Center)
-            is_call_center = request.user.role and request.user.role.name == 'Call Center'
-            if (request.user.is_superuser or is_call_center) and form.cleaned_data.get('created_by'):
-                event.created_by = form.cleaned_data.get('created_by')
-            else:
-                event.created_by = request.user
-            
-            event.contact = contact_instance  # Asignar el contacto
+            event.created_by = request.user
+
+            if not event.assigned_agent:
+                event.assigned_agent = request.user
+
+            if proposal_id:
+                event.proposal_id = proposal_id
+
             event.save()
             messages.success(request, f'Evento "{event.titulo}" creado exitosamente.')
             return redirect('properties:agenda_calendar')
+
     else:
-        form = EventForm()
-        owner_form = PropertyOwnerForm()
-    
+        initial = {}
+        if property_id:
+            initial["property"] = property_id
+
+        initial["assigned_agent"] = request.user.id
+        if visita_type:
+            initial["event_type"] = visita_type.id
+
+        form = EventForm(initial=initial)
+
     return render(request, 'properties/event_create.html', {
         'form': form,
-        'owner_form': owner_form,
-        'contactos_existentes': PropertyOwner.objects.filter(is_active=True).order_by('first_name')
     })
 
 
@@ -1483,21 +1627,45 @@ def event_edit_view(request, pk):
     
     event = get_object_or_404(Event, pk=pk)
     
-    # Solo el creador o superusuario puede editar
-    if not (request.user.is_superuser or event.created_by == request.user):
-        from django.contrib import messages
+    is_visita = (event.event_type_id == 1) # visitas solo superadmin. - resto superadmin o creador
+    if is_visita:
+        if not request.user.is_superuser:
+            messages.error(request, 'Solo el superadministrador puede editar eventos de tipo Visita.')
+            return redirect('properties:agenda_calendar')
+    elif not (request.user.is_superuser or event.created_by == request.user):
         messages.error(request, 'No tienes permiso para editar este evento.')
         return redirect('properties:agenda_calendar')
     
     if request.method == 'POST':
         form = EventForm(request.POST, instance=event)
+        if 'created_by' in form.fields:
+            form.fields['created_by'].required = False
+        
+        if 'status' in form.fields:
+            form.fields['status'].required = False
+            
         if form.is_valid():
-            form.save()
-            from django.contrib import messages
-            messages.success(request, f'Evento "{event.titulo}" actualizado exitosamente.')
+            obj = form.save(commit=False)
+
+            # ✅ nunca permitas que se vuelva NULL
+            if not obj.created_by_id:
+                obj.created_by = event.created_by
+
+            # Si no se envía un estado válido, mantener el que ya tenía guardado
+            if not obj.status:
+                obj.status = event.status
+            
+            # Si se borró el agente asignado por error, restaurar o asignar al editor
+            if not obj.assigned_agent_id:
+                obj.assigned_agent = event.assigned_agent or request.user
+
+            obj.save()
+            messages.success(request, f'Evento "{obj.titulo}" actualizado exitosamente.')
             return redirect('properties:agenda_calendar')
     else:
         form = EventForm(instance=event)
+        if 'status' in form.fields:
+            form.fields['status'].required = False
     
     return render(request, 'properties/event_edit.html', {'form': form, 'event': event})
 
@@ -1509,8 +1677,13 @@ def event_delete_view(request, pk):
     
     event = get_object_or_404(Event, pk=pk)
     
-    # Solo el creador o superusuario puede eliminar
-    if not (request.user.is_superuser or event.created_by == request.user):
+    is_visita = (event.event_type_id == 1) # visitas solo superadmin. - resto superadmin o creador
+    if is_visita:
+        if not request.user.is_superuser:
+            from django.contrib import messages
+            messages.error(request, 'Solo el superadministrador puede eliminar eventos de tipo Visita.')
+            return redirect('properties:agenda_calendar')
+    elif not (request.user.is_superuser or event.created_by == request.user):
         from django.contrib import messages
         messages.error(request, 'No tienes permiso para eliminar este evento.')
         return redirect('properties:agenda_calendar')
@@ -1520,46 +1693,149 @@ def event_delete_view(request, pk):
     messages.success(request, 'Evento eliminado correctamente.')
     return redirect('properties:agenda_calendar')
 
+@login_required
+@require_POST
+def event_accept_view(request, event_id):
+    from .models import Event
+    from django.http import JsonResponse
+    event = get_object_or_404(Event, pk=event_id)
+    
+    allowed = request.user.is_superuser
+    if event.property and not allowed:
+        allowed = (request.user == getattr(event.property, 'assigned_agent', None)) or (request.user == getattr(event.property, 'responsible', None))
+    elif not event.property and not allowed:
+        allowed = (request.user == event.assigned_agent)
+        
+    if not allowed:
+        return JsonResponse({"error": "No tienes permiso para aceptar este evento."}, status=403)
+        
+    event.status = Event.STATUS_ACCEPTED
+    event.save(update_fields=['status', 'updated_at'])
+    return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' aceptado.", "status": event.status, "status_display": event.get_status_display()})
+
+@login_required
+@require_POST
+def event_reject_view(request, event_id):
+    from .models import Event
+    from django.http import JsonResponse
+    event = get_object_or_404(Event, pk=event_id)
+    
+    allowed = request.user.is_superuser
+    if event.property and not allowed:
+        allowed = (request.user == getattr(event.property, 'assigned_agent', None)) or (request.user == getattr(event.property, 'responsible', None))
+    elif not event.property and not allowed:
+        allowed = (request.user == event.assigned_agent)
+        
+    if not allowed:
+        return JsonResponse({"error": "No tienes permiso para rechazar este evento."}, status=403)
+        
+    rejection_reason = (request.POST.get("rejection_reason") or "").strip()
+    
+    event.status = Event.STATUS_REJECTED
+    event.rejection_reason = rejection_reason
+    event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+    return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' rechazado.", "status": event.status, "status_display": event.get_status_display()})
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def event_respond_by_code_view(request, event_code, action, rejection_reason=None):
+    """
+    Endpoint para aceptar o rechazar un evento usando su código único.
+    Acción se pasa por parámetro en la URL: 'accept' o 'reject'.
+    El motivo de rechazo puede venir anexado al final del enlace en la URL.
+    """
+    from .models import Event
+    from django.shortcuts import get_object_or_404
+    from urllib.parse import unquote
+
+    event = get_object_or_404(Event, code=event_code)
+
+    allowed = request.user.is_superuser
+    if event.property and not allowed:
+        allowed = (request.user == getattr(event.property, 'assigned_agent', None)) or (request.user == getattr(event.property, 'responsible', None))
+    elif not event.property and not allowed:
+        allowed = (request.user == event.assigned_agent)
+
+    if not allowed:
+        return Response({"error": "No tienes permiso para responder a este evento."}, status=status.HTTP_403_FORBIDDEN)
+
+    if action == 'accept':
+        event.status = Event.STATUS_ACCEPTED
+        message = f"Evento '{event.titulo}' aceptado."
+        event.save(update_fields=['status', 'updated_at'])
+    elif action == 'reject':
+        event.status = Event.STATUS_REJECTED
+        
+        reason = rejection_reason or request.GET.get('rejection_reason') or request.data.get('rejection_reason', '')
+        if reason:
+            event.rejection_reason = unquote(str(reason)).strip()
+            
+        message = f"Evento '{event.titulo}' rechazado."
+        event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+    else:
+        return Response({"error": "Acción no válida. Use 'accept' o 'reject' en la URL."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+    return Response({
+        "ok": True,
+        "message": message,
+        "status": event.status,
+        "status_display": event.get_status_display()
+    })
+
+@login_required
+@require_POST
+def event_save_followup(request, event_id):
+    from .models import Event
+    event = get_object_or_404(Event, pk=event_id)
+
+    # (opcional) seguridad básica: si no puede ver el evento, aquí validas.
+    seguimiento = (request.POST.get("seguimiento") or "").strip()
+    event.seguimiento = seguimiento
+    event.save(update_fields=["seguimiento", "updated_at"])
+
+    return JsonResponse({"ok": True, "seguimiento": event.seguimiento})
 
 @login_required
 def api_events_json(request):
     """API para obtener eventos en formato JSON para el calendario"""
     from .models import Event
     from django.http import JsonResponse
+    from django.db.models import Q
     
-    # Si es superusuario o Call Center, puede ver todos los eventos (o filtrar por agente)
     is_call_center = request.user.role and request.user.role.name == 'Call Center'
     can_see_all = request.user.is_superuser or is_call_center
-    
+
     agent_id = request.GET.get('agent_id')
-    
+
     if can_see_all:
         if agent_id:
-            events = Event.objects.filter(is_active=True, created_by_id=agent_id).select_related('event_type', 'property', 'created_by')
+            events = Event.objects.filter(
+                is_active=True,
+                assigned_agent_id=agent_id
+            ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent')
         else:
-            events = Event.objects.filter(is_active=True).select_related('event_type', 'property', 'created_by')
+            events = Event.objects.filter(
+                is_active=True
+            ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent')
     else:
-        events = Event.objects.filter(is_active=True, created_by=request.user).select_related('event_type', 'property', 'created_by')
-    
-    # Colores para agentes
-    colors_list = [
-        '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF6D01', '#46BDC6', 
-        '#7B1FA2', '#C2185B', '#00796B', '#689F38', '#E64A19', '#5D4037',
-        '#1976D2', '#D32F2F', '#F57C00', '#388E3C', '#0097A7', '#616161'
-    ]
-    
-    # Mapeo de IDs a colores para consistencia
-    agent_ids_distinct = sorted(list(Event.objects.filter(is_active=True).values_list('created_by_id', flat=True).distinct()))
-    agent_color_map = {uid: colors_list[i % len(colors_list)] for i, uid in enumerate(agent_ids_distinct)}
-    
+        events = Event.objects.filter(
+            Q(assigned_agent=request.user) | Q(property__responsible=request.user) | Q(property__assigned_agent=request.user),
+            is_active=True
+        ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent').distinct()
+
     events_data = []
     for event in events:
-        # Si puede ver todo, el color es por agente, sino por tipo de evento
-        if can_see_all:
-            color = agent_color_map.get(event.created_by_id, event.event_type.color)
-        else:
+        # ✅ Lógica de Color: Prioridad al Agente Asignado para coincidir con la leyenda
+        if can_see_all and event.assigned_agent_id:
+            color = agent_color(event.assigned_agent_id)
+        elif can_see_all and event.created_by_id:
+            # Fallback: si no hay agente asignado, usar el color del creador
             color = event.event_type.color
-            
+        else:
+            # Vista de agente normal o sin usuarios: color del tipo de evento
+            color = event.event_type.color
+
         events_data.append({
             'id': event.id,
             'title': event.titulo,
@@ -1570,26 +1846,30 @@ def api_events_json(request):
             'extendedProps': {
                 'code': event.code,
                 'event_type': event.event_type.name,
+                'event_type_id': event.event_type_id,
                 'detalle': event.detalle,
                 'interesado': event.interesado,
                 'property': event.property.exact_address if event.property else '',
                 'property_code': event.property.code if event.property else '',
                 'created_by': event.created_by.get_full_name() if event.created_by else '',
                 'created_by_id': event.created_by.id if event.created_by else None,
+                'property_agent': event.property.assigned_agent.get_full_name() if event.property and event.property.assigned_agent else '',
+                'assigned_agent': event.assigned_agent.get_full_name() if event.assigned_agent else '',
+                'assigned_agent_id': event.assigned_agent_id if event.assigned_agent else None,
+                'status_code': event.status,
+            'status': event.status,
+            'status_display': event.get_status_display(),
+                "rejection_reason": event.rejection_reason or "",
+                "seguimiento": event.seguimiento or "",
             }
         })
-    
+
     return JsonResponse(events_data, safe=False)
 
 
 # =============================================================================
 # VISTAS PARA APIs Y OTROS ENDPOINTS
 # =============================================================================
-
-from decimal import Decimal, InvalidOperation
-from django.urls import reverse
-from django.conf import settings
-from django.templatetags.static import static
 
 # Vista para el detalle de propiedad
 class PropertyDetailView(LoginRequiredMixin, DetailView):
@@ -1599,18 +1879,19 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Añadir videos, documentos y datos financieros al contexto para la plantilla
         property_obj = self.get_object()
-        # Si el objeto es un borrador (`is_draft=True`), sólo el creador o superuser pueden verlo
+
+        if not can_user_see_property(self.request.user, property_obj):
+            raise Http404()
+
         if getattr(property_obj, 'is_draft', False) and property_obj.created_by and property_obj.created_by != self.request.user and not self.request.user.is_superuser:
             raise Http404()
-        # videos relacionados
+
         try:
             context['property_videos'] = list(property_obj.videos.all())
         except Exception:
             context['property_videos'] = []
 
-        # documentos relacionados
         try:
             from .models import DocumentType
             docs = list(property_obj.documents.all())
@@ -1622,11 +1903,9 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
             context['uploaded_doc_ids'] = []
             context['all_document_types'] = []
 
-        # información financiera (si existe) y items simplificados para la plantilla
         try:
             financial_info = getattr(property_obj, 'financial_info', None)
             context['financial_info'] = financial_info
-            # preparar una lista simple de pares etiqueta/valor para la plantilla
             financial_items = []
             if financial_info:
                 if financial_info.initial_commission_percentage is not None:
@@ -1640,8 +1919,27 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
             context['financial_info'] = None
             context['financial_items'] = []
 
-        # Agregar permisos de campos basados en el rol del usuario
         context['field_permissions'] = get_visible_fields_for_user(self.request.user)
+        context['can_manage_role_visibility'] = self.request.user.is_superuser
+
+        visibility_roles = (
+            Role.objects
+            .select_related("area")
+            .filter(is_active=True)
+            .order_by("area__name", "name")
+        )
+
+        selected_visible_role_ids = list(
+            property_obj.visible_for_roles.values_list("id", flat=True)
+        )
+
+        if not selected_visible_role_ids:
+            selected_visible_role_ids = list(
+                visibility_roles.values_list("id", flat=True)
+            )
+
+        context['visibility_roles'] = visibility_roles
+        context['selected_visible_role_ids'] = selected_visible_role_ids
 
         return context
 
@@ -1652,6 +1950,10 @@ class PropertyPDFView(LoginRequiredMixin, DetailView):
 
     def get(self, request, *args, **kwargs):
         property_obj = self.get_object()
+
+        if not can_user_see_property(request.user, property_obj):
+            raise Http404()
+        
         agency = AgencyConfig.objects.first()
         
         # Resolver nombres de ubicación si son IDs (pueden venir como string numérico desde el formulario)
@@ -1720,12 +2022,31 @@ def property_timeline_view(request, pk):
 
 
 @login_required
+def property_role_visibility_update(request, pk):
+    property_obj = get_object_or_404(Property, pk=pk)
+
+    if not request.user.is_superuser:
+        messages.error(request, "No tienes permiso para gestionar la visibilidad por roles.")
+        return redirect("properties:detail", pk=pk)
+
+    if request.method == "POST":
+        role_ids = request.POST.getlist("visible_for_roles")
+
+        roles = Role.objects.filter(id__in=role_ids, is_active=True)
+        property_obj.visible_for_roles.set(roles)
+
+        messages.success(request, "Visibilidad por roles actualizada correctamente.")
+
+    return redirect("properties:detail", pk=pk)
+
+
+@login_required
 def drafts_list_view(request):
     """Listar borradores (propiedades creadas por el usuario con is_active=False)."""
     # Filtrar por `is_draft=True` y `is_active=False` para listar solo borradores reales
-    drafts = Property.objects.filter(created_by=request.user, is_active=False, is_draft=True).order_by('-created_at')
+    drafts = Property.objects.filter(created_by=request.user, is_draft=True).order_by('-created_at')
     return render(request, 'properties/property_drafts.html', {
-        'drafts': drafts,
+        'properties': drafts,
     })
 
 
@@ -1745,19 +2066,15 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         )
 
         queryset = (
-            Property.objects.filter(is_active=True)
+            Property.objects.all()
             .select_related(
                 'property_type', 'status', 'owner', 'created_by', 'currency',
                 'responsible', 'land_area_unit', 'built_area_unit',
             )
             .prefetch_related(Prefetch("images", queryset=images_qs, to_attr="prefetched_images"))
         )
-        
-        # Si el usuario es agente, mostrar solo sus propiedades y asignadas
-        if self.request.user.role and self.request.user.role.code_name == 'agent':
-            queryset = queryset.filter(
-                Q(created_by=self.request.user) | Q(assigned_agent=self.request.user)
-            )
+
+        queryset = visible_properties_for(self.request.user, queryset)
 
         # Búsqueda general por texto (campo `q`) - busca en título, descripción, código, direcciones, amenities y tags
         q = self.request.GET.get('q', '').strip()
@@ -1788,6 +2105,17 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 queryset = queryset.filter(forma_de_pago_id=pm_id)
             except ValueError:
                 pass
+
+        responsible = self.request.GET.get('responsible', '').strip()
+        if responsible:
+            try:
+                queryset = queryset.filter(responsible_id=int(responsible))
+            except ValueError:
+                pass
+        
+        source = self.request.GET.get('source', '').strip()
+        if source:
+            queryset = queryset.filter(source__iexact=source)
 
         price_min = self.request.GET.get('price_min', '').strip()
         if price_min:
@@ -1946,7 +2274,19 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                 else:
                     queryset = queryset.filter(status__name__icontains=status)
 
-        return queryset.order_by('-created_at')
+        queryset = queryset.annotate(
+            availability_rank=Case(
+                When(availability_status__iexact='available', then=Value(1)),
+                When(availability_status__iexact='reserved', then=Value(2)),
+                When(availability_status__iexact='paused', then=Value(3)),
+                When(availability_status__iexact='sold', then=Value(4)),
+                When(availability_status__iexact='unavailable', then=Value(5)),
+                default=Value(99),
+                output_field=IntegerField(),
+            )
+        )
+
+        return queryset.order_by('availability_rank', '-updated_at', '-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1956,6 +2296,17 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
         context['property_types'] = PropertyType.objects.filter(is_active=True).order_by('name')
         from .models import PaymentMethod, District, Urbanization, Department, Province
         context['payment_methods'] = PaymentMethod.objects.filter(is_active=True).order_by('order')
+        from users.models import CustomUser  # ajusta si tu import real es distinto
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        context["agents"] = (
+            User.objects
+            .filter(
+                is_active=True,
+                role__name__in=["Agente interno", "Agente externo", "Agente remax"],
+            )
+            .order_by("first_name", "last_name", "username")
+        )
         # Obtener distritos de las propiedades ya cargadas en memoria
         # Resolver posibles valores numéricos a nombres usando el modelo District
         raw_districts = [p.district for p in properties if p.district]
@@ -1981,6 +2332,13 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
                     districts.append({'id': '', 'name': str(d)})
 
         context['districts_list'] = sorted(districts, key=lambda x: (x.get('name') or ''))
+        context["sources"] = list(
+            Property.objects.exclude(source__isnull=True)
+            .exclude(source="")
+            .values_list("source", flat=True)
+            .distinct()
+            .order_by("source")
+        )
         # ------------
         # filtros UI
         # ------------
@@ -1988,8 +2346,11 @@ class PropertyDashboardView(LoginRequiredMixin, ListView):
             'property_type': self.request.GET.get('property_type', '').strip(),
             'district': self.request.GET.get('district', '').strip(),
             'payment_method': self.request.GET.get('payment_method', '').strip(),
+            'responsible': self.request.GET.get('responsible', '').strip(),
+            'source': self.request.GET.get('source', '').strip(),
             'price_min': self.request.GET.get('price_min', '').strip(),
             'price_max': self.request.GET.get('price_max', '').strip(),
+            
         }
         # Añadir filtros avanzados actuales para persistir la UI
         context['filters'].update({
@@ -2141,7 +2502,7 @@ def create_property_view(request):
         ImageType, VideoType, DocumentType, PropertyChange, PropertySubtype, Currency
     )
     from .forms import PropertyForm, PropertyOwnerForm, PropertyFinancialInfoForm
-    
+
     # Listas para selects
     departments = Department.objects.filter(is_active=True).order_by('name')
     level_types = LevelType.objects.filter(is_active=True).order_by('name')
@@ -2152,19 +2513,30 @@ def create_property_view(request):
     financial_form = PropertyFinancialInfoForm(request.POST or None)
     form = PropertyForm(request.POST or None, request.FILES or None)
 
+    mode = request.GET.get("mode")
+    is_draft_mode = mode == "draft"
+
     if request.method == 'POST':
         action = request.POST.get('action')
-        # Si se solicita explícitamente guardar como borrador, NO validar los formularios
-        if action == 'save_draft':
-            draft = None
-            draft_id = request.POST.get('draft_id')
-            if draft_id:
-                try:
-                    # Asegurarse de obtener sólo borradores explícitos (is_draft=True)
-                    draft = Property.objects.get(pk=int(draft_id), created_by=request.user, is_active=False, is_draft=True)
-                except Exception:
-                    draft = None
 
+        # ===================== GUARDAR BORRADOR (SIN VALIDAR) =====================
+        if action == 'save_draft':
+            draft_id = request.POST.get('draft_id')
+            draft = None
+
+            # 1) si viene draft_id, recuperar borrador existente del usuario
+            if draft_id:
+                draft = get_object_or_404(Property, pk=draft_id, created_by=request.user)
+
+            # 2) si existe, normalizar flags y estado
+            if draft is not None:
+                if draft.availability_status != "catchment" or draft.is_draft is not True or draft.is_active is not False:
+                    draft.availability_status = "catchment"
+                    draft.is_active = False
+                    draft.is_draft = True
+                    draft.save(update_fields=["availability_status", "is_active", "is_draft", "updated_at"])
+
+            # 3) si NO existe, crear borrador con placeholders
             if draft is None:
                 # obtener o crear objetos placeholder necesarios para campos obligatorios
                 try:
@@ -2203,6 +2575,7 @@ def create_property_view(request):
                         owner = PropertyOwner.objects.get(pk=existing_owner_id)
                     except Exception:
                         owner = None
+
                 if owner is None:
                     try:
                         owner = PropertyOwner.objects.create(created_by=request.user)
@@ -2212,7 +2585,7 @@ def create_property_view(request):
                 # generar código único temporal para el borrador
                 import time
                 code = f"DRAFT{request.user.id}{int(time.time())}"
-                # crear borrador con valores mínimos
+
                 draft_kwargs = {
                     'code': code,
                     'property_type': prop_type,
@@ -2221,12 +2594,15 @@ def create_property_view(request):
                     'price': 0,
                     'currency': currency,
                     'owner': owner,
+                    'availability_status': 'catchment',   # <-- CLAVE
                     'created_by': request.user,
                     'is_active': False,
                     'is_draft': True,
                 }
+
                 # intentar setear algunos campos opcionales desde POST
-                for fld in ['title', 'description', 'exact_address', 'real_address', 'coordinates', 'department', 'province', 'district', 'urbanization']:
+                for fld in ['title', 'description', 'exact_address', 'real_address', 'coordinates',
+                            'department', 'province', 'district', 'urbanization']:
                     val = request.POST.get(fld)
                     if val:
                         draft_kwargs[fld] = val
@@ -2239,7 +2615,15 @@ def create_property_view(request):
                     logger.exception('Error creando borrador de propiedad: %s', e)
                     draft = None
 
-            # Si tenemos un borrador (nuevo o existente), guardar archivos subidos en él
+            # 4) blindaje final: si por cualquier motivo quedó mal, lo corregimos
+            if draft is not None:
+                if draft.availability_status != "catchment" or draft.is_draft is not True or draft.is_active is not False:
+                    draft.availability_status = "catchment"
+                    draft.is_active = False
+                    draft.is_draft = True
+                    draft.save(update_fields=["availability_status", "is_active", "is_draft", "updated_at"])
+
+            # 5) guardar archivos subidos en ese borrador
             if draft is not None:
                 # imágenes
                 images_files = request.FILES.getlist('images')
@@ -2247,8 +2631,8 @@ def create_property_view(request):
                 image_captions = request.POST.getlist('image_captions')
                 image_orders = request.POST.getlist('image_orders')
                 image_sensibles = request.POST.getlist('image_sensibles')
+
                 for idx, image_file in enumerate(images_files):
-                    # Ignorar inputs vacíos (campo presente pero sin fichero)
                     if not image_file or getattr(image_file, 'size', 0) == 0:
                         continue
 
@@ -2264,13 +2648,14 @@ def create_property_view(request):
                         order = idx + 1
 
                     caption = image_captions[idx] if idx < len(image_captions) else ''
+
                     try:
+                        v = image_sensibles[idx] if idx < len(image_sensibles) else None
+                        sensible_val = str(v) in ('1', 'true', 'on')
+                    except Exception:
                         sensible_val = False
-                        try:
-                            v = image_sensibles[idx] if idx < len(image_sensibles) else None
-                            sensible_val = str(v) in ('1', 'true', 'on')
-                        except Exception:
-                            sensible_val = False
+
+                    try:
                         PropertyImage.objects.create(
                             property=draft,
                             image=image_file,
@@ -2292,87 +2677,87 @@ def create_property_view(request):
                 video_types = request.POST.getlist('video_types')
                 video_titles = request.POST.getlist('video_titles')
                 video_descriptions = request.POST.getlist('video_descriptions')
+
                 for idx, video_file in enumerate(videos_files):
-                    if video_file:
-                        try:
-                            video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
-                            video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
-                        except Exception:
-                            video_type = None
-                        title = video_titles[idx] if idx < len(video_titles) else ''
-                        description = video_descriptions[idx] if idx < len(video_descriptions) else ''
-                        try:
-                            PropertyVideo.objects.create(
-                                property=draft,
-                                video=video_file,
-                                video_type=video_type,
-                                title=title,
-                                description=description,
-                                uploaded_by=request.user
-                            )
-                        except Exception as e:
-                            import logging
-                            logger = logging.getLogger(__name__)
-                            logger.exception('Error guardando video en borrador: %s', e)
-                            from django.contrib import messages
-                            messages.error(request, 'Error al guardar video (borrador). Revisa los logs.')
+                    if not video_file:
+                        continue
+
+                    try:
+                        video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
+                        video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
+                    except Exception:
+                        video_type = None
+
+                    title = video_titles[idx] if idx < len(video_titles) else ''
+                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
+
+                    try:
+                        PropertyVideo.objects.create(
+                            property=draft,
+                            video=video_file,
+                            video_type=video_type,
+                            title=title,
+                            description=description,
+                            uploaded_by=request.user
+                        )
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error guardando video en borrador: %s', e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error al guardar video (borrador). Revisa los logs.')
 
                 # documentos
                 documents_files = request.FILES.getlist('documents')
                 document_types = request.POST.getlist('document_types')
                 document_titles = request.POST.getlist('document_titles')
                 document_descriptions = request.POST.getlist('document_descriptions')
-                for idx, document_file in enumerate(documents_files):
-                    if document_file:
-                        try:
-                            doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
-                            doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
-                        except Exception:
-                            doc_type = None
-                        title = document_titles[idx] if idx < len(document_titles) else ''
-                        description = document_descriptions[idx] if idx < len(document_descriptions) else ''
-                        try:
-                            PropertyDocument.objects.create(
-                                property=draft,
-                                file=document_file,
-                                document_type=doc_type,
-                                title=title,
-                                description=description,
-                                uploaded_by=request.user
-                            )
-                        except Exception as e:
-                            import logging
-                            logger = logging.getLogger(__name__)
-                            logger.exception('Error guardando documento en borrador: %s', e)
-                            from django.contrib import messages
-                            messages.error(request, 'Error al guardar documento (borrador). Revisa los logs.')
 
-            # preparar contexto para re-renderizar el formulario con los recursos ya subidos
-            contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
-            existing_images = list(PropertyImage.objects.filter(property=draft).order_by('order')) if draft else []
-            existing_videos = list(PropertyVideo.objects.filter(property=draft)) if draft else []
-            existing_documents = list(PropertyDocument.objects.filter(property=draft)) if draft else []
-            draft_id_to_pass = draft.pk if draft else ''
+                for idx, document_file in enumerate(documents_files):
+                    if not document_file:
+                        continue
+
+                    try:
+                        doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
+                        doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
+                    except Exception:
+                        doc_type = None
+
+                    title = document_titles[idx] if idx < len(document_titles) else ''
+                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
+
+                    try:
+                        PropertyDocument.objects.create(
+                            property=draft,
+                            file=document_file,
+                            document_type=doc_type,
+                            title=title,
+                            description=description,
+                            uploaded_by=request.user
+                        )
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.exception('Error guardando documento en borrador: %s', e)
+                        from django.contrib import messages
+                        messages.error(request, 'Error al guardar documento (borrador). Revisa los logs.')
+
             from django.contrib import messages
             messages.success(request, 'Borrador guardado. Puedes gestionarlo desde Borradores.')
-            # Redirigir a la lista de borradores para que el usuario confirme el guardado
             return redirect('properties:drafts')
-        # Validar form y owner_form según el caso
+
+        # ===================== FLUJO NORMAL (VALIDANDO) =====================
         existing_owner_id = request.POST.get('existing_owner')
-        owner_form_valid = True
 
         if existing_owner_id:
-            # Si hay propietario existente, no necesitamos validar owner_form
             owner_form_valid = True
         else:
-            # Si se crea nuevo propietario, validar owner_form y asegurarnos de que tenga cambios
             owner_form_valid = owner_form.is_valid() and owner_form.has_changed()
-        
+
         if form.is_valid() and owner_form_valid:
             if existing_owner_id:
                 owner = PropertyOwner.objects.get(pk=existing_owner_id)
             else:
-                # Guardar nuevo owner sólo si el formulario contenía cambios (owner_form_valid asegura esto)
                 owner = owner_form.save(commit=False)
                 owner.created_by = request.user
                 owner.save()
@@ -2381,17 +2766,25 @@ def create_property_view(request):
             property_obj = form.save(commit=False)
             property_obj.owner = owner
             property_obj.created_by = request.user
-            # Determinar estado según la acción del formulario: solo marcar como activa
-            # si se solicitó expresamente guardar la propiedad activa.
-            property_obj.is_active = True if action == 'save_property' else False
-            # Ajustar flag explícito de borrador
-            property_obj.is_draft = False if action == 'save_property' else True
+
+            # flags según acción
+            is_active = True if action == 'save_property' else False
+            is_draft = False if action == 'save_property' else True
+
+            property_obj.is_active = is_active
+            property_obj.is_draft = is_draft
+
+            # >>> CLAVE: si NO es save_property, entonces debe ser catchment (borrador)
+            if is_draft:
+                property_obj.availability_status = "catchment"
+
             property_obj.save()
             form.save_m2m()
 
             # Registrar cambios iniciales al crear la propiedad (campos con valor)
             try:
-                tracked_fields = ['title', 'price', 'coordinates', 'department', 'province', 'district', 'urbanization', 'exact_address', 'real_address']
+                tracked_fields = ['title', 'price', 'coordinates', 'department', 'province', 'district',
+                                  'urbanization', 'exact_address', 'real_address']
                 for field in tracked_fields:
                     val = getattr(property_obj, field, None)
                     if val not in (None, '', []):
@@ -2417,12 +2810,10 @@ def create_property_view(request):
             image_captions = request.POST.getlist('image_captions')
             image_orders = request.POST.getlist('image_orders')
             image_sensibles = request.POST.getlist('image_sensibles')
-            
+
             primary_image_set = False
-            # Limitar número de imágenes por subida para evitar OOM/timeout
-            # No limitar la cantidad de imágenes aquí; procesarlas todas
+
             for idx, image_file in enumerate(images_files):
-                # Ignorar inputs vacíos (campo presente pero sin fichero)
                 if not image_file or getattr(image_file, 'size', 0) == 0:
                     continue
 
@@ -2431,22 +2822,22 @@ def create_property_view(request):
                     image_type = ImageType.objects.get(pk=image_type_id) if image_type_id else None
                 except (ImageType.DoesNotExist, ValueError):
                     image_type = None
-                
+
                 try:
                     order = int(image_orders[idx]) if idx < len(image_orders) and image_orders[idx] else idx + 1
                 except ValueError:
                     order = idx + 1
-                
+
                 caption = image_captions[idx] if idx < len(image_captions) else ''
                 is_primary = not primary_image_set
-                
+
                 try:
+                    v = image_sensibles[idx] if idx < len(image_sensibles) else None
+                    sensible_val = str(v) in ('1', 'true', 'on')
+                except Exception:
                     sensible_val = False
-                    try:
-                        v = image_sensibles[idx] if idx < len(image_sensibles) else None
-                        sensible_val = str(v) in ('1', 'true', 'on')
-                    except Exception:
-                        sensible_val = False
+
+                try:
                     img = PropertyImage.objects.create(
                         property=property_obj,
                         image=image_file,
@@ -2464,7 +2855,7 @@ def create_property_view(request):
                     from django.contrib import messages
                     messages.error(request, 'Error guardando una imagen. Revisa los logs.')
                     continue
-                # Registrar evento de imagen subida
+
                 try:
                     PropertyChange.objects.create(
                         property=property_obj,
@@ -2473,12 +2864,9 @@ def create_property_view(request):
                         new_value=f"Imagen subida: {img.caption or img.image.name}",
                         changed_by=request.user
                     )
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.exception('Error registrando cambio de imagen para la propiedad %s: %s', property_obj.pk, e)
-                    from django.contrib import messages
-                    messages.error(request, 'Error al registrar evento de imagen. Revisa los logs.')
+                except Exception:
+                    pass
+
                 primary_image_set = True
 
             # ===================== PROCESAR VIDEOS =====================
@@ -2486,80 +2874,78 @@ def create_property_view(request):
             video_types = request.POST.getlist('video_types')
             video_titles = request.POST.getlist('video_titles')
             video_descriptions = request.POST.getlist('video_descriptions')
-            
+
             for idx, video_file in enumerate(videos_files):
-                if video_file:
-                    try:
-                        video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
-                        video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
-                    except (VideoType.DoesNotExist, ValueError):
-                        video_type = None
-                    
-                    title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
-                    description = video_descriptions[idx] if idx < len(video_descriptions) else ''
-                    
-                    vid = PropertyVideo.objects.create(
+                if not video_file:
+                    continue
+
+                try:
+                    video_type_id = video_types[idx] if idx < len(video_types) and video_types[idx] else None
+                    video_type = VideoType.objects.get(pk=video_type_id) if video_type_id else None
+                except (VideoType.DoesNotExist, ValueError):
+                    video_type = None
+
+                title = video_titles[idx] if idx < len(video_titles) else f'Video {idx + 1}'
+                description = video_descriptions[idx] if idx < len(video_descriptions) else ''
+
+                vid = PropertyVideo.objects.create(
+                    property=property_obj,
+                    video=video_file,
+                    video_type=video_type,
+                    title=title,
+                    description=description,
+                    uploaded_by=request.user
+                )
+
+                try:
+                    PropertyChange.objects.create(
                         property=property_obj,
-                        video=video_file,
-                        video_type=video_type,
-                        title=title,
-                        description=description,
-                        uploaded_by=request.user
+                        field='video',
+                        old_value=None,
+                        new_value=f"Video subido: {vid.title}",
+                        changed_by=request.user
                     )
-                    try:
-                        PropertyChange.objects.create(
-                            property=property_obj,
-                            field='video',
-                            old_value=None,
-                            new_value=f"Video subido: {vid.title}",
-                            changed_by=request.user
-                        )
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.exception('Error registrando cambio de video para la propiedad %s: %s', property_obj.pk, e)
-                        from django.contrib import messages
-                        messages.error(request, 'Error al registrar evento de video. Revisa los logs.')
+                except Exception:
+                    pass
 
             # ===================== PROCESAR DOCUMENTOS =====================
             documents_files = request.FILES.getlist('documents')
             document_types = request.POST.getlist('document_types')
             document_titles = request.POST.getlist('document_titles')
             document_descriptions = request.POST.getlist('document_descriptions') or request.POST.getlist('document_descripciones')
-            
+
             for idx, document_file in enumerate(documents_files):
-                if document_file:
-                    try:
-                        doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
-                        doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
-                    except (DocumentType.DoesNotExist, ValueError):
-                        doc_type = None
-                    
-                    title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
-                    description = document_descriptions[idx] if idx < len(document_descriptions) else ''
-                    
-                    doc = PropertyDocument.objects.create(
+                if not document_file:
+                    continue
+
+                try:
+                    doc_type_id = document_types[idx] if idx < len(document_types) and document_types[idx] else None
+                    doc_type = DocumentType.objects.get(pk=doc_type_id) if doc_type_id else None
+                except (DocumentType.DoesNotExist, ValueError):
+                    doc_type = None
+
+                title = document_titles[idx] if idx < len(document_titles) else f'Documento {idx + 1}'
+                description = document_descriptions[idx] if idx < len(document_descriptions) else ''
+
+                doc = PropertyDocument.objects.create(
+                    property=property_obj,
+                    file=document_file,
+                    document_type=doc_type,
+                    title=title,
+                    description=description,
+                    uploaded_by=request.user
+                )
+
+                try:
+                    PropertyChange.objects.create(
                         property=property_obj,
-                        file=document_file,
-                        document_type=doc_type,
-                        title=title,
-                        description=description,
-                        uploaded_by=request.user
+                        field='document',
+                        old_value=None,
+                        new_value=f"Documento subido: {doc.title}",
+                        changed_by=request.user
                     )
-                    try:
-                        PropertyChange.objects.create(
-                            property=property_obj,
-                            field='document',
-                            old_value=None,
-                            new_value=f"Documento subido: {doc.title}",
-                            changed_by=request.user
-                        )
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.exception('Error registrando cambio de documento para la propiedad %s: %s', property_obj.pk, e)
-                        from django.contrib import messages
-                        messages.error(request, 'Error al registrar evento de documento. Revisa los logs.')
+                except Exception:
+                    pass
 
             # ===================== PROCESAR HABITACIONES =====================
             room_levels = request.POST.getlist('room_levels')
@@ -2571,69 +2957,70 @@ def create_property_view(request):
             room_floor_types = request.POST.getlist('room_floor_types')
             room_descriptions = request.POST.getlist('room_descriptions')
             room_orders = request.POST.getlist('room_orders')
-            
+
             for idx in range(len(room_types_list)):
                 room_type_id = room_types_list[idx] if idx < len(room_types_list) and room_types_list[idx] else None
-                if room_type_id:
-                    try:
-                        room_type = RoomType.objects.get(pk=room_type_id)
-                    except RoomType.DoesNotExist:
-                        continue
-                    
-                    try:
-                        level_id = room_levels[idx] if idx < len(room_levels) and room_levels[idx] else None
-                        level = LevelType.objects.get(pk=level_id) if level_id else None
-                    except (LevelType.DoesNotExist, ValueError):
-                        level = None
-                    
-                    try:
-                        floor_type_id = room_floor_types[idx] if idx < len(room_floor_types) and room_floor_types[idx] else None
-                        floor_type = FloorType.objects.get(pk=floor_type_id) if floor_type_id else None
-                    except (FloorType.DoesNotExist, ValueError):
-                        floor_type = None
-                    
-                    try:
-                        width = float(room_widths[idx]) if idx < len(room_widths) and room_widths[idx] else 0
-                    except ValueError:
-                        width = 0
-                    
-                    try:
-                        length = float(room_lengths[idx]) if idx < len(room_lengths) and room_lengths[idx] else 0
-                    except ValueError:
-                        length = 0
-                    
-                    try:
-                        area = float(room_areas[idx]) if idx < len(room_areas) and room_areas[idx] else 0
-                    except ValueError:
-                        area = 0
-                    
-                    try:
-                        order = int(room_orders[idx]) if idx < len(room_orders) and room_orders[idx] else idx
-                    except ValueError:
-                        order = idx
-                    
-                    name = room_names[idx] if idx < len(room_names) else ''
-                    description = room_descriptions[idx] if idx < len(room_descriptions) else ''
-                    
-                    PropertyRoom.objects.create(
-                        property=property_obj,
-                        level=level,
-                        room_type=room_type,
-                        name=name,
-                        width=width,
-                        length=length,
-                        area=area,
-                        floor_type=floor_type,
-                        description=description,
-                        order=order
-                    )
+                if not room_type_id:
+                    continue
+
+                try:
+                    room_type = RoomType.objects.get(pk=room_type_id)
+                except RoomType.DoesNotExist:
+                    continue
+
+                try:
+                    level_id = room_levels[idx] if idx < len(room_levels) and room_levels[idx] else None
+                    level = LevelType.objects.get(pk=level_id) if level_id else None
+                except (LevelType.DoesNotExist, ValueError):
+                    level = None
+
+                try:
+                    floor_type_id = room_floor_types[idx] if idx < len(room_floor_types) and room_floor_types[idx] else None
+                    floor_type = FloorType.objects.get(pk=floor_type_id) if floor_type_id else None
+                except (FloorType.DoesNotExist, ValueError):
+                    floor_type = None
+
+                try:
+                    width = float(room_widths[idx]) if idx < len(room_widths) and room_widths[idx] else 0
+                except ValueError:
+                    width = 0
+
+                try:
+                    length = float(room_lengths[idx]) if idx < len(room_lengths) and room_lengths[idx] else 0
+                except ValueError:
+                    length = 0
+
+                try:
+                    area = float(room_areas[idx]) if idx < len(room_areas) and room_areas[idx] else 0
+                except ValueError:
+                    area = 0
+
+                try:
+                    order = int(room_orders[idx]) if idx < len(room_orders) and room_orders[idx] else idx
+                except ValueError:
+                    order = idx
+
+                name = room_names[idx] if idx < len(room_names) else ''
+                description = room_descriptions[idx] if idx < len(room_descriptions) else ''
+
+                PropertyRoom.objects.create(
+                    property=property_obj,
+                    level=level,
+                    room_type=room_type,
+                    name=name,
+                    width=width,
+                    length=length,
+                    area=area,
+                    floor_type=floor_type,
+                    description=description,
+                    order=order
+                )
 
             from django.contrib import messages
             messages.success(request, 'Propiedad creada exitosamente con imágenes, videos, documentos y ambientes.')
-            from django.urls import reverse
             return redirect(reverse('properties:list'))
+
         else:
-            # Si la validación falla, simplemente re-renderizar el formulario con los errores, sin intentar crear borrador
             contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
             return render(request, 'properties/property_create.html', {
                 'form': form,
@@ -2644,6 +3031,7 @@ def create_property_view(request):
                 'room_types': room_types,
                 'floor_types': floor_types,
                 'contactos_existentes': contactos_existentes,
+                'is_draft_mode': is_draft_mode,
             })
 
     contactos_existentes = PropertyOwner.objects.filter(is_active=True).order_by('-created_at')
@@ -2656,6 +3044,7 @@ def create_property_view(request):
         'room_types': room_types,
         'floor_types': floor_types,
         'contactos_existentes': contactos_existentes,
+        'is_draft_mode': is_draft_mode,
     })
 
 
@@ -2764,6 +3153,71 @@ def edit_property_view(request, pk):
             except Exception:
                 pass
 
+            # ===================== ELIMINAR IMÁGENES MARCADAS =====================
+            deleted_images_ids = []
+            for val in request.POST.getlist('deleted_images'):
+                deleted_images_ids.extend(val.split(','))
+            # Capturar tanto 'deleted_images' como 'deleted_images[]' por si el JS usa array syntax
+            raw_deleted_images = request.POST.getlist('deleted_images') + request.POST.getlist('deleted_images[]')
+            
+            for val in raw_deleted_images:
+                if val:
+                    deleted_images_ids.extend(str(val).split(','))
+            
+            if deleted_images_ids:
+                print(f"DEBUG: Procesando eliminación de imágenes: {deleted_images_ids}")
+
+            for img_id in deleted_images_ids:
+                if str(img_id).strip().isdigit():
+                    try:
+                        img = PropertyImage.objects.get(pk=int(img_id), property=property_obj)
+                        # Borrar archivo físico explícitamente
+                        if img.image:
+                            img.image.delete(save=False)
+                        img.delete()
+                    except PropertyImage.DoesNotExist:
+                        pass
+
+            # ===================== ELIMINAR VIDEOS MARCADOS =====================
+            deleted_videos_ids = []
+            for val in request.POST.getlist('deleted_videos'):
+                deleted_videos_ids.extend(val.split(','))
+            raw_deleted_videos = request.POST.getlist('deleted_videos') + request.POST.getlist('deleted_videos[]')
+            
+            for val in raw_deleted_videos:
+                if val:
+                    deleted_videos_ids.extend(str(val).split(','))
+
+            for vid_id in deleted_videos_ids:
+                if str(vid_id).strip().isdigit():
+                    try:
+                        vid = PropertyVideo.objects.get(pk=int(vid_id), property=property_obj)
+                        if vid.video:
+                            vid.video.delete(save=False)
+                        vid.delete()
+                    except PropertyVideo.DoesNotExist:
+                        pass
+
+            # ===================== ELIMINAR DOCUMENTOS MARCADOS =====================
+            deleted_docs_ids = []
+            for val in request.POST.getlist('deleted_documents'):
+                deleted_docs_ids.extend(val.split(','))
+            raw_deleted_docs = request.POST.getlist('deleted_documents') + request.POST.getlist('deleted_documents[]')
+            
+            for val in raw_deleted_docs:
+                if val:
+                    deleted_docs_ids.extend(str(val).split(','))
+
+            for doc_id in deleted_docs_ids:
+                if str(doc_id).strip().isdigit():
+                    try:
+                        doc = PropertyDocument.objects.get(pk=int(doc_id), property=property_obj)
+                        if doc.file:
+                            doc.file.delete(save=False)
+                        doc.delete()
+                    except PropertyDocument.DoesNotExist:
+                        pass
+
             # Procesar posibles archivos subidos desde el formulario de edición (imágenes/videos/documentos)
             images_files = request.FILES.getlist('images')
             image_types = request.POST.getlist('image_types')
@@ -2844,17 +3298,23 @@ def edit_property_view(request, pk):
             # Normalizar secuencia de orders tras posibles adiciones
             _normalize_image_orders(property_obj)
 
-            # Actualizar flag `sensible` para imágenes existentes si se enviaron controles separados
             try:
-                imgs = PropertyImage.objects.filter(property=property_obj)
-                for im in imgs:
+                existing_ids = request.POST.getlist('existing_image_ids')
+                for img_id in existing_ids:
                     try:
-                        key = f'existing_image_sensible_{im.id}'
-                        v = request.POST.get(key)
-                        sensible_val = str(v) in ('1', 'true', 'on')
-                        if im.sensible != sensible_val:
-                            PropertyImage.objects.filter(pk=im.pk).update(sensible=sensible_val)
-                    except Exception:
+                        im = PropertyImage.objects.get(pk=img_id, property=property_obj)
+                        
+                        im.caption = request.POST.get(f'existing_image_captions_{img_id}', im.caption)
+                        im.order = int(request.POST.get(f'existing_image_orders_{img_id}', im.order))
+                        im.image_type_id = request.POST.get(f'existing_image_types_{img_id}') or None
+                        im.image_ambiente_id = request.POST.get(f'existing_image_ambientes_{img_id}') or None
+                        im.sensible = request.POST.get(f'existing_image_sensible_{img_id}') == '1'
+
+                        if f'existing_images_{img_id}' in request.FILES:
+                            im.image = request.FILES[f'existing_images_{img_id}']
+                        
+                        im.save()
+                    except (PropertyImage.DoesNotExist, ValueError):
                         continue
             except Exception:
                 pass
@@ -3180,73 +3640,73 @@ def whatsapp_link_delete(request, link_id):
 def leads_list(request, property_id=None):
     """Lista los leads de WhatsApp"""
     from .models import Lead, LeadStatus
-    from .models import WhatsAppConversation
-    from django.db.models import OuterRef, Subquery
+    from django.contrib.auth import get_user_model
 
-    leads = Lead.objects.select_related('property', 'whatsapp_link', 'assigned_to', 'status')
-
-    # Anotar último mensaje y su fecha para mostrar en la lista sin N+1
-    last_msg_qs = WhatsAppConversation.objects.filter(lead=OuterRef('pk')).order_by('-created_at')
-    # Anotaciones con nombres que no colisionen con campos del modelo
-    leads = leads.annotate(
-        annotated_last_message=Subquery(last_msg_qs.values('message_body')[:1]),
-        annotated_last_message_at=Subquery(last_msg_qs.values('created_at')[:1])
-    )
+    leads = Lead.objects.select_related('lead_status', 'canal_lead').prefetch_related('assigned_to', 'properties')
+    
+    if not request.user.is_superuser: # si no es superusuario solo ve sus propios leads
+        leads = leads.filter(assigned_to=request.user)
     
     if property_id:
-        leads = leads.filter(property_id=property_id)
+        leads = leads.filter(properties__id=property_id)
     
     # Filtros
     status = request.GET.get('status')
     if status:
-        leads = leads.filter(status_id=status)
+        leads = leads.filter(lead_status_id=status)
     
-    social_network = request.GET.get('social_network')
-    if social_network:
-        leads = leads.filter(social_network=social_network)
+    if request.user.is_superuser:  # filtro por usuario asignado (superusuario)
+        assigned_to = request.GET.get('assigned_to')
+        if assigned_to:
+            leads = leads.filter(assigned_to__id=assigned_to)
+
+    status_choices = LeadStatus.objects.filter(is_active=True).order_by('name')  # estados para el filtro
     
-    # Obtener estados para el filtro (de todas las propiedades o de la propiedad específica)
-    if property_id:
-        status_choices = LeadStatus.objects.filter(property_id=property_id, is_active=True).order_by('order')
-    else:
-        status_choices = LeadStatus.objects.filter(is_active=True).order_by('property', 'order')
+    users = []     
+    if request.user.is_superuser: # obtener usuarios para el filtro (superusuario)
+        User = get_user_model()
+        users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
     
     return render(request, 'properties/leads_list.html', {
         'leads': leads,
         'status_choices': status_choices,
+        'users': users,
     })
 
 
 @login_required
 def lead_detail(request, lead_id):
     """Detalle de un lead con conversaciones"""
-    from .models import Lead, WhatsAppConversation
+    from .models import Lead, LeadStatus
     
     lead = get_object_or_404(Lead, id=lead_id)
-    conversations = WhatsAppConversation.objects.filter(lead=lead).order_by('created_at')
+    conversations = []
     
     if request.method == 'POST':
         # Actualizar estado o asignar
-        from .models import LeadStatus
         status_id = request.POST.get('status')
         assigned_to = request.POST.get('assigned_to')
         
         if status_id:
             try:
-                lead.status = LeadStatus.objects.get(id=status_id, property=lead.property)
+                lead.lead_status = LeadStatus.objects.get(id=status_id)
             except LeadStatus.DoesNotExist:
                 pass
         
         if assigned_to:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            lead.assigned_to = User.objects.get(id=assigned_to) if assigned_to else None
+            try:
+                user = User.objects.get(id=assigned_to)
+                lead.assigned_to.add(user)
+            except User.DoesNotExist:
+                pass
         
         lead.save()
         return redirect('properties:lead_detail', lead_id=lead_id)
     
     # Obtener los estados personalizados de la propiedad
-    status_choices = lead.property.lead_statuses.filter(is_active=True).order_by('order')
+    status_choices = LeadStatus.objects.filter(is_active=True).order_by('name')
     
     return render(request, 'properties/lead_detail.html', {
         'lead': lead,
@@ -3371,7 +3831,7 @@ def marketing_whatsapp_links_list(request):
     return render(request, 'properties/marketing_whatsapp_links_list.html', {'links': links})
 
 from django.db.models import Count
-from .models import PropertyWhatsAppLink, Lead, SocialNetwork
+from .models import PropertyWhatsAppLink, SocialNetwork
 from datetime import datetime, timedelta
 import json
 
@@ -3552,3 +4012,447 @@ def marketing_utm_dashboard(request):
     }
     return render(request, 'properties/marketing_utm_dashboard.html', context)
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_location_details(request):
+
+    import unicodedata
+    from .models import Department, Province, District
+
+    names = request.data.get('names', [])
+    # Robustez: si el cliente (IA) envía un string en lugar de lista, lo convertimos
+    if isinstance(names, str):
+        names = [names]
+
+    if not names:
+        return Response({'results': {}})
+
+    def normalize(text):
+        if not text:
+            return ""
+        
+        return ''.join(c for c in unicodedata.normalize('NFD', str(text)) if unicodedata.category(c) != 'Mn').lower() # normalizacion
+
+    # pre-cargar todas las ubicaciones para filtrado en memoria (optimización + soporte de tildes)
+    
+    all_deps = list(Department.objects.filter(is_active=True).values('id', 'name')) # 1. departamentos
+    for d in all_deps:
+        d['norm_name'] = normalize(d['name'])
+
+    all_provs = list(Province.objects.filter(is_active=True).values( # 2. provincias
+        'id', 'name', 'department__id', 'department__name'
+    ))
+    
+    provs_by_dep = {} # agrupar provincias por departamento (para respuesta de Dept)
+    for p in all_provs:
+        p['norm_name'] = normalize(p['name'])
+        did = p['department__id']
+        if did not in provs_by_dep:
+            provs_by_dep[did] = []
+        provs_by_dep[did].append({'id': p['id'], 'name': p['name']})
+
+    all_dists = list(District.objects.filter(is_active=True).values( # 3. distritos
+        'id', 'name', 'province__id', 'province__name', 'province__department__id', 'province__department__name'
+    ))
+    
+    dists_by_prov = {} # agrupar distritos por provincia (para respuesta de Prov)
+    for d in all_dists:
+        d['norm_name'] = normalize(d['name'])
+        pid = d['province__id']
+        if pid not in dists_by_prov:
+            dists_by_prov[pid] = []
+        dists_by_prov[pid].append({'id': d['id'], 'name': d['name']})
+
+    results = {}
+
+    for name in names:
+        term = str(name).strip()
+        if not term:
+            continue
+        
+        term_norm = normalize(term)
+        matches = []
+
+        # BUSQUEDA POR DISTRITO
+        for d in all_dists:
+            if term_norm in d['norm_name']:
+                matches.append({
+                    'type': 'District',
+                    'id': d['id'],
+                    'name': d['name'],
+                    'data': {
+                        'province': {'id': d['province__id'], 'name': d['province__name']},
+                        'department': {'id': d['province__department__id'], 'name': d['province__department__name']}
+                    }
+                })
+
+        # BUSQUEDA POR PROVINCIA
+        for p in all_provs:
+            if term_norm in p['norm_name']:
+                matches.append({
+                    'type': 'Province',
+                    'id': p['id'],
+                    'name': p['name'],
+                    'data': {
+                        'department': {'id': p['department__id'], 'name': p['department__name']},
+                        'districts': dists_by_prov.get(p['id'], [])
+                    }
+                })
+
+        # BUSQUEDA POR DEPARTAMENTO
+        for dep in all_deps:
+            if term_norm in dep['norm_name']:
+                matches.append({
+                    'type': 'Department',
+                    'id': dep['id'],
+                    'name': dep['name'],
+                    'data': {
+                        'provinces': provs_by_dep.get(dep['id'], [])
+                    }
+                })
+
+        results[term] = matches
+
+    return Response({'results': results})
+
+
+def acm_detail(request):
+    context = {
+        "subject_property": {
+            "title": "Casa en Arequipa con Vista al Misti",
+            "address": "Cl Misti 309 Yanahuara, Arequipa",
+            "property_type": "Casa Antigua",
+            "area_m2": 185,
+            "bedrooms": 3,
+            "bathrooms": 2.5,
+            "price": "875,000",
+            "image_url": "https://cdn1.infocasas.com.uy/web/5c585f473e9a0_infocdn__84032162.jpg",
+        }
+    }
+
+    return render(request, "properties/acm_detail.html", context)
+
+@login_required
+def proposals_list(request):
+    tab = request.GET.get("tab", "all")
+
+    visit_events_qs = Event.objects.select_related(
+        "event_type",
+        "assigned_agent",
+        "created_by",
+        "property",
+    ).filter(
+        event_type__name__iexact="Visita"
+    ).order_by("-created_at")
+
+    proposals_qs = (
+        Proposal.objects
+        .select_related(
+            "property",
+            "property__currency",
+            "property__property_type",
+            "property__property_subtype",
+            "property__responsible",
+            "lead",
+            "requested_by_user",
+            "responded_by_user",
+            "currency",
+            "payment_method",
+        )
+        .prefetch_related(
+            "property__images",
+            Prefetch("events", queryset=visit_events_qs, to_attr="visit_events"),
+        )
+        .filter(
+            Q(requested_by_user=request.user) |
+            Q(property__responsible=request.user)
+        )
+        .order_by("-created_at")
+        .distinct()
+    )
+
+    if tab == "received":
+        proposals_qs = proposals_qs.filter(property__responsible=request.user)
+    elif tab == "sent":
+        proposals_qs = proposals_qs.filter(requested_by_user=request.user)
+    else:
+        tab = "all"
+
+    context = {
+        "proposals": proposals_qs,
+        "active_tab": tab,
+    }
+    return render(request, "properties/proposals_list.html", context)
+
+
+@login_required
+def proposals_create_view(request):
+    if request.method == "POST":
+        form = ProposalCreateForm(request.POST)
+
+        if form.is_valid():
+            proposal = form.save(commit=False)
+            proposal.requested_by_user = request.user
+            proposal.save()
+
+            messages.success(request, "Propuesta creada correctamente.")
+            return redirect("properties:proposals_list")
+    else:
+        form = ProposalCreateForm()
+
+    context = {
+        "form": form,
+    }
+    return render(request, "properties/proposal_create.html", context)
+
+
+@login_required
+def proposal_accept_view(request, proposal_id):
+    proposal = get_object_or_404(Proposal, id=proposal_id)
+
+    if proposal.property.responsible_id != request.user.id:
+        messages.error(request, "No tienes permiso para responder esta propuesta.")
+        return redirect("properties:proposals_list")
+
+    if request.method == "POST":
+        proposal.status = Proposal.STATUS_ACCEPTED
+        proposal.responded_by_user = request.user
+        proposal.responded_at = timezone.now()
+        proposal.response_message = request.POST.get("response_message", "")
+        proposal.save()
+
+        messages.success(request, "Propuesta aceptada correctamente.")
+        return redirect("properties:proposals_list")
+
+    return redirect("properties:proposals_list")
+
+@login_required
+def api_leads_search(request):
+    """API para buscar leads via Select2 con paginación."""
+    from django.http import JsonResponse
+    from django.db.models import Q
+    from django.core.paginator import Paginator
+    from .models import Lead
+
+    term = request.GET.get('term', '').strip()
+    page = int(request.GET.get('page', 1))
+    
+    leads_qs = Lead.objects.filter(is_active=True)
+    
+    if term:
+        leads_qs = leads_qs.filter(
+            Q(username__icontains=term) |
+            Q(full_name__icontains=term) |
+            Q(phone__icontains=term) |
+            Q(email__icontains=term)
+        )
+    
+    leads_qs = leads_qs.order_by('-created_at')
+    
+    paginator = Paginator(leads_qs, 20) # 20 resultados por página
+    leads_page = paginator.get_page(page)
+    
+    results = []
+    for lead in leads_page:
+        nombre = lead.full_name or lead.username or "Sin nombre"
+        texto = f"{nombre} ({lead.phone or 'Sin teléfono'})"
+        results.append({'id': lead.id, 'text': texto})
+    
+    return JsonResponse({'results': results, 'pagination': {'more': leads_page.has_next()}})
+
+@login_required
+def api_properties_search(request):
+    """API para buscar propiedades via Select2"""
+    from django.http import JsonResponse
+    from django.db.models import Q
+    from django.core.paginator import Paginator
+    from .models import Property
+
+    term = request.GET.get('term', '').strip()
+    page_number = request.GET.get('page', 1)
+
+    qs = Property.objects.filter(is_active=True)
+
+    if term:
+        qs = qs.filter(Q(code__icontains=term) | Q(title__icontains=term) | Q(exact_address__icontains=term) | Q(real_address__icontains=term))
+
+    qs = qs.order_by('-created_at')
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(page_number)
+
+    results = [{'id': prop.id, 'text': f"{prop.code} - {prop.title or prop.exact_address or 'Sin título'}"} for prop in page_obj]
+
+    return JsonResponse({'results': results, 'pagination': {'more': page_obj.has_next()}})
+
+
+@login_required
+def proposal_reject_view(request, proposal_id):
+    proposal = get_object_or_404(Proposal, id=proposal_id)
+
+    if proposal.property.responsible_id != request.user.id:
+        messages.error(request, "No tienes permiso para responder esta propuesta.")
+        return redirect("properties:proposals_list")
+
+    if request.method == "POST":
+        response_message = request.POST.get("response_message", "").strip()
+
+        if not response_message:
+            messages.error(request, "Debes ingresar el motivo del rechazo.")
+            return redirect(f"{request.path_info.rsplit('/', 2)[0]}/?tab=received")
+
+        proposal.status = Proposal.STATUS_REJECTED
+        proposal.responded_by_user = request.user
+        proposal.responded_at = timezone.now()
+        proposal.response_message = response_message
+        proposal.save()
+
+        messages.success(request, "Propuesta rechazada correctamente.")
+        return redirect("properties:proposals_list")
+
+    return redirect("properties:proposals_list")
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_hello_message_view(request):
+    import requests
+    import os
+    
+    phone_number = request.data.get('phone_number')
+    if not phone_number:
+        return Response({"ok": False, "error": "El parámetro phone_number es requerido."}, status=status.HTTP_400_BAD_REQUEST)
+
+    phone_str = str(phone_number).strip()
+    if not phone_str.startswith('+'):
+        if phone_str.startswith('51') and len(phone_str) == 11:
+            phone_str = '+' + phone_str
+        else:
+            phone_str = '+51' + phone_str
+
+    user_token = os.getenv('CHATWOOT_USER_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
+    bot_token = os.getenv('CHATWOOT_BOT_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
+    
+    if not user_token or not bot_token:
+        return Response({"ok": False, "error": "Faltan configurar CHATWOOT_USER_TOKEN o CHATWOOT_BOT_TOKEN en el .env"}, status=status.HTTP_400_BAD_REQUEST)
+
+    user_headers = {
+        "Content-Type": "application/json",
+        "api_access_token": user_token 
+    }
+    
+    bot_headers = {
+        "Content-Type": "application/json",
+        "api_access_token": bot_token 
+    }
+    
+    base_url = "https://n8n-propify-chatwoot.qqaetr.easypanel.host/api/v1/accounts/2"
+    
+    try:
+        # 1 buscar contacto
+        search_url = f"{base_url}/contacts/search"
+        search_response = requests.get(search_url, params={'q': phone_str}, headers=user_headers)
+        if search_response.status_code not in (200, 201):
+            return Response({"ok": False, "error": f"Error buscando contacto: {search_response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        search_payload = search_response.json().get('payload', [])
+        if not search_payload:
+            return Response({"ok": False, "error": "No se encontró el contacto con ese número de teléfono."}, status=status.HTTP_404_NOT_FOUND)
+            
+        contact_id = search_payload[0].get('id')
+        
+        # 2 buscar conversación
+        conv_url = f"{base_url}/contacts/{contact_id}/conversations"
+        conv_response = requests.get(conv_url, headers=user_headers)
+        if conv_response.status_code not in (200, 201):
+            return Response({"ok": False, "error": f"Error buscando conversaciones: {conv_response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        conv_payload = conv_response.json().get('payload', [])
+        if not conv_payload:
+            return Response({"ok": False, "error": "El contacto no tiene conversaciones activas."}, status=status.HTTP_404_NOT_FOUND)
+            
+        conversation_id = conv_payload[0].get('id')
+        
+        # 3 enviar mensaje
+        msg_url = f"{base_url}/conversations/{conversation_id}/messages"
+        payload = {
+            "content": "Tienes un evento asignado",
+            "message_type": "outgoing",
+            "content_type": "text",
+            "private": False,
+            "template_params": {
+                "name": "evento_creado_2",
+                "category": "MARKETING",
+                "language": "es_PE"
+            }
+        }
+        
+        response = requests.post(msg_url, json=payload, headers=bot_headers)
+        if response.status_code in (200, 201):
+            return Response({"ok": True, "message": "Mensaje enviado exitosamente."})
+        else:
+            return Response({"ok": False, "error": f"Error {response.status_code}: {response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+def api_extract_requirement_ai(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            texto = data.get("texto", "")
+            
+            if not texto:
+                return JsonResponse({"error": "Texto vacío"}, status=400)
+
+            extracted = extraer_datos_requerimiento(texto)
+            if not extracted:
+                return JsonResponse({"error": "Error al procesar con IA"}, status=500)
+
+            response_data = {
+                "price_min": extracted.get("presupuesto_min"),
+                "price_max": extracted.get("presupuesto_max"),
+                "land_area_min": extracted.get("area_terreno_min"),
+                "land_area_max": extracted.get("area_terreno_max"),
+                "built_area_min": extracted.get("area_construida_min"),
+                "built_area_max": extracted.get("area_construida_max"),
+                "bedrooms_min": extracted.get("habitaciones_min"),
+                "bedrooms_max": extracted.get("habitaciones_max"),
+                "bathrooms_min": extracted.get("banos_min"),
+                "bathrooms_max": extracted.get("banos_max"),
+                "garage_spaces_min": extracted.get("cocheras_min"),
+                "garage_spaces_max": extracted.get("cocheras_max"),
+                "antiquity_years_min": extracted.get("antiguedad_min"),
+                "antiquity_years_max": extracted.get("antiguedad_max"),
+                "floors_min": extracted.get("pisos_min"),
+                "floors_max": extracted.get("pisos_max"),
+                "has_elevator": extracted.get("tiene_ascensor"),
+                "pet_friendly": extracted.get("acepta_mascotas"),
+                "notes": extracted.get("observaciones", ""),
+                "operation_type_id": "",
+                "property_type_id": "",
+                "district_ids": []
+            }
+
+            # Mapear Operación a ID
+            if extracted.get("operacion"):
+                op = OperationType.objects.filter(name__icontains=extracted["operacion"]).first()
+                if op: response_data["operation_type_id"] = op.id
+
+            # Mapear Tipo a ID
+            if extracted.get("tipo_inmueble"):
+                pt = PropertyType.objects.filter(name__icontains=extracted["tipo_inmueble"]).first()
+                if pt: response_data["property_type_id"] = pt.id
+
+            # Mapear Distritos a IDs
+            if extracted.get("distritos"):
+                for d_name in extracted["distritos"]:
+                    dist = District.objects.filter(name__icontains=d_name).first()
+                    if dist:
+                        response_data["district_ids"].append(dist.id)
+
+            return JsonResponse({"success": True, "data": response_data})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "Método no permitido"}, status=405)

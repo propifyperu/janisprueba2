@@ -1,9 +1,12 @@
 # serializers.py
+from django.contrib.auth import get_user_model
 
+from .models import Lead, LeadStatus, CanalLead, OperationType, Property
 from rest_framework import serializers
 from . import models
-from rest_framework import serializers
-from properties.models import Property
+
+
+User = get_user_model()
 
 class PropertyImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
@@ -35,23 +38,33 @@ class PropertyVideoSerializer(serializers.ModelSerializer):
 
 class PropertyDocumentSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
-    document_type = serializers.CharField(source="document_type.name", read_only=True)  # 👈 agrega esto
+    document_type = serializers.CharField(source="document_type.name", read_only=True)
+    document_type_id = serializers.IntegerField(source="document_type.id", read_only=True)
+    document_type_code = serializers.CharField(source="document_type.code", read_only=True)
 
     class Meta:
         model = models.PropertyDocument
-        fields = ('id', 'title', 'description', 'document_type', 'file_url', 'is_approved')
+        fields = (
+            "id",
+            "title",
+            "description",
+            "document_type",
+            "document_type_id",
+            "document_type_code",
+            "file_url",
+            "is_approved",
+            # ✅ NUEVOS
+            "reference_number",
+            "valid_from",
+            "valid_to",
+        )
 
     def get_file_url(self, obj):
-        request = self.context.get('request') if self.context else None
-        if obj and getattr(obj, 'file', None):
+        request = self.context.get("request") if self.context else None
+        if obj and getattr(obj, "file", None):
             url = obj.file.url
             return request.build_absolute_uri(url) if request else url
         return None
-
-    class Meta:
-        model = models.PropertyDocument
-        fields = ('id', 'title', 'description', 'document_type', 'file_url', 'is_approved')
-
 
 class PropertyRoomSerializer(serializers.ModelSerializer):
     level = serializers.CharField(source='level.name', read_only=True)
@@ -168,25 +181,29 @@ class PropertyWithDocsSerializer(serializers.ModelSerializer):
         )
 
     def _docs_map(self, obj):
-        """
-        Devuelve el dict {DocumentType.name: file_url o None}
-        """
         request = self.context.get("request")
 
-        # Base: todos los tipos activos => None
         types = models.DocumentType.objects.filter(is_active=True).order_by("name")
-        data = {t.name: None for t in types}
+        data = {t.name: {"file_url": None, "reference_number": None, "valid_from": None, "valid_to": None} for t in types}
 
-        # Fill: documentos existentes
         for d in obj.documents.select_related("document_type").all():
             if not d.document_type:
                 continue
             key = d.document_type.name
+
+            file_url = None
             if getattr(d, "file", None):
                 url = d.file.url
-                data[key] = request.build_absolute_uri(url) if request else url
+                file_url = request.build_absolute_uri(url) if request else url
 
-        return data
+            data[key] = {
+                "file_url": file_url,
+                "reference_number": getattr(d, "reference_number", None),
+                "valid_from": getattr(d, "valid_from", None),
+                "valid_to": getattr(d, "valid_to", None),
+            }
+
+        return data 
     
     def get_created_by(self, obj):
         u = getattr(obj, "created_by", None)
@@ -198,56 +215,49 @@ class PropertyWithDocsSerializer(serializers.ModelSerializer):
 
     def get_property_documents(self, obj):
         return self._docs_map(obj)
-
-    def get_can_marketing_upload_media(self, obj):
-        # Regla: si existe (con file) Partida_registral o Contrato_de_corretaje => True
-        required = {"Partida_registral", "Contrato_de_corretaje"}
-        for d in obj.documents.select_related("document_type").all():
-            if d.document_type and d.document_type.name in required and getattr(d, "file", None):
-                return True
-        return False
+    
+    def _has_doc(self, obj, codes: set[str]) -> bool:
+        # Usa la relación reverse: documents (related_name='documents')
+        return obj.documents.filter(
+            document_type__code__in=codes,
+            file__isnull=False,
+        ).exists()
 
     def get_can_legal_upload_study(self, obj):
-        """
-        Habilitación para LEGAL: depende de base docs + usuario con Area LEGAL (si está logueado).
-        Si no está autenticado => False.
-        """
-        base_ok = self.get_can_marketing_upload_media(obj)
+        return bool(getattr(obj, "has_legal_base", False))
 
-        request = self.context.get("request")
-        user = getattr(request, "user", None)
-        if not user or not user.is_authenticated:
-            return False
-
-        # Asumiendo que luego renombramos department -> area:
-        user_area_code = None
-        if getattr(user, "area_id", None) and getattr(user.area, "code", None):
-            user_area_code = user.area.code
-
-        return base_ok and user_area_code == "LEGAL"
+    def get_can_marketing_upload_media(self, obj):
+        return bool(getattr(obj, "has_study", False))
     
 class PropertyDocumentCreateSerializer(serializers.ModelSerializer):
+    ALLOW_METADATA_ONLY_CODES = {"110", "107"}
+
     document_type = serializers.PrimaryKeyRelatedField(
         queryset=models.DocumentType.objects.filter(is_active=True)
     )
 
     class Meta:
         model = models.PropertyDocument
-        fields = ("document_type", "file")
+        fields = ("document_type", "file", "reference_number", "valid_from", "valid_to")
 
     def validate(self, attrs):
         prop = self.context["property"]
         doc_type = attrs["document_type"]
 
-        # Evitar duplicados por (property, document_type)
         if models.PropertyDocument.objects.filter(property=prop, document_type=doc_type).exists():
             raise serializers.ValidationError({
                 "document_type": "Ya existe un documento de este tipo para esta propiedad."
             })
 
-        # file obligatorio
-        if not attrs.get("file"):
+        # ✅ file requerido SOLO si NO es metadata-only
+        code = (getattr(doc_type, "code", "") or "").strip().lower()
+        if not attrs.get("file") and code not in self.ALLOW_METADATA_ONLY_CODES:
             raise serializers.ValidationError({"file": "Este campo es requerido."})
+
+        vf = attrs.get("valid_from")
+        vt = attrs.get("valid_to")
+        if vf and vt and vt < vf:
+            raise serializers.ValidationError("valid_to no puede ser menor que valid_from.")
 
         return attrs
 
@@ -255,35 +265,32 @@ class PropertyDocumentCreateSerializer(serializers.ModelSerializer):
         prop = self.context["property"]
         request = self.context["request"]
 
-        # ✅ IMPORTANTE: tu BD exige uploaded_by_id NOT NULL
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             raise serializers.ValidationError("Debes estar autenticado para subir documentos.")
 
         validated_data.setdefault("is_approved", False)
 
-        # Opcional: si tu modelo tiene title/description pero no quieres pedirlos,
-        # los puedes autogenerar sin romper nada:
         dt = validated_data["document_type"]
         validated_data.setdefault("title", getattr(dt, "name", "") or "")
         validated_data.setdefault("description", "")
 
         return models.PropertyDocument.objects.create(
             property=prop,
-            uploaded_by=user,   # ✅ CLAVE para tu error
+            uploaded_by=user,
             **validated_data
         )
 
 class RequirementSerializer(serializers.ModelSerializer):
 
-    client_phone = serializers.CharField(write_only=True, required=True)
-    client_first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    client_last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    client_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    client_phone = serializers.CharField(write_only=True, required=False)
+    client_first_name = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
+    client_last_name = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
+    client_email = serializers.EmailField(write_only=True, required=False, allow_blank=True, allow_null=True)
     
-    agent_phone = serializers.CharField(write_only=True, required=False)
+    agent_phone = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
 
-    # Campos de lectura para mostrar detalles en la respuesta (GET)
+    # campos de lectura para mostrar detalles en la respuesta (GET)
     contact_id = serializers.IntegerField(source='contact.id', read_only=True)
     contact_name = serializers.SerializerMethodField()
     contact_phone = serializers.CharField(source='contact.phone', read_only=True)
@@ -301,15 +308,62 @@ class RequirementSerializer(serializers.ModelSerializer):
             'contact_id', 'contact_name', 'contact_phone', 'contact_email',
             'agent_name',
             
-            'property_type', 'property_subtype',
-            'budget_min', 'budget_max', 'currency',
-            'districts', 'bedrooms', 'bathrooms', 'garage_spaces',
+            'property_type', 'property_subtype', 'status', 'payment_method',
+            'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'currency',
+            
+            'department', 'province', 'district', 'districts',
+            
+            'area_type', 'land_area_approx', 'land_area_min', 'land_area_max',
+            'frontera_type', 'frontera_approx', 'frontera_min', 'frontera_max',
+            
+            'bedrooms', 'bathrooms', 'half_bathrooms', 'garage_spaces',
+            'floors', 'number_of_floors', 'ascensor',
+            'preferred_floors', 'zonificaciones',
+            
             'notes', 'created_at'
         ]
         extra_kwargs = {
             'districts': {'required': False},
             'currency': {'required': False},
         }
+
+    def to_internal_value(self, data):
+        # permitir que el agente externo envíe null y tratarlos como lista vacía
+        if isinstance(data, dict):
+            data = data.copy()
+            for field in ['districts', 'preferred_floors', 'zonificaciones']:
+                if field in data and data[field] is None:
+                    data[field] = []
+        return super().to_internal_value(data)
+
+    def validate(self, data):
+        # lógica de consistencia: si envían min/max, es un rango. si es approx, limpiamos min/max
+        if data.get('budget_min') is not None or data.get('budget_max') is not None:
+            data['budget_type'] = 'range'
+            data['budget_approx'] = None
+        elif data.get('budget_approx') is not None:
+            data['budget_type'] = 'approx'
+            data['budget_min'] = None
+            data['budget_max'] = None
+
+        # consistencia area
+        if data.get('land_area_min') is not None or data.get('land_area_max') is not None:
+            data['area_type'] = 'range'
+            data['land_area_approx'] = None
+        elif data.get('land_area_approx') is not None:
+            data['area_type'] = 'approx'
+            data['land_area_min'] = None
+            data['land_area_max'] = None
+
+        # consistencia frontera
+        if data.get('frontera_min') is not None or data.get('frontera_max') is not None:
+            data['frontera_type'] = 'range'
+            data['frontera_approx'] = None
+        elif data.get('frontera_approx') is not None:
+            data['frontera_type'] = 'approx'
+            data['frontera_min'] = None
+            data['frontera_max'] = None
+        return data
 
     def get_contact_name(self, obj):
         if obj.contact:
@@ -322,16 +376,18 @@ class RequirementSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
-        c_phone = validated_data.pop('client_phone')
+        c_phone = validated_data.pop('client_phone', None)
+        
+        if not c_phone:
+            c_phone = self.initial_data.get('contact_phone')
+
         c_first = validated_data.pop('client_first_name', '')
         c_last = validated_data.pop('client_last_name', '')
         c_email = validated_data.pop('client_email', '')
         a_phone = validated_data.pop('agent_phone', None)
         districts = validated_data.pop('districts', [])
-
-        # REVISAR Lógica automática: Si envían min/max, es un rango (para que funcione el matching)
-        if validated_data.get('budget_min') is not None or validated_data.get('budget_max') is not None:
-            validated_data['budget_type'] = 'range'
+        preferred_floors = validated_data.pop('preferred_floors', [])
+        zonificaciones = validated_data.pop('zonificaciones', [])
 
         
         user = self.context['request'].user # hallar agente
@@ -368,6 +424,10 @@ class RequirementSerializer(serializers.ModelSerializer):
 
         if districts:
             requirement.districts.set(districts)
+        if preferred_floors:
+            requirement.preferred_floors.set(preferred_floors)
+        if zonificaciones:
+            requirement.zonificaciones.set(zonificaciones)
 
         return requirement
 
@@ -380,21 +440,32 @@ class RequirementSerializer(serializers.ModelSerializer):
 class PropertyDocumentUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PropertyDocument
-        fields = ("file",)  # ✅ solo reemplazar archivo
+        fields = ("file", "reference_number", "valid_from", "valid_to")
 
     def validate(self, attrs):
-        if not attrs.get("file"):
-            raise serializers.ValidationError({"file": "Este campo es requerido."})
+        vf = attrs.get("valid_from", getattr(self.instance, "valid_from", None))
+        vt = attrs.get("valid_to", getattr(self.instance, "valid_to", None))
+        if vf and vt and vt < vf:
+            raise serializers.ValidationError("valid_to no puede ser menor que valid_from.")
         return attrs
 
     def update(self, instance, validated_data):
         request = self.context["request"]
 
-        if hasattr(instance, "uploaded_by") and getattr(request, "user", None) and request.user.is_authenticated:
+        # si mandan file, reemplaza y resetea aprobación
+        new_file = validated_data.get("file", None)
+        if new_file:
+            instance.file = new_file
+            instance.is_approved = False
+
+        # metadata (si viene)
+        for f in ("reference_number", "valid_from", "valid_to"):
+            if f in validated_data:
+                setattr(instance, f, validated_data[f])
+
+        if getattr(request, "user", None) and request.user.is_authenticated:
             instance.uploaded_by = request.user
 
-        instance.file = validated_data["file"]
-        instance.is_approved = False  # al cambiar archivo, vuelve a revisión
         instance.save()
         return instance
 
@@ -402,3 +473,73 @@ class DocumentTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.DocumentType
         fields = ("id", "code", "name", "description", "is_active")
+
+class LeadSerializer(serializers.ModelSerializer):
+    operation_types = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=OperationType.objects.all(),
+        required=False
+    )
+    properties = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Property.objects.all(),
+        required=False
+    )
+    assigned_to = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=User.objects.all(),
+        required=False
+    )
+    lead_status = serializers.PrimaryKeyRelatedField(
+        queryset=LeadStatus.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    canal_lead = serializers.PrimaryKeyRelatedField(
+        queryset=CanalLead.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
+    class Meta:
+        model = Lead
+        fields = [
+            "id",
+            "username",
+            "full_name",
+            "phone",
+            "email",
+            "operation_types",
+            "properties",
+            "assigned_to",
+            "lead_status",
+            "canal_lead",
+            "notes",
+            "date_entry",
+            "id_chatwoot",
+            "date_last_message",
+            "user_last_message",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "is_active",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+    def create(self, validated_data):
+        operation_types = validated_data.pop("operation_types", [])
+        properties = validated_data.pop("properties", [])
+        assigned_to = validated_data.pop("assigned_to", [])
+
+        lead = Lead.objects.create(**validated_data)
+
+        if operation_types:
+            lead.operation_types.set(operation_types)
+
+        if properties:
+            lead.properties.set(properties)
+
+        if assigned_to:
+            lead.assigned_to.set(assigned_to)
+
+        return lead

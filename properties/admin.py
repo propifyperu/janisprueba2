@@ -15,12 +15,13 @@ from .models import (
     PropertyFinancialInfo, PropertyRoom, ImageType, VideoType,
     AgencyConfig,
     # WhatsApp
-    PropertyWhatsAppLink, LeadStatus, Lead, WhatsAppConversation, SocialNetwork, WhatsAppNumber, UTMClick,
+    PropertyWhatsAppLink, SocialNetwork, WhatsAppNumber, UTMClick,
     # Agenda
-    EventType, Event
+    EventType, Event, Proposal
 )
 
 from .models import Requirement, RequirementMatch
+from .models import CanalLead, LeadStatus, Lead
 from .models import MatchingWeight, MatchEvent
 
 
@@ -76,7 +77,7 @@ class ProvinceAdmin(admin.ModelAdmin):
 
 @admin.register(District)
 class DistrictAdmin(admin.ModelAdmin):
-    list_display = ('name', 'province', 'is_active')
+    list_display = ('id','code','name', 'province', 'is_active')
     list_filter = ('is_active', 'province')
     search_fields = ('name',)
     ordering = ('province', 'name')
@@ -122,11 +123,12 @@ class PropertyConditionAdmin(admin.ModelAdmin):
 
 @admin.register(OperationType)
 class OperationTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'order', 'is_active', 'created_at')
+    list_display = ('id','name', 'code', 'order', 'is_active', 'created_at')
     list_filter = ('is_active',)
     search_fields = ('name', 'code')
     ordering = ('order', 'name')
 
+ 
 
 @admin.register(PropertyStatus)
 class PropertyStatusAdmin(admin.ModelAdmin):
@@ -145,7 +147,7 @@ class CurrencyAdmin(admin.ModelAdmin):
 
 @admin.register(PaymentMethod)
 class PaymentMethodAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'order', 'is_active', 'created_at')
+    list_display = ('id','name', 'code', 'order', 'is_active', 'created_at')
     list_filter = ('is_active',)
     search_fields = ('name', 'code')
     ordering = ('order', 'name')
@@ -249,7 +251,7 @@ class PropertyRoomInline(admin.TabularInline):
 
 @admin.register(PropertyOwner)
 class PropertyOwnerAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'document_type','document_number', 'phone', 'email', 'is_active', 'created_at')
+    list_display = ('id','full_name', 'document_type','document_number', 'phone', 'email', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at', 'gender', 'profession')
     search_fields = ('first_name', 'last_name', 'document_number', 'email', 'phone')
     readonly_fields = ('created_at', 'updated_at')
@@ -282,7 +284,7 @@ class PropertyOwnerAdmin(admin.ModelAdmin):
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display = ('code', 'title', 'property_type', 'unit_location', 'status', 'price', 'owner', 'is_active', 'created_at')
+    list_display = ('id','ascensor','source','source_url','source_published_at','operation_type','district','district_fk','urbanization','code','condition','availability_status','exact_address','responsible','assigned_agent', 'title', 'property_type', 'status', 'price', 'owner', 'is_active', 'created_at','created_by','wp_post_id','wp_slug','wp_last_sync','is_draft','is_ready_for_sale')
     list_filter = ('is_active', 'status', 'property_type', 'created_at', 'department', 'unit_location')
     search_fields = ('code', 'title', 'owner__first_name', 'owner__last_name', 'description')
     readonly_fields = ('created_at', 'updated_at', 'code', 'codigo_unico_propiedad')
@@ -293,7 +295,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('code', 'codigo_unico_propiedad', 'title', 'description')
         }),
         ('Clasificación', {
-            'fields': ('property_type', 'property_subtype', 'condition', 'operation_type', 'status')
+            'fields': ('property_type', 'property_subtype', 'condition', 'operation_type', 'status','availability_status')
         }),
         ('Propietario y Responsable', {
             'fields': ('owner', 'responsible', 'created_by')
@@ -318,7 +320,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Estado y Auditoría', {
-            'fields': ('is_active', 'is_ready_for_sale', 'assigned_agent', 'created_at', 'updated_at'),
+            'fields': ('is_active', 'is_ready_for_sale', 'assigned_agent', 'created_at', 'updated_at','is_draft'),
             'classes': ('collapse',)
         }),
     )
@@ -334,7 +336,7 @@ class PropertyAdmin(admin.ModelAdmin):
 
 @admin.register(PropertyImage)
 class PropertyImageAdmin(admin.ModelAdmin):
-    list_display = ('property', 'image_type', 'caption', 'order', 'is_primary', 'uploaded_at')
+    list_display = ('id','property', 'order', 'is_primary', 'uploaded_at','wp_media_id','wp_source_url','wp_last_sync')
     list_filter = ('is_primary', 'image_type', 'uploaded_at')
     search_fields = ('property__code', 'caption')
     ordering = ('property', 'order')
@@ -406,11 +408,50 @@ class PropertyWhatsAppLinkAdmin(admin.ModelAdmin):
 
 @admin.register(Requirement)
 class RequirementAdmin(admin.ModelAdmin):
-    list_display = ('id', 'client_name', 'phone', 'property_type', 'district', 'budget_type', 'budget_approx', 'budget_min', 'budget_max', 'created_at')
-    list_filter = ('is_active', 'budget_type', 'property_type', 'department')
-    search_fields = ('client_name', 'phone')
-    readonly_fields = ('created_at', 'updated_at')
-    ordering = ('-created_at',)
+    list_display = (
+        "id",
+        "contact",
+        "operation_type",
+        "property_type",
+        "currency",
+        "source_group",
+        "source_date",
+        "is_active",
+        "created_at",
+        "summary_json",
+    )
+
+    list_filter = (
+        "is_active",
+        "operation_type",
+        "property_type",
+        "currency",
+        "payment_method",
+        "source_group",
+    )
+
+    search_fields = (
+        "id",
+        "contact__first_name",
+        "contact__last_name",
+        "contact__maternal_last_name",
+        "notes_message_ws",
+        "notes",
+    )
+
+    ordering = ("-source_date",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            "contact",
+            "operation_type",
+            "property_type",
+            "property_subtype",
+            "currency",
+            "payment_method",
+            "property_status",
+        ).prefetch_related("districts")
 
 @admin.register(RequirementMatch)
 class RequirementMatchAdmin(admin.ModelAdmin):
@@ -418,66 +459,6 @@ class RequirementMatchAdmin(admin.ModelAdmin):
     list_filter = ("computed_at",)
     search_fields = ("requirement__id", "property__code", "property__title")
     autocomplete_fields = ("requirement", "property")
-
-@admin.register(LeadStatus)
-class LeadStatusAdmin(admin.ModelAdmin):
-    list_display = ('name', 'property', 'color', 'order', 'is_active', 'created_at')
-    list_filter = ('is_active', 'property', 'created_at')
-    search_fields = ('name', 'property__code')
-    readonly_fields = ('created_at', 'updated_at')
-    fieldsets = (
-        ('Información', {
-            'fields': ('property', 'name', 'color', 'order', 'is_active')
-        }),
-        ('Auditoría', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    ordering = ('property', 'order')
-
-
-@admin.register(Lead)
-class LeadAdmin(admin.ModelAdmin):
-    list_display = ('phone_number', 'property', 'social_network', 'status', 'assigned_to', 'first_message_at')
-    list_filter = ('status', 'social_network', 'first_message_at', 'property')
-    search_fields = ('phone_number', 'name', 'email', 'property__code')
-    readonly_fields = ('first_message_at', 'created_at', 'updated_at')
-    fieldsets = (
-        ('Información del Lead', {
-            'fields': ('phone_number', 'name', 'email', 'property', 'whatsapp_link', 'social_network')
-        }),
-        ('Estado', {
-            'fields': ('status', 'assigned_to', 'notes')
-        }),
-        ('Fechas', {
-            'fields': ('first_message_at', 'last_message_at', 'created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    ordering = ('-created_at',)
-
-
-@admin.register(WhatsAppConversation)
-class WhatsAppConversationAdmin(admin.ModelAdmin):
-    list_display = ('lead', 'message_type', 'created_at', 'sent_by_user')
-    list_filter = ('message_type', 'created_at', 'media_type')
-    search_fields = ('lead__phone_number', 'message_body', 'property__code')
-    readonly_fields = ('message_id', 'created_at')
-    fieldsets = (
-        ('Información del Mensaje', {
-            'fields': ('lead', 'property', 'message_type', 'sender_name', 'sent_by_user')
-        }),
-        ('Contenido', {
-            'fields': ('message_body', 'media_url', 'media_type')
-        }),
-        ('Auditoría', {
-            'fields': ('message_id', 'created_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    ordering = ('-created_at',)
-
 
 @admin.register(SocialNetwork)
 class SocialNetworkAdmin(admin.ModelAdmin):
@@ -520,19 +501,19 @@ class EventTypeAdmin(admin.ModelAdmin):
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ('code', 'titulo', 'event_type', 'fecha_evento', 'hora_inicio', 'hora_fin', 'created_by', 'created_at')
-    list_filter = ('event_type', 'fecha_evento', 'is_active', 'created_at')
+    list_display = ('code', 'titulo', 'event_type', 'status', 'fecha_evento','assigned_agent', 'hora_inicio', 'hora_fin', 'created_by', 'created_at')
+    list_filter = ('event_type', 'status', 'fecha_evento', 'is_active', 'created_at')
     search_fields = ('code', 'titulo', 'interesado', 'property__code')
     readonly_fields = ('code', 'created_at', 'updated_at')
     fieldsets = (
         ('Información del Evento', {
-            'fields': ('code', 'event_type', 'titulo')
+            'fields': ('code', 'event_type', 'titulo', 'status', 'rejection_reason')
         }),
         ('Fecha y Hora', {
             'fields': ('fecha_evento', 'hora_inicio', 'hora_fin')
         }),
         ('Detalles', {
-            'fields': ('interesado', 'property', 'detalle')
+            'fields': ('interesado', 'lead', 'property', 'detalle')
         }),
         ('Auditoría', {
             'fields': ('created_by', 'created_at', 'updated_at', 'is_active'),
@@ -562,3 +543,107 @@ class MatchEventAdmin(admin.ModelAdmin):
 class AgencyConfigAdmin(admin.ModelAdmin):
     list_display = ('nombre_comercial', 'ruc', 'correo_electronico')
 
+@admin.register(CanalLead)
+class CanalLeadAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    ordering = ("name",)
+
+
+@admin.register(LeadStatus)
+class LeadStatusAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    ordering = ("name",)
+
+
+@admin.register(Lead)
+class LeadAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "full_name",
+        "phone",
+        "email",
+        "lead_status",
+        "canal_lead",
+        "date_entry",
+        "created_by",
+        "is_active",
+        "created_at",
+    )
+    list_filter = (
+        "is_active",
+        "lead_status",
+        "canal_lead",
+        "date_entry",
+        "created_at",
+    )
+    search_fields = (
+        "full_name",
+        "phone",
+        "email",
+        "notes",
+        "id_chatwoot",
+    )
+    readonly_fields = ("created_by", "created_at", "updated_at")
+    filter_horizontal = ("operation_types", "properties", "assigned_to")
+    ordering = ("-created_at",)
+
+    fieldsets = (
+        ("Datos básicos", {
+            "fields": ("full_name", "phone", "email")
+        }),
+        ("Relaciones", {
+            "fields": ("operation_types", "properties", "assigned_to", "lead_status", "canal_lead")
+        }),
+        ("Datos comerciales", {
+            "fields": ("notes", "date_entry", "id_chatwoot", "date_last_message", "user_last_message")
+        }),
+        ("Auditoría", {
+            "fields": ("created_by", "created_at", "updated_at", "is_active"),
+            "classes": ("collapse",)
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if not obj.pk and not obj.created_by:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+@admin.register(Proposal)
+class ProposalAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "property",
+        "requirement_match",
+        "lead",
+        "requested_by_user",
+        "responded_by_user",
+        "currency",
+        "payment_method",
+        "amount",
+        "status",
+        "responded_at",
+        "created_at",
+    )
+    list_filter = ("status", "currency", "payment_method", "created_at", "responded_at")
+    search_fields = (
+        "property__code",
+        "property__title",
+        "lead__username",
+        "lead__full_name",
+        "message",
+    )
+    readonly_fields = ("created_at", "updated_at", "responded_at")
+    autocomplete_fields = (
+        "property",
+        "requirement_match",
+        "lead",
+        "requested_by_user",
+        "responded_by_user",
+        "currency",
+        "payment_method",
+    )
+    ordering = ("-created_at",)

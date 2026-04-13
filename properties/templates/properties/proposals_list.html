@@ -1,0 +1,728 @@
+{% extends 'properties/base_dashboard.html' %}
+
+{% block dashboard_extra_css %}
+<style>
+	:root {
+		--bg: #f6f8f9;
+		--card: #ffffff;
+		--border: #e3e8ea;
+		--text: #1f2937;
+		--muted: #6b7280;
+		--primary: #00b5b5;
+		--primary-soft: #e8f9f8;
+		--success-bg: #eafaf0;
+		--success-text: #18794e;
+		--warning-bg: #fff7db;
+		--warning-text: #b45309;
+		--danger-bg: #fdecec;
+		--danger-text: #b42318;
+		--gray-bg: #f1f5f9;
+		--gray-text: #475569;
+		--shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+		--radius-lg: 20px;
+		--radius-md: 14px;
+	}
+
+	.proposals-topbar {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 20px;
+		margin-bottom: 24px;
+	}
+
+	.proposals-title h1 {
+		margin: 0;
+		font-size: 32px;
+		color: var(--text);
+	}
+
+	.proposals-title p {
+		margin: 8px 0 0;
+		font-size: 14px;
+		color: var(--muted);
+	}
+
+	.proposals-tabs {
+		display: flex;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	.proposals-tab {
+		padding: 10px 16px;
+		border-radius: 999px;
+		text-decoration: none;
+		font-size: 14px;
+		font-weight: 600;
+		border: 1px solid var(--border);
+		background: #fff;
+		color: var(--muted);
+		transition: all 0.2s ease;
+	}
+
+	.proposals-tab:hover {
+		border-color: var(--primary);
+		color: var(--primary);
+	}
+
+	.proposals-tab.active {
+		background: var(--primary-soft);
+		color: var(--primary);
+		border-color: #bfeceb;
+	}
+
+	.proposals-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+		gap: 20px;
+		align-items: stretch;
+	}
+
+	.proposal-card {
+		background: var(--card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow);
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+	}
+
+	.proposal-card__image {
+		width: 100%;
+		height: 190px;
+		object-fit: cover;
+		background: #eef2f4;
+		flex-shrink: 0;
+	}
+
+	.proposal-card__body {
+		padding: 18px;
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+	}
+
+	.proposal-card__top {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 14px;
+		margin-bottom: 12px;
+	}
+
+	.proposal-card__price {
+		margin: 0;
+		font-size: 28px;
+		font-weight: 700;
+		color: var(--text);
+	}
+
+	.proposal-card__address {
+		margin: 6px 0 0;
+		font-size: 16px;
+		font-weight: 600;
+		color: var(--text);
+	}
+
+	.proposal-card__location {
+		margin: 6px 0 0;
+		font-size: 13px;
+		color: var(--muted);
+	}
+
+	.proposal-card__published-price {
+		margin: 8px 0 0;
+		font-size: 13px;
+		color: var(--muted);
+	}
+
+	.status-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 8px 12px;
+		border-radius: 999px;
+		font-size: 12px;
+		font-weight: 700;
+		white-space: nowrap;
+	}
+
+	.status-badge--pending {
+		background: var(--warning-bg);
+		color: var(--warning-text);
+	}
+
+	.status-badge--accepted {
+		background: var(--success-bg);
+		color: var(--success-text);
+	}
+
+	.status-badge--rejected {
+		background: var(--danger-bg);
+		color: var(--danger-text);
+	}
+
+	.status-badge--cancelled {
+		background: var(--gray-bg);
+		color: var(--gray-text);
+	}
+
+	.proposal-card__meta {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 12px;
+		margin: 18px 0;
+	}
+
+	.meta-box {
+		padding: 12px 14px;
+		border-radius: 14px;
+		background: #f8fafb;
+		border: 1px solid #eef2f4;
+	}
+
+	.meta-box span {
+		display: block;
+		font-size: 12px;
+		color: var(--muted);
+		margin-bottom: 4px;
+	}
+
+	.meta-box strong {
+		font-size: 14px;
+		color: var(--text);
+	}
+
+	.proposal-card__message {
+		margin-top: 18px;
+		padding: 14px;
+		border-radius: 14px;
+		background: #f8fafb;
+		border: 1px solid #eef2f4;
+	}
+
+	.proposal-card__message span {
+		display: block;
+		font-size: 12px;
+		color: var(--muted);
+		margin-bottom: 6px;
+	}
+
+	.proposal-card__message p {
+		margin: 0;
+		font-size: 14px;
+		color: var(--text);
+		line-height: 1.5;
+	}
+
+	.proposal-card__footer {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 12px;
+		margin-top: auto;
+		padding-top: 14px;
+		border-top: 1px solid var(--border);
+		min-height: 58px;
+	}
+
+	.proposal-card__date {
+		font-size: 13px;
+		color: var(--muted);
+		line-height: 1.3;
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		align-items: center;
+	}
+
+	.proposal-card__actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 8px;
+		flex-wrap: nowrap;
+		min-width: 0;
+		flex-shrink: 0;
+	}
+
+	.proposal-card__actions form {
+		margin: 0;
+		display: inline-flex;
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 8px 12px;
+		border-radius: 12px;
+		text-decoration: none;
+		font-size: 12px;
+		font-weight: 700;
+		border: 1px solid transparent;
+		transition: all 0.2s ease;
+		min-height: 36px;
+		min-width: 104px;
+		white-space: nowrap;
+	}
+
+	.btn-primary {
+		background: var(--primary);
+		color: #fff;
+	}
+
+	.btn-primary:hover {
+		opacity: 0.92;
+		color: #fff;
+	}
+
+	.btn-outline {
+		background: #fff;
+		color: var(--muted);
+		border-color: var(--border);
+	}
+
+	.btn-outline:hover {
+		border-color: var(--primary);
+		color: var(--primary);
+	}
+
+	.reject-form {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 8px;
+		width: 100%;
+	}
+
+	.reject-form textarea {
+		width: 100%;
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		padding: 10px 12px;
+		font-size: 13px;
+		min-height: 80px;
+		resize: vertical;
+	}
+
+	.empty-state {
+		padding: 48px 24px;
+		text-align: center;
+		background: #fff;
+		border: 1px dashed var(--border);
+		border-radius: var(--radius-lg);
+		color: var(--muted);
+	}
+
+	.event-modal {
+		display: none;
+		position: fixed;
+		z-index: 9999;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(0,0,0,0.4);
+	}
+
+	.event-modal-content {
+		background-color: #fff;
+		margin: 5% auto;
+		padding: 0;
+		border-radius: 8px;
+		width: 90%;
+		max-width: 500px;
+		box-shadow: 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12);
+	}
+
+	.event-modal-header {
+		padding: 24px;
+		border-bottom: 1px solid #e0e0e0;
+		position: relative;
+	}
+
+	.event-modal-header h5 {
+		margin: 0;
+		font-size: 18px;
+		font-weight: 500;
+		color: #202124;
+	}
+
+	.event-modal-close {
+		position: absolute;
+		right: 16px;
+		top: 16px;
+		font-size: 28px;
+		font-weight: 300;
+		color: #5f6368;
+		cursor: pointer;
+		background: none;
+		border: none;
+		padding: 8px;
+		line-height: 1;
+		border-radius: 50%;
+		width: 40px;
+		height: 40px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.event-modal-close:hover {
+		background: #f1f3f4;
+	}
+
+	.event-modal-body {
+		padding: 24px;
+	}
+
+	.event-detail-row {
+		margin-bottom: 16px;
+		display: flex;
+		gap: 12px;
+	}
+
+	.event-detail-row i {
+		color: #5f6368;
+		width: 20px;
+		text-align: center;
+		margin-top: 2px;
+	}
+
+	.event-detail-content {
+		flex: 1;
+	}
+
+	.event-detail-label {
+		font-size: 12px;
+		color: #5f6368;
+		margin-bottom: 4px;
+	}
+
+	.event-detail-value {
+		font-size: 14px;
+		color: #202124;
+	}
+
+	@media (max-width: 900px) {
+		.proposals-topbar {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.proposal-card__meta {
+			grid-template-columns: 1fr;
+		}
+
+		.proposal-card__footer {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+
+		.proposal-card__actions {
+			justify-content: flex-start;
+			flex-wrap: wrap;
+			min-width: auto;
+			width: 100%;
+		}
+	}
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="proposals-shell">
+	<div class="proposals-topbar">
+		<div class="proposals-title">
+			<h1>Propuestas</h1>
+			<p>Gestiona las propuestas enviadas y recibidas entre agentes.</p>
+		</div>
+
+		<div class="proposals-tabs">
+			<a href="?tab=all" class="proposals-tab {% if active_tab == 'all' %}active{% endif %}">Todas</a>
+			<a href="?tab=received" class="proposals-tab {% if active_tab == 'received' %}active{% endif %}">Recibidas</a>
+			<a href="?tab=sent" class="proposals-tab {% if active_tab == 'sent' %}active{% endif %}">Enviadas</a>
+		</div>
+	</div>
+
+	{% if proposals %}
+	<div class="proposals-grid">
+		{% for proposal in proposals %}
+		{% with visit_event=proposal.visit_events.0 %}
+		<div class="proposal-card">
+			{% with first_image=proposal.property.images.first %}
+				{% if first_image and first_image.image %}
+					<img
+						src="{{ first_image.image.url }}"
+						alt="{{ proposal.property.title }}"
+						class="proposal-card__image"
+					/>
+				{% else %}
+					<div class="proposal-card__image d-flex align-items-center justify-content-center text-muted">
+						Sin imagen
+					</div>
+				{% endif %}
+			{% endwith %}
+
+			<div class="proposal-card__body">
+				<div class="proposal-card__top">
+					<div>
+						<p class="proposal-card__price">
+							{{ proposal.currency.symbol|default:proposal.currency.code|default:proposal.currency.name }} {{ proposal.amount }}
+						</p>
+						<p class="proposal-card__address">{{ proposal.property.title|default:proposal.property.code }}</p>
+						<p class="proposal-card__location">
+							{{ proposal.property.district_name|default:proposal.property.district|default:"" }}
+							{% if proposal.property.province_name or proposal.property.province %}
+								, {{ proposal.property.province_name|default:proposal.property.province }}
+							{% endif %}
+						</p>
+						<p class="proposal-card__published-price">
+							Precio publicado:
+							{{ proposal.property.currency.symbol|default:proposal.property.currency.code|default:proposal.property.currency.name }}
+							{{ proposal.property.price }}
+						</p>
+					</div>
+
+					<span class="status-badge status-badge--{{ proposal.status }}">
+						{{ proposal.get_status_display }}
+					</span>
+				</div>
+
+				<div class="proposal-card__meta">
+					<div class="meta-box">
+						<span>Enviada por</span>
+						<strong>{{ proposal.requested_by_user.get_full_name|default:proposal.requested_by_user.username }}</strong>
+					</div>
+
+					<div class="meta-box">
+						<span>Tipo</span>
+						<strong>{{ proposal.property.property_type.name|default:"-" }}</strong>
+					</div>
+
+					<div class="meta-box">
+						<span>Subtipo</span>
+						<strong>{{ proposal.property.property_subtype.name|default:"-" }}</strong>
+					</div>
+
+					<div class="meta-box">
+						<span>Método de pago</span>
+						<strong>{{ proposal.payment_method.name|default:"-" }}</strong>
+					</div>
+
+					<div class="meta-box">
+						<span>Características</span>
+						<strong>{{ proposal.property.bedrooms|default:"0" }} dorm · {{ proposal.property.bathrooms|default:"0" }} baños</strong>
+					</div>
+
+					<div class="meta-box">
+						<span>Área construida</span>
+						<strong>{{ proposal.property.built_area|default:"-" }} m²</strong>
+					</div>
+				</div>
+
+				{% if proposal.message %}
+				<div class="proposal-card__message">
+					<span>Mensaje</span>
+					<p>{{ proposal.message }}</p>
+				</div>
+				{% endif %}
+
+				{% if proposal.response_message %}
+				<div class="proposal-card__message">
+					<span>Respuesta</span>
+					<p>{{ proposal.response_message }}</p>
+				</div>
+				{% endif %}
+
+				<div class="proposal-card__footer">
+					<span class="proposal-card__date">{{ proposal.created_at|date:"d/m/Y" }}</span>
+
+					<div class="proposal-card__actions">
+						{% if proposal.status == 'pending' and proposal.property.responsible_id == request.user.id %}
+							<form method="post" action="{% url 'properties:proposal_accept' proposal.id %}">
+								{% csrf_token %}
+								<button type="submit" class="btn btn-primary">Aprobar</button>
+							</form>
+
+							<button type="button" class="btn btn-outline" onclick="toggleRejectForm('{{ proposal.id }}')">
+								Rechazar
+							</button>
+
+						{% elif proposal.status == 'accepted' %}
+							{% if visit_event %}
+								<button type="button" class="btn btn-primary" onclick="openVisitModal('visit-modal-{{ proposal.id }}')">
+									Detalle visita
+								</button>
+							{% else %}
+								<a href="{% url 'properties:event_create' %}?property={{ proposal.property.id }}&proposal={{ proposal.id }}" class="btn btn-primary">
+									Agendar visita
+								</a>
+							{% endif %}
+							
+							{% if proposal.property.responsible_id == request.user.id %}
+								<a href="{% url 'chat:compose' %}?recipient={{ proposal.requested_by_user.id }}&subject=Conversacion%20interna%20sobre%20propuesta" class="btn btn-outline">
+									Enviar mensaje
+								</a>
+							{% else %}
+								<a href="{% url 'chat:compose' %}?recipient={{ proposal.property.responsible_id }}&subject=Conversacion%20interna%20sobre%20propuesta" class="btn btn-outline">
+									Enviar mensaje
+								</a>
+							{% endif %}
+						{% endif %}
+					</div>
+				</div>
+
+				{% if proposal.status == 'pending' and proposal.property.responsible_id == request.user.id %}
+				<form method="post" action="{% url 'properties:proposal_reject' proposal.id %}" id="reject-form-{{ proposal.id }}" class="reject-form" style="display:none;">
+					{% csrf_token %}
+					<textarea name="response_message" placeholder="Escribe el motivo del rechazo..." required></textarea>
+					<div class="d-flex gap-2">
+						<button type="submit" class="btn btn-outline">Confirmar rechazo</button>
+						<button type="button" class="btn btn-outline" onclick="toggleRejectForm('{{ proposal.id }}')">Cancelar</button>
+					</div>
+				</form>
+				{% endif %}
+			</div>
+		</div>
+
+		{% if visit_event %}
+		<div id="visit-modal-{{ proposal.id }}" class="event-modal">
+			<div class="event-modal-content">
+				<div class="event-modal-header">
+					<h5>{{ visit_event.titulo }}</h5>
+					<button class="event-modal-close" type="button" onclick="closeVisitModal('visit-modal-{{ proposal.id }}')">&times;</button>
+				</div>
+				<div class="event-modal-body">
+					<div class="event-detail-row">
+						<i class="fas fa-tag"></i>
+						<div class="event-detail-content">
+							<div class="event-detail-label">Código</div>
+							<div class="event-detail-value">{{ visit_event.code }}</div>
+						</div>
+					</div>
+
+					<div class="event-detail-row">
+						<i class="fas fa-calendar-day"></i>
+						<div class="event-detail-content">
+							<div class="event-detail-label">Tipo de evento</div>
+							<div class="event-detail-value">{{ visit_event.event_type.name }}</div>
+						</div>
+					</div>
+
+					<div class="event-detail-row">
+						<i class="fas fa-clock"></i>
+						<div class="event-detail-content">
+							<div class="event-detail-label">Horario</div>
+							<div class="event-detail-value">
+								{{ visit_event.fecha_evento|date:"d/m/Y" }} · {{ visit_event.hora_inicio|time:"h:i a" }} - {{ visit_event.hora_fin|time:"h:i a" }}
+							</div>
+						</div>
+					</div>
+
+					{% if visit_event.interesado %}
+					<div class="event-detail-row">
+						<i class="fas fa-user"></i>
+						<div class="event-detail-content">
+							<div class="event-detail-label">Cliente / Interesado</div>
+							<div class="event-detail-value">{{ visit_event.interesado }}</div>
+						</div>
+					</div>
+					{% endif %}
+
+					{% if visit_event.property %}
+					<div class="event-detail-row">
+						<i class="fas fa-home"></i>
+						<div class="event-detail-content">
+							<div class="event-detail-label">Inmueble</div>
+							<div class="event-detail-value">{{ visit_event.property.title|default:visit_event.property.code }}</div>
+						</div>
+					</div>
+					{% endif %}
+
+					{% if visit_event.assigned_agent %}
+					<div class="event-detail-row">
+						<i class="fas fa-user-check"></i>
+						<div class="event-detail-content">
+							<div class="event-detail-label">Agente Asignado</div>
+							<div class="event-detail-value">{{ visit_event.assigned_agent.get_full_name|default:visit_event.assigned_agent.username }}</div>
+						</div>
+					</div>
+					{% endif %}
+
+					{% if visit_event.detalle %}
+					<div class="event-detail-row">
+						<i class="fas fa-align-left"></i>
+						<div class="event-detail-content">
+							<div class="event-detail-label">Detalle</div>
+							<div class="event-detail-value">{{ visit_event.detalle }}</div>
+						</div>
+					</div>
+					{% endif %}
+
+					<div class="event-detail-row">
+						<i class="fas fa-pen-nib"></i>
+						<div class="event-detail-content">
+							<div class="event-detail-label">Creado por</div>
+							<div class="event-detail-value">{{ visit_event.created_by.get_full_name|default:visit_event.created_by.username }}</div>
+						</div>
+					</div>
+
+					{% if visit_event.seguimiento %}
+					<div class="event-detail-row">
+						<i class="fas fa-comment-dots"></i>
+						<div class="event-detail-content">
+							<div class="event-detail-label">Seguimiento</div>
+							<div class="event-detail-value">{{ visit_event.seguimiento }}</div>
+						</div>
+					</div>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+		{% endif %}
+		{% endwith %}
+		{% endfor %}
+	</div>
+	{% else %}
+	<div class="empty-state">
+		No tienes propuestas.
+	</div>
+	{% endif %}
+</div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script>
+	function toggleRejectForm(proposalId) {
+		const form = document.getElementById(`reject-form-${proposalId}`);
+		if (form) {
+			form.style.display = form.style.display === "none" ? "flex" : "none";
+		}
+	}
+
+	function openVisitModal(modalId) {
+		const modal = document.getElementById(modalId);
+		if (modal) {
+			modal.style.display = 'block';
+		}
+	}
+
+	function closeVisitModal(modalId) {
+		const modal = document.getElementById(modalId);
+		if (modal) {
+			modal.style.display = 'none';
+		}
+	}
+
+	window.addEventListener('click', function(event) {
+		document.querySelectorAll('.event-modal').forEach(function(modal) {
+			if (event.target === modal) {
+				modal.style.display = 'none';
+			}
+		});
+	});
+</script>
+{% endblock %}

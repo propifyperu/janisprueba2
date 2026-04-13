@@ -1,0 +1,138 @@
+{% extends 'properties/base_dashboard.html' %}
+
+{% block dashboard_extra_css %}
+<style>
+    .form-section {
+        border: 1px solid #e3e6f0;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        background: #fff;
+        margin-bottom: 2rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+
+    .section-title {
+        color: var(--color-secondary-dark);
+        border-bottom: 2px solid rgba(4, 125, 125, 0.3);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #5a5c69;
+        margin-bottom: 0.5rem;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-end mb-3">
+        <a href="{% url 'properties:proposals_list' %}" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Volver a mis propuestas
+        </a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white py-3">
+                    <h4 class="mb-0">
+                        <i class="fas fa-file-signature me-2"></i>
+                        Crear propuesta
+                    </h4>
+                    <p class="mb-0 mt-1 small opacity-75">
+                        Registra una nueva propuesta vinculada a una propiedad.
+                    </p>
+                </div>
+
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <li>
+                                            <strong>
+                                                {% if field == "__all__" %}General{% else %}{{ field|capfirst }}{% endif %}:
+                                            </strong>
+                                            {{ error }}
+                                        </li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-info-circle me-2"></i>Datos de la propuesta
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label required-field">Propiedad</label>
+                                    {{ form.property }}
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Lead</label>
+                                    {{ form.lead }}
+                                    <small class="form-text text-muted">
+                                        Opcional. Puedes dejarlo vacío.
+                                    </small>
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label required-field">Moneda</label>
+                                    {{ form.currency }}
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label required-field">Forma de pago</label>
+                                    {{ form.payment_method }}
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label required-field">Monto propuesto</label>
+                                    {{ form.amount }}
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Mensaje</label>
+                                    {{ form.message }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'properties:proposals_list' %}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Guardar propuesta
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

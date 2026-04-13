@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from security.models import AuthorizedDevice, DeviceStatus
+import os
 import uuid
 # users/api/views.py
 from django.contrib.auth import get_user_model
@@ -14,6 +15,11 @@ from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.mixins import RetrieveModelMixin, UpdateModelMixin
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.conf import settings
 from .serializers import UserMeProfileSerializer
 
 User = get_user_model()
@@ -42,6 +48,40 @@ class MeProfileViewSet(GenericViewSet, RetrieveModelMixin, UpdateModelMixin):
         Transacción para no dejar User y Profile a medias.
         """
         return super().partial_update(request, *args, **kwargs)
+
+class ExternalAuthView(APIView):
+
+    #intercambio de tel + token por un token de usuario.
+    
+    permission_classes = []
+
+    def post(self, request):
+        secret = request.data.get('secret')
+        phone = request.data.get('phone')
+        
+        server_secret = os.getenv('EXTERNAL_AUTH_SECRET', getattr(settings, 'EXTERNAL_AUTH_SECRET', 'janis_external_secret_default'))
+        
+        if secret != server_secret:
+            return Response({'error': 'Unauthorized: Invalid Secret'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not phone:
+            return Response({'error': 'Phone is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        phone_clean = str(phone).strip() # buscar usuario por teléfono
+        user = User.objects.filter(phone=phone_clean, is_active=True).first()
+
+        if not user:
+            return Response({'error': 'User not found with this phone'}, status=status.HTTP_404_NOT_FOUND)
+
+        refresh = RefreshToken.for_user(user) # generar token JWT
+
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user_id': user.id,
+            'username': user.username,
+            'full_name': user.get_full_name()
+        })
 
 class LoginForm(forms.Form):
     username = forms.CharField(label='Usuario', max_length=150)

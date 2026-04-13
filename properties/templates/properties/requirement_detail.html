@@ -1,115 +1,185 @@
 {% extends 'properties/base_dashboard.html' %}
 {% load static %}
+{% load requirement_extras %}
 
 {% block title %}Detalle Requerimiento - Propify{% endblock %}
 
 {% block dashboard_content %}
 <div class="container-fluid py-md-4">
-    <div class="row justify-content-center">
-        <div class="col-11 col-xl-8 pt-3">
-                <div>
-                    <a href="{% url 'properties:requirements_list' %}" class="btn btn-outline-teal">Volver a lista</a>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h1 class="h5 mb-0"><i class="fas fa-eye me-2"></i>Detalle de Requerimiento</h1>
-                    <div>
-                        <a href="{% url 'properties:matching_matches' requirement.id %}" class="btn btn-outline-primary me-2">Ver coincidencias</a>
-                        
-                    </div>
-                </div>
+  <div class="row justify-content-center">
+    <div class="col-11 col-xl-9 pt-3">
 
-            <div class="card">
-                <div class="card-body">
-                    <dl class="row">
-                        <dt class="col-sm-4">ID</dt>
-                        <dd class="col-sm-8">{{ requirement.id }}</dd>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="{% url 'properties:requirements_list' %}" class="btn btn-outline-teal">Volver a lista</a>
+        <a href="{% url 'properties:requirements_edit' requirement.id %}" class="btn btn-outline-primary">
+          Editar
+        </a>
+      </div>
 
-                        {% if requirement.created_by %}
-                        <dt class="col-sm-4">Creado por</dt>
-                        <dd class="col-sm-8">{{ requirement.created_by.get_full_name|default:requirement.created_by.username }}</dd>
-                        {% endif %}
+      <h1 class="h5 mb-3"><i class="fas fa-eye me-2"></i>Detalle de Requerimiento #{{ requirement.id }}</h1>
 
-                        {% if can_view_pii and requirement.contact or can_view_pii and requirement.client_name or can_view_pii and requirement.phone %}
-                        <dt class="col-sm-4">Contacto</dt>
-                        <dd class="col-sm-8">
-                            {% if requirement.contact %}
-                                <a href="{% url 'properties:contact_detail' requirement.contact.id %}">{{ requirement.contact.full_name }}</a>
-                                {% if requirement.contact.phone %}<br><small class="text-muted">Tel: {{ requirement.contact.phone }}</small>{% endif %}
-                            {% else %}
-                                {{ requirement.client_name }}
-                                {% if requirement.phone %}<br><small class="text-muted">Tel: {{ requirement.phone }}</small>{% endif %}
-                            {% endif %}
-                        </dd>
-                        {% endif %}
+        <div class="card mb-3">
+        <div class="card-header fw-semibold">General</div>
+        <div class="card-body">
+            <dl class="row mb-0">
 
-                        {% if requirement.property_type %}
-                        <dt class="col-sm-4">Tipo</dt>
-                        <dd class="col-sm-8">{{ requirement.property_type.name }}</dd>
-                        {% endif %}
+            <dt class="col-sm-4">Actualizado</dt>
+            <dd class="col-sm-8">
+                {{ requirement.updated_at|date:"d/m/Y H:i" }}
+            </dd>
 
-                        {% if requirement.property_subtype %}
-                        <dt class="col-sm-4">Subtipo</dt>
-                        <dd class="col-sm-8">{{ requirement.property_subtype.name }}</dd>
-                        {% endif %}
+            <dt class="col-sm-4">Creado por</dt>
+            <dd class="col-sm-8">
+                {# si tienes modified_by en el modelo, perfecto #}
+                {% if requirement.created_by %}
+                {{ requirement.created_by.get_full_name|default:requirement.created_by.username }}
+                {% else %}
+                -
+                {% endif %}
+            </dd>
 
-                        {% comment %}Presupuesto: mostrar sólo si hay valores{% endcomment %}
-                        {% if requirement.budget_type == 'approx' and requirement.budget_approx %}
-                        <dt class="col-sm-4">Presupuesto</dt>
-                        <dd class="col-sm-8">{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_approx }}</dd>
-                        {% elif requirement.budget_type != 'approx' and requirement.budget_min and requirement.budget_max %}
-                        <dt class="col-sm-4">Presupuesto</dt>
-                        <dd class="col-sm-8">{% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_min }} - {% if requirement.currency %}{{ requirement.currency.symbol }}{% else %}$ {% endif %}{{ requirement.budget_max }}</dd>
-                        {% endif %}
+            <dt class="col-sm-4">Contacto</dt>
+            <dd class="col-sm-8">
+                {% if can_view_pii %}
+                {% if requirement.contact %}
+                    <a href="{% url 'properties:contact_detail' requirement.contact.id %}">
+                    {{ requirement.contact.full_name|default:requirement.contact }}
+                    </a>
+                {% else %}
+                    -
+                {% endif %}
+                {% else %}
+                -
+                {% endif %}
+            </dd>
 
-                        {% if requirement.payment_method %}
-                        <dt class="col-sm-4">Medio de pago</dt>
-                        <dd class="col-sm-8">{{ requirement.payment_method.name }}</dd>
-                        {% endif %}
+            <dt class="col-sm-4">Grupo de Whatsapp</dt>
+            <dd class="col-sm-8">{{ requirement.source_group|default:"-" }}</dd>
 
-                        {% if requirement.status %}
-                        <dt class="col-sm-4">Estado</dt>
-                        <dd class="col-sm-8">{{ requirement.status.name }}</dd>
-                        {% endif %}
+            <dt class="col-sm-4">Fecha del requerimiento</dt>
+            <dd class="col-sm-8">
+                {% if requirement.source_date %}
+                {{ requirement.source_date|date:"d/m/Y" }}
+                {% else %}
+                -
+                {% endif %}
+            </dd>
 
-                        {% comment %}Ubicación: mostrar sólo si hay alguna parte{% endcomment %}
-                        {% with ds=requirement.districts.all %}
-                        {% if requirement.department or requirement.province or ds and ds|length > 0 or requirement.district %}
-                        <dt class="col-sm-4">Ubicación</dt>
-                        <dd class="col-sm-8">
-                            {% if requirement.department %}{{ requirement.department.name }}{% endif %}
-                            {% if requirement.province %} / {{ requirement.province.name }}{% endif %}
-                            {% if ds and ds|length > 0 %}
-                                / {% for d in ds %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                            {% elif requirement.district %}
-                                / {{ requirement.district.name }}
-                            {% endif %}
-                        </dd>
-                        {% endif %}
-                        {% endwith %}
-
-                        {% comment %}Características: mostrar sólo si al menos una tiene valor{% endcomment %}
-                        {% if requirement.bedrooms or requirement.bathrooms or requirement.half_bathrooms or requirement.floors or requirement.garage_spaces %}
-                        <dt class="col-sm-4">Características</dt>
-                        <dd class="col-sm-8">
-                            {% if requirement.bedrooms %}Habitaciones: {{ requirement.bedrooms }}{% endif %}
-                            {% if requirement.bathrooms %} · Baños: {{ requirement.bathrooms }}{% endif %}
-                            {% if requirement.half_bathrooms %} · Medios baños: {{ requirement.half_bathrooms }}{% endif %}
-                            {% if requirement.floors %} · Pisos: {{ requirement.floors }}{% endif %}
-                            {% if requirement.garage_spaces %} · Cocheras: {{ requirement.garage_spaces }}{% endif %}
-                        </dd>
-                        {% endif %}
-
-                        {% if requirement.notes %}
-                        <dt class="col-sm-4">Observaciones</dt>
-                        <dd class="col-sm-8">{{ requirement.notes }}</dd>
-                        {% endif %}
-
-                        <dt class="col-sm-4">Fecha</dt>
-                        <dd class="col-sm-8">{{ requirement.created_at|date:"d/m/Y H:i" }}</dd>
-                    </dl>
-                </div>
-            </div>
+            <dt class="col-sm-4">Mensaje de Whatsapp</dt>
+            <dd class="col-sm-8">{{ requirement.notes_message_ws|default:"-" }}</dd>
+            </dl>
         </div>
+        </div>
+
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Filtros principales</div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Operación</dt>
+            <dd class="col-sm-8">{{ requirement.operation_type.name|default:"-" }}</dd>
+
+            <dt class="col-sm-4">Tipo</dt>
+            <dd class="col-sm-8">{{ requirement.property_type.name|default:"-" }}</dd>
+
+            <dt class="col-sm-4">Subtipo</dt>
+            <dd class="col-sm-8">{{ requirement.property_subtype.name|default:"-" }}</dd>
+
+            <dt class="col-sm-4">Estado propiedad</dt>
+            <dd class="col-sm-8">{{ requirement.property_status.name|default:"-" }}</dd>
+
+            <dt class="col-sm-4">Moneda</dt>
+            <dd class="col-sm-8">{{ requirement.currency.name|default:"-" }}</dd>
+
+            <dt class="col-sm-4">Medio de pago</dt>
+            <dd class="col-sm-8">{{ requirement.payment_method.name|default:"-" }}</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Ubicación</div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Distritos</dt>
+            <dd class="col-sm-8">
+              {% with ds=requirement.districts.all %}
+                {% if ds %}
+                  {% for d in ds %}
+                    <span class="badge bg-light text-dark border">{{ d.name|default:d }}</span>
+                  {% endfor %}
+                {% else %}
+                  -
+                {% endif %}
+              {% endwith %}
+            </dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Rangos</div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Precio</dt>
+            <dd class="col-sm-8">
+              {% with sym=requirement.currency.symbol|default:"" %}
+                {% money_range sym requirement.price_min requirement.price_max as ptxt %}
+                {{ ptxt }}
+              {% endwith %}
+            </dd>
+
+            <dt class="col-sm-4">Área terreno</dt>
+            <dd class="col-sm-8">{% area_range requirement.land_area_min requirement.land_area_max "m²" %}</dd>
+
+            <dt class="col-sm-4">Área construida</dt>
+            <dd class="col-sm-8">{% area_range requirement.built_area_min requirement.built_area_max "m²" %}</dd>
+
+            <dt class="col-sm-4">Antigüedad (años)</dt>
+            <dd class="col-sm-8">
+              {% area_range requirement.antiquity_years_min requirement.antiquity_years_max "años" %}
+            </dd>
+
+            <dt class="col-sm-4">Pisos</dt>
+            <dd class="col-sm-8">
+              {% area_range requirement.floors_min requirement.floors_max "pisos" %}
+            </dd>
+
+            <dt class="col-sm-4">Dormitorios</dt>
+            <dd class="col-sm-8">
+              {% area_range requirement.bedrooms_min requirement.bedrooms_max "" %}
+            </dd>
+
+            <dt class="col-sm-4">Baños</dt>
+            <dd class="col-sm-8">
+              {% area_range requirement.bathrooms_min requirement.bathrooms_max "" %}
+            </dd>
+
+            <dt class="col-sm-4">Cocheras</dt>
+            <dd class="col-sm-8">
+              {% area_range requirement.garage_spaces_min requirement.garage_spaces_max "" %}
+            </dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Flags</div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Ascensor</dt>
+            <dd class="col-sm-8">
+              {% if requirement.has_elevator is None %}-{% else %}{{ requirement.has_elevator }}{% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Pet friendly</dt>
+            <dd class="col-sm-8">
+              {% if requirement.pet_friendly is None %}-{% else %}{{ requirement.pet_friendly }}{% endif %}
+            </dd>
+          </dl>
+        </div>
+      </div>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}

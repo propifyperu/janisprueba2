@@ -4,6 +4,8 @@
 {% block title %}Editar Evento - Propify{% endblock %}
 
 {% block dashboard_extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 <style>
     .permissions-page {
         --primary-color: #047D7D;
@@ -29,6 +31,11 @@
     .btn-outline-teal:hover {
         background-color: var(--primary-color, #047D7D) !important;
         color: #fff !important;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection {
+        border-radius: .375rem;
+        min-height: calc(1.5em + .75rem + 2px);
     }
 </style>
 {% endblock %}
@@ -75,6 +82,34 @@
                                         <div class="text-danger small mt-1">{{ form.titulo.errors }}</div>
                                     {% endif %}
                                 </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.status.id_for_label }}">
+                                        Estado de confirmación
+                                    </label>
+                                    {{ form.status }}
+                                    {% if form.status.errors %}
+                                        <div class="text-danger small mt-1">{{ form.status.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="{{ form.assigned_agent.id_for_label }}">
+                                        Agente Asignado
+                                    </label>
+                                    {{ form.assigned_agent }}
+                                    {% if form.assigned_agent.errors %}
+                                        <div class="text-danger small mt-1">{{ form.assigned_agent.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-12" id="rejectionReasonRow" style="display: none;">
+                                    <label class="form-label" for="{{ form.rejection_reason.id_for_label }}">
+                                        Motivo de rechazo <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.rejection_reason }}
+                                    {% if form.rejection_reason.errors %}
+                                        <div class="text-danger small mt-1">{{ form.rejection_reason.errors }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                         
@@ -112,24 +147,75 @@
                             </div>
                         </div>
                         
+                        <!-- Sección: Cliente / Contacto -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3 text-muted">CLIENTE / INTERESADO</h6>
+                            
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="manualContactToggle" 
+                                    {% if form.instance.interesado and not form.instance.lead %}checked{% endif %}>
+                                <label class="form-check-label" for="manualContactToggle">Ingresar datos manualmente (No usar Lead existente)</label>
+                            </div>
+                        
+                            <!-- Opción A: Selector de Lead -->
+                            <div id="leadSelectRow">
+                                <label class="form-label" for="{{ form.lead.id_for_label }}">
+                                    Lead (Cliente Potencial)
+                                </label>
+                                <select class="form-select" id="{{ form.lead.id_for_label }}" name="{{ form.lead.html_name }}">
+                                    <option></option>
+                                    {% if form.instance.lead %}
+                                        <option value="{{ form.instance.lead.pk }}" selected>{{ form.instance.lead.full_name|default:form.instance.lead.username }} ({{ form.instance.lead.phone }})</option>
+                                    {% elif form.lead.value %}
+                                        <option value="{{ form.lead.value }}" selected>Lead ID: {{ form.lead.value }}</option>
+                                    {% endif %}
+                                </select>
+                                {% if form.lead.errors %}
+                                    <div class="text-danger small mt-1">{{ form.lead.errors }}</div>
+                                {% endif %}
+                                <div class="form-text">Busca un lead registrado por nombre o teléfono.</div>
+                            </div>
+                        
+                            <!-- Opción B: Datos manuales -->
+                            <div id="manualContactRow" style="display: none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="{{ form.interesado.id_for_label }}">Nombre</label>
+                                        {{ form.interesado }}
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="{{ form.contact_phone.id_for_label }}">Teléfono</label>
+                                        {{ form.contact_phone }}
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="{{ form.contact_email.id_for_label }}">Email</label>
+                                        {{ form.contact_email }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Sección: Detalles -->
                         <div class="mb-4">
                             <h6 class="fw-bold mb-3 text-muted">DETALLES</h6>
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label" for="{{ form.interesado.id_for_label }}">
-                                        Interesado
-                                    </label>
-                                    {{ form.interesado }}
-                                    {% if form.interesado.errors %}
-                                        <div class="text-danger small mt-1">{{ form.interesado.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6">
                                     <label class="form-label" for="{{ form.property.id_for_label }}">
                                         Inmueble
                                     </label>
-                                    {{ form.property }}
+                                    <select class="form-select" id="{{ form.property.id_for_label }}" name="{{ form.property.html_name }}">
+                                        <option></option>
+                                        {% if form.property.value %}
+                                            {# On GET, value is the instance's property. On failed POST, it's the submitted value. #}
+                                            {% if form.instance.property and form.property.value|stringformat:"s" == form.instance.property.pk|stringformat:"s" %}
+                                                {# The selected value is the original property, so we have its details. #}
+                                                <option value="{{ form.instance.property.pk }}" selected>{{ form.instance.property.code }} - {{ form.instance.property.title|default:form.instance.property.real_address|default:'' }}</option>
+                                            {% else %}
+                                                {# On a failed POST with a new property, we only have the ID. This makes the form valid. #}
+                                                <option value="{{ form.property.value }}" selected>Propiedad ID: {{ form.property.value }}</option>
+                                            {% endif %}
+                                        {% endif %}
+                                    </select>
                                     {% if form.property.errors %}
                                         <div class="text-danger small mt-1">{{ form.property.errors }}</div>
                                     {% endif %}
@@ -139,7 +225,7 @@
                             <div class="row g-3 mt-2">
                                 <div class="col-12">
                                     <label class="form-label" for="{{ form.detalle.id_for_label }}">
-                                        Detalle de la visita
+                                        Detalle del evento
                                     </label>
                                     {{ form.detalle }}
                                     {% if form.detalle.errors %}
@@ -166,4 +252,122 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const toggle = document.getElementById('manualContactToggle');
+    const leadRow = document.getElementById('leadSelectRow');
+    const manualRow = document.getElementById('manualContactRow');
+
+    function updateVisibility() {
+        if (toggle.checked) {
+            leadRow.style.display = 'none';
+            manualRow.style.display = 'block';
+        } else {
+            leadRow.style.display = 'block';
+            manualRow.style.display = 'none';
+        }
+    }
+
+    if (toggle) {
+        toggle.addEventListener('change', updateVisibility);
+        updateVisibility();
+    }
+
+    const statusSelect = document.getElementById('{{ form.status.id_for_label }}');
+    const rejectionRow = document.getElementById('rejectionReasonRow');
+    const rejectionInput = document.getElementById('{{ form.rejection_reason.id_for_label }}');
+
+    function toggleRejection() {
+        if (statusSelect && statusSelect.value === 'REJECTED') {
+            rejectionRow.style.display = 'block';
+            if (rejectionInput) rejectionInput.required = true;
+        } else {
+            rejectionRow.style.display = 'none';
+            if (rejectionInput) rejectionInput.required = false;
+        }
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', toggleRejection);
+        toggleRejection(); // disparar al cargar la página
+    }
+
+    $('#{{ form.property.id_for_label }}').select2({
+        theme: "bootstrap-5",
+        placeholder: 'Busca por código, título o dirección',
+        ajax: {
+            url: "{% url 'properties:api_properties_search' %}",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    term: params.term,
+                    page: params.page || 1
+                };
+            },
+            processResults: function (data, params) {
+                params.page = params.page || 1;
+                return {
+                    results: data.results,
+                    pagination: {
+                        more: data.pagination.more
+                    }
+                };
+            },
+            cache: true
+        },
+        language: {
+            noResults: function () { return "No se encontraron resultados"; },
+            searching: function() {
+                return "Buscando...";
+            }
+        }
+    });
+
+    $('#{{ form.lead.id_for_label }}').select2({
+        theme: "bootstrap-5",
+        placeholder: 'Busca por nombre o teléfono del lead',
+        ajax: {
+            url: "{% url 'properties:api_leads_search' %}",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    term: params.term,
+                    page: params.page || 1
+                };
+            },
+            processResults: function (data, params) {
+                params.page = params.page || 1;
+                return {
+                    results: data.results,
+                    pagination: {
+                        more: data.pagination.more
+                    }
+                };
+            },
+            cache: true
+        },
+        language: {
+            noResults: function () { return "No se encontraron leads"; },
+            searching: function() { return "Buscando..."; }
+        }
+    });
+
+    const eventForm = document.querySelector('form');
+    const submitBtn = eventForm.querySelector('button[type="submit"]');
+    if (eventForm && submitBtn) {
+        eventForm.addEventListener('submit', function() {
+            if (submitBtn.disabled) return;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Actualizando...';
+        });
+    }
+});
+</script>
 {% endblock %}

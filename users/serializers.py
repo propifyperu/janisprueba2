@@ -8,6 +8,8 @@ User = get_user_model()
 
 class UserMeProfileSerializer(serializers.ModelSerializer):
     # Campos del perfil "aplanados" usando source="profile.<campo>"
+    area = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
     bio = serializers.CharField(source="profile.bio", required=False, allow_blank=True)
     address = serializers.CharField(source="profile.address", required=False, allow_blank=True)
     date_of_birth = serializers.DateField(source="profile.date_of_birth", required=False, allow_null=True)
@@ -32,6 +34,8 @@ class UserMeProfileSerializer(serializers.ModelSerializer):
             "last_name",
             "email",
             "phone",
+            "area",
+            "role",
 
             # editables (UserProfile)
             "bio",
@@ -85,3 +89,12 @@ class UserMeProfileSerializer(serializers.ModelSerializer):
             profile.save()
 
         return user
+    
+    def get_area(self, obj):
+        # prioridad: user.area, si no, role.area
+        a = getattr(obj, "area", None) or getattr(getattr(obj, "role", None), "area", None)
+        return getattr(a, "name", None)
+
+    def get_role(self, obj):
+        r = getattr(obj, "role", None)
+        return getattr(r, "name", None)

@@ -24,7 +24,7 @@
 }
 
 /* Mobile */
-@media (max-width: 991px) {
+@media (max-width: 1192px) {
 
     .mobile-filters-toggle {
         display: block;
@@ -411,36 +411,74 @@
     }
 
     .property-card {
-        display: grid;
-        grid-template-columns: 120px 1fr;
-        gap: 0.75rem;
-        align-items: stretch;
-        background-color: #fff;
-        border-radius: 0.6rem;
+        display: flex;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        position: relative;
+        }
+
+    .availability-badge {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        z-index: 10;
+
+        border-radius: 999px;
+        padding: 0.18rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        cursor: pointer;
+
+        background: #eef6f6;
+        color: #16343b;
+        border: 1px solid rgba(4, 125, 125, 0.25);
     }
+
+    .wp-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        border-radius: 999px;
+        padding: 0.14rem 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+
+        background: #e9f9ef;
+        border: 1px solid #2ea44f33;
+        color: #146c2e;
+
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .wp-badge .wp-check {
+        font-size: 0.9em;
+        font-weight: 900;
+    }
+    
+    /* NUEVO: badge encima de botones, alineado a la derecha */
+    .property-actions .wp-badge {
+        align-self: flex-end;
+        margin-bottom: 2px;
+    }
+
+    .availability-badge[data-status="available"] { background:#e9f9ef; border-color:#2ea44f33; color:#146c2e; }
+    .availability-badge[data-status="reserved"] { background:#fff7e6; border-color:#f59e0b33; color:#92400e; }
+    .availability-badge[data-status="sold"] { background:#ffecec; border-color:#ef444433; color:#991b1b; }
+    .availability-badge[data-status="unavailable"] { background:#f3f4f6; border-color:#64748b33; color:#334155; }
+    .availability-badge[data-status="paused"] { background:#f1f5f9; border-color:#0f172a33; color:#0f172a; }
+
 
     .property-card:hover,
     .property-card.active {
         /* transform: translateY(-1px); */
         box-shadow: 0 4px 16px rgba(4, 125, 125, 0.12);
         border-color: rgba(4, 125, 125, 0.4);
-        background-color: rgba(243, 253, 253, 0.95);
     }
 
-    .property-card::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        background: linear-gradient(135deg, rgba(82, 183, 181, 0.2) 0%, rgba(39, 152, 150, 0) 70%);
-        opacity: 0;
-        transition: opacity 0.2s ease;
-    }
-
-    .property-card:hover::before,
-    .property-card.active::before {
-        opacity: 1;
-    }
 
     .property-card > * {
         position: relative;
@@ -448,21 +486,27 @@
     }
 
     .property-card-media {
-        border-radius: 0.4rem;
-        overflow: hidden;
-        background: linear-gradient(135deg, rgba(4, 125, 125, 0.16), rgba(39, 152, 150, 0.16));
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 120px;
-        height: 120px;
-        transition: transform 0.2s ease;
-        cursor: pointer;
-    }
+        flex: 0 0 260px;
+        max-width: 260px;
+        position: relative;
+        }
 
     .property-card-media:hover {
         transform: scale(1.05);
     }
+    .property-card .property-card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 1rem !important; 
+        box-sizing: border-box;
+        min-width: 0;
+    }
+
+    .property-card-body > * + * {
+        margin-top: 0.5rem;
+    }   
+
 
     .property-card-media a {
         display: block;
@@ -471,10 +515,14 @@
     }
 
     .property-card-media img {
-        width: 100%;
-        height: 100%;
+        height: 264px;
+        max-height: 264px;
+        width: 264px;
+        max-width: 264px;
         object-fit: cover;
         display: block;
+        width: 100%;
+        height: 100%;
     }
 
     .property-card-placeholder {
@@ -492,14 +540,14 @@
         flex-direction: column;
         gap: 0.25rem;
         justify-content: center;
+        padding: 16px;
     }
 
     .property-card-top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.4rem;
-    }
+         display: flex;
+         flex-direction: column;
+         gap: 0.25rem;
+    }       
     .property-card-top-mb {
         display: block;
     }
@@ -509,7 +557,7 @@
     }
 
     .status-label {
-        font-size: 0.65rem;
+        font-size: 0.85rem;
         font-weight: 600;
         color: var(--color-secondary-dark);
         background: rgba(39, 152, 150, 0.12);
@@ -521,17 +569,14 @@
         font-weight: 700;
         font-size: 0.95rem;
         color: #16343b;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
     .property-location {
         font-size: 0.8rem;
         color: var(--color-muted);
-        display: flex;
+        /* display: flex;
         align-items: center;
-        gap: 0.3rem;
+        gap: 0.3rem; */
     }
 
     /* Línea de ubicación principal (distrito, provincia) mostrada junto al icono */
@@ -588,10 +633,8 @@
         display: flex;
         flex-direction: column;
         align-items: flex-end;
-        gap: 0.15rem;
-        margin-top: 0;
-        border-left: 1px solid rgba(4, 125, 125, 0.1);
-        padding-left: 0.5rem;
+        gap: 0.25rem;
+        white-space: nowrap;
     }
 
     .property-actions .btn {
@@ -610,7 +653,7 @@
     .property-card .price {
         color: var(--color-secondary);
         font-weight: 700;
-        font-size: 1rem;
+        font-size: 1.7rem;
         padding-right: 16px;
     }
 
@@ -618,26 +661,22 @@
         font-size: 13px;
     }
 
-    .princing-title {
-        font-size: 13px;
-    }
-
     .badge-status {
-        background: rgba(4, 125, 125, 0.12);
-        color: var(--color-primary);
-        font-weight: 600;
+        background: #079b9b;
+        color: var(--color-on-dark);
+        font-weight: 700;
         border-radius: 999px;
         padding: 0.1rem 0.4rem;
-        font-size: 0.65rem;
+        font-size: 0.85rem;
     }
 
     /* Estilo para el contenedor de la parte inferior para separar info de acciones */
     .property-card-footer {
+        margin-top: auto;
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
         gap: 0.75rem;
-        margin-top: 0.15rem;
     }
 
     .property-info-stack {
@@ -690,7 +729,7 @@
         color: #ffffff;
     }
 
-    @media (max-width: 992px) {
+    @media (max-width: 1192px) {
         .dashboard-main-container {
             flex-direction: column;
             overflow: visible;
@@ -724,7 +763,9 @@
         }
 
         .info-details-card-body-mb {
-            min-width: 350px !important;
+            /*min-width: 350px !important;*/
+            grid-column: span 2;
+            width: 100%;
         }
 
         #propertyMap {
@@ -771,11 +812,17 @@
 
         .property-actions {
             display: flex;
-            flex-direction: row !important;
-            align-items: center !important;
-            gap: 0.5rem !important;
+            flex-direction: column !important;
+            align-items: flex-end !important;
+            gap: 0.25rem !important;
             margin-top: 16px;
         }
+
+        /* Los botones se quedan en fila */
+        .property-actions .d-flex {
+            justify-content: flex-end;
+        }
+
         .princing-title {
             font-size: 12px;
         }
@@ -799,9 +846,12 @@
         .property-card {
             padding: 1rem;
         }
+        .results-section {
+            padding: 1rem 0.75rem 5rem;
+        }
     }
     /* Colapse */
-    @media (min-width: 992px) {
+    @media (min-width: 1192px) {
         .filter-sidebar {
             position: sticky;
             top: 0;
@@ -809,7 +859,7 @@
             background: #fff;
         }   
         .results-section {
-            padding: 1rem 0.75rem 9rem;
+            padding: 1rem 0.75rem 3rem;
         }
     }
 
@@ -840,13 +890,65 @@
 }
 
 /* Buttons */
+.main-card-property {
+    width: 100%;
+    cursor: pointer;
+}
 
+.results-tabs{
+  display:flex;
+  gap:8px;
+  background:#ffffffcc;
+  border:1px solid rgba(4,125,125,0.12);
+  padding:6px;
+  border-radius:10px;
+  margin: 0.25rem 0 0.9rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.results-tab{
+  border:none;
+  background:transparent;
+  padding:8px 12px;
+  border-radius:8px;
+  font-weight:800;
+  font-size:0.85rem;
+  color:#4a5a5a;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex: 0 0 auto;
+}
+
+.results-tab.active{
+  background:#fff;
+  color: var(--sidebar-accent);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.results-tab-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:26px;
+  height:20px;
+  padding:0 8px;
+  border-radius:999px;
+  font-size:0.75rem;
+  font-weight:900;
+  background: rgba(4,125,125,0.10);
+  color:#16343b;
+}
+
+.results-panel { }
     
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
-<div class="dashboard-main-container view-mode-map" id="dashboard-container">
+<div class="dashboard-main-container view-mode-properties" id="dashboard-container">
     <!-- Sidebar de Filtros: Ocupa toda la altura izquierda -->
      <div class="mobile-filters-toggle mt-3">
         <button id="openFilters" class="btn btn-primary  w-100">
@@ -860,6 +962,7 @@
 
     <aside class="filter-sidebar ">
         <!-- Switcher de Vista -->
+        {% if request.user.role and request.user.role.name != 'Agente Externo'  %}
         <div class="view-switcher mb-3" style="margin: 0 0 1rem 0;">
             <button type="button" class="view-btn active" id="btn-view-map" onclick="switchDashboardView('map')">
                 <i class="fas fa-map"></i> Mapa
@@ -867,7 +970,9 @@
             <button type="button" class="view-btn" id="btn-view-list" onclick="switchDashboardView('properties')">
                 <i class="fas fa-list"></i> Propiedades
             </button>
+            
         </div>
+        {% endif %}
 
         <div class="filter-body">
             <form method="get" id="filter-form">
@@ -906,6 +1011,31 @@
                     <option value="">Todos</option>
                     {% for pm in payment_methods %}
                         <option value="{{ pm.id }}" {% if filters.payment_method == pm.id|stringformat:'s' %}selected{% endif %}>{{ pm.name }}</option>
+                    {% endfor %}
+                </select>
+
+            </div>
+            <div class="filter-control">
+                <label for="filter-agent">Agente</label>
+                <select class="form-select form-select-sm" id="filter-agent" name="responsible">
+                    <option value="">Todos</option>
+                    {% for agent in agents %}
+                        <option value="{{ agent.id }}"
+                            {% if filters.responsible == agent.id|stringformat:'s' %}selected{% endif %}>
+                            {{ agent.get_full_name|default:agent.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control">
+                <label for="filter-source">Origen</label>
+                <select class="form-select form-select-sm" id="filter-source" name="source">
+                    <option value="">Todos</option>
+                    {% for source in sources %}
+                    <option value="{{ source }}" {% if filters.source == source %}selected{% endif %}>
+                        {{ source }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
@@ -1043,7 +1173,7 @@
     <!-- Área de Visualización: Mapa y Resultados (scrollable juntos) -->
     <main class="dashboard-view-area">
         <!-- Mapa -->
-        <div class="map-container-main">
+         <div class="map-container-main">
             <div class="layer-toggle-bar">
                 <span class="layer-toggle-title fw-bold text-primary"><i class="fas fa-layer-group me-1"></i>CAPAS</span>
                 <div class="layer-toggle-options">
@@ -1073,188 +1203,99 @@
             </div>
             {% endif %}
         </div>
+        
 
         <!-- Resultados -->
         <div class="results-section">
-            <div class="results-header">
-                <h2 class="mb-0 text-uppercase">Resultados</h2>
-                <span class="badge-status">{{ property_count }} propiedades</span>
+
+        <div class="results-tabs">
+            <button type="button" class="results-tab active" data-target="published">
+                Publicadas <span class="results-tab-count" id="countPublished"></span>
+            </button>
+            <button type="button" class="results-tab" data-target="drafts">
+                Borradores <span class="results-tab-count" id="countDrafts"></span>
+            </button>
+        </div>
+
+        <div class="results-panel" id="panelPublished">
+            <div class="property-cards" id="propertyCardsPublished">
+                {% for property in properties %}
+                    {% if not property.is_draft %}
+                        {% include "properties/partials/_property_card.html" with property=property user=user MEDIA_URL=MEDIA_URL %}
+                    {% endif %}
+                {% endfor %}
             </div>
-                {% if property_count == 0 %}
-                <div class="empty-results">
-                    <p class="mb-2 fw-semibold">No encontramos propiedades con estos filtros.</p>
-                    <p class="mb-3">Ajusta los criterios o crea una nueva propiedad.</p>
-                    <a href="{% url 'properties:create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Registrar propiedad</a>
+
+            <div class="empty-results d-none" id="emptyPublished">
+                <p class="mb-0 text-muted small">No tienes propiedades publicadas con estos filtros.</p>
+            </div>
+        </div>
+
+        <div class="results-panel d-none" id="panelDrafts">
+            <div class="property-cards" id="propertyCardsDrafts">
+                {% for property in properties %}
+                    {% if property.is_draft %}
+                        {% include "properties/partials/_property_card.html" with property=property user=user MEDIA_URL=MEDIA_URL %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="empty-results d-none" id="emptyDrafts">
+                <p class="mb-0 text-muted small">No tienes borradores con estos filtros.</p>
+            </div>
+        </div>
+
+        </div>
+
+
+        <div class="modal fade" id="availabilityConfirmModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar cambio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
-                {% else %}
-                <div class="property-cards" id="propertyCards">
-                    {% for property in properties %}
-                    <article class="property-card pr-md-3" data-property-id="{{ property.id }}" data-code="{{ property.exact_address }}">
-                        <div class="property-card-media">
-                            <a href="{% url 'properties:detail' property.pk %}" title="Ver detalle de {{ property.code }}">
-                            {% with images=property.prefetched_images %}
-                                {% if images %}
-                                    {% with first=images|first %}
-                                        {% if first.image %}
-                                            <img src="{{ first.image.url }}" alt="{{ property.title|default:property.exact_address }}" loading="lazy">
-                                        {% else %}
-                                            <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
-                                        {% endif %}
-                                    {% endwith %}
-                                {% else %}
-                                    <div class="property-card-placeholder"><i class="fas fa-image"></i></div>
-                                {% endif %}
-                            {% endwith %}
-                            </a>
-                        </div>
-                        <div class="property-card-body">
-                            <div class="property-card-top">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge-status">{{ property.property_type.name }}</span>
-                                    <span class="status-label">{{ property.status.name }}</span>
-                                </div>
-                                <div class="price text-end">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
-                            </div>
-                            
-                            <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
-                            
-                            <p class="property-location mb-0">
-                                <i class="fas fa-map-marker-alt text-primary"></i>
-                                <span class="property-location-main">
-                                    {% if property.display_district or property.display_province %}
-                                        {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
-                                    {% else %}
-                                        {{ property.real_address|default:'Ubicación no disponible' }}
-                                    {% endif %}
-                                </span>
-                            </p>
 
-                            <div class="property-card-footer mr-3">
-                                <div class="property-info-stack">
-                                    <div class="property-meta">
-                                        <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
-                                        <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
-                                        {% if property.land_area and property.land_area_unit %}
-                                        <span><i class="fas fa-ruler-combined"></i>{{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
-                                        {% endif %}
-                                        {% if property.built_area and property.built_area_unit %}
-                                        <span><i class="fas fa-drafting-compass"></i>{{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
-                                        {% endif %}
-                                        {% if property.garage_spaces %}
-                                        <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="property-contacts">
-                                        <div>
-                                            <span><i class="fas fa-user-tie"></i>Propietario: 
-                                                {% if user.is_superuser %}
-                                                    {{ property.owner.full_name }}
-                                                {% else %}
-                                                    <span style="color: #888; font-style: italic; font-weight: normal;">Vista No Autorizada</span>
-                                                {% endif %}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span><i class="fas fa-user-check"></i>Resp:
-                                                {% if property.responsible %}
-                                                    {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
-                                                {% else %} Sin asignar {% endif %}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="property-actions">
-                                    <div class="d-flex gap-1">
-                                        <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
-                                        {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
-                                            <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary" title="Editar"><i class="fas fa-edit"></i></a>
-                                        {% endif %}
-                                        <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info" title="Historial"><i class="fas fa-history"></i></a>
-                                    </div>
-                                    <span class="last-update">Act. {{ property.updated_at|date:"d/m/Y" }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-
-                        <div class="property-card-body-mb">
-                            <div class="property-card-top-mb">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge-status">{{ property.property_type.name }}</span>
-                                    <span class="status-label">{{ property.status.name }}</span>
-                                </div>
-                                <div class="property-meta mt-3">
-                                    <span><i class="fas fa-bed"></i>{{ property.bedrooms }} dorm.</span>
-                                    <span><i class="fas fa-bath"></i>{{ property.bathrooms }} baños</span>
-                                    {% if property.land_area and property.land_area_unit %}
-                                    <span><i class="fas fa-ruler-combined"></i>{{ property.land_area|floatformat:0 }} {{ property.land_area_unit.symbol }}</span>
-                                    {% endif %}
-                                    {% if property.built_area and property.built_area_unit %}
-                                    <span><i class="fas fa-drafting-compass"></i>{{ property.built_area|floatformat:0 }} {{ property.built_area_unit.symbol }}</span>
-                                    {% endif %}
-                                    {% if property.garage_spaces %}
-                                    <span><i class="fas fa-parking"></i>{{ property.garage_spaces }} est.</span>
-                                    {% endif %}
-                                </div>
-                                <div class="princing-title mt-3">Precio total:</div>
-                                <div class="price">{{ property.currency.symbol }} {{ property.price|floatformat:0 }}</div>
-                                
-                            </div>
-                        </div>
-                        <!-- Title more info details  -->
-                         <div class="info-details-card-body-mb">
-                            <h3 class="property-title mb-0">{{ property.real_address|default:property.title }}</h3>
-                            
-                            <p class="property-location mb-0">
-                                <i class="fas fa-map-marker-alt text-primary"></i>
-                                <span class="property-location-main">
-                                    {% if property.display_district or property.display_province %}
-                                        {{ property.display_district }}{% if property.display_district and property.display_province %}, {% endif %}{{ property.display_province }}
-                                    {% else %}
-                                        {{ property.real_address|default:'Ubicación no disponible' }}
-                                    {% endif %}
-                                </span>
-                            </p>
-
-                            <div class="property-card-footer d-flex">
-                                <div class="property-info-stack">
-                                    
-                                    <div class="property-contacts">
-                                        <span><i class="fas fa-user-tie"></i>Propietario: 
-                                            {% if user.is_superuser %}
-                                                {{ property.owner.full_name }}
-                                            {% else %}
-                                                <span style="color: #888; font-style: italic; font-weight: normal;">Vista No Autorizada</span>
-                                            {% endif %}
-                                        </span>
-                                        <span><i class="fas fa-user-check"></i>Responsable:
-                                            {% if property.responsible %}
-                                                {% with full_name=property.responsible.get_full_name %}{{ full_name|default:property.responsible.username }}{% endwith %}
-                                            {% else %} Sin asignar {% endif %}
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                <div class="property-actions">
-                                    <div class="d-flex gap-1">
-                                        <a href="{% url 'properties:detail' property.pk %}" class="btn btn-outline-primary" title="Ver detalle"><i class="fas fa-external-link-alt"></i></a>
-                                        {% if user.is_superuser or property.created_by and property.created_by.id == user.id %}
-                                            <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-secondary" title="Editar"><i class="fas fa-edit"></i></a>
-                                        {% endif %}
-                                        <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-outline-info" title="Historial"><i class="fas fa-history"></i></a>
-                                    </div>
-                                    <span class="last-update">Act. {{ property.updated_at|date:"d/m/Y" }}</span>
-                                </div>
-                            </div>
-                         </div>
-                        <div>
-
-                        </div>
-                    </article>
-                    {% endfor %}
+                <div class="modal-body">
+                    <p class="mb-2" id="availabilityConfirmText"></p>
+                    <div class="alert alert-warning d-none mb-0" id="availabilityConfirmAlert"></div>
                 </div>
-                {% endif %}
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">No</button>
+                    <button type="button" class="btn btn-primary" id="availabilityConfirmYes">Sí, cambiar</button>
+                </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="publishConfirmModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Publicar propiedad</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p id="publishConfirmText">
+                    Si publicas esta propiedad, será visible para todos y su estado cambiará a Disponible.
+                    </p>
+
+                    <div class="alert alert-danger d-none" id="publishErrorBox"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" id="publishConfirmYes">
+                    Sí, publicar
+                    </button>
+                </div>
+
+                </div>
+            </div>
         </div>
     </main>
 </div>
@@ -1287,13 +1328,8 @@ function switchDashboardView(view) {
         btnMap.classList.remove('active');
     }
     // Guardar preferencia
-    localStorage.setItem('dashboardViewPreferred', view);
+    //localStorage.setItem('dashboardViewPreferred', view);
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const savedView = localStorage.getItem('dashboardViewPreferred') || 'map';
-    switchDashboardView(savedView);
-});
 
 const mapConfig = {
     defaultCenter: { lat: -16.409047, lng: -71.537451 },
@@ -2085,7 +2121,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 document.getElementById('filter-form')?.addEventListener('submit', () => {
-    if (window.innerWidth < 992) {
+    if (window.innerWidth < 1192) {
         sidebar.classList.remove('open');
         closeBtn.classList.add('d-none');
         openBtn.classList.remove('d-none');
@@ -2093,17 +2129,351 @@ document.getElementById('filter-form')?.addEventListener('submit', () => {
 });
 
   function isMobile() {
-    return window.matchMedia("(max-width: 992px)").matches;
+    return window.matchMedia("(max-width: 1192px)").matches;
   }
 
-  if (isMobile()) {
-    switchDashboardView('properties');
-  }
+  document.addEventListener("DOMContentLoaded", function () {
+        localStorage.setItem("dashboardViewPreferred", "properties");
+        switchDashboardView('properties');
+    });
+
 
   /* const price = Number(document.getElementById('price').innerText);
 
   document.getElementById('price').innerText =
     new Intl.NumberFormat('es-PE').format(price); */
 
+    /* Open prperty */
+    function openPropertyDetail(propertyId) {
+        console.log('Opening property with ID:', propertyId);
+
+        const urlTemplate = "{% url 'properties:detail' '0' %}";
+        const url = urlTemplate.replace('0', propertyId);
+
+        window.location.href = url;
+    }
+
+    // ---- Availability dropdown logic (confirm + optional PATCH) ----
+(function () {
+  const STATUS_LABEL = {
+    available: "Disponible",
+    reserved: "Reservada",
+    sold: "Vendida",
+    unavailable: "No disponible",
+    paused: "Pausada",
+  };
+
+  const HIDE_FROM_SEARCH = new Set(["unavailable", "paused"]);
+
+  // Ajusta esta URL a tu endpoint real:
+  // EJ: /properties/api/<id>/availability/
+  function buildAvailabilityUrl(propertyId) {
+    const urlTemplate = "{% url 'properties:property_availability_api' 0 %}";
+    return urlTemplate.replace("/0/", `/${propertyId}/`);
+  }
+
+  function getCookie(name) {
+    const cookies = document.cookie ? document.cookie.split("; ") : [];
+    for (const c of cookies) {
+      const [k, ...v] = c.split("=");
+      if (k === name) return decodeURIComponent(v.join("="));
+    }
+    return "";
+  }
+
+  function updateBadgeUI(btn, newValue) {
+    btn.dataset.status = newValue;
+    btn.textContent = STATUS_LABEL[newValue] || newValue;
+  }
+
+  function openConfirmModal({ propertyId, btn, fromValue, toValue }) {
+    const modalEl = document.getElementById("availabilityConfirmModal");
+    const textEl = document.getElementById("availabilityConfirmText");
+    const alertEl = document.getElementById("availabilityConfirmAlert");
+    const yesBtn = document.getElementById("availabilityConfirmYes");
+
+    const fromLabel = STATUS_LABEL[fromValue] || fromValue;
+    const toLabel = STATUS_LABEL[toValue] || toValue;
+
+    textEl.textContent = `¿Estás seguro de cambiar el estado de la propiedad de "${fromLabel}" a "${toLabel}"?`;
+
+    if (HIDE_FROM_SEARCH.has(toValue)) {
+      alertEl.classList.remove("d-none");
+      alertEl.innerHTML = `
+        <strong>Importante:</strong> Si cambias a <strong>${toLabel}</strong>, la propiedad
+        <strong>ya no estará disponible para búsquedas</strong> y dejará de mostrarse como disponible en el sistema.
+      `;
+    } else {
+      alertEl.classList.add("d-none");
+      alertEl.textContent = "";
+    }
+
+    // Bootstrap modal
+    let modalInstance = null;
+    if (window.bootstrap?.Modal) {
+      modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modalInstance.show();
+    } else {
+      // fallback
+      const ok = window.confirm(textEl.textContent + (HIDE_FROM_SEARCH.has(toValue) ? "\n\nIMPORTANTE: dejará de aparecer en búsquedas." : ""));
+      if (!ok) return;
+      return doUpdate({ propertyId, btn, toValue, closeModal: null });
+    }
+
+    // Evitar listeners duplicados
+    yesBtn.onclick = async () => {
+      yesBtn.disabled = true;
+      yesBtn.textContent = "Cambiando...";
+
+      try {
+        await doUpdate({ propertyId, btn, toValue, closeModal: () => modalInstance.hide() });
+      } finally {
+        yesBtn.disabled = false;
+        yesBtn.textContent = "Sí, cambiar";
+      }
+    };
+  }
+
+  async function doUpdate({ propertyId, btn, toValue, closeModal }) {
+    // 1) UI optimista (si quieres, comenta esta línea y solo actualiza al éxito)
+    updateBadgeUI(btn, toValue);
+
+    // 2) Persistir (si no existe el endpoint, esto fallará pero al menos ya ves la UI)
+    try {
+      const resp = await fetch(buildAvailabilityUrl(propertyId), {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({ availability_status: toValue }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || ("HTTP " + resp.status));
+      }
+
+      // opcional: si backend devuelve label o status normalizado
+      const data = await resp.json().catch(() => null);
+      if (data?.availability_status) {
+        updateBadgeUI(btn, data.availability_status);
+      }
+
+      if (closeModal) closeModal();
+    } catch (e) {
+      // rollback UI si falló el backend
+      // (si prefieres NO rollback, quita esto)
+      const prev = btn.dataset.prevStatus;
+      if (prev) updateBadgeUI(btn, prev);
+
+      alert(e.message || "No se pudo actualizar el estado.");
+      console.error("Availability update error:", e);
+    }
+  }
+
+  // Delegación: sirve para todos los dropdowns
+  document.addEventListener("click", (e) => {
+    const item = e.target.closest(".js-avail");
+    if (!item) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const dropdown = item.closest(".availability-dropdown");
+    const btn = dropdown?.querySelector(".availability-badge");
+    if (!btn) return;
+
+    const propertyId = btn.dataset.propertyId;
+    const toValue = item.dataset.value;
+
+    const fromValue = (btn.dataset.status || "available").trim();
+    if (!propertyId || !toValue) return;
+
+    // guardar para rollback si falla backend
+    btn.dataset.prevStatus = fromValue;
+
+    if (fromValue === toValue) return; // no cambies si ya es el mismo
+
+    openConfirmModal({ propertyId, btn, fromValue, toValue });
+  }, true);
+})();
 </script>
+
+<script>
+(function () {
+  function qs(id){ return document.getElementById(id); }
+
+  const tabButtons = document.querySelectorAll('.results-tab');
+  const panelPublished = qs('panelPublished');
+  const panelDrafts = qs('panelDrafts');
+
+  const cardsPublished = qs('propertyCardsPublished');
+  const cardsDrafts = qs('propertyCardsDrafts');
+
+  const countPublishedEl = qs('countPublished');
+  const countDraftsEl = qs('countDrafts');
+
+  const emptyPublished = qs('emptyPublished');
+  const emptyDrafts = qs('emptyDrafts');
+
+  if (!panelPublished || !panelDrafts || !cardsPublished || !cardsDrafts) return;
+
+  function countCards(container){
+    return container.querySelectorAll('.property-card').length;
+  }
+
+  function setActive(target){
+    const isPublished = target === 'published';
+
+    panelPublished.classList.toggle('d-none', !isPublished);
+    panelDrafts.classList.toggle('d-none', isPublished);
+
+    tabButtons.forEach(b => b.classList.toggle('active', b.dataset.target === target));
+    localStorage.setItem('dashboardResultsTab', target);
+  }
+
+  function refreshCounts(){
+    const pub = countCards(cardsPublished);
+    const drf = countCards(cardsDrafts);
+
+    if (countPublishedEl) countPublishedEl.textContent = pub;
+    if (countDraftsEl) countDraftsEl.textContent = drf;
+
+    if (emptyPublished) emptyPublished.classList.toggle('d-none', pub !== 0);
+    if (emptyDrafts) emptyDrafts.classList.toggle('d-none', drf !== 0);
+
+    // si no hay publicadas, abre drafts; si no hay drafts, abre publicadas
+    const saved = localStorage.getItem('dashboardResultsTab');
+    if (saved && (saved === 'published' || saved === 'drafts')) {
+      setActive(saved);
+      return;
+    }
+    if (pub === 0 && drf > 0) setActive('drafts');
+    else setActive('published');
+  }
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => setActive(btn.dataset.target));
+  });
+
+  document.addEventListener('DOMContentLoaded', refreshCounts);
+  // por si el DOM ya cargó antes:
+  refreshCounts();
+})();
+</script>
+
+<script>
+(function () {
+
+  function getCookie(name) {
+    const cookies = document.cookie ? document.cookie.split("; ") : [];
+    for (const c of cookies) {
+      const [k, ...v] = c.split("=");
+      if (k === name) return decodeURIComponent(v.join("="));
+    }
+    return "";
+  }
+
+  function buildPublishUrl(propertyId) {
+    return `/dashboard/api/properties/${propertyId}/publish/`
+  }
+
+  let currentPropertyId = null;
+  let currentButton = null;
+
+async function publishProperty() {
+  const propertyId = currentPropertyId;
+
+  const confirmBtn = document.getElementById("publishConfirmYes");
+  const errorBox = document.getElementById("publishErrorBox");
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = "Publicando...";
+  errorBox.classList.add("d-none");
+  errorBox.textContent = "";
+
+  try {
+    const resp = await fetch(buildPublishUrl(propertyId), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken"),
+        "Accept": "application/json",
+      }
+    });
+
+    const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+
+    let data = null;
+    let text = "";
+
+    if (contentType.includes("application/json")) {
+      data = await resp.json().catch(() => null);
+    } else {
+      text = await resp.text().catch(() => "");
+    }
+
+    if (!resp.ok) {
+      errorBox.classList.remove("d-none");
+
+      // 403 típico: CSRF / no auth
+      if (resp.status === 403) {
+        errorBox.textContent = (data?.detail) || "No autorizado (403). Revisa sesión/CSRF.";
+        return;
+      }
+
+      // Mensaje real DRF
+      if (data?.detail) {
+        errorBox.textContent = data.detail;
+        return;
+      }
+
+      // Si vino HTML o texto, muestra algo útil
+      if (text) {
+        // opcional: recorta HTML para no ensuciar
+        errorBox.textContent = `Error ${resp.status}. (Respuesta no-JSON)`;
+        console.error("Non-JSON response:", text);
+        return;
+      }
+
+      errorBox.textContent = `No se pudo publicar (HTTP ${resp.status}).`;
+      return;
+    }
+
+    // éxito
+    window.location.reload();
+
+  } catch (err) {
+    errorBox.classList.remove("d-none");
+    errorBox.textContent = "Error de red al publicar.";
+    console.error(err);
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = "Sí, publicar";
+  }
+}
+
+  document.addEventListener("click", (e) => {
+    const publishBtn = e.target.closest(".js-publish-property");
+    if (!publishBtn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    currentPropertyId = publishBtn.dataset.propertyId;
+    currentButton = publishBtn;
+
+    const modalEl = document.getElementById("publishConfirmModal");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+    }, true); 
+
+  document.getElementById("publishConfirmYes")
+    ?.addEventListener("click", publishProperty);
+
+})();
+</script>
+
 {% endblock %}

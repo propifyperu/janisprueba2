@@ -1,34 +1,177 @@
 {% extends 'properties/base_dashboard.html' %}
+{% load static %}
 
-{% block title %}Mis borradores{% endblock %}
+{% block title %}Mis Borradores - Propify{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .sidebar-inner { overflow-y: visible !important; }
+    .table-hover tbody tr:hover { background-color: rgba(4, 125, 125, 0.05); }
+    .small-rows td { vertical-align: middle; font-size: 0.9rem; }
+    .btn-teal { background-color: #047d7d; color: white; }
+    .btn-teal:hover { background-color: #036b6b; color: white; }
+    .bg-teal { background-color: #047d7d !important; border-color: #047d7d !important; color: white; }
+    .text-teal { color: #047d7d !important; }
+    .btn-white { background-color: #fff; border-color: #dee2e6; }
+    .btn-white:hover { background-color: #f8f9fa; }
+</style>
+{% endblock %}
 
 {% block dashboard_content %}
 <div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <h3 class="mb-3">Mis borradores</h3>
-            {% if drafts %}
-            <div class="list-group">
-                {% for draft in drafts %}
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>{{ draft.title|default:'(Sin título)' }}</strong>
-                        <div class="text-muted small">Código: {{ draft.code }} — Creado: {{ draft.created_at|date:'d/m/Y H:i' }}</div>
-                    </div>
-                    <div class="btn-group">
-                        <a href="{% url 'properties:edit' draft.pk %}" class="btn btn-sm btn-primary">Continuar</a>
-                        <a href="{% url 'properties:detail' draft.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a>
-                        <form method="post" action="{% url 'properties:delete_draft' draft.pk %}" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este borrador?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-danger">Borrar</button>
-                        </form>
+    <div class="row justify-content-center">
+        <div>
+            <div class="d-flex justify-content-between align-items-center mb-4" style="width: 100%;">
+                <p class="h3 mb-0"><i class="fas fa-file-alt me-2"></i>Mis borradores</p>
+                <div>
+                    <a href="{% url 'properties:create' %}?mode=draft" class="btn btn-teal">
+                        <i class="fas fa-plus me-2"></i>Crear borrador
+                    </a>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 small-rows align-middle">
+                            <thead class="bg-light text-muted small text-uppercase" style="border-bottom: 2px solid #e9ecef;">
+                                <tr>
+                                    <th class="text-center py-3 text-teal" style="width: 50px;"><i class="far fa-building fa-lg"></i></th>
+                                    <th class="text-center py-3" style="min-width: 250px;">Detalle Propiedad</th>
+                                    <th class="text-center py-3" style="min-width: 150px;">Ubicación</th>
+                                    <th class="text-center py-3">Estado</th>
+                                    <th class="text-center py-3">Publicada</th>
+                                    <th class="text-center py-3">Precio</th>
+                                    <th class="text-center py-3">Contrato</th>
+                                    <th class="text-center py-3">Vistas Web</th>
+                                    <th class="text-center py-3">Visitas</th>
+                                    <th class="text-center py-3">Reportes</th>
+                                    <th class="text-center py-3">Acciones</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {# 👇 IMPORTANTE: aquí asumo que la vista manda "properties" con is_draft=True #}
+                                {% for property in properties %}
+                                <tr>
+                                    <td class="text-center text-muted">
+                                        <i class="fas fa-circle small text-secondary" style="font-size: 8px;"></i>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div class="d-flex flex-column gap-0 align-items-center">
+                                            <span class="text-danger fw-bold small text-uppercase lh-1">{{ property.property_type.name|default:"-" }}</span>
+                                            <span class="fw-bold text-dark text-wrap mb-1" style="max-width: 300px; line-height: 1.2;">
+                                                {{ property.exact_address|default:property.title|default:"(Sin título)" }}
+                                            </span>
+
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="badge bg-light text-dark border">
+                                                    COD: {{ property.codigo_unico_propiedad|default:property.code }}
+                                                </span>
+                                            </div>
+
+                                            <small class="text-muted">
+                                                <i class="far fa-clock me-1"></i>Creado: {{ property.created_at|date:"d/m/Y" }}
+                                            </small>
+                                        </div>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div class="d-flex flex-column text-muted small align-items-center">
+                                            <span class="text-truncate" style="max-width: 150px;">
+                                                <i class="fas fa-map-marker-alt me-1 text-teal opacity-50"></i>{{ property.department_name|default:"-" }}
+                                            </span>
+                                            <span class="text-truncate" style="max-width: 150px;">{{ property.province_name|default:"-" }}</span>
+                                            <span class="text-truncate" style="max-width: 150px;">{{ property.district_name|default:"-" }}</span>
+                                            {% if property.urbanization_name %}
+                                                <span class="text-truncate" style="max-width: 150px;">{{ property.urbanization_name }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+
+                                    <td class="text-center">
+                                        {# en borrador puede seguir siendo catchment u otro, lo mostramos igual #}
+                                        {% with st=property.availability_status|default:"catchment" %}
+                                            <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary">
+                                                {{ property.get_availability_status_display|default:st }}
+                                            </span>
+                                        {% endwith %}
+                                    </td>
+
+                                    {# Publicada: en borradores siempre NO #}
+                                    <td class="text-center">
+                                        <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary">No</span>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <div class="fw-bold text-dark text-nowrap">{{ property.currency.symbol }} {{ property.price|default:0|floatformat:0 }}</div>
+                                            <span class="badge bg-light text-secondary border">{{ property.operation_type.name|default:"Venta" }}</span>
+                                        </div>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div class="d-flex flex-column text-muted small align-items-center">
+                                            <span class="text-nowrap">Comisión: {{ property.financial_info.initial_commission_percentage|default:"-" }}%</span>
+                                            <span class="text-nowrap">Tipo de Contrato: {{ property.financial_info.contract_type.name|default:"-" }}</span>
+                                        </div>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <span class="fw-bold fs-5 text-secondary">-</span>
+                                            <small class="text-muted" style="font-size: 0.75rem;">visualizaciones</small>
+                                        </div>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <span class="fw-bold fs-5 text-teal">{{ property.visit_count|default:0 }}</span>
+                                            <small class="text-muted" style="font-size: 0.75rem;">agendadas</small>
+                                        </div>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <a href="#" class="btn btn-sm btn-outline-secondary border-0 text-nowrap">
+                                            <i class="fas fa-chart-line me-1"></i> Reportes
+                                        </a>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div class="btn-group shadow-sm">
+                                            <a href="{% url 'properties:detail' property.pk %}" class="btn btn-sm btn-white border text-secondary" title="Ver Detalle">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'properties:edit' property.pk %}" class="btn btn-sm btn-white border text-primary" title="Continuar borrador">
+                                                <i class="fas fa-pencil-alt"></i>
+                                            </a>
+                                            <a href="{% url 'properties:timeline' property.pk %}" class="btn btn-sm btn-white border text-info" title="Historial">
+                                                <i class="fas fa-history"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="11" class="text-center py-5">
+                                        <div class="text-muted mb-3 opacity-50">
+                                            <i class="fas fa-folder-open fa-3x"></i>
+                                        </div>
+                                        <h5 class="text-muted">No tienes borradores.</h5>
+                                        <p class="text-muted small mb-3">Crea una propiedad y guárdala como borrador.</p>
+                                        <a href="{% url 'properties:create' %}" class="btn btn-teal">
+                                            <i class="fas fa-plus me-2"></i>Crear Borrador
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                {% endfor %}
             </div>
-            {% else %}
-            <div class="alert alert-info">No tienes borradores.</div>
-            {% endif %}
+
         </div>
     </div>
 </div>

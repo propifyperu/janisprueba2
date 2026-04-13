@@ -1,6 +1,9 @@
 ﻿from django.urls import path, include
 from . import views
-from .api import PropertyViewSet, DocumentTypeViewSet, RequirementViewSet
+
+from .api import PropertyViewSet, DocumentTypeViewSet, RequirementViewSet, LeadViewSet
+from .api_external import ExternalPropertyListView, ExternalPropertyMatchView, ExternalPropertyByUsersView
+
 from rest_framework.routers import DefaultRouter
 
 app_name = 'properties'
@@ -9,6 +12,7 @@ router = DefaultRouter()
 router.register(r'properties', PropertyViewSet, basename='properties')
 router.register(r'requirements', RequirementViewSet, basename='requirements')
 router.register(r'document-types', DocumentTypeViewSet, basename='document-types')  # 👈 agrega esto
+router.register(r'leads', LeadViewSet, basename='leads')
 
 urlpatterns = [
     path('ultra-simple/', views.simple_properties_view, name='ultra_simple_list'),
@@ -17,12 +21,14 @@ urlpatterns = [
     path('marketing/whatsapp/track/<int:link_id>/', views.track_whatsapp_click, name='track_whatsapp_click'),
     path('crear/', views.create_property_view, name='create'),
     path('mis-propiedades/', views.MyPropertiesView.as_view(), name='my_properties'),
+    path('mis-propiedades/<int:pk>/eliminar/', views.delete_property_view, name='delete_property'),
     path('<int:pk>/', views.PropertyDetailView.as_view(), name='detail'),
     path('<int:pk>/pdf/', views.PropertyPDFView.as_view(), name='generate_pdf'),
     path('borradores/', views.drafts_list_view, name='drafts'),
     path('borradores/<int:pk>/borrar/', views.delete_draft_view, name='delete_draft'),
     path('<int:pk>/timeline/', views.property_timeline_view, name='timeline'),
     path('<int:pk>/editar/', views.edit_property_view, name='edit'),
+    path('<int:pk>/role-visibility/', views.property_role_visibility_update, name='property_role_visibility_update'),
     path('contactos/', views.ContactListView.as_view(), name='contact_list'),
     path('contactos/crear/', views.ContactCreateView.as_view(), name='contact_create'),
     path('contactos/<int:pk>/', views.ContactDetailView.as_view(), name='contact_detail'),
@@ -32,7 +38,7 @@ urlpatterns = [
     path('requerimientos/<int:pk>/', views.RequirementDetailView.as_view(), name='requirements_detail'),
     path('requerimientos/crear/', views.requirement_create_view, name='requirements_create'),
     path('requerimientos/mis-requerimientos/', views.MyRequirementsView.as_view(), name='requirements_my'),
-    path('requerimientos/<int:pk>/editar/', views.RequirementUpdateView.as_view(), name='requirements_edit'),
+    path('requerimientos/<int:pk>/editar/', views.requirement_update_view, name='requirements_edit'),
     path('requerimientos/<int:pk>/borrar/', views.requirement_delete_view, name='requirements_delete'),
     path('mis-propiedades/documentos/', views.my_uploaded_documents_view, name='my_uploaded_documents'),
     # Agenda y Eventos
@@ -40,36 +46,63 @@ urlpatterns = [
     path('agenda/eventos/crear/', views.event_create_view, name='event_create'),
     path('agenda/eventos/<int:pk>/editar/', views.event_edit_view, name='event_edit'),
     path('agenda/eventos/<int:pk>/borrar/', views.event_delete_view, name='event_delete'),
+    path('agenda/eventos/<int:event_id>/accept/', views.event_accept_view, name='event_accept'),
+    path('agenda/eventos/<int:event_id>/reject/', views.event_reject_view, name='event_reject'),
     path('api/events/', views.api_events_json, name='api_events'),
+    path("agenda/eventos/<int:event_id>/seguimiento/", views.event_save_followup, name="event_followup"),
     # APIs
     path('api/document-types-legacy/', views.api_document_types, name='api_document_types_legacy'),
+    path('api/external/properties/', ExternalPropertyListView.as_view(), name='external_properties_list'),
+    path('api/external/properties/match/', ExternalPropertyMatchView.as_view(), name='external_properties_match'),
+    path('api/external/properties/by-users/', ExternalPropertyByUsersView.as_view(), name='external_properties_by_users'),
     path('api/property-subtypes/', views.api_property_subtypes, name='api_property_subtypes'),
     path('api/provinces/', views.api_provinces, name='api_provinces'),
     path('api/districts/', views.api_districts, name='api_districts'),
+    path('api/location-details/', views.api_location_details, name='api_location_details'),
+    path('api/events/by-code/<str:event_code>/<str:action>/', views.event_respond_by_code_view, name='event_respond_by_code'),
+    path('api/events/by-code/<str:event_code>/<str:action>/<path:rejection_reason>/', views.event_respond_by_code_view, name='event_respond_by_code_with_reason'),
+    path('api/leads/select2-search/', views.api_leads_search, name='api_leads_search'),
+    path('api/properties/select2-search/', views.api_properties_search, name='api_properties_search'),
+    #path('api/utils/requirement-options/', views.RequirementOptionsView.as_view(), name='api_requirement_options'),
     path('api/urbanizations/', views.api_urbanizations, name='api_urbanizations'),
     #path('api/document-types/', views.api_document_types, name='api_document_types'),
     path('api/image-types/', views.api_image_types, name='api_image_types'),
     path('api/roomtypes/', views.api_roomtypes, name='api_roomtypes'),
     path('api/video-types/', views.api_video_types, name='api_video_types'),
+    #ACM
+    path('acm/', views.acm_detail, name='acm_detail'),
+    
     # WhatsApp
     path('whatsapp/enlaces/<int:property_id>/', views.whatsapp_links_list, name='whatsapp_links'),
     path('whatsapp/enlaces/<int:property_id>/crear/', views.whatsapp_link_create, name='whatsapp_link_create'),
     path('whatsapp/enlaces/<int:link_id>/borrar/', views.whatsapp_link_delete, name='whatsapp_link_delete'),
-    path('whatsapp/leads/', views.leads_list, name='leads_list'),
-    path('whatsapp/leads/<int:property_id>/', views.leads_list, name='leads_list_by_property'),
-    path('whatsapp/leads/detalle/<int:lead_id>/', views.lead_detail, name='lead_detail'),
     path('crm/', views.crm_dashboard, name='crm_dashboard'),
+    path('whatsapp/leads/', views.leads_list, name='leads_list'),
+    path('whatsapp/leads/propiedad/<int:property_id>/', views.leads_list, name='leads_list_by_property'),
+    path('whatsapp/leads/detalle/<int:lead_id>/', views.lead_detail, name='lead_detail'),
     path('marketing/propiedades/', views.marketing_properties_list, name='marketing_properties_list'),
     path('marketing/propiedades/multimedia', views.marketing_properties_multimedia, name='marketing_properties_multimedia'),
     path('marketing/dashboard/', views.marketing_utm_dashboard, name='marketing_utm_dashboard'),
-    path('legal/documentos/', views.legal_documents_list_view, name='legal_documents'),
+    path('legal/documentos/', views.legal_documents_list, name='legal_documents_list'),
     path('api/', include(router.urls)),
     # Matching
     path('matching/weights/', views.matching_weights_view, name='matching_weights'),
     path('configuracion/inmobiliaria/', views.agency_config_view, name='agency_config'),
     path('matching/requirement/<int:pk>/matches/', views.matching_matches_view, name='matching_matches'),
+    path("matching/requirement/<int:req_id>/property/<int:prop_id>/detail/",views.match_detail_partial, name="match_detail_partial",),
+    path("api/requirements/<int:req_id>/matches/recalculate/",views.api_recalculate_requirement_matches ,name="api_recalculate_requirement_matches",),
+    
+    #PROPUESTA
+    path('propuestas/', views.proposals_list, name='proposals_list'),
+    path('propuestas/crear/', views.proposals_create_view, name='proposals_create'),
+    path("propuestas/<int:proposal_id>/accept/", views.proposal_accept_view, name="proposal_accept"),
+    path("propuestas/<int:proposal_id>/reject/", views.proposal_reject_view, name="proposal_reject"),
     # Servir imágenes almacenadas como blob en la tabla `property_images`
     path('images/blob/<int:pk>/', views.image_blob_view, name='image_blob'),
     path('search/', views.search_view, name='search'),
     path('', views.PropertyDashboardView.as_view(), name='dashboard_root'),
+    path("api/<int:pk>/availability/", views.property_availability_api, name="property_availability_api"),
+    path("api/", include("properties.wordpress.urls")),
+    path("api/whatsapp/send-hello/", views.send_hello_message_view, name="send_hello_message_view"),
+    path('api/requerimientos/ia/', views.api_extract_requirement_ai, name='api_extract_requirement_ai'),
 ]

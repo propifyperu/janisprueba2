@@ -1,11 +1,134 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+import json
 from django.conf import settings
 import mimetypes
 import random
 import string
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField
 from cryptography.fernet import Fernet
+from PIL import Image, ImageOps
+from io import BytesIO
+from django.core.files.base import ContentFile
+import os
+from django.core.exceptions import ValidationError
+
+class CanalLead(models.Model):
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "canal_leads"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class LeadStatus(models.Model):
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "crm_lead_statuses"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Lead(models.Model):
+
+    # -----------------------
+    # Datos básicos
+    # -----------------------
+    username = models.CharField(max_length=150, db_index=True)
+    full_name = models.CharField(max_length=255,blank=True, null=True)
+    phone = models.CharField(max_length=30, db_index=True)
+    email = models.EmailField(blank=True, null=True)
+
+    # -----------------------
+    # Relaciones principales
+    # -----------------------
+    operation_types = models.ManyToManyField(
+        "OperationType",
+        related_name="leads",
+        blank=True
+    )
+
+    properties = models.ManyToManyField(
+        "Property",
+        related_name="leads",
+        blank=True
+    )
+
+    assigned_to = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="crm_leads",
+        blank=True
+    )
+
+    lead_status = models.ForeignKey(
+        "LeadStatus",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="leads"
+    )
+
+    canal_lead = models.ForeignKey(
+        "CanalLead",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="leads"
+    )
+
+    # -----------------------
+    # Datos comerciales
+    # -----------------------
+    notes = models.TextField(blank=True)
+    date_entry = models.DateTimeField(null=True, blank=True)
+
+    id_chatwoot = models.CharField(max_length=100, blank=True, null=True)
+
+    date_last_message = models.DateTimeField(null=True, blank=True)
+
+    USER_LAST_MESSAGE_CHOICES = (
+        ("bot", "Bot"),
+        ("agent", "Agent"),
+        ("lead", "Lead"),
+    )
+
+    user_last_message = models.CharField(
+        max_length=10,
+        choices=USER_LAST_MESSAGE_CHOICES,
+        blank=True,
+        null=True
+    )
+
+    # -----------------------
+    # Auditoría
+    # -----------------------
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="leads_created"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "crm_leads"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.username} - {self.phone}"
+
 def _normalize_title_case(value: str | None) -> str | None:
     """Return value in title case with single spaces."""
     if not isinstance(value, str):
@@ -497,6 +620,15 @@ class PropertyOwner(TitleCaseMixin, models.Model):
 # MODELO PRINCIPAL DE PROPIEDAD
 # =============================================================================
 
+AVAILABILITY_STATUS_CHOICES = [
+    ("available", "Disponible"),
+    ("reserved", "Reservada"),
+    ("sold", "Vendida"),
+    ("unavailable", "No disponible"),
+    ("paused", "Pausada"),
+    ("catchment", "En proceso de captacion"),
+]
+
 REQUIRED_DOC_CODES = [
     "estudio_del_titulo",
     "contrato_de_reserva",
@@ -533,9 +665,21 @@ class Property(TitleCaseMixin, models.Model):
     owner = models.ForeignKey('PropertyOwner', on_delete=models.CASCADE, related_name='properties', blank=True, null=True)
     property_type = models.ForeignKey('PropertyType', on_delete=models.PROTECT, blank=True, null=True)
     property_subtype = models.ForeignKey('PropertySubtype', on_delete=models.PROTECT, blank=True, null=True)
+    availability_status = models.CharField(max_length=20, choices=AVAILABILITY_STATUS_CHOICES, default="available", db_index=True, verbose_name="Estado comercial")
     status = models.ForeignKey('PropertyStatus', on_delete=models.PROTECT, blank=True, null=True)
     condition = models.ForeignKey('PropertyCondition', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Condición Física")
-    operation_type = models.ForeignKey('OperationType', on_delete=models.PROTECT, blank=True, null=True, verbose_name="Tipo de Operación")
+    operation_type = models.ForeignKey('OperationType', on_delete=models.PROTECT, blank=True, null=True, verbose_name="Tipo de Operación") #no hace nada
+
+    # Gestion de wordpress
+    wp_post_id = models.IntegerField(null=True, blank=True, db_index=True)
+    wp_slug = models.SlugField(null=True, blank=True)
+    wp_last_sync = models.DateTimeField(null=True, blank=True)
+
+    source = models.CharField(max_length=50, null=True, blank=True, db_index=True)
+    source_url = models.URLField(max_length=1000, null=True, blank=True)
+    source_published_at = models.DateField(null=True, blank=True, db_index=True)
+
+    
     responsible = models.ForeignKey(
         get_user_model(),
         on_delete=models.SET_NULL,
@@ -598,14 +742,17 @@ class Property(TitleCaseMixin, models.Model):
         max_length=512,
         blank=True,
         null=True,
-        verbose_name="Dirección Exacta (para mapa)"
+        verbose_name="Dirección Exacta (para mapa)" 
     )
-    coordinates = models.CharField(max_length=512, blank=True, null=True)
-    department = models.CharField(max_length=100, blank=True, null=True)
-    province = models.CharField(max_length=100, blank=True, null=True)
-    district = models.CharField(max_length=100, blank=True, null=True)
-    urbanization = models.CharField(max_length=100, blank=True, null=True)
-    
+    coordinates = models.CharField(max_length=512, blank=True, null=True) #mal
+    department = models.CharField(max_length=100, blank=True, null=True) #malisimo
+    province = models.CharField(max_length=100, blank=True, null=True) #malisimo
+    district = models.CharField(max_length=100, blank=True, null=True) #malisimo
+    urbanization = models.CharField(max_length=100, blank=True, null=True) #malisimo
+
+    district_fk = models.ForeignKey('District', on_delete=models.PROTECT, blank=True, null=True,related_name="properties", db_index=True,)
+    urbanization_fk = models.ForeignKey('Urbanization', on_delete=models.PROTECT, blank=True, null=True, related_name="properties")
+
     # Servicios
     water_service = models.ForeignKey('WaterServiceType', on_delete=models.SET_NULL, null=True, blank=True, related_name='water_properties', verbose_name="Servicio de Agua")
     energy_service = models.ForeignKey('EnergyServiceType', on_delete=models.SET_NULL, null=True, blank=True, related_name='energy_properties', verbose_name="Servicio de Energía")
@@ -619,10 +766,17 @@ class Property(TitleCaseMixin, models.Model):
     
     # Auditoría y workflow
     created_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT, blank=True, null=True)
-    assigned_agent = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_properties')
+    assigned_agent = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_properties') #no hace nada borrar
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    visible_for_roles = models.ManyToManyField(
+        "users.Role",
+        blank=True,
+        related_name="visible_properties",
+        verbose_name="Visible para roles",
+    )
+
     # Flag explícito para marcar un registro como Borrador (editable, no publicado)
     is_draft = models.BooleanField(default=False)
     is_ready_for_sale = models.BooleanField(default=False)
@@ -650,10 +804,21 @@ class Property(TitleCaseMixin, models.Model):
         ('no', 'No'),
     )
     ascensor = models.CharField(max_length=3, choices=ASCENSOR_CHOICES, null=True, blank=True, verbose_name='Ascensor')
+    has_elevator = models.BooleanField(null=True, blank=True, default=None)
     
     class Meta:
         db_table = 'properties'
         verbose_name_plural = 'Properties'
+        indexes = [
+            # ✅ para el filtro más fuerte
+            models.Index(fields=["district_fk"], name="idx_prop_district_fk"),
+
+            # ✅ índice compuesto típico del motor (hard filters)
+            models.Index(
+                fields=["district_fk", "operation_type", "property_type", "currency", "availability_status"],
+                name="idx_prop_match_core",
+            ),
+        ]
         
     def __str__(self):
         return f"{self.code} - {self.title}"
@@ -787,6 +952,11 @@ class PropertyImage(TitleCaseMixin, models.Model):
     sensible = models.BooleanField(default=False, verbose_name='Sensible')
     uploaded_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    # ✅ Cache WP (2B)
+    wp_media_id = models.IntegerField(null=True, blank=True, db_index=True)
+    wp_source_url = models.URLField(max_length=1000, null=True, blank=True)
+    wp_last_sync = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'property_images'
@@ -795,8 +965,67 @@ class PropertyImage(TitleCaseMixin, models.Model):
     def __str__(self):
         return f"Imagen {self.id} - {self.property.code}"
 
+    def process_watermark(self):
+        """Aplica una marca de agua a la imagen antes de guardarla."""
+        if not self.image:
+            return
+
+        watermark_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'watermark.png')
+        
+        if not os.path.exists(watermark_path):
+            print(f"No se encontró el archivo: {watermark_path}")
+            return
+
+        try:
+            self.image.open()
+            img = Image.open(self.image)
+            img = ImageOps.exif_transpose(img) # corregir orientación si viene de móvil
+
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+
+            # Abrir y preparar marca de agua
+            watermark = Image.open(watermark_path).convert("RGBA")
+            
+            # Escalar marca de agua (ej. 50% del ancho de la imagen)
+            target_width = int(img.width * 0.30)
+            if target_width > 0:
+                aspect_ratio = watermark.width / watermark.height
+                target_height = int(target_width / aspect_ratio)
+                watermark = watermark.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+                # Posición: Centro
+                position = ((img.width - watermark.width) // 2, (img.height - watermark.height) // 2)
+
+                # Componer
+                transparent = Image.new('RGBA', img.size, (0, 0, 0, 0))
+                transparent.paste(watermark, position, mask=watermark)
+                output_img = Image.alpha_composite(img, transparent)
+
+                output_io = BytesIO()
+                ext = os.path.splitext(self.image.name)[1].lower()
+                if ext == '.png':
+                    fmt = 'PNG'
+                elif ext == '.webp':
+                    fmt = 'WEBP'
+                else:
+                    fmt = 'JPEG'
+
+                if fmt == 'JPEG':
+                    output_img = output_img.convert('RGB')
+                output_img.save(output_io, format=fmt, quality=90)
+
+                # Actualizar archivo en el campo (save=False evita loop infinito)
+                self.image.save(os.path.basename(self.image.name), ContentFile(output_io.getvalue()), save=False)
+                print(f"✅ [Watermark] Aplicada correctamente a {self.image.name}")
+        except Exception as e:
+            print(f"❌ [Watermark] Error: {e}")
+
     def save(self, *args, **kwargs):
         self._apply_title_case()
+        # Aplicar marca de agua solo al crear (cuando se sube por primera vez)
+        if not self.pk and self.image:
+            self.process_watermark()
         return super().save(*args, **kwargs)
 
 
@@ -866,8 +1095,13 @@ class PropertyDocument(TitleCaseMixin, models.Model):
     title_case_fields = ('title',)
     property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='documents')
     document_type = models.ForeignKey('DocumentType', on_delete=models.PROTECT, null=True, blank=True)
-    file = models.FileField(upload_to='properties/documents/')
+    file = models.FileField(upload_to='properties/documents/', null=True, blank=True)
     title = EncryptedCharField(max_length=255)
+    # ✅ NUEVO: metadata genérica por documento
+    reference_number = models.CharField(max_length=80, blank=True, null=True, db_index=True)
+    valid_from = models.DateField(blank=True, null=True)
+    valid_to = models.DateField(blank=True, null=True)
+
     description = EncryptedTextField(blank=True)
     uploaded_by = models.ForeignKey(get_user_model(), on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -875,6 +1109,15 @@ class PropertyDocument(TitleCaseMixin, models.Model):
     
     class Meta:
         db_table = 'property_documents'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['property', 'document_type'],
+                name='uq_property_documents_property_document_type'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['property', 'document_type'], name='idx_propdoc_prop_doctype'),
+        ]
         
     def __str__(self):
         return f"Documento {self.id} - {self.property.code}"
@@ -980,121 +1223,363 @@ class PropertyRoom(TitleCaseMixin, models.Model):
 # =============================================================================
 # MODELO DE REQUERIMIENTOS (BUSQUEDAS DE CLIENTES)
 # =============================================================================
-class Requirement(TitleCaseMixin, models.Model):
-    """Modelo para almacenar requerimientos/requests de clientes.
+class Requirement(models.Model):
 
-    - Los campos PII usan EncryptedCharField/EncryptedTextField.
-    - Auditoría básica: created_by, modified_by, created_at, updated_at.
-    """
-    BUDGET_TYPE_CHOICES = (
-        ('approx', 'Aproximado'),
-        ('range', 'Rango'),
-    )
-
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='requirements_created')
-    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='requirements_modified')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)
-
-    # Contacto vinculado (reemplaza client_name y phone)
-    contact = models.ForeignKey('PropertyOwner', on_delete=models.SET_NULL, null=True, blank=True, related_name='requirements')
-    
-    # Datos del cliente (PII cifrada) - DEPRECADOS, usar contact FK
-    client_name = EncryptedCharField(max_length=256, blank=True, null=True)
-    phone = EncryptedCharField(max_length=80, blank=True, null=True)
-
-    # Tipos y subtipos
-    property_type = models.ForeignKey('PropertyType', on_delete=models.PROTECT, null=True, blank=True)
-    property_subtype = models.ForeignKey('PropertySubtype', on_delete=models.PROTECT, null=True, blank=True)
-
-    # Presupuesto
-    budget_type = models.CharField(max_length=20, choices=BUDGET_TYPE_CHOICES, default='approx')
-    budget_approx = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    budget_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    budget_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    # Área de terreno (aproximado o rango)
-    AREA_TYPE_CHOICES = (
-        ('approx', 'Aproximado'),
-        ('range', 'Rango'),
-    )
-    area_type = models.CharField(max_length=20, choices=AREA_TYPE_CHOICES, default='approx')
-    land_area_approx = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    land_area_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    land_area_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    # FRENTERA (aproximada o rango)
-    FRONTERA_TYPE_CHOICES = (
-        ('approx', 'Aproximada'),
-        ('range', 'Rango'),
-    )
-    frontera_type = models.CharField(max_length=20, choices=FRONTERA_TYPE_CHOICES, default='approx')
-    frontera_approx = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    frontera_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    frontera_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    # Moneda asociada al presupuesto
-    currency = models.ForeignKey('Currency', on_delete=models.PROTECT, null=True, blank=True)
-
-    # Medio de pago y estado
-    payment_method = models.ForeignKey('PaymentMethod', on_delete=models.PROTECT, null=True, blank=True)
-    status = models.ForeignKey('PropertyStatus', on_delete=models.SET_NULL, null=True, blank=True)
-
-    # Ubicación
-    department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True)
-    province = models.ForeignKey('Province', on_delete=models.SET_NULL, null=True, blank=True)
-    district = models.ForeignKey('District', on_delete=models.SET_NULL, null=True, blank=True)
-    # Nota: `urbanization` single-FK eliminado; se usa solo `districts` M2M
-    districts = models.ManyToManyField('District', blank=True, related_name='requirements_multiple')
-
-    # Preferencia de pisos (selección múltiple): Sótano, 1º, 2º ... 20º
-    preferred_floors = models.ManyToManyField('FloorOption', blank=True, related_name='requirements')
-
-    # Zonificación (M2M): Urbano, Rural, Industrial, Comercial
-    zonificaciones = models.ManyToManyField('ZoningOption', blank=True, related_name='requirements')
-
-    # Cantidad de pisos para casas (1-5). Se guarda como entero sencillo.
-    NUMBER_OF_FLOORS_CHOICES = [
-        (1, '1 piso'),
-        (2, '2 pisos'),
-        (3, '3 pisos'),
-        (4, '4 pisos'),
-        (5, '5 pisos'),
-    ]
-    number_of_floors = models.PositiveSmallIntegerField(
-        choices=NUMBER_OF_FLOORS_CHOICES,
+    # -----------------------
+    # Auditoría
+    # -----------------------
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name='Cantidad de pisos'
+        related_name='requirements_created'
     )
-    # Ascensor: almacena 'yes'/'no' cuando aplica (departamentos). Nullable para mantener compatibilidad.
-    ASCENSOR_CHOICES = (
-        ('yes', 'Sí'),
-        ('no', 'No'),
-    )
-    ascensor = models.CharField(max_length=3, choices=ASCENSOR_CHOICES, null=True, blank=True, verbose_name='Ascensor')
-    # Características
-    bedrooms = models.PositiveSmallIntegerField(null=True, blank=True)
-    bathrooms = models.PositiveSmallIntegerField(null=True, blank=True)
-    half_bathrooms = models.PositiveSmallIntegerField(null=True, blank=True)
-    floors = models.PositiveSmallIntegerField(null=True, blank=True)
-    garage_spaces = models.PositiveSmallIntegerField(null=True, blank=True)
 
-    notes = EncryptedTextField(blank=True, null=True)
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requirements_assigned'
+    )
+
+    contact = models.ForeignKey(
+        'PropertyOwner',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requirements'
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # -----------------------
+    # Hard filters
+    # -----------------------
+
+    operation_type = models.ForeignKey(
+        'OperationType',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+
+    property_type = models.ForeignKey(
+        'PropertyType',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+
+    property_subtype = models.ForeignKey(
+        'PropertySubtype',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+
+    property_status = models.ForeignKey(
+        "properties.PropertyStatus",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="requirements"
+    )
+
+    currency = models.ForeignKey(
+        'Currency',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+
+    payment_method = models.ForeignKey(
+        'PaymentMethod',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+
+    lead = models.ForeignKey(
+        "Lead",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="requirements"
+    )
+
+    # -----------------------
+    # Rangos
+    # -----------------------
+
+    price_min = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    price_max = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+
+    antiquity_years_min = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    antiquity_years_max = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
+    floors_min = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    floors_max = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
+    bedrooms_min = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    bedrooms_max = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
+    bathrooms_min = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    bathrooms_max = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
+    garage_spaces_min = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    garage_spaces_max = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
+    land_area_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    land_area_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    built_area_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    built_area_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    # -----------------------
+    # Booleanos
+    # -----------------------
+
+    has_elevator = models.BooleanField(null=True, blank=True)
+    pet_friendly = models.BooleanField(null=True, blank=True)
+    notes = models.TextField(blank=True, null=True)
+    source_group = models.CharField(max_length=150, null=True, blank=True)
+    source_date = models.DateField(null=True, blank=True)
+    notes_message_ws = models.TextField(null=True, blank=True)
+    import_batch = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+    import_row_sig = models.CharField(max_length=64, db_index=True, null=True, blank=True)
+
+    # -----------------------
+    # Relación ManyToMany con District
+    # -----------------------
+
+    districts = models.ManyToManyField(
+        'properties.District',
+        related_name='requirements',
+        blank=True
+    )
 
     class Meta:
         db_table = 'requirements'
-        verbose_name = 'Requerimiento'
-        verbose_name_plural = 'Requerimientos'
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=["import_batch", "import_row_sig"], name="uq_requirement_import_row"),
+        ]
 
     def __str__(self):
-        # Evitar mostrar PII en representaciones por defecto
-        type_name = self.property_type.name if self.property_type else ''
-        return f"Requerimiento {self.id} {type_name}"
+        return f"Requirement {self.id}"
+    
+    def _range_dict(self, min_val, max_val):
+        """
+        Devuelve {"min": x, "max": y} SOLO si alguno existe.
+        """
+        if min_val is None and max_val is None:
+            return None
+        out = {}
+        if min_val is not None:
+            out["min"] = float(min_val) if hasattr(min_val, "__float__") else min_val
+        if max_val is not None:
+            out["max"] = float(max_val) if hasattr(max_val, "__float__") else max_val
+        return out
 
-    def save(self, *args, **kwargs):
-        # Aplicar TitleCase si hay campos configurados
-        self._apply_title_case()
-        super().save(*args, **kwargs)
+    def summary_dict(self):
+        """
+        Devuelve dict con SOLO campos relevantes (no None/vacíos).
+        Ideal para admin, logs, UI, etc.
+        """
+        d = {}
+
+        # Helpers para "nombre bonito"
+        def label(obj):
+            if not obj:
+                return None
+
+            # nombre “bonito”
+            name = None
+            for attr in ("name", "label", "code", "title"):
+                if hasattr(obj, attr) and getattr(obj, attr):
+                    name = getattr(obj, attr)
+                    break
+
+            if name is None:
+                name = str(obj)
+
+            # id + nombre (formato corto)
+            obj_id = getattr(obj, "id", None)
+            if obj_id is not None:
+                return f"{obj_id}. {name}"
+
+            return name
+
+        # -----------------------
+        # Identidad principal
+        # -----------------------
+        if self.contact:
+            d["contact"] = label(self.contact)
+
+        if self.operation_type:
+            d["operation_type"] = label(self.operation_type)
+
+        if self.property_type:
+            d["property_type"] = label(self.property_type)
+
+        if self.property_subtype:
+            d["property_subtype"] = label(self.property_subtype)
+
+        if self.property_status:
+            d["property_status"] = label(self.property_status)
+
+        if self.currency:
+            d["currency"] = label(self.currency)
+
+        if self.payment_method:
+            d["payment_method"] = label(self.payment_method)
+
+        # -----------------------
+        # Rangos
+        # -----------------------
+        price = self._range_dict(self.price_min, self.price_max)
+        if price:
+            d["price"] = price
+
+        antiquity = self._range_dict(self.antiquity_years_min, self.antiquity_years_max)
+        if antiquity:
+            d["antiquity_years"] = antiquity
+
+        floors = self._range_dict(self.floors_min, self.floors_max)
+        if floors:
+            d["floors"] = floors
+
+        bedrooms = self._range_dict(self.bedrooms_min, self.bedrooms_max)
+        if bedrooms:
+            d["bedrooms"] = bedrooms
+
+        bathrooms = self._range_dict(self.bathrooms_min, self.bathrooms_max)
+        if bathrooms:
+            d["bathrooms"] = bathrooms
+
+        garage = self._range_dict(self.garage_spaces_min, self.garage_spaces_max)
+        if garage:
+            d["garage_spaces"] = garage
+
+        land = self._range_dict(self.land_area_min, self.land_area_max)
+        if land:
+            d["land_area"] = land
+
+        built = self._range_dict(self.built_area_min, self.built_area_max)
+        if built:
+            d["built_area"] = built
+
+        # -----------------------
+        # Booleanos (solo si no es None)
+        # -----------------------
+        if self.has_elevator is not None:
+            d["has_elevator"] = bool(self.has_elevator)
+
+        if self.pet_friendly is not None:
+            d["pet_friendly"] = bool(self.pet_friendly)
+
+        # -----------------------
+        # Distritos
+        # -----------------------
+        # Solo si tiene al menos 1
+        districts = list(self.districts.all())
+        if districts:
+            d["districts"] = [label(x) for x in districts]
+
+        # -----------------------
+        # Meta / fuente
+        # -----------------------
+        if self.source_group:
+            d["source_group"] = self.source_group
+
+        if self.source_date:
+            d["source_date"] = self.source_date.isoformat()
+
+        if self.notes_message_ws:
+            d["notes_message_ws"] = self.notes_message_ws
+
+        # Si quieres notes normal también:
+        if self.notes:
+            d["notes"] = self.notes
+
+        return d
+
+    @property
+    def summary_json(self):
+        """
+        JSON string (para admin o logs).
+        """
+        return json.dumps(self.summary_dict(), ensure_ascii=False)
+    
+    # ✅ ESTE lo usas para UI (SIN IDs)
+    def summary_ui_dict(self):
+        d = {}
+
+        def label_only(obj):
+            if not obj:
+                return None
+            for attr in ("name", "label", "code", "title"):
+                if hasattr(obj, attr) and getattr(obj, attr):
+                    return getattr(obj, attr)
+            return str(obj)
+
+        if self.operation_type:
+            d["operation_type"] = label_only(self.operation_type)
+        if self.property_type:
+            d["property_type"] = label_only(self.property_type)
+        if self.property_subtype:
+            d["property_subtype"] = label_only(self.property_subtype)
+        if self.currency:
+            d["currency"] = label_only(self.currency)
+        if self.payment_method:
+            d["payment_method"] = label_only(self.payment_method)
+
+        price = self._range_dict(self.price_min, self.price_max)
+        if price:
+            d["price"] = price
+
+        land = self._range_dict(self.land_area_min, self.land_area_max)
+        if land:
+            d["land_area"] = land
+
+        built = self._range_dict(self.built_area_min, self.built_area_max)
+        if built:
+            d["built_area"] = built
+
+        bedrooms = self._range_dict(self.bedrooms_min, self.bedrooms_max)
+        if bedrooms:
+            d["bedrooms"] = bedrooms
+
+        bathrooms = self._range_dict(self.bathrooms_min, self.bathrooms_max)
+        if bathrooms:
+            d["bathrooms"] = bathrooms
+
+        garage = self._range_dict(self.garage_spaces_min, self.garage_spaces_max)
+        if garage:
+            d["garage_spaces"] = garage
+
+        if self.has_elevator is not None:
+            d["has_elevator"] = bool(self.has_elevator)
+
+        districts = list(self.districts.all())
+        if districts:
+            d["districts"] = [label_only(x) for x in districts]
+
+        if self.source_date:
+            d["source_date"] = self.source_date.isoformat()
+
+        return d
+
+    @property
+    def summary_ui_json(self):
+        """UI: json corto sin ids."""
+        return json.dumps(self.summary_ui_dict(), ensure_ascii=False)
+
 
 # =============================================================================
 # MODELO DE AUDITORÍA DE CAMBIOS EN PROPIEDADES
@@ -1212,92 +1697,6 @@ class PropertyWhatsAppLink(models.Model):
             return "#error-generacion-url"
 
 
-class LeadStatus(models.Model):
-    """Estados personalizados para leads de WhatsApp"""
-    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='lead_statuses')
-    name = models.CharField(max_length=100, help_text="Nombre del estado (ej: En Espera, Interesado, etc.)")
-    color = models.CharField(max_length=7, default='#007bff', help_text="Color en formato hex (ej: #007bff para azul)")
-    order = models.PositiveIntegerField(default=0, help_text="Orden de aparición en los filtros")
-    is_active = models.BooleanField(default=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'lead_statuses'
-        ordering = ['order', 'name']
-        unique_together = [['property', 'name']]
-        verbose_name = "Estado de Lead"
-        verbose_name_plural = "Estados de Lead"
-    
-    def __str__(self):
-        return f"{self.property.code} - {self.name}"
-
-
-class Lead(models.Model):
-    """Lead generado desde WhatsApp"""
-    
-    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='whatsapp_leads')
-    whatsapp_link = models.ForeignKey(PropertyWhatsAppLink, on_delete=models.SET_NULL, null=True, blank=True, related_name='leads')
-    
-    phone_number = models.CharField(max_length=20, db_index=True)
-    name = models.CharField(max_length=255, blank=True, null=True)
-    email = models.EmailField(blank=True, null=True)
-    social_network = models.ForeignKey('SocialNetwork', on_delete=models.PROTECT, related_name='leads')
-    
-    status = models.ForeignKey(LeadStatus, on_delete=models.SET_NULL, null=True, blank=True, related_name='leads')
-    notes = models.TextField(blank=True, null=True)
-    
-    first_message_at = models.DateTimeField(auto_now_add=True)
-    last_message_at = models.DateTimeField(null=True, blank=True)
-    assigned_to = models.ForeignKey(get_user_model(), null=True, blank=True, on_delete=models.SET_NULL, related_name='assigned_leads')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'whatsapp_leads'
-        ordering = ['-created_at']
-        unique_together = [['property', 'phone_number']]
-        verbose_name = "Lead de WhatsApp"
-        verbose_name_plural = "Leads de WhatsApp"
-    
-    def __str__(self):
-        return f"{self.phone_number} - {self.property.code} ({self.social_network})"
-
-
-class WhatsAppConversation(models.Model):
-    """Conversación de WhatsApp entre usuario y telefonista"""
-    MESSAGE_TYPE_CHOICES = (
-        ('incoming', 'Entrante'),
-        ('outgoing', 'Saliente'),
-    )
-    
-    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='messages')
-    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='whatsapp_conversations')
-    
-    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES)
-    sender_name = models.CharField(max_length=255, blank=True, null=True)
-    message_body = models.TextField()
-    message_id = models.CharField(max_length=100, unique=True, db_index=True, null=True, blank=True)
-    
-    sent_by_user = models.ForeignKey(get_user_model(), null=True, blank=True, on_delete=models.SET_NULL, related_name='sent_messages')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    # Para mensajes con multimedia
-    media_url = models.URLField(blank=True, null=True)
-    media_type = models.CharField(max_length=20, blank=True, null=True, help_text="image, video, document, audio")
-    
-    class Meta:
-        db_table = 'whatsapp_conversations'
-        ordering = ['created_at']
-        verbose_name = "Conversación de WhatsApp"
-        verbose_name_plural = "Conversaciones de WhatsApp"
-    
-    def __str__(self):
-        return f"{self.lead.phone_number} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
-
 class UTMClick(models.Model):
     """Registro de clics UTM en enlaces de WhatsApp para tracking independiente."""
     whatsapp_link = models.ForeignKey('PropertyWhatsAppLink', on_delete=models.CASCADE, related_name='utm_clicks', db_constraint=False)
@@ -1376,7 +1775,23 @@ class Event(TitleCaseMixin, models.Model):
     hora_inicio = models.TimeField(verbose_name='Hora de inicio')
     hora_fin = models.TimeField(verbose_name='Hora de término')
     detalle = models.TextField(blank=True, verbose_name='Detalle de la visita')
-    
+    seguimiento = models.TextField(blank=True, verbose_name="Seguimiento de la visita")
+    proposal = models.ForeignKey(
+        'Proposal',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='events',
+        verbose_name='Propuesta'
+    )
+
+    lead = models.ForeignKey(
+        "Lead",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="events"
+    )
     # Contacto vinculado (reemplaza interesado CharField)
     contact = models.ForeignKey('PropertyOwner', on_delete=models.SET_NULL, null=True, blank=True, 
                                 related_name='events', verbose_name='Contacto')
@@ -1388,9 +1803,26 @@ class Event(TitleCaseMixin, models.Model):
     # Auditoría
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, 
                                    related_name='created_events', verbose_name='Creado por')
+    
+    # Agente responsable de asistir al evento
+    assigned_agent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                       null=True, blank=True, related_name='assigned_events',
+                                       verbose_name='Agente Asignado')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+
+    STATUS_PENDING = 'PENDING'
+    STATUS_ACCEPTED = 'ACCEPTED'
+    STATUS_REJECTED = 'REJECTED'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_ACCEPTED, 'Aceptado'),
+        (STATUS_REJECTED, 'Rechazado'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, verbose_name='Estado de confirmación')
+    rejection_reason = models.TextField(blank=True, verbose_name='Motivo de rechazo')
     
     class Meta:
         db_table = 'events'
@@ -1473,4 +1905,90 @@ class RequirementMatch(models.Model):
     def __str__(self):
         return f"Req {self.requirement_id} - Prop {self.property_id} => {self.score}%"
 
+class Proposal(models.Model):
+    STATUS_SENT = "pending"
+    STATUS_ACCEPTED = "accepted"
+    STATUS_REJECTED = "rejected"
+    STATUS_CANCELLED = "cancelled"
 
+    STATUS_CHOICES = (
+        (STATUS_SENT, "Pendiente"),
+        (STATUS_ACCEPTED, "Aceptada"),
+        (STATUS_REJECTED, "Rechazada"),
+        (STATUS_CANCELLED, "Cancelada"),
+    )
+
+    property = models.ForeignKey(
+        "Property",
+        on_delete=models.CASCADE,
+        related_name="proposals",
+    )
+
+    requirement_match = models.ForeignKey(
+        "RequirementMatch",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proposals",
+    )
+
+    lead = models.ForeignKey(
+        "Lead",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proposals",
+    )
+
+    requested_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="proposals_requested",
+    )
+
+    responded_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proposals_responded",
+    )
+
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    currency = models.ForeignKey(
+        "Currency",
+        on_delete=models.PROTECT,
+        related_name="proposals",
+    )
+
+    payment_method = models.ForeignKey(
+        "PaymentMethod",
+        on_delete=models.PROTECT,
+        related_name="proposals",
+    )
+
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_SENT,
+        db_index=True,
+    )
+
+    message = models.TextField(blank=True, null=True)
+    response_message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "proposals"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Proposal {self.id} - {self.property_id} - {self.amount}"
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

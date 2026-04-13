@@ -346,6 +346,11 @@
         line-height: 1.2;
     }
     
+    .fc-event.event-rejected {
+        opacity: 0.7;
+        text-decoration: line-through;
+    }
+
     .fc-event:hover {
         opacity: 0.9;
         transform: translateY(-1px);
@@ -514,6 +519,28 @@
         
         <div id="mini-calendar" class="mini-calendar"></div>
 
+        <!-- Contador de Visitas -->
+        <div class="visits-counter-container mb-3 p-3 rounded" style="background-color: #f8f9fa; border: 1px solid #e0e0e0; margin-top:2rem;
+            <h6 class="mb-1 text-muted" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Visitas en esta vista</h6>
+            <div class="d-flex align-items-center mb-1">
+                <i class="fas fa-walking text-primary fa-lg me-2" style="color: #047D7D !important;"></i>
+                <span id="visits-counter" style="font-size: 28px; font-weight: 700; color: #047D7D; line-height: 1;">0</span>
+            </div>
+            <div id="visits-date-range" class="text-muted" style="font-size: 12px; font-weight: 500;">-</div>
+            <div class="mt-2 pt-2 border-top">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span style="font-size: 11px; color: #5f6368;">Total Eventos:</span>
+                    <strong id="total-events-counter" style="font-size: 12px; color: #3c4043;">0</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detalle de los eventos contados -->
+        <details class="mb-3 rounded" style="background-color: #f8f9fa; border: 1px solid #e0e0e0;">
+            <summary style="font-size: 11px; font-weight: 700; color: #5f6368; cursor: pointer; padding: 10px; outline: none; user-select: none;"><i class="fas fa-list-ul me-1"></i> Ver eventos contados</summary>
+            <div id="debug-event-list" style="font-size: 11px; max-height: 200px; overflow-y: auto; padding: 0 10px 10px 10px; border-top: 1px solid #e0e0e0;"></div>
+        </details>
+
         {% if can_see_all and agents_with_events %}
         
 
@@ -574,7 +601,7 @@
             <div class="event-detail-row" id="modalInteresadoRow">
                 <i class="fas fa-user"></i>
                 <div class="event-detail-content">
-                    <div class="event-detail-label">Interesado</div>
+                    <div class="event-detail-label">Cliente / Interesado</div>
                     <div class="event-detail-value" id="modalEventInteresado"></div>
                 </div>
             </div>
@@ -585,6 +612,20 @@
                     <div class="event-detail-value" id="modalEventProperty"></div>
                 </div>
             </div>
+            <div class="event-detail-row" id="modalPropertyAgentRow">
+                <i class="fas fa-user-tie"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Captador (Propiedad)</div>
+                    <div class="event-detail-value" id="modalEventPropertyAgent"></div>
+                </div>
+            </div>
+            <div class="event-detail-row" id="modalAssignedAgentRow">
+                <i class="fas fa-user-check"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Agente Asignado</div>
+                    <div class="event-detail-value" id="modalEventAssignedAgent"></div>
+                </div>
+            </div>
             <div class="event-detail-row" id="modalDetalleRow">
                 <i class="fas fa-align-left"></i>
                 <div class="event-detail-content">
@@ -593,19 +634,39 @@
                 </div>
             </div>
             <div class="event-detail-row" id="modalCreatedByRow">
-                <i class="fas fa-user-circle"></i>
+                <i class="fas fa-pen-nib"></i>
                 <div class="event-detail-content">
                     <div class="event-detail-label">Creado por</div>
                     <div class="event-detail-value" id="modalEventCreatedBy"></div>
                 </div>
             </div>
+            <div class="event-detail-row" id="modalSeguimientoRow" style="display:none;">
+                <i class="fas fa-comment-dots"></i>
+                <div class="event-detail-content">
+                    <div class="event-detail-label">Seguimiento</div>
+                    <div class="event-detail-value" id="modalEventSeguimiento"></div>
+                </div>
+            </div>
+
+            <div id="followupEditor" style="display:none; margin-top: 10px;">
+                <div class="mb-2 text-muted" style="font-size:12px;">Registrar seguimiento</div>
+                <textarea id="followupText" class="form-control" rows="3" placeholder="Escribe el detalle de la visita..."></textarea>
+                <div class="d-flex justify-content-end gap-2 mt-2">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleFollowup(false)">Cancelar</button>
+                    <button id="btnSaveFollowup" class="btn btn-sm btn-modal-edit" type="button" onclick="saveFollowup()">Guardar seguimiento</button>
+                </div>
+            </div>
         </div>
+
         <div class="event-modal-footer">
             <a href="#" id="btnEditEvent" class="btn-modal btn-modal-edit">
                 <i class="fas fa-edit"></i> Editar
             </a>
-            <button onclick="deleteEvent()" class="btn-modal btn-modal-delete">
+            <button id="btnDeleteEvent" onclick="deleteEvent()" class="btn-modal btn-modal-delete">
                 <i class="fas fa-trash"></i> Eliminar
+            </button>
+            <button type="button" class="btn-modal btn-modal-edit" onclick="toggleFollowup(true)">
+                <i class="fas fa-comment"></i> Registrar seguimiento
             </button>
         </div>
     </div>
@@ -616,6 +677,8 @@
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
 <script>
+const currentUserId = "{{ request.user.id|default_if_none:'' }}";
+const isSuperUser = "{{ request.user.is_superuser|yesno:'true,false' }}" === "true";
 let calendar;
 let miniCalendar;
 let currentEventId = null;
@@ -642,8 +705,8 @@ document.addEventListener('DOMContentLoaded', function() {
         calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
             locale: 'es',
-            slotMinTime: "09:00:00",
-            slotMaxTime: "23:00:00",
+            slotMinTime: "06:00:00",
+            slotMaxTime: "24:00:00",
             
             headerToolbar: {
                 left: 'prev,next today',
@@ -674,7 +737,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         let filteredEvents = allEvents;
                         if (canSeeAll && selectedAgents.length > 0) {
                             filteredEvents = allEvents.filter(evt => {
-                                return selectedAgents.includes(evt.extendedProps.created_by_id);
+                                return selectedAgents.includes(evt.extendedProps.assigned_agent_id);
                             });
                         } else if (canSeeAll && selectedAgents.length === 0) {
                             // Si ninguno está seleccionado y puede ver todos, no mostrar ninguno o mostrar todos?
@@ -690,8 +753,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         failureCallback(error);
                     });
             },
-            eventDidMount: function(info) {
-                console.log('Evento montado en el DOM:', info.event.title);
+            eventContent: function(arg) {
+                let statusHtml = '';
+                let textStyle = '';
+                if (arg.event.extendedProps.status_code === 'REJECTED') {
+                    statusHtml = '<i class="fas fa-times-circle" style="margin-right: 4px; font-size: 13px; color: #ffcccc;" title="Rechazado"></i>';
+                    textStyle = 'text-decoration: line-through; opacity: 0.8;';
+                } else if (arg.event.extendedProps.status_code === 'ACCEPTED') {
+                    statusHtml = '<i class="fas fa-check-circle" style="margin-right: 4px; font-size: 13px; color: #ccffcc;" title="Aceptado"></i>';
+                }
+                let timeHtml = arg.timeText ? `<div class="fc-event-time">${arg.timeText}</div>` : '';
+                let titleHtml = `<div class="fc-event-title" style="${textStyle}">${statusHtml}${arg.event.title}</div>`;
+                return { html: `<div style="overflow: hidden; width: 100%;">${timeHtml}${titleHtml}</div>` };
             },
             eventClick: function(info) {
                 console.log('Click en evento:', info.event.title);
@@ -770,6 +843,68 @@ document.addEventListener('DOMContentLoaded', function() {
     
     miniCalendar.render();
 
+    // Función para actualizar los contadores basado en la vista actual
+    function updateCounters() {
+        if (!calendar) return;
+        const view = calendar.view;
+        const allEvents = calendar.getEvents();
+        
+        let visitsCount = 0;
+        let totalEventsCount = 0;
+        let countedEventsHtml = '';
+        
+        // Obtener el rango exacto de la vista actual en milisegundos (incluyendo días "en gris" renderizados)
+        const viewStart = view.activeStart.getTime();
+        const viewEnd = view.activeEnd.getTime();
+
+        allEvents.forEach(evt => {
+            if (!evt.start) return;
+
+            const evtStart = evt.start.getTime();
+            const evtEnd = evt.end ? evt.end.getTime() : evtStart;
+            
+            // Comprobar intersección estricta con el rango de tiempo visual del calendario
+            const startsBeforeViewEnds = evtStart < viewEnd;
+            const endsAfterViewStarts = evt.end ? (evtEnd > viewStart) : (evtEnd >= viewStart);
+
+            if (startsBeforeViewEnds && endsAfterViewStarts) {
+                totalEventsCount++;
+                const eventTypeStr = (evt.extendedProps.event_type || '').toLowerCase();
+                const eventTypeId = parseInt(evt.extendedProps.event_type_id || 0);
+                
+                // Identificar si el evento es una "Visita" (usualmente ID 1)
+                if (eventTypeId === 1 || eventTypeStr.includes('visit')) {
+                    visitsCount++;
+                }
+
+                // Construir la lista de los eventos sumados para debug
+                const startStr = evt.start.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' });
+                countedEventsHtml += `<div style="border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 4px;">
+                    <strong style="color: #047d7d;">${evt.title}</strong><br>
+                    <span style="color: #666;">Hora: ${startStr}</span>
+                </div>`;
+            }
+        });
+        
+        const visitsEl = document.getElementById('visits-counter');
+        if (visitsEl) visitsEl.textContent = visitsCount;
+        
+        const totalEventsEl = document.getElementById('total-events-counter');
+        if (totalEventsEl) totalEventsEl.textContent = totalEventsCount;
+        
+        const rangeEl = document.getElementById('visits-date-range');
+        if (rangeEl) rangeEl.textContent = view.title;
+
+        const debugListEl = document.getElementById('debug-event-list');
+        if (debugListEl) {
+            debugListEl.innerHTML = countedEventsHtml || '<em style="color:#999;">Ningún evento en este rango</em>';
+        }
+    }
+
+    // Escuchar cambios en la vista de fechas y recarga de eventos
+    calendar.on('datesSet', updateCounters);
+    calendar.on('eventsSet', updateCounters);
+
     // Event listeners para los filtros de agentes
     const agentCheckboxes = document.querySelectorAll('.agent-filter-checkbox');
     agentCheckboxes.forEach(cb => {
@@ -816,6 +951,22 @@ function showEventModal(event) {
         document.getElementById('modalPropertyRow').style.display = 'none';
     }
     
+    // Agente Asignado (Propiedad)
+    if (props.property_agent) {
+        document.getElementById('modalEventPropertyAgent').textContent = props.property_agent;
+        document.getElementById('modalPropertyAgentRow').style.display = 'flex';
+    } else {
+        document.getElementById('modalPropertyAgentRow').style.display = 'none';
+    }
+
+    // Agente Asignado (Evento)
+    if (props.assigned_agent) {
+        document.getElementById('modalEventAssignedAgent').textContent = props.assigned_agent;
+        document.getElementById('modalAssignedAgentRow').style.display = 'flex';
+    } else {
+        document.getElementById('modalAssignedAgentRow').style.display = 'none';
+    }
+
     // Detalle
     if (props.detalle) {
         document.getElementById('modalEventDetalle').textContent = props.detalle;
@@ -831,9 +982,42 @@ function showEventModal(event) {
     } else {
         document.getElementById('modalCreatedByRow').style.display = 'none';
     }
+    // Seguimiento
+    if (props.seguimiento && props.seguimiento.trim() !== "") {
+    document.getElementById('modalEventSeguimiento').textContent = props.seguimiento;
+    document.getElementById('modalSeguimientoRow').style.display = 'flex';
+    } else {
+    document.getElementById('modalSeguimientoRow').style.display = 'none';
+    document.getElementById('modalEventSeguimiento').textContent = '';
+    }
+
+    // reset editor
+    document.getElementById('followupEditor').style.display = 'none';
+    document.getElementById('followupText').value = props.seguimiento || '';
     
-    // URL de edición
-    document.getElementById('btnEditEvent').href = `/dashboard/propiedades/agenda/eventos/${event.id}/editar/`;
+    const btnEdit = document.getElementById('btnEditEvent');
+    const btnDelete = document.getElementById('btnDeleteEvent');
+
+    btnEdit.href = `/dashboard/agenda/eventos/${event.id}/editar/`;  // configurar URL de edición
+    
+    // Por defecto ocultamos los botones
+    btnEdit.style.display = 'none';
+    btnDelete.style.display = 'none';
+
+    const eventTypeId = props.event_type_id; 
+    const createdById = props.created_by_id; 
+
+    // 1. Superusuario puede editar/eliminar todo
+    if (isSuperUser) {
+        btnEdit.style.display = 'inline-block';
+        btnDelete.style.display = 'inline-block';
+    } else {
+        // 2. Si NO es visita (ID 1) y el usuario es el creador, puede editar/borrar
+        if (parseInt(eventTypeId) !== 1 && parseInt(createdById) === parseInt(currentUserId || 0)) {
+            btnEdit.style.display = 'inline-block';
+            btnDelete.style.display = 'inline-block';
+        }
+    }
     
     // Mostrar modal
     document.getElementById('eventModal').style.display = 'block';
@@ -848,7 +1032,7 @@ function deleteEvent() {
     if (!currentEventId) return;
     
     if (confirm('¿Estás seguro de que deseas eliminar este evento?')) {
-        window.location.href = `/dashboard/propiedades/agenda/eventos/${currentEventId}/borrar/`;
+        window.location.href = `/dashboard/agenda/eventos/${currentEventId}/borrar/`;
     }
 }
 
@@ -868,6 +1052,89 @@ function toggleAgentsMobile() {
     }
 
     legend.classList.toggle('show-mobile');
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+function toggleFollowup(show) {
+  const editor = document.getElementById('followupEditor');
+  editor.style.display = show ? 'block' : 'none';
+}
+
+let isSavingFollowup = false;
+
+function setFollowupSavingState(saving) {
+  const btn = document.getElementById('btnSaveFollowup');
+  const textarea = document.getElementById('followupText');
+  if (!btn) return;
+
+  btn.disabled = saving;
+  if (textarea) textarea.disabled = saving;
+
+  if (saving) {
+    btn.dataset.originalText = btn.innerHTML;
+    btn.innerHTML = 'Guardando...';
+  } else {
+    btn.innerHTML = btn.dataset.originalText || 'Guardar seguimiento';
+  }
+}
+
+function saveFollowup() {
+  if (!currentEventId) return;
+  if (isSavingFollowup) return; // 👈 evita doble click / spam
+
+  isSavingFollowup = true;
+  setFollowupSavingState(true);
+
+  const text = document.getElementById('followupText').value || "";
+
+  fetch(`/dashboard/agenda/eventos/${currentEventId}/seguimiento/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "X-CSRFToken": csrftoken
+    },
+    body: new URLSearchParams({ seguimiento: text })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) throw new Error('Respuesta no OK');
+
+    const val = (data.seguimiento || "").trim();
+
+    if (val) {
+      document.getElementById('modalEventSeguimiento').textContent = val;
+      document.getElementById('modalSeguimientoRow').style.display = 'flex';
+    } else {
+      document.getElementById('modalSeguimientoRow').style.display = 'none';
+      document.getElementById('modalEventSeguimiento').textContent = '';
+    }
+
+    toggleFollowup(false);
+    if (calendar) calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error("Error guardando seguimiento:", err);
+    alert("No se pudo guardar el seguimiento. Intenta otra vez.");
+  })
+  .finally(() => {
+    isSavingFollowup = false;
+    setFollowupSavingState(false);
+  });
 }
 
 </script>

@@ -1,6 +1,26 @@
+<style>
+    .role-visibility-trigger {
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 4px;
+        line-height: 1.2;
+    }
+</style>
 
     <!-- Header de Acciones -->
-    <div class="d-flex justify-content-end mb-2">
+    <div class="d-flex justify-content-end align-items-center flex-wrap gap-2 mb-2">
+        {% if can_manage_role_visibility %}
+        <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm role-visibility-trigger me-auto"
+            data-bs-toggle="modal"
+            data-bs-target="#roleVisibilityModal"
+            title="Visibilidad por roles"
+        >
+            <i class="fas fa-eye me-1"></i>Visibilidad por roles
+        </button>
+        {% endif %}
         <div class="btn-group btn-group-sm">
             {% if user.is_superuser or property.created_by.id == user.id %}
             <a href="{% url 'properties:edit' property.pk %}" class="btn btn-outline-primary" title="Editar">
@@ -17,8 +37,26 @@
         <a href="{% url 'properties:generate_pdf' property.pk %}" class="btn btn-dark ms-2" title="Generar Resumen" target="_blank">
             <i class="fas fa-file-pdf me-1"></i>Generar Resumen
         </a>
+        <button
+            type="button"
+            id="btnSyncWP"
+            class="btn btn-success ms-2"
+            data-sync-url="/dashboard/api/internal/wp/sync/{{ property.id }}/"
+            title="Subir a WordPress"
+        >
+            <i class="fas fa-cloud-upload-alt me-1"></i>Subir a WP
+        </button>
+        <button
+            type="button"
+            id="btnDeleteWP"
+            class="btn btn-danger ms-2"
+            data-delete-url="/dashboard/api/internal/wp/property/{{ property.id }}/delete/"
+            title="Eliminar de WordPress"
+            >
+            <i class="fas fa-trash-alt me-1"></i>Eliminar de WP
+        </button>
     </div>
-
+  
     <div class="row g-2">
         <!-- COLUMNA IZQUIERDA: Galería y Resumen Clave (Sticky) -->
         <div class="col-lg-3 col-md-4">
@@ -42,34 +80,51 @@
 
                     <!-- Carrusel de Fotos (Galería) -->
                     <div class="position-relative bg-light rounded overflow-hidden mb-2 border mx-auto" style="aspect-ratio: 4/3; max-height: 200px;">
-                        {% if property.images.all %}
-                            <div id="propertyCarousel" class="carousel slide w-100 h-100" data-bs-ride="false">
-                                <div class="carousel-inner w-100 h-100">
-                                    {% for image in property.images.all %}
-                                    <div class="carousel-item w-100 h-100 {% if forloop.first %}active{% endif %}" onclick="openFullscreenModal('{{ image.image.url }}', '{{ image.caption|escapejs }}')"
-                                        {% if image.image %}
-                                            <img src="{{ image.image.url }}" class="d-block w-100 h-100" style="object-fit: cover; cursor: zoom-in;" alt="{{ image.caption }}">
-                                        {% endif %}
-                                    </div>
-                                    {% endfor %}
+                        {% if property.images.exists %}
+                        <div id="propertyCarousel-{{ property.id }}"
+                            class="carousel slide w-100 h-100"
+                            data-bs-ride="false">
+
+                            <div class="carousel-inner h-100">
+                                {% for image in property.images.all %}
+                                {% if image.image %}
+                                <div class="carousel-item {% if forloop.first %}active{% endif %} h-100">
+                                    <img
+                                        src="{{ image.image.url }}"
+                                        class="d-block w-100 h-100"
+                                        style="object-fit: cover; cursor: zoom-in;"
+                                        alt="{{ image.caption|default:'Imagen de propiedad' }}"
+                                        onclick="openFullscreenModal('{{ image.image.url }}', '{{ image.caption|escapejs }}')"
+                                    >
                                 </div>
-                                {% if property.images.count > 1 %}
-                                <button class="carousel-control-prev" type="button" data-bs-target="#propertyCarousel" data-bs-slide="prev" style="width: 15%;">
-                                    <span class="carousel-control-prev-icon bg-dark bg-opacity-50 rounded-1" style="width: 1.5rem; height: 1.5rem;" aria-hidden="true"></span>
-                                </button>
-                                <button class="carousel-control-next" type="button" data-bs-target="#propertyCarousel" data-bs-slide="next" style="width: 15%;">
-                                    <span class="carousel-control-next-icon bg-dark bg-opacity-50 rounded-1" style="width: 1.5rem; height: 1.5rem;" aria-hidden="true"></span>
-                                </button>
                                 {% endif %}
-                                <div class="position-absolute bottom-0 end-0 m-1 badge bg-dark bg-opacity-75" style="font-size: 0.7rem;">
-                                    <i class="fas fa-images me-1"></i>{{ property.images.count }}
-                                </div>
+                                {% endfor %}
                             </div>
+
+                            {% if property.images.count > 1 %}
+                            <button class="carousel-control-prev" type="button"
+                                    data-bs-target="#propertyCarousel-{{ property.id }}"
+                                    data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon"></span>
+                            </button>
+
+                            <button class="carousel-control-next" type="button"
+                                    data-bs-target="#propertyCarousel-{{ property.id }}"
+                                    data-bs-slide="next">
+                                <span class="carousel-control-next-icon"></span>
+                            </button>
+                            {% endif %}
+
+                            <span class="position-absolute bottom-0 end-0 m-1 badge bg-dark bg-opacity-75">
+                                <i class="fas fa-images me-1"></i>{{ property.images.count }}
+                            </span>
+                        </div>
                         {% else %}
-                            <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
-                                <i class="fas fa-image fa-2x"></i>
-                            </div>
+                        <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
+                            <i class="fas fa-image fa-2x"></i>
+                        </div>
                         {% endif %}
+
                     </div>
 
                     <!-- Resumen Rápido -->
@@ -113,9 +168,31 @@
                                 <span class="text-muted opacity-50 d-block" style="font-size: 0.7rem;">Vista No Autorizada</span>
                             {% endif %}
                         </div>
-                        <div>
-                            <strong class="text-dark d-block" style="font-size: 0.75rem;">Responsable</strong>
-                            <span class="text-muted d-block text-truncate">{{ property.responsible.get_full_name|default:property.created_by.get_full_name|default:property.created_by.username }}</span>
+                        <div class="mt-2">
+                            <strong class="text-dark d-block" style="font-size: 0.75rem;">Agente asignado</strong>
+
+                            {% if property.responsible %}
+                                <span class="text-muted d-block text-truncate">
+                                {{ property.responsible.get_full_name|default:property.responsible.username }}
+                                </span>
+
+                                {% if property.responsible.phone %}
+                                <span class="text-muted d-block" style="font-size: 0.72rem;">
+                                    <i class="fas fa-phone me-1"></i>{{ property.responsible.phone }}
+                                </span>
+                                {% else %}
+                                <span class="text-dark" style="font-size: 0.72rem;">Sin teléfono</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-dark">Sin asignar</span>
+                            {% endif %}
+                        </div>
+                            <!-- ✅ NUEVO: Botón Agendar Visita -->
+                        <div class="mt-3 text-center">
+                            <a href="{% url 'properties:event_create' %}?property={{ property.id }}"
+                            class="btn btn-success btn-sm w-100 opacity-75">
+                                <i class="fas fa-calendar-plus me-1"></i>Agendar Visita
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -218,29 +295,29 @@
                                     <div class="col-4">
                                         <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
                                             <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Com. Inicial</label>
-                                            <span class="fw-bold text-success small">{{ property.initial_commission_percentage|default:"0" }}%</span>
+                                            <span class="fw-bold text-success small">{{ property.financial_info.initial_commission_percentage|default:"0" }}%</span>
                                         </div>
                                     </div>
                                     <div class="col-4">
                                         <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
                                             <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Com. Final</label>
-                                            <span class="fw-bold text-success small">{{ property.final_commission_percentage|default:"0" }}%</span>
+                                            <span class="fw-bold text-success small">{{ property.financial_info.final_commission_percentage|default:"0" }}%</span>
                                         </div>
                                     </div>
                                     <div class="col-4">
                                         <div class="p-1 border rounded bg-light bg-opacity-50 text-center">
                                             <label class="d-block text-muted fw-bold text-truncate" style="font-size: 0.65rem;">Cierre</label>
-                                            <span class="fw-bold text-dark small" style="font-size: 0.75rem;">{{ property.currency.symbol }} {{ property.final_amount|floatformat:0|default:"0" }}</span>
+                                            <span class="fw-bold text-dark small" style="font-size: 0.75rem;">{{ property.currency.symbol }} {{ property.financial_info.final_amount|floatformat:0|default:"0" }}</span>
                                         </div>
                                     </div>
                                     <div class="col-12 border-top my-0"></div>
                                     <div class="col-6">
                                          <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Estado Negociación</label>
-                                         <div class="small"><span class="badge bg-warning text-dark py-0">{{ property.negotiation_status.name|default:"-" }}</span></div>
+                                         <div class="small"><span class="badge bg-warning text-dark py-0">{{ property.financial_info.negotiation_status.name|default:"-" }}</span></div>
                                     </div>
                                     <div class="col-6">
                                          <label class="d-block text-muted fw-bold" style="font-size: 0.7rem;">Tipo de Contrato</label>
-                                         <div class="small fw-bold text-truncate">{{ property.contract_type.name|default:"-" }}</div>
+                                         <div class="small fw-bold text-truncate">{{ property.financial_info.contract_type.name|default:"-" }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -382,41 +459,113 @@
                          </div>
                     </div>
                 </div>
+                {% if can_manage_role_visibility %}
+                <div class="modal fade" id="roleVisibilityModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content">
+                            <form method="post" action="{% url 'properties:property_role_visibility_update' property.pk %}">
+                                {% csrf_token %}
 
-                 <!-- 7. MATRIZ DE CUMPLIMIENTO DOCUMENTAL -->
-                 <div class="col-12">
-                     <div class="card shadow-sm border">
-                         <div class="card-header bg-white fw-bold text-dark border-bottom-0 py-1 px-2 small">
-                            <i class="fas fa-file-invoice me-2 text-primary"></i>Matriz de Cumplimiento Documental
+                                <div class="modal-header">
+                                    <h5 class="modal-title">
+                                        <i class="fas fa-eye me-2"></i>Visibilidad por roles
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                </div>
+
+                                <div class="modal-body">
+                                    <div class="row g-2">
+                                        {% for role in visibility_roles %}
+                                        <div class="col-md-4 col-sm-6">
+                                            <div class="form-check">
+                                                <input
+                                                    class="form-check-input"
+                                                    type="checkbox"
+                                                    name="visible_for_roles"
+                                                    value="{{ role.id }}"
+                                                    id="role_visibility_{{ role.id }}"
+                                                    {% if role.id in selected_visible_role_ids %}checked{% endif %}
+                                                >
+                                                <label class="form-check-label small" for="role_visibility_{{ role.id }}">
+                                                    {{ role.area.name|default:"Sin área" }} / {{ role.name }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <div class="small text-muted mt-3">
+                                        Marca o desmarca los roles que pueden ver esta propiedad 
+                                    </div>
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-1"></i>Guardar visibilidad
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                        <div class="card-body pt-0 px-2 pb-2">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered mb-0 align-middle" style="font-size: 0.75rem;">
-                                    <thead class="table-light">
-                                        <tr class="text-center">
-                                            {% for dt in all_document_types %}
-                                                <th style="min-width: 80px;">{{ dt.name }}</th>
-                                            {% endfor %}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr class="text-center">
-                                            {% for dt in all_document_types %}
-                                                <td>
-                                                    {% if dt.id in uploaded_doc_ids %}
-                                                        <i class="fas fa-check-circle text-success fs-6" title="Documento cargado"></i>
-                                                    {% else %}
-                                                        <i class="fas fa-times-circle text-danger opacity-25"></i>
-                                                    {% endif %}
-                                                </td>
-                                            {% endfor %}
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                    </div>
+                </div>
+                {% endif %}
+                 <!-- ✅ Modal Confirmación Subir a WP -->
+                <div class="modal fade" id="wpConfirmModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="fas fa-cloud-upload-alt me-2"></i>Subir a WordPress</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                         </div>
-                     </div>
-                 </div>
+                        <div class="modal-body">
+                            ¿Seguro que deseas subir esta propiedad a WordPress?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-success" id="btnWpConfirmOk">
+                            <i class="fas fa-check me-1"></i>Sí, subir
+                            </button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ Toasts -->
+                <div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index:11000; margin-top: 90px;">
+                    <div id="wpToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                        <div class="toast-body" id="wpToastBody">...</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ Modal Confirmación Eliminar de WP -->
+                <div class="modal fade" id="wpDeleteConfirmModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title text-danger">
+                            <i class="fas fa-trash-alt me-2"></i>Eliminar de WordPress
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            ¿Seguro que deseas <strong>eliminar</strong> esta propiedad de WordPress?
+                            <div class="small text-muted mt-1">Esto no se puede deshacer.</div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-danger" id="btnWpDeleteConfirmOk">
+                            <i class="fas fa-trash-alt me-1"></i>Sí, eliminar
+                            </button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
 
 <script>
 function copyPropertyDescription(btn) {
@@ -433,4 +582,201 @@ function copyPropertyDescription(btn) {
         console.error('Error al copiar: ', err);
     });
 }
+</script>
+
+<script>
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+function showToast(message, variant) {
+  const toastEl = document.getElementById("wpToast");
+  const bodyEl = document.getElementById("wpToastBody");
+
+  toastEl.className = "toast align-items-center border-0";
+  const map = {
+    success: "text-bg-success",
+    danger: "text-bg-danger",
+    warning: "text-bg-warning",
+    info: "text-bg-info",
+  };
+  toastEl.classList.add(map[variant] || "text-bg-dark");
+
+  bodyEl.textContent = message;
+
+  const t = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3500 });
+  t.show();
+}
+
+function confirmWithModal() {
+  return new Promise((resolve) => {
+    const modalEl = document.getElementById("wpConfirmModal");
+    const okBtn = document.getElementById("btnWpConfirmOk");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    const onOk = () => {
+      okBtn.removeEventListener("click", onOk);
+      modal.hide();
+      resolve(true);
+    };
+
+    const onHidden = () => {
+      modalEl.removeEventListener("hidden.bs.modal", onHidden);
+      okBtn.removeEventListener("click", onOk);
+      resolve(false);
+    };
+
+    okBtn.addEventListener("click", onOk);
+    modalEl.addEventListener("hidden.bs.modal", onHidden);
+
+    modal.show();
+  });
+}
+
+(function () {
+  const btn = document.getElementById("btnSyncWP");
+  if (!btn) return;
+
+  const originalHtml = btn.innerHTML;
+  const syncUrl = btn.getAttribute("data-sync-url");
+  const csrftoken = getCookie("csrftoken");
+
+  let isLoading = false;
+
+  btn.addEventListener("click", async () => {
+    if (isLoading) return;
+
+    const ok = await confirmWithModal();
+    if (!ok) return;
+
+    isLoading = true;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Subiendo...';
+
+    try {
+      const resp = await fetch(syncUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken,
+        },
+        body: JSON.stringify({})
+      });
+
+      const data = await resp.json().catch(() => ({}));
+
+      if (resp.ok) {
+        showToast("✅ Subido correctamente a WordPress.", "success");
+      } else {
+        const msg = data.message || data.detail || "Error al subir a WordPress.";
+        showToast("⚠️ " + msg, "warning");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Error de conexión. Intenta nuevamente.", "danger");
+    } finally {
+      isLoading = false;
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  });
+})();
+</script>
+
+<script>
+function confirmDeleteWithModal() {
+  return new Promise((resolve) => {
+    const modalEl = document.getElementById("wpDeleteConfirmModal");
+    const okBtn = document.getElementById("btnWpDeleteConfirmOk");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    const onOk = () => {
+      okBtn.removeEventListener("click", onOk);
+      modal.hide();
+      resolve(true);
+    };
+
+    const onHidden = () => {
+      modalEl.removeEventListener("hidden.bs.modal", onHidden);
+      okBtn.removeEventListener("click", onOk);
+      resolve(false);
+    };
+
+    okBtn.addEventListener("click", onOk);
+    modalEl.addEventListener("hidden.bs.modal", onHidden);
+
+    modal.show();
+  });
+}
+
+(function () {
+  const btn = document.getElementById("btnDeleteWP");
+  if (!btn) return;
+
+  const originalHtml = btn.innerHTML;
+  const deleteUrl = btn.getAttribute("data-delete-url");
+  const csrftoken = getCookie("csrftoken");
+
+  let isLoading = false;
+
+  btn.addEventListener("click", async () => {
+    if (isLoading) return;
+
+    const ok = await confirmDeleteWithModal();
+    if (!ok) return;
+
+    isLoading = true;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Eliminando...';
+
+    try {
+      const resp = await fetch(deleteUrl + "?force=true", {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken,
+        }
+      });
+
+      const data = await resp.json().catch(() => ({}));
+
+      if (resp.ok) {
+        // Si tu service devuelve algo como {ok:true, deleted:true/false, message:"..."} lo usamos
+        if (data.deleted === false || data.not_found === true) {
+          showToast("⚠️ Tu propiedad no está subida en WP.", "warning");
+        } else {
+          showToast("✅ Eliminado correctamente de WordPress.", "success");
+        }
+      } else {
+        const msg = data.message || data.detail || "Error al eliminar de WordPress.";
+        // caso típico: si backend responde 404 o 400 por no existir
+        if ((resp.status === 404) || (typeof msg === "string" && msg.toLowerCase().includes("not found"))) {
+          showToast("⚠️ Tu propiedad no está subida en WP.", "warning");
+        } else {
+          showToast("❌ " + msg, "danger");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Error de conexión. Intenta nuevamente.", "danger");
+    } finally {
+      isLoading = false;
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  });
+})();
 </script>
