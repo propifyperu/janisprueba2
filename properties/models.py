@@ -649,7 +649,6 @@ LEGAL_ONLY_DOCS = {"estudio_del_titulo"}
 
 class Property(TitleCaseMixin, models.Model):
     title_case_fields = (
-        'title',
         'department',
         'province',
         'district',
