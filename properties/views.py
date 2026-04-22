@@ -4189,6 +4189,8 @@ def proposals_list(request):
 
 @login_required
 def proposals_create_view(request):
+    from .models import Event
+
     if request.method == "POST":
         form = ProposalCreateForm(request.POST)
 
@@ -4196,11 +4198,26 @@ def proposals_create_view(request):
             proposal = form.save(commit=False)
             proposal.requested_by_user = request.user
             proposal.save()
+            form.save_m2m()
 
             messages.success(request, "Propuesta creada correctamente.")
             return redirect("properties:proposals_list")
     else:
-        form = ProposalCreateForm()
+        initial = {}
+
+        event_id = request.GET.get("event")
+        if event_id:
+            event = Event.objects.filter(id=event_id).select_related("property", "lead").first()
+            if event:
+                if event.property_id:
+                    initial["property"] = event.property_id
+                    if event.property and event.property.currency_id:
+                        initial["currency"] = event.property.currency_id
+
+                if event.lead_id:
+                    initial["lead"] = event.lead_id
+
+        form = ProposalCreateForm(initial=initial)
 
     context = {
         "form": form,

@@ -659,16 +659,23 @@
         </div>
 
         <div class="event-modal-footer">
+            <a href="#" id="btnCreateProposal" class="btn-modal btn-modal-edit">
+                <i class="fas fa-file-signature"></i> Crear propuesta
+            </a>
+
             <a href="#" id="btnEditEvent" class="btn-modal btn-modal-edit">
                 <i class="fas fa-edit"></i> Editar
             </a>
+
             <button id="btnDeleteEvent" onclick="deleteEvent()" class="btn-modal btn-modal-delete">
                 <i class="fas fa-trash"></i> Eliminar
             </button>
+
             <button type="button" class="btn-modal btn-modal-edit" onclick="toggleFollowup(true)">
                 <i class="fas fa-comment"></i> Registrar seguimiento
             </button>
         </div>
+
     </div>
 </div>
 {% endblock %}
@@ -995,14 +1002,17 @@ function showEventModal(event) {
     document.getElementById('followupEditor').style.display = 'none';
     document.getElementById('followupText').value = props.seguimiento || '';
     
+    const btnCreateProposal = document.getElementById('btnCreateProposal');
     const btnEdit = document.getElementById('btnEditEvent');
     const btnDelete = document.getElementById('btnDeleteEvent');
 
+    btnCreateProposal.href = `/dashboard/propuestas/crear/?event=${event.id}`;
     btnEdit.href = `/dashboard/agenda/eventos/${event.id}/editar/`;  // configurar URL de edición
     
     // Por defecto ocultamos los botones
     btnEdit.style.display = 'none';
     btnDelete.style.display = 'none';
+    btnCreateProposal.style.display = 'inline-block';
 
     const eventTypeId = props.event_type_id; 
     const createdById = props.created_by_id; 
