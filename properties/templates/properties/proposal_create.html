@@ -1,6 +1,10 @@
 {% extends 'properties/base_dashboard.html' %}
+{% load static %}
 
 {% block dashboard_extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
 <style>
     .form-section {
         border: 1px solid #e3e6f0;
@@ -29,6 +33,11 @@
         content: " *";
         color: #dc3545;
     }
+
+    .select2-container--bootstrap-5 .select2-selection {
+        border-radius: .375rem;
+        min-height: calc(1.5em + .75rem + 2px);
+    }
 </style>
 {% endblock %}
 
@@ -54,7 +63,7 @@
                 </div>
 
                 <div class="card-body">
-                    <form method="POST">
+                    <form method="POST" id="proposalForm">
                         {% csrf_token %}
 
                         {% if form.errors %}
@@ -81,41 +90,78 @@
 
                             <div class="row">
                                 <div class="col-md-12 mb-3">
-                                    <label class="form-label required-field">Propiedad</label>
+                                    <label class="form-label required-field" for="{{ form.property.id_for_label }}">Propiedad</label>
                                     {{ form.property }}
+                                </div>
+                            </div>
+
+                            <!-- CONTACTO OPCIONAL -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold mb-0 text-muted">CONTACTO (OPCIONAL)</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleContactBtn">
+                                        Omitir
+                                    </button>
+                                </div>
+
+                                <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <div>Si deseas, registra los datos del cliente. Si no, puedes omitir esta sección.</div>
+                                </div>
+
+                                <div id="contactSection">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="{{ form.interesado.id_for_label }}">Nombre</label>
+                                            {{ form.interesado }}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="{{ form.contact_phone.id_for_label }}">Teléfono</label>
+                                            {{ form.contact_phone }}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="{{ form.contact_email.id_for_label }}">Email</label>
+                                            {{ form.contact_email }}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Lead</label>
-                                    {{ form.lead }}
+                                    <label class="form-label" for="{{ form.lead.id_for_label }}">Lead</label>
+                                    <select class="form-select" id="{{ form.lead.id_for_label }}" name="{{ form.lead.html_name }}">
+                                        <option></option>
+                                        {% if form.lead.value %}
+                                            <option value="{{ form.lead.value }}" selected>Lead ID: {{ form.lead.value }}</option>
+                                        {% endif %}
+                                    </select>
                                     <small class="form-text text-muted">
                                         Opcional. Puedes dejarlo vacío.
                                     </small>
                                 </div>
 
                                 <div class="col-md-3 mb-3">
-                                    <label class="form-label required-field">Moneda</label>
+                                    <label class="form-label required-field" for="{{ form.currency.id_for_label }}">Moneda</label>
                                     {{ form.currency }}
                                 </div>
 
                                 <div class="col-md-3 mb-3">
-                                    <label class="form-label required-field">Forma de pago</label>
+                                    <label class="form-label required-field" for="{{ form.payment_method.id_for_label }}">Forma de pago</label>
                                     {{ form.payment_method }}
                                 </div>
                             </div>
 
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    <label class="form-label required-field">Monto propuesto</label>
+                                    <label class="form-label required-field" for="{{ form.amount.id_for_label }}">Monto propuesto</label>
                                     {{ form.amount }}
                                 </div>
                             </div>
 
                             <div class="row">
                                 <div class="col-12 mb-3">
-                                    <label class="form-label">Mensaje</label>
+                                    <label class="form-label" for="{{ form.message.id_for_label }}">Mensaje</label>
                                     {{ form.message }}
                                 </div>
                             </div>
@@ -125,8 +171,8 @@
                             <a href="{% url 'properties:proposals_list' %}" class="btn btn-outline-secondary">
                                 Cancelar
                             </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Guardar propuesta
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-save me-2"></i><span id="btnText">Guardar propuesta</span>
                             </button>
                         </div>
                     </form>
@@ -135,4 +181,71 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleContactBtn = document.getElementById('toggleContactBtn');
+    const contactSection = document.getElementById('contactSection');
+
+    if (toggleContactBtn && contactSection) {
+        toggleContactBtn.addEventListener('click', function() {
+            const isHidden = contactSection.style.display === 'none';
+            contactSection.style.display = isHidden ? 'block' : 'none';
+            toggleContactBtn.textContent = isHidden ? 'Omitir' : 'Agregar';
+        });
+    }
+
+    const proposalForm = document.getElementById('proposalForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+
+    if (proposalForm && submitBtn) {
+        proposalForm.addEventListener('submit', function() {
+            submitBtn.disabled = true;
+            if (btnText) {
+                btnText.textContent = ' Guardando...';
+            }
+            const spinner = document.createElement('span');
+            spinner.className = 'spinner-border spinner-border-sm me-2';
+            spinner.setAttribute('role', 'status');
+            spinner.setAttribute('aria-hidden', 'true');
+            submitBtn.prepend(spinner);
+        });
+    }
+
+    $('#{{ form.lead.id_for_label }}').select2({
+        theme: "bootstrap-5",
+        placeholder: 'Busca por nombre o teléfono del lead',
+        ajax: {
+            url: "{% url 'properties:api_leads_search' %}",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    term: params.term,
+                    page: params.page || 1
+                };
+            },
+            processResults: function (data, params) {
+                params.page = params.page || 1;
+                return {
+                    results: data.results,
+                    pagination: {
+                        more: data.pagination.more
+                    }
+                };
+            },
+            cache: true
+        },
+        language: {
+            noResults: function () { return "No se encontraron leads"; },
+            searching: function() { return "Buscando..."; }
+        }
+    });
+});
+</script>
 {% endblock %}
