@@ -975,10 +975,41 @@ class PropertyChoiceField(forms.ModelChoiceField):
         return " - ".join(part for part in parts if part)
 
 class ProposalCreateForm(forms.ModelForm):
-    property = PropertyChoiceField(
-    queryset=Property.objects.filter(is_active=True).select_related("currency").order_by("code"),
-    widget=forms.Select(attrs={"class": "form-select"}),
+    CONTACT_BLOCK_RE = r"--- CONTACTO ---.*?--- FIN CONTACTO ---\s*"
+
+    interesado = forms.CharField(
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Nombre del contacto (opcional)",
+        }),
+        label="Nombre",
     )
+
+    contact_phone = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ej: 999 999 999",
+        }),
+        label="Teléfono",
+    )
+
+    contact_email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ej: correo@dominio.com",
+        }),
+        label="Email",
+    )
+
+    property = PropertyChoiceField(
+        queryset=Property.objects.filter(is_active=True).select_related("currency").order_by("code"),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
     class Meta:
         model = Proposal
         fields = [
@@ -1030,6 +1061,18 @@ class ProposalCreateForm(forms.ModelForm):
         self.fields["amount"].label = "Monto propuesto"
         self.fields["message"].label = "Mensaje"
 
+        if self.instance and self.instance.pk:
+            message = self.instance.message or ""
+            m = re.search(
+                r"--- CONTACTO ---\s*Nombre:\s*(.*?)\s*Teléfono:\s*(.*?)\s*Email:\s*(.*?)\s*--- FIN CONTACTO ---",
+                message,
+                re.S,
+            )
+            if m:
+                self.initial["interesado"] = (m.group(1) or "").strip()
+                self.initial["contact_phone"] = (m.group(2) or "").strip()
+                self.initial["contact_email"] = (m.group(3) or "").strip()
+
     def clean(self):
         cleaned_data = super().clean()
         property_obj = cleaned_data.get("property")
@@ -1042,3 +1085,39 @@ class ProposalCreateForm(forms.ModelForm):
             )
 
         return cleaned_data
+
+    def _build_contact_block(self, name, phone, email):
+        name = (name or "").strip()
+        phone = (phone or "").strip()
+        email = (email or "").strip()
+
+        if not (name or phone or email):
+            return ""
+
+        return (
+            "--- CONTACTO ---\n"
+            f"Nombre: {name}\n"
+            f"Teléfono: {phone}\n"
+            f"Email: {email}\n"
+            "--- FIN CONTACTO ---\n\n"
+        )
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+
+        message_actual = obj.message or ""
+        message_sin_bloque = re.sub(self.CONTACT_BLOCK_RE, "", message_actual, flags=re.S).lstrip()
+
+        name = self.cleaned_data.get("interesado", "")
+        phone = self.cleaned_data.get("contact_phone", "")
+        email = self.cleaned_data.get("contact_email", "")
+
+        contact_block = self._build_contact_block(name, phone, email)
+
+        obj.message = (contact_block + message_sin_bloque).strip() if (contact_block or message_sin_bloque) else ""
+
+        if commit:
+            obj.save()
+            self.save_m2m()
+
+        return obj
