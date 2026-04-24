@@ -977,6 +977,16 @@ class PropertyChoiceField(forms.ModelChoiceField):
 class ProposalCreateForm(forms.ModelForm):
     CONTACT_BLOCK_RE = r"--- CONTACTO ---.*?--- FIN CONTACTO ---\s*"
 
+    assigned_agent = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Agente solicitante",
+    )
+    existing_contact = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
     interesado = forms.CharField(
         max_length=200,
         required=False,
@@ -986,7 +996,7 @@ class ProposalCreateForm(forms.ModelForm):
         }),
         label="Nombre",
     )
-
+    
     contact_phone = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
@@ -1040,7 +1050,16 @@ class ProposalCreateForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.can_assign_agent = kwargs.pop("can_assign_agent", False)
         super().__init__(*args, **kwargs)
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        if self.can_assign_agent:
+            self.fields["assigned_agent"].queryset = User.objects.filter(is_active=True).order_by("first_name", "last_name")
+        else:
+            self.fields.pop("assigned_agent", None)
 
         self.fields["lead"].queryset = Lead.objects.filter(is_active=True).order_by("username")
         self.fields["requirement_match"].queryset = RequirementMatch.objects.select_related(

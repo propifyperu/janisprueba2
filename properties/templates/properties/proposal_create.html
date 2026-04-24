@@ -95,6 +95,22 @@
                                 </div>
                             </div>
 
+                            {% if can_assign_agent and form.assigned_agent %}
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label" for="{{ form.assigned_agent.id_for_label }}">Agente solicitante</label>
+                                    <select class="form-select" id="{{ form.assigned_agent.id_for_label }}" name="{{ form.assigned_agent.html_name }}">
+                                        <option></option>
+                                        {% if form.assigned_agent.value %}
+                                            <option value="{{ form.assigned_agent.value }}" selected>Usuario ID: {{ form.assigned_agent.value }}</option>
+                                        {% endif %}
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        Opcional. Si no seleccionas uno, la propuesta quedará asignada a ti.
+                                    </small>
+                                </div>
+                            </div>
+                            {% endif %}
                             <!-- CONTACTO OPCIONAL -->
                             <div class="mb-4">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -111,6 +127,17 @@
 
                                 <div id="contactSection">
                                     <div class="row g-3">
+                                        <div class="row g-3 mb-2">
+                                            <div class="col-md-12">
+                                                <label class="form-label">Buscar contacto existente</label>
+                                                <select class="form-select" id="contact_search">
+                                                    <option></option>
+                                                </select>
+                                                <small class="text-muted">
+                                                    Busca un contacto existente o escribe uno nuevo manualmente abajo.
+                                                </small>
+                                            </div>
+                                        </div>
                                         <div class="col-md-6">
                                             <label class="form-label" for="{{ form.interesado.id_for_label }}">Nombre</label>
                                             {{ form.interesado }}
@@ -246,6 +273,82 @@ document.addEventListener('DOMContentLoaded', function() {
             searching: function() { return "Buscando..."; }
         }
     });
-});
+    $('#contact_search').select2({
+        theme: "bootstrap-5",
+        placeholder: 'Busca contacto por nombre, teléfono o email',
+        tags: true,
+        ajax: {
+            url: "{% url 'properties:api_contacts_search' %}",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    term: params.term,
+                    page: params.page || 1
+                };
+            },
+            processResults: function (data, params) {
+                params.page = params.page || 1;
+                return {
+                    results: data.results,
+                    pagination: {
+                        more: data.pagination.more
+                    }
+                };
+            },
+            cache: true
+        },
+        language: {
+            noResults: function () { return "No se encontraron contactos"; },
+            searching: function() { return "Buscando..."; }
+        }
+    });
+
+    $('#contact_search').on('select2:select', function (e) {
+        const data = e.params.data;
+
+        if (data.id && String(data.id).startsWith('new:')) {
+            $('#{{ form.interesado.id_for_label }}').val(data.text || '');
+            return;
+        }
+
+        $('#{{ form.interesado.id_for_label }}').val(data.name || data.text || '');
+        $('#{{ form.contact_phone.id_for_label }}').val(data.phone || '');
+        $('#{{ form.contact_email.id_for_label }}').val(data.email || '');
+    });
+    });
+
+    {% if can_assign_agent and form.assigned_agent %}
+    $('#{{ form.assigned_agent.id_for_label }}').select2({
+        theme: "bootstrap-5",
+        placeholder: 'Busca agente por nombre, usuario o email',
+        ajax: {
+            url: "{% url 'properties:api_users_search' %}",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    term: params.term,
+                    page: params.page || 1
+                };
+            },
+            processResults: function (data, params) {
+                params.page = params.page || 1;
+                return {
+                    results: data.results,
+                    pagination: {
+                        more: data.pagination.more
+                    }
+                };
+            },
+            cache: true
+        },
+        language: {
+            noResults: function () { return "No se encontraron agentes"; },
+            searching: function() { return "Buscando..."; }
+        }
+    });
+    {% endif %}
+    
 </script>
 {% endblock %}

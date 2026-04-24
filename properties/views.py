@@ -4186,17 +4186,32 @@ def proposals_list(request):
     }
     return render(request, "properties/proposals_list.html", context)
 
+def can_assign_proposal_agent(user):
+    area_name = getattr(getattr(user, "role", None), "area", None)
+    area_name = getattr(area_name, "name", "")
+
+    return area_name in [
+        "Tecnologias de la Informacion",
+        "Gerencia",
+    ]
 
 @login_required
 def proposals_create_view(request):
     from .models import Event
 
+    can_assign_agent = can_assign_proposal_agent(request.user)
+
     if request.method == "POST":
-        form = ProposalCreateForm(request.POST)
+        form = ProposalCreateForm(request.POST, can_assign_agent=can_assign_agent)
 
         if form.is_valid():
             proposal = form.save(commit=False)
-            proposal.requested_by_user = request.user
+
+            if can_assign_agent and form.cleaned_data.get("assigned_agent"):
+                proposal.requested_by_user = form.cleaned_data["assigned_agent"]
+            else:
+                proposal.requested_by_user = request.user
+
             proposal.save()
             form.save_m2m()
 
@@ -4217,13 +4232,12 @@ def proposals_create_view(request):
                 if event.lead_id:
                     initial["lead"] = event.lead_id
 
-        form = ProposalCreateForm(initial=initial)
+        form = ProposalCreateForm(initial=initial, can_assign_agent=can_assign_agent)
 
-    context = {
+    return render(request, "properties/proposal_create.html", {
         "form": form,
-    }
-    return render(request, "properties/proposal_create.html", context)
-
+        "can_assign_agent": can_assign_agent,
+    })
 
 @login_required
 def proposal_accept_view(request, proposal_id):
@@ -4329,6 +4343,95 @@ def proposal_reject_view(request, proposal_id):
         return redirect("properties:proposals_list")
 
     return redirect("properties:proposals_list")
+
+
+@login_required
+def api_contacts_search(request):
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+    from django.http import JsonResponse
+    from .models import PropertyOwner
+
+    term = request.GET.get("term", "").strip()
+    page = int(request.GET.get("page", 1))
+
+    qs = PropertyOwner.objects.filter(is_active=True)
+
+    if term:
+        qs = qs.filter(
+            Q(first_name__icontains=term) |
+            Q(last_name__icontains=term) |
+            Q(maternal_last_name__icontains=term) |
+            Q(phone__icontains=term) |
+            Q(email__icontains=term) |
+            Q(document_number__icontains=term)
+        )
+
+    qs = qs.order_by("first_name", "last_name")
+
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(page)
+
+    results = []
+    for c in page_obj.object_list:
+        full_name = c.full_name
+        phone = c.display_phone
+        email = str(c.email) if c.email else ""
+
+        results.append({
+            "id": c.id,
+            "text": f"{full_name} - {phone or email}",
+            "name": full_name,
+            "phone": phone,
+            "email": email,
+        })
+
+    return JsonResponse({
+        "results": results,
+        "pagination": {
+            "more": page_obj.has_next()
+        }
+    })
+
+@login_required
+def api_users_search(request):
+    from django.contrib.auth import get_user_model
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+    from django.http import JsonResponse
+
+    User = get_user_model()
+
+    term = request.GET.get("term", "").strip()
+    page = int(request.GET.get("page", 1))
+
+    qs = User.objects.filter(is_active=True)
+
+    if term:
+        qs = qs.filter(
+            Q(first_name__icontains=term) |
+            Q(last_name__icontains=term) |
+            Q(username__icontains=term) |
+            Q(email__icontains=term)
+        )
+
+    qs = qs.order_by("first_name", "last_name", "username")
+
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(page)
+
+    results = []
+    for user in page_obj.object_list:
+        full_name = user.get_full_name() or user.username
+        results.append({
+            "id": user.id,
+            "text": f"{full_name} - {user.email or user.username}",
+        })
+
+    return JsonResponse({
+        "results": results,
+        "pagination": {"more": page_obj.has_next()},
+    })
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
