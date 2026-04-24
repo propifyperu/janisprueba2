@@ -71,7 +71,8 @@ urlpatterns = [
     path('api/video-types/', views.api_video_types, name='api_video_types'),
     #ACM
     path('acm/', views.acm_detail, name='acm_detail'),
-    
+    path("api/contacts/search/", views.api_contacts_search, name="api_contacts_search"),
+    path("api/users/search/", views.api_users_search, name="api_users_search"),
     # WhatsApp
     path('whatsapp/enlaces/<int:property_id>/', views.whatsapp_links_list, name='whatsapp_links'),
     path('whatsapp/enlaces/<int:property_id>/crear/', views.whatsapp_link_create, name='whatsapp_link_create'),
