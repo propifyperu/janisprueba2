@@ -13,6 +13,7 @@ from django.http import Http404, HttpResponseRedirect, HttpResponse, HttpRespons
 from .models import Requirement, RequirementMatch, Proposal
 from django.contrib.auth.decorators import login_required
 import uuid
+from decimal import Decimal, InvalidOperation
 from django.urls import reverse
 from django.template.loader import get_template
 from django.db.models import Count, Max
@@ -29,7 +30,9 @@ from django.db.models import Q
 from rest_framework import status
 from properties.engine_matching.engine import get_matches
 from .forms import PropertyOwnerForm, RequirementCreateForm, RequirementUpdateForm, ProposalCreateForm
-
+from .ai_services import extraer_datos_requerimiento
+from .models import OperationType, PropertyType, District # Asegúrate de importar tus modelos reales
+from django.views.decorators.csrf import csrf_exempt
 
 def link_callback(uri, rel):
     """
@@ -1584,6 +1587,9 @@ def event_create_view(request):
         if 'created_by' in form.fields:
             form.fields['created_by'].required = False
 
+        if 'status' in form.fields:
+                form.fields['status'].required = False
+
         if form.is_valid():
             event = form.save(commit=False)
             event.created_by = request.user
@@ -1635,6 +1641,9 @@ def event_edit_view(request, pk):
         form = EventForm(request.POST, instance=event)
         if 'created_by' in form.fields:
             form.fields['created_by'].required = False
+        
+        if 'status' in form.fields:
+            form.fields['status'].required = False
             
         if form.is_valid():
             obj = form.save(commit=False)
@@ -1642,6 +1651,10 @@ def event_edit_view(request, pk):
             # ✅ nunca permitas que se vuelva NULL
             if not obj.created_by_id:
                 obj.created_by = event.created_by
+
+            # Si no se envía un estado válido, mantener el que ya tenía guardado
+            if not obj.status:
+                obj.status = event.status
             
             # Si se borró el agente asignado por error, restaurar o asignar al editor
             if not obj.assigned_agent_id:
@@ -1652,6 +1665,8 @@ def event_edit_view(request, pk):
             return redirect('properties:agenda_calendar')
     else:
         form = EventForm(instance=event)
+        if 'status' in form.fields:
+            form.fields['status'].required = False
     
     return render(request, 'properties/event_edit.html', {'form': form, 'event': event})
 
@@ -1681,6 +1696,96 @@ def event_delete_view(request, pk):
 
 @login_required
 @require_POST
+def event_accept_view(request, event_id):
+    from .models import Event
+    from django.http import JsonResponse
+    event = get_object_or_404(Event, pk=event_id)
+    
+    allowed = request.user.is_superuser
+    if event.property and not allowed:
+        allowed = (request.user == getattr(event.property, 'assigned_agent', None)) or (request.user == getattr(event.property, 'responsible', None))
+    elif not event.property and not allowed:
+        allowed = (request.user == event.assigned_agent)
+        
+    if not allowed:
+        return JsonResponse({"error": "No tienes permiso para aceptar este evento."}, status=403)
+        
+    event.status = Event.STATUS_ACCEPTED
+    event.save(update_fields=['status', 'updated_at'])
+    return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' aceptado.", "status": event.status, "status_display": event.get_status_display()})
+
+@login_required
+@require_POST
+def event_reject_view(request, event_id):
+    from .models import Event
+    from django.http import JsonResponse
+    event = get_object_or_404(Event, pk=event_id)
+    
+    allowed = request.user.is_superuser
+    if event.property and not allowed:
+        allowed = (request.user == getattr(event.property, 'assigned_agent', None)) or (request.user == getattr(event.property, 'responsible', None))
+    elif not event.property and not allowed:
+        allowed = (request.user == event.assigned_agent)
+        
+    if not allowed:
+        return JsonResponse({"error": "No tienes permiso para rechazar este evento."}, status=403)
+        
+    rejection_reason = (request.POST.get("rejection_reason") or "").strip()
+    
+    event.status = Event.STATUS_REJECTED
+    event.rejection_reason = rejection_reason
+    event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+    return JsonResponse({"ok": True, "message": f"Evento '{event.titulo}' rechazado.", "status": event.status, "status_display": event.get_status_display()})
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def event_respond_by_code_view(request, event_code, action, rejection_reason=None):
+    """
+    Endpoint para aceptar o rechazar un evento usando su código único.
+    Acción se pasa por parámetro en la URL: 'accept' o 'reject'.
+    El motivo de rechazo puede venir anexado al final del enlace en la URL.
+    """
+    from .models import Event
+    from django.shortcuts import get_object_or_404
+    from urllib.parse import unquote
+
+    event = get_object_or_404(Event, code=event_code)
+
+    allowed = request.user.is_superuser
+    if event.property and not allowed:
+        allowed = (request.user == getattr(event.property, 'assigned_agent', None)) or (request.user == getattr(event.property, 'responsible', None))
+    elif not event.property and not allowed:
+        allowed = (request.user == event.assigned_agent)
+
+    if not allowed:
+        return Response({"error": "No tienes permiso para responder a este evento."}, status=status.HTTP_403_FORBIDDEN)
+
+    if action == 'accept':
+        event.status = Event.STATUS_ACCEPTED
+        message = f"Evento '{event.titulo}' aceptado."
+        event.save(update_fields=['status', 'updated_at'])
+    elif action == 'reject':
+        event.status = Event.STATUS_REJECTED
+        
+        reason = rejection_reason or request.GET.get('rejection_reason') or request.data.get('rejection_reason', '')
+        if reason:
+            event.rejection_reason = unquote(str(reason)).strip()
+            
+        message = f"Evento '{event.titulo}' rechazado."
+        event.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+    else:
+        return Response({"error": "Acción no válida. Use 'accept' o 'reject' en la URL."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+    return Response({
+        "ok": True,
+        "message": message,
+        "status": event.status,
+        "status_display": event.get_status_display()
+    })
+
+@login_required
+@require_POST
 def event_save_followup(request, event_id):
     from .models import Event
     event = get_object_or_404(Event, pk=event_id)
@@ -1697,6 +1802,7 @@ def api_events_json(request):
     """API para obtener eventos en formato JSON para el calendario"""
     from .models import Event
     from django.http import JsonResponse
+    from django.db.models import Q
     
     is_call_center = request.user.role and request.user.role.name == 'Call Center'
     can_see_all = request.user.is_superuser or is_call_center
@@ -1715,9 +1821,9 @@ def api_events_json(request):
             ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent')
     else:
         events = Event.objects.filter(
-            is_active=True,
-            assigned_agent=request.user
-        ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent')
+            Q(assigned_agent=request.user) | Q(property__responsible=request.user) | Q(property__assigned_agent=request.user),
+            is_active=True
+        ).select_related('event_type', 'property', 'created_by', 'assigned_agent', 'property__assigned_agent').distinct()
 
     events_data = []
     for event in events:
@@ -1751,6 +1857,10 @@ def api_events_json(request):
                 'property_agent': event.property.assigned_agent.get_full_name() if event.property and event.property.assigned_agent else '',
                 'assigned_agent': event.assigned_agent.get_full_name() if event.assigned_agent else '',
                 'assigned_agent_id': event.assigned_agent_id if event.assigned_agent else None,
+                'status_code': event.status,
+            'status': event.status,
+            'status_display': event.get_status_display(),
+                "rejection_reason": event.rejection_reason or "",
                 "seguimiento": event.seguimiento or "",
             }
         })
@@ -4234,6 +4344,7 @@ def proposal_reject_view(request, proposal_id):
 
     return redirect("properties:proposals_list")
 
+
 @login_required
 def api_contacts_search(request):
     from django.core.paginator import Paginator
@@ -4321,3 +4432,148 @@ def api_users_search(request):
         "results": results,
         "pagination": {"more": page_obj.has_next()},
     })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_hello_message_view(request):
+    import requests
+    import os
+    
+    phone_number = request.data.get('phone_number')
+    if not phone_number:
+        return Response({"ok": False, "error": "El parámetro phone_number es requerido."}, status=status.HTTP_400_BAD_REQUEST)
+
+    phone_str = str(phone_number).strip()
+    if not phone_str.startswith('+'):
+        if phone_str.startswith('51') and len(phone_str) == 11:
+            phone_str = '+' + phone_str
+        else:
+            phone_str = '+51' + phone_str
+
+    user_token = os.getenv('CHATWOOT_USER_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
+    bot_token = os.getenv('CHATWOOT_BOT_TOKEN', '6CFQrb6P4f7hfbZ6ieFsPzkr')
+    
+    if not user_token or not bot_token:
+        return Response({"ok": False, "error": "Faltan configurar CHATWOOT_USER_TOKEN o CHATWOOT_BOT_TOKEN en el .env"}, status=status.HTTP_400_BAD_REQUEST)
+
+    user_headers = {
+        "Content-Type": "application/json",
+        "api_access_token": user_token 
+    }
+    
+    bot_headers = {
+        "Content-Type": "application/json",
+        "api_access_token": bot_token 
+    }
+    
+    base_url = "https://n8n-propify-chatwoot.qqaetr.easypanel.host/api/v1/accounts/2"
+    
+    try:
+        # 1 buscar contacto
+        search_url = f"{base_url}/contacts/search"
+        search_response = requests.get(search_url, params={'q': phone_str}, headers=user_headers)
+        if search_response.status_code not in (200, 201):
+            return Response({"ok": False, "error": f"Error buscando contacto: {search_response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        search_payload = search_response.json().get('payload', [])
+        if not search_payload:
+            return Response({"ok": False, "error": "No se encontró el contacto con ese número de teléfono."}, status=status.HTTP_404_NOT_FOUND)
+            
+        contact_id = search_payload[0].get('id')
+        
+        # 2 buscar conversación
+        conv_url = f"{base_url}/contacts/{contact_id}/conversations"
+        conv_response = requests.get(conv_url, headers=user_headers)
+        if conv_response.status_code not in (200, 201):
+            return Response({"ok": False, "error": f"Error buscando conversaciones: {conv_response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        conv_payload = conv_response.json().get('payload', [])
+        if not conv_payload:
+            return Response({"ok": False, "error": "El contacto no tiene conversaciones activas."}, status=status.HTTP_404_NOT_FOUND)
+            
+        conversation_id = conv_payload[0].get('id')
+        
+        # 3 enviar mensaje
+        msg_url = f"{base_url}/conversations/{conversation_id}/messages"
+        payload = {
+            "content": "Tienes un evento asignado",
+            "message_type": "outgoing",
+            "content_type": "text",
+            "private": False,
+            "template_params": {
+                "name": "evento_creado_2",
+                "category": "MARKETING",
+                "language": "es_PE"
+            }
+        }
+        
+        response = requests.post(msg_url, json=payload, headers=bot_headers)
+        if response.status_code in (200, 201):
+            return Response({"ok": True, "message": "Mensaje enviado exitosamente."})
+        else:
+            return Response({"ok": False, "error": f"Error {response.status_code}: {response.text}"}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+def api_extract_requirement_ai(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            texto = data.get("texto", "")
+            
+            if not texto:
+                return JsonResponse({"error": "Texto vacío"}, status=400)
+
+            extracted = extraer_datos_requerimiento(texto)
+            if not extracted:
+                return JsonResponse({"error": "Error al procesar con IA"}, status=500)
+
+            response_data = {
+                "price_min": extracted.get("presupuesto_min"),
+                "price_max": extracted.get("presupuesto_max"),
+                "land_area_min": extracted.get("area_terreno_min"),
+                "land_area_max": extracted.get("area_terreno_max"),
+                "built_area_min": extracted.get("area_construida_min"),
+                "built_area_max": extracted.get("area_construida_max"),
+                "bedrooms_min": extracted.get("habitaciones_min"),
+                "bedrooms_max": extracted.get("habitaciones_max"),
+                "bathrooms_min": extracted.get("banos_min"),
+                "bathrooms_max": extracted.get("banos_max"),
+                "garage_spaces_min": extracted.get("cocheras_min"),
+                "garage_spaces_max": extracted.get("cocheras_max"),
+                "antiquity_years_min": extracted.get("antiguedad_min"),
+                "antiquity_years_max": extracted.get("antiguedad_max"),
+                "floors_min": extracted.get("pisos_min"),
+                "floors_max": extracted.get("pisos_max"),
+                "has_elevator": extracted.get("tiene_ascensor"),
+                "pet_friendly": extracted.get("acepta_mascotas"),
+                "notes": extracted.get("observaciones", ""),
+                "operation_type_id": "",
+                "property_type_id": "",
+                "district_ids": []
+            }
+
+            # Mapear Operación a ID
+            if extracted.get("operacion"):
+                op = OperationType.objects.filter(name__icontains=extracted["operacion"]).first()
+                if op: response_data["operation_type_id"] = op.id
+
+            # Mapear Tipo a ID
+            if extracted.get("tipo_inmueble"):
+                pt = PropertyType.objects.filter(name__icontains=extracted["tipo_inmueble"]).first()
+                if pt: response_data["property_type_id"] = pt.id
+
+            # Mapear Distritos a IDs
+            if extracted.get("distritos"):
+                for d_name in extracted["distritos"]:
+                    dist = District.objects.filter(name__icontains=d_name).first()
+                    if dist:
+                        response_data["district_ids"].append(dist.id)
+
+            return JsonResponse({"success": True, "data": response_data})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "Método no permitido"}, status=405)

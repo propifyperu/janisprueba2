@@ -792,11 +792,12 @@ class EventForm(forms.ModelForm):
     class Meta:
         from .models import Event
         model = Event
-        fields = ['event_type', 'titulo', 'fecha_evento', 'hora_inicio', 'hora_fin', 
-                  'interesado', 'lead', 'assigned_agent','detalle', 'property', 'created_by']
+        fields = ['event_type', 'titulo', 'status', 'rejection_reason', 'fecha_evento', 'hora_inicio', 'hora_fin', 
+                  'interesado', 'lead', 'assigned_agent', 'detalle', 'property', 'created_by']
         widgets = {
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
             'fecha_evento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
             'hora_inicio': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'hora_fin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
@@ -806,10 +807,13 @@ class EventForm(forms.ModelForm):
             'created_by': forms.Select(attrs={'class': 'form-select'}),
             'assigned_agent': forms.Select(attrs={'class': 'form-select'}),
             'interesado': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del contacto (opcional)'}),
+            'rejection_reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
         }
         labels = {
             'event_type': 'Tipo de evento',
             'titulo': 'Título',
+            'status': 'Estado',
+            'rejection_reason': 'Motivo de rechazo',
             'fecha_evento': 'Fecha del evento',
             'hora_inicio': 'Hora de inicio',
             'hora_fin': 'Hora de término',
@@ -851,6 +855,18 @@ class EventForm(forms.ModelForm):
             self.fields['created_by'].widget = forms.HiddenInput()
             if self.instance.created_by_id:
                 self.initial['created_by'] = self.instance.created_by_id
+            
+            if self.instance.status == 'PENDING':
+                self.fields['status'].choices = [
+                    ('', '--- Selecciona ---'),
+                    ('ACCEPTED', 'Aceptado'),
+                    ('REJECTED', 'Rechazado'),
+                ]
+            else:
+                self.fields['status'].choices = [
+                    ('ACCEPTED', 'Aceptado'),
+                    ('REJECTED', 'Rechazado'),
+                ]
 
             # ✅ Pre-cargar phone/email desde el bloque dentro de detalle
             detalle = self.instance.detalle or ""
@@ -860,6 +876,10 @@ class EventForm(forms.ModelForm):
                 self.initial['interesado'] = (m.group(1) or "").strip()
                 self.initial['contact_phone'] = (m.group(2) or "").strip()
                 self.initial['contact_email'] = (m.group(3) or "").strip()
+        else:
+            # En creación, no pedimos el estado; por defecto el modelo pondrá PENDING
+            if 'status' in self.fields:
+                self.fields.pop('status')
 
     def clean(self):
         cleaned_data = super().clean()

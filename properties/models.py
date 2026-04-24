@@ -1811,6 +1811,17 @@ class Event(TitleCaseMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+
+    STATUS_PENDING = 'PENDING'
+    STATUS_ACCEPTED = 'ACCEPTED'
+    STATUS_REJECTED = 'REJECTED'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_ACCEPTED, 'Aceptado'),
+        (STATUS_REJECTED, 'Rechazado'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, verbose_name='Estado de confirmación')
+    rejection_reason = models.TextField(blank=True, verbose_name='Motivo de rechazo')
     
     class Meta:
         db_table = 'events'
