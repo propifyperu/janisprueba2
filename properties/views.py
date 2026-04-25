@@ -4197,6 +4197,7 @@ def can_assign_proposal_agent(user):
 
 @login_required
 def proposals_create_view(request):
+    import re
     from .models import Event
 
     can_assign_agent = can_assign_proposal_agent(request.user)
@@ -4222,7 +4223,13 @@ def proposals_create_view(request):
 
         event_id = request.GET.get("event")
         if event_id:
-            event = Event.objects.filter(id=event_id).select_related("property", "lead").first()
+            event = (
+                Event.objects
+                .filter(id=event_id)
+                .select_related("property", "lead", "contact")
+                .first()
+            )
+
             if event:
                 if event.property_id:
                     initial["property"] = event.property_id
@@ -4231,6 +4238,28 @@ def proposals_create_view(request):
 
                 if event.lead_id:
                     initial["lead"] = event.lead_id
+
+                # 1) Si tiene contacto FK
+                if event.contact_id:
+                    initial["interesado"] = event.contact.full_name
+                    initial["contact_phone"] = event.contact.display_phone
+                    initial["contact_email"] = str(event.contact.email) if event.contact.email else ""
+
+                # 2) Si no tiene contacto FK, intentar leer bloque CONTACTO del detalle
+                else:
+                    detalle = event.detalle or ""
+                    m = re.search(
+                        r"--- CONTACTO ---\s*Nombre:\s*(.*?)\s*Teléfono:\s*(.*?)\s*Email:\s*(.*?)\s*--- FIN CONTACTO ---",
+                        detalle,
+                        re.S,
+                    )
+
+                    if m:
+                        initial["interesado"] = (m.group(1) or "").strip()
+                        initial["contact_phone"] = (m.group(2) or "").strip()
+                        initial["contact_email"] = (m.group(3) or "").strip()
+                    elif event.interesado:
+                        initial["interesado"] = event.interesado
 
         form = ProposalCreateForm(initial=initial, can_assign_agent=can_assign_agent)
 
@@ -4380,7 +4409,7 @@ def api_contacts_search(request):
 
         results.append({
             "id": c.id,
-            "text": f"{full_name} - {phone or email}",
+            "text": full_name,
             "name": full_name,
             "phone": phone,
             "email": email,
